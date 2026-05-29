@@ -16,10 +16,10 @@ self.addEventListener('install', (event: any) => {
 		const cache = await caches.open(CACHE_NAME);
 		await cache.addAll(ASSETS);
 	}
-	// Activate the new SW immediately rather than waiting for every tab/PWA
-	// window to close. Without this, a deployed fix never reaches the operator's
-	// installed PWA until they fully kill the app — fixes appear to "not take".
-	(self as any).skipWaiting();
+	// Do not skipWaiting automatically. Immediate activation can delete the
+	// currently-open PWA's old hashed assets while the page is still running,
+	// which turns a normal app update into missing JS/CSS requests on iOS.
+	// The client shows an update banner and sends SKIP_WAITING after a tap.
 	event.waitUntil(preCache());
 });
 
@@ -35,6 +35,12 @@ self.addEventListener('activate', (event: any) => {
 	// Claim immediate control to enable offline shell booting on first visit
 	self.clients.claim();
 	event.waitUntil(deleteOldCaches());
+});
+
+self.addEventListener('message', (event: any) => {
+	if (event.data?.type === 'SKIP_WAITING') {
+		(self as any).skipWaiting();
+	}
 });
 
 // Push notification handler (PR 6 — iOS 2026 hardenings).

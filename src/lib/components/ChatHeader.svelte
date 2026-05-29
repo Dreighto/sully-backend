@@ -118,7 +118,7 @@
 			{#if openChip === 'repo'}
 				<div
 					data-popover
-					class="absolute top-full right-0 z-50 mt-2 w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
+					class="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-2 left-2 z-50 mt-2 rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl min-[430px]:absolute min-[430px]:top-full min-[430px]:right-0 min-[430px]:left-auto min-[430px]:w-64 min-[430px]:max-w-[calc(100vw-1rem)]"
 				>
 					<div
 						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"
@@ -184,7 +184,7 @@
 			{#if showModelOverrideModal}
 				<div
 					data-popover
-					class="absolute top-full right-0 z-50 mt-2 w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
+					class="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-2 left-2 z-50 mt-2 rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl min-[430px]:absolute min-[430px]:top-full min-[430px]:right-0 min-[430px]:left-auto min-[430px]:w-64 min-[430px]:max-w-[calc(100vw-1rem)]"
 				>
 					<div
 						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"

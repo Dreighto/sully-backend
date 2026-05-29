@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
 	import { onNavigate } from '$app/navigation';
+	import PwaUpdatePrompt from '$lib/components/PwaUpdatePrompt.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import '../app.css';
 
@@ -26,4 +27,5 @@
 <div class="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
 	{@render children()}
 	<ToastContainer />
+	<PwaUpdatePrompt />
 </div>
