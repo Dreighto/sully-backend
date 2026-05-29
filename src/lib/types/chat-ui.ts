@@ -40,6 +40,18 @@ export type Attachment = {
 export type ComposerMode = 'idle' | 'focused' | 'recording' | 'talkback';
 export type TalkbackPhase = 'capture' | 'transcribe' | 'dispatch' | 'speak' | 'loop';
 
+// Realtime Voice Mode (the immersive full-screen pipeline: local STT WS with
+// live partials -> streaming local reply -> per-sentence Chatterbox TTS ->
+// gapless playback + barge-in). Distinct from the legacy in-composer Talkback
+// loop (Web Speech API + cloud STT/TTS + polling) above.
+//   connecting — spinning up the on-demand speech services + opening the WS
+//   listening  — PTT held, mic streaming, partials updating live
+//   thinking   — utterance finalized, waiting on the model's first tokens
+//   speaking   — reply streaming + TTS playing (barge-in returns to listening)
+//   idle       — session open, ready for the next push-to-talk
+//   error      — unrecoverable session error (message in errorMsg)
+export type VoicePhase = 'connecting' | 'listening' | 'thinking' | 'speaking' | 'idle' | 'error';
+
 export type ProviderPref = 'anthropic' | 'gemini' | 'local' | null;
 
 // Concrete model-picker entry — translates to a (tier, provider) pair the

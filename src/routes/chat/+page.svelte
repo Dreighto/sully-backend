@@ -23,6 +23,7 @@
 	} from '$lib/types/chat-ui';
 	import { MODEL_CHOICES } from '$lib/chat/model-choices';
 	import { createVoiceController } from '$lib/chat/voice.svelte';
+	import { createRealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
 	import { replaceState } from '$app/navigation';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
@@ -34,6 +35,7 @@
 	import ThreadsSidebar from '$lib/components/ThreadsSidebar.svelte';
 	import ChatHeader from '$lib/components/ChatHeader.svelte';
 	import Composer from '$lib/components/Composer.svelte';
+	import VoiceMode from '$lib/components/VoiceMode.svelte';
 
 	let { data } = $props();
 
@@ -160,6 +162,15 @@
 		},
 		setCurrentTier: (t) => (currentTier = t),
 		setUserAtBottom: (v) => (userAtBottom = v),
+		pollMessages
+	});
+
+	// Realtime Voice Mode controller — the immersive local-GPU voice pipeline
+	// (live STT partials → streaming companion reply → Chatterbox TTS → barge-in).
+	// Distinct from the legacy in-composer `voice` Talkback loop above; entered
+	// from the Composer's Voice button and rendered as a full-screen overlay.
+	const rtVoice = createRealtimeVoiceController({
+		getActiveThread: () => activeThread,
 		pollMessages
 	});
 
@@ -1306,6 +1317,7 @@
 		if (draftDebounceTimer) clearTimeout(draftDebounceTimer);
 		if (activityFadeTimer) clearTimeout(activityFadeTimer);
 		void voice.destroy();
+		void rtVoice.destroy();
 	});
 
 	// Utilities
@@ -1329,6 +1341,9 @@
 
 <!-- Persistent audio element for ElevenLabs speech -->
 <audio bind:this={audioEl} class="hidden" aria-hidden="true"></audio>
+
+<!-- Realtime Voice Mode full-screen overlay (renders only when open) -->
+<VoiceMode voice={rtVoice} />
 <input
 	type="file"
 	accept="image/*"
@@ -1654,6 +1669,7 @@
 			ontoggleRecord={() => void voice.toggleRecord()}
 			ontoggleTalkback={() => void voice.toggleTalkback()}
 			onstopTalkback={() => void voice.stopTalkback()}
+			onvoiceMode={() => void rtVoice.enter()}
 			onpickSlash={(cmd) => void pickSlash(cmd)}
 			onremoveAttachment={removeAttachment}
 		/>

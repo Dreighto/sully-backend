@@ -27,7 +27,7 @@
 	import { base } from '$app/paths';
 	import type { SlashCmd } from '$lib/types/slash';
 	import type { Attachment, ComposerMode, TalkbackPhase } from '$lib/types/chat-ui';
-	import { Send, Mic, Paperclip, Sparkles, Headphones, Square, X, Loader2 } from 'lucide-svelte';
+	import { Send, Mic, Paperclip, Sparkles, Headphones, Square, X, Loader2, AudioLines } from 'lucide-svelte';
 
 	const TALKBACK_PHASE_LABELS: Record<TalkbackPhase, string> = {
 		capture: '🔴 Capture',
@@ -69,6 +69,7 @@
 		ontoggleRecord,
 		ontoggleTalkback,
 		onstopTalkback,
+		onvoiceMode,
 		onpickSlash,
 		onremoveAttachment
 	}: {
@@ -91,6 +92,7 @@
 		ontoggleRecord: () => void;
 		ontoggleTalkback: () => void;
 		onstopTalkback: () => void;
+		onvoiceMode: () => void;
 		onpickSlash: (cmd: SlashCmd) => void;
 		onremoveAttachment: (id: string) => void;
 	} = $props();
@@ -368,6 +370,18 @@
 						{:else}
 							<Headphones size={15} />
 						{/if}
+					</button>
+
+					<!-- Realtime Voice Mode (immersive full-screen) -->
+					<button
+						type="button"
+						onclick={onvoiceMode}
+						disabled={composerMode === 'recording' || composerMode === 'talkback'}
+						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-800/80 bg-zinc-900 text-zinc-400 transition-all hover:text-orange-400 active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9"
+						aria-label="Voice mode"
+						title="Voice mode"
+					>
+						<AudioLines size={15} />
 					</button>
 				</div>
 
