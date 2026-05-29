@@ -41,14 +41,15 @@
 {#if open}
 	<div
 		class="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+		style="padding-top: max(0.75rem, env(safe-area-inset-top, 0px));"
 		onclick={(e) => {
 			if (e.target === e.currentTarget) onclose();
 		}}
 		role="presentation"
 	>
 		<div
-			class="flex w-full max-w-[520px] flex-col gap-3 rounded-t-2xl border border-zinc-800 bg-[#0e0e0e] p-4 shadow-2xl sm:rounded-2xl"
-			style="padding-bottom: max(1rem, env(safe-area-inset-bottom));"
+			class="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[520px] flex-col gap-3 overflow-y-auto rounded-t-2xl border border-zinc-800 bg-[#0e0e0e] p-4 shadow-2xl sm:rounded-2xl"
+			style="max-height: calc(100dvh - max(1.5rem, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 1rem)); padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));"
 		>
 			<div class="flex items-center gap-2">
 				<Edit3 size={14} class="text-purple-400" aria-hidden="true" />

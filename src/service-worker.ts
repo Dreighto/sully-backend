@@ -3,6 +3,7 @@
 import { build, files, version } from '$service-worker';
 
 const CACHE_NAME = `cache-${version}`;
+const APP_START_URL = '/companion/chat';
 
 // Combine build artifacts (JS, CSS, static files) for comprehensive pre-caching
 const ASSETS = [
@@ -53,7 +54,7 @@ self.addEventListener('push', (event: any) => {
 				body: data.body || '',
 				icon: '/companion/favicon.png',
 				vibrate: [100, 50, 100],
-				data: { url: data.data?.url || data.url || '/companion' }
+				data: { url: data.data?.url || data.url || APP_START_URL }
 			});
 		})()
 	);
@@ -63,7 +64,7 @@ self.addEventListener('notificationclick', (event: any) => {
 	event.notification.close();
 	event.waitUntil(
 		(self as any).clients.openWindow(
-			event.notification.data?.url || '/companion'
+			event.notification.data?.url || APP_START_URL
 		)
 	);
 });
@@ -121,10 +122,10 @@ self.addEventListener('fetch', (event: any) => {
 					const cached = await caches.match(event.request);
 					if (cached) return cached;
 					const shell =
-						(await caches.match('/companion/chat')) || (await caches.match('/companion'));
+						(await caches.match(APP_START_URL)) || (await caches.match('/companion'));
 					if (shell) return shell;
 					return new Response(
-						'<!doctype html><meta charset="utf-8"><body style="background:#050505;color:#a1a1aa;font-family:system-ui;padding:2rem">Offline — reconnect to load LogueOS.</body>',
+						'<!doctype html><meta charset="utf-8"><body style="background:#050505;color:#a1a1aa;font-family:system-ui;padding:2rem">Offline — reconnect to load Companion.</body>',
 						{ status: 503, headers: { 'Content-Type': 'text/html' } }
 					);
 				})

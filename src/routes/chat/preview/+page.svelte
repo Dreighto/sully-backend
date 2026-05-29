@@ -12,7 +12,7 @@
 	//   - Slash commands                       (PR 3)
 	//   - Persistence to logueos_memory.db     (PR 2b)
 	//
-	// Lives at /console/chat/preview. The main /console/chat surface is
+	// Lives at /companion/chat/preview. The main /companion/chat surface is
 	// untouched. Operator can A/B by switching URLs on their phone.
 	// After validation, PR 2b copies this implementation back into /chat
 	// replacing the legacy custom-streaming code, and deletes the preview.
@@ -81,7 +81,7 @@
 </script>
 
 <svelte:head>
-	<title>Chat (SDK preview) · LogueOS</title>
+	<title>SDK Preview · Companion</title>
 </svelte:head>
 
 <div class="relative flex h-[100dvh] flex-col bg-background text-white">
@@ -218,7 +218,10 @@
 	</main>
 
 	<!-- Composer -->
-	<div class="relative z-10 shrink-0 px-3 pb-3 pt-2" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
+	<div
+		class="relative z-10 shrink-0 px-3 pb-3 pt-2"
+		style="padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));"
+	>
 		<form
 			onsubmit={handleSubmit}
 			class="flex flex-col gap-2 rounded-3xl border border-zinc-800/80 bg-zinc-950/80 p-2.5 shadow-lg backdrop-blur-xl"
