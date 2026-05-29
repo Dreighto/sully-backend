@@ -1415,10 +1415,10 @@
 						⚡ {activityPill.worker}: {activityPill.step}
 					</span>
 					<a
-						href={resolve('/activity')}
+						href={resolve('/api/chat/activity')}
 						class="ml-1.5 font-mono text-[10px] text-cyan-300/60 transition-colors hover:text-cyan-300"
 					>
-						[View Logs]
+						[View JSON]
 					</a>
 				</div>
 			</div>

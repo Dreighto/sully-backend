@@ -3,7 +3,7 @@
 	"name": "LogueOS Companion",
 	"short_name": "Companion",
 	"description": "Your private local-model AI companion. Talk, type, and work with the on-device model.",
-	"start_url": "/companion/",
+	"start_url": "/companion/chat",
 	"scope": "/companion/",
 	"display": "standalone",
 	"orientation": "portrait",

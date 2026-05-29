@@ -69,6 +69,7 @@
 
 <header
 	class="relative z-50 flex shrink-0 items-center justify-between px-4 pt-3 pb-2 select-none"
+	style="padding-top: max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));"
 >
 	<div class="flex items-center gap-1.5">
 		<!-- Sidebar toggle button -->

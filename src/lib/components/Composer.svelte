@@ -132,7 +132,10 @@
 <!-- ═════════════════════════════════════════════════════════════════
      HERO COMPOSER PILL
      ═════════════════════════════════════════════════════════════════ -->
-<div class="relative z-10 shrink-0 px-4 pt-2 pb-4 select-none">
+<div
+	class="relative z-10 shrink-0 px-4 pt-2 pb-4 select-none"
+	style="padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));"
+>
 	<!-- Outer border shifting glow container -->
 	<div
 		class="relative flex flex-col gap-2 rounded-3xl border p-2 transition-all duration-300
