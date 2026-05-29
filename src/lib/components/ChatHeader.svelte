@@ -68,10 +68,10 @@
 </script>
 
 <header
-	class="relative z-50 flex shrink-0 items-center justify-between px-4 pt-3 pb-2 select-none"
+	class="relative z-50 flex shrink-0 items-center justify-between gap-2 px-4 pt-3 pb-2 select-none"
 	style="padding-top: max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));"
 >
-	<div class="flex items-center gap-1.5">
+	<div class="flex shrink-0 items-center gap-1.5">
 		<!-- Sidebar toggle button -->
 		<button
 			type="button"
@@ -94,9 +94,11 @@
 	</div>
 
 	<!-- Context badges dropdown container -->
-	<div class="flex items-center gap-1.5">
+	<div
+		class="flex max-w-[calc(100vw-7.75rem)] min-w-0 items-center gap-1 rounded-2xl border border-zinc-800/80 bg-zinc-950/70 p-0.5 shadow-sm backdrop-blur-md"
+	>
 		<!-- Repository selection chip -->
-		<div class="relative">
+		<div class="relative min-w-0">
 			<button
 				type="button"
 				data-popover-trigger
@@ -105,18 +107,18 @@
 					oncloseAllPopovers();
 					openChip = next;
 				}}
-				class="flex min-h-[44px] items-center gap-1.5 rounded-full border border-zinc-800 bg-[#0e0e0e] px-3 py-1.5 font-sans text-xs text-zinc-300 shadow-sm transition-all hover:border-zinc-700 hover:bg-[#161616] hover:text-white sm:min-h-0"
+				class="flex h-10 max-w-[7.25rem] min-w-0 items-center gap-1.5 rounded-[0.85rem] px-2.5 font-sans text-xs text-zinc-300 transition-all hover:bg-zinc-900/80 hover:text-white active:scale-95 sm:h-9 sm:max-w-[9rem]"
 				aria-label="Target repository"
 			>
-				<span>{selectedWorkspace?.emoji ?? '📁'}</span>
-				<span>{selectedWorkspace?.display_name ?? selectedRepo}</span>
-				<ChevronDown size={10} class="text-zinc-500" />
+				<span class="shrink-0">{selectedWorkspace?.emoji ?? '📁'}</span>
+				<span class="min-w-0 truncate">{selectedWorkspace?.display_name ?? selectedRepo}</span>
+				<ChevronDown size={10} class="shrink-0 text-zinc-500" />
 			</button>
 
 			{#if openChip === 'repo'}
 				<div
 					data-popover
-					class="absolute top-full right-0 z-50 mt-2 min-w-48 rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
+					class="absolute top-full right-0 z-50 mt-2 w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
 				>
 					<div
 						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"
@@ -130,12 +132,12 @@
 							class="flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors hover:bg-zinc-900
 								{selectedRepo === ws.name ? 'font-medium text-cyan-400' : 'text-zinc-400'}"
 						>
-							<span class="flex items-center gap-2">
-								<span>{ws.emoji}</span>
-								<span>{ws.display_name}</span>
+							<span class="flex min-w-0 items-center gap-2">
+								<span class="shrink-0">{ws.emoji}</span>
+								<span class="truncate">{ws.display_name}</span>
 							</span>
 							{#if selectedRepo === ws.name}
-								<Check size={11} />
+								<Check size={11} class="shrink-0" />
 							{/if}
 						</button>
 					{/each}
@@ -148,14 +150,16 @@
 						class="mt-1 flex w-full items-center gap-2 border-t border-zinc-800/50 px-3 py-2 text-left text-[11px] text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-300"
 					>
 						<Edit3 size={11} aria-hidden="true" />
-						<span>Edit context for {selectedWorkspace?.display_name ?? selectedRepo}</span>
+						<span class="min-w-0 truncate"
+							>Edit context for {selectedWorkspace?.display_name ?? selectedRepo}</span
+						>
 					</button>
 				</div>
 			{/if}
 		</div>
 
 		<!-- Model Picker Badge -->
-		<div class="relative">
+		<div class="relative min-w-0 border-l border-zinc-800/70 pl-1">
 			<button
 				type="button"
 				data-popover-trigger
@@ -164,23 +168,23 @@
 					oncloseAllPopovers();
 					showModelOverrideModal = next;
 				}}
-				class="flex min-h-[44px] items-center gap-1.5 rounded-full border border-zinc-800 bg-[#0e0e0e] px-3 py-1.5 font-sans text-xs text-zinc-300 shadow-sm transition-all hover:border-zinc-700 hover:bg-[#161616] hover:text-white sm:min-h-0"
+				class="flex h-10 max-w-[8.5rem] min-w-0 items-center gap-1.5 rounded-[0.85rem] px-2.5 font-sans text-xs text-zinc-300 transition-all hover:bg-zinc-900/80 hover:text-white active:scale-95 sm:h-9 sm:max-w-[10rem]"
 				aria-label="Model picker"
 				title="Pick a specific model or leave on Auto"
 			>
-				<span>{tierEmoji}</span>
-				<span class="max-w-[120px] truncate font-mono text-[10px] tracking-wide text-zinc-400"
+				<span class="shrink-0">{tierEmoji}</span>
+				<span class="min-w-0 truncate font-mono text-[10px] tracking-wide text-zinc-400"
 					>{selectedModelChoice.id === 'auto'
 						? lastModelUsed || 'Auto'
 						: selectedModelChoice.label}</span
 				>
-				<ChevronDown size={10} class="text-zinc-500" />
+				<ChevronDown size={10} class="shrink-0 text-zinc-500" />
 			</button>
 
 			{#if showModelOverrideModal}
 				<div
 					data-popover
-					class="absolute top-full right-0 z-50 mt-2 min-w-56 rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
+					class="absolute top-full right-0 z-50 mt-2 w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl"
 				>
 					<div
 						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"
@@ -194,9 +198,9 @@
 							class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-zinc-900
 								{selectedModelChoice.id === choice.id ? 'font-medium text-purple-400' : 'text-zinc-300'}"
 						>
-							<span class="flex flex-col leading-tight">
-								<span class="text-xs">{choice.label}</span>
-								<span class="font-mono text-[9px] text-zinc-500">{choice.sublabel}</span>
+							<span class="flex min-w-0 flex-col leading-tight">
+								<span class="truncate text-xs">{choice.label}</span>
+								<span class="truncate font-mono text-[9px] text-zinc-500">{choice.sublabel}</span>
 							</span>
 							{#if selectedModelChoice.id === choice.id}
 								<Check size={11} class="shrink-0" />
