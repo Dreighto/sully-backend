@@ -120,3 +120,27 @@ The research pass spent its verification budget on the **voice mode** (your prio
 3. Voice build timing — full real-time local voice now (incl. the local STT/TTS service) vs ship the app first and add it next.
 4. Cloud voice vs local voice for v1; web push on/off; Tailscale public-Funnel vs tailnet-only.
 5. Run the dedicated **broad gap-analysis** research pass (verified) now or later.
+
+> Operator decisions (2026-05-28): **clone-then-fork**; model **companion-v1**; **full** scope (voice+image); **fresh empty** DB; **public Funnel**; voice mode **built now**; gap research **run** (results below).
+
+---
+
+## 12. Feature-gap roadmap (fact-checked 2026-05-28, 111-agent verified pass)
+
+Post-v1 feature borrows, severity-ranked. All findings high-confidence (3-0 unanimous, primary vendor + self-hosted-reference-app sources). These inform the roadmap AFTER the clone→fork→voice build lands — not blockers for it.
+
+**HIGH — build next:**
+- **Persistent cross-conversation memory + user profile.** Every flagship ships explicit-saved + inferred + custom-instructions memory; self-hostable on Ollama (LibreChat/Open WebUI). Ship a user-editable memory store (Settings → Personalization) + account-wide custom instructions, layered above per-workspace context. Local caveat: autonomous "what to save" is unreliable on small models → default to manual + passive injection, optional auto-save.
+- **Collapsible reasoning / thinking panel.** Parse Ollama reasoning models' `<think>…</think>` (or `message.thinking`) into a collapsed CoT panel above the answer with an elapsed timer. Fully local.
+- **Web search + inline citations.** Self-hostable via SearXNG + `[n]` citations + `#`+URL fetch-to-context + RAG over uploads. Rerankers (Jina/Cohere) are cloud; SearXNG path is fully local.
+
+**MED — borrow opportunistically:**
+- Conversation **sharing** via read-only snapshot URL + outbound `navigator.share` (the iOS-PWA-safe share path).
+- **Account-wide custom instructions / user profile** → 3-tier stack: global profile › project instructions › per-conversation.
+- **Project-scoped instructions** (extends planned Projects-light).
+- **Branching / edit-and-resend / regenerate-variants** — ship with clear affordances + undo (LibreChat fork UX is reportedly accident-prone).
+- **Canvas → HTML/SVG/Mermaid + sandboxed React** (point Sandpack at a local bundler to avoid CDN telemetry).
+
+**HIGH — DO NOT build (negative finding):** iOS share-TARGET (appearing in the iPhone share sheet) — `share_target` is unimplemented in WebKit/iOS (WebKit #194593 still NEW). Use outbound Web Share + snapshot URL instead.
+
+**Open (follow-up pass):** keyboard shortcuts / command palette, starter & follow-up prompt chips, local export (MD/JSON/PDF) vs share, iOS app-shortcuts/offline polish, and an **empirical bench of memory + reasoning-render quality on companion-v1** before committing to auto-save defaults.
