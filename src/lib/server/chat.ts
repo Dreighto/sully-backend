@@ -36,8 +36,17 @@ export function getChatMessages(limit = 100, threadId = 'default'): ChatMessage[
 
 	const db = getDb();
 	try {
+		// Return the MOST RECENT `limit` messages in ascending (insertion) order.
+		// Ordering by `id` (monotonic PK) — NOT `timestamp`, which is second-resolution
+		// and ties (two messages in the same second order arbitrarily, scrambling the
+		// user/assistant alternation an LLM needs). The DESC+reverse is what makes the
+		// window slide: a plain `ORDER BY ... ASC LIMIT N` freezes on the OLDEST N once a
+		// thread passes N messages, so the latest turn never reaches callers (this is what
+		// broke voice-reply at turn 7 — the prompt ended on a stale assistant turn → empty).
 		const rows = db
-			.prepare('SELECT * FROM chat_messages WHERE thread_id = ? ORDER BY timestamp ASC LIMIT ?')
+			.prepare(
+				'SELECT * FROM (SELECT * FROM chat_messages WHERE thread_id = ? ORDER BY id DESC LIMIT ?) ORDER BY id ASC'
+			)
 			.all(threadId, limit) as any[];
 
 		return rows.map(parseRow);
