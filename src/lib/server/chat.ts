@@ -1,0 +1,232 @@
+import fs from 'node:fs';
+import Database from 'better-sqlite3';
+import { serverConfig } from './config';
+import type { ChatMessage, InteractiveAction } from '$lib/types/chat';
+
+function getDb(): Database.Database {
+	return new Database(serverConfig.memoryDbPath);
+}
+
+function parseRow(row: any): ChatMessage {
+	let interactive_action: InteractiveAction | null = null;
+	if (row.interactive_action) {
+		try {
+			interactive_action = JSON.parse(row.interactive_action);
+		} catch {
+			interactive_action = null;
+		}
+	}
+	return {
+		id: row.id,
+		sender: row.sender,
+		message: row.message,
+		trace_id: row.trace_id || null,
+		ticket_id: row.ticket_id || null,
+		interactive_action,
+		status: row.status,
+		timestamp: row.timestamp,
+		thread_id: row.thread_id || 'default'
+	};
+}
+
+export function getChatMessages(limit = 100, threadId = 'default'): ChatMessage[] {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) {
+		return [];
+	}
+
+	const db = getDb();
+	try {
+		const rows = db
+			.prepare('SELECT * FROM chat_messages WHERE thread_id = ? ORDER BY timestamp ASC LIMIT ?')
+			.all(threadId, limit) as any[];
+
+		return rows.map(parseRow);
+	} catch (e: unknown) {
+		console.error('getChatMessages error:', e);
+		return [];
+	} finally {
+		db.close();
+	}
+}
+
+/**
+ * Single-operator chat UI state — survives page reloads + device switches.
+ * The chat_user_state table has one row keyed 'operator'; we just store
+ * which thread the operator was last viewing so that leaving the app and
+ * coming back (or switching phone↔desktop) lands them in the right thread
+ * instead of defaulting to 'default'.
+ */
+export function getActiveThread(): string {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return 'default';
+	const db = getDb();
+	try {
+		const row = db
+			.prepare("SELECT last_thread FROM chat_user_state WHERE user_id = 'operator'")
+			.get() as { last_thread?: string } | undefined;
+		const cached = row?.last_thread;
+		if (!cached || cached === 'default') return 'default';
+
+		// Reconcile against reality. The cached last_thread can point at a
+		// thread that no longer has messages OR was never persisted (operator
+		// typed /new in a thread that errored out before its first message
+		// landed). Audit 2026-05-27 caught a phantom "testing" thread that
+		// pointed at nothing — page-reload landed on an empty fantasy thread.
+		// Fall back to the most-recently-active real thread, or 'default'.
+		const existsRow = db
+			.prepare(
+				`SELECT
+					EXISTS(SELECT 1 FROM chat_messages WHERE thread_id = ?) AS in_msg,
+					EXISTS(SELECT 1 FROM chat_thread_meta WHERE thread_id = ?) AS in_meta`
+			)
+			.get(cached, cached) as { in_msg: number; in_meta: number } | undefined;
+		if (existsRow && (existsRow.in_msg || existsRow.in_meta)) return cached;
+
+		const latest = db
+			.prepare(
+				`SELECT thread_id FROM chat_messages
+				 GROUP BY thread_id
+				 ORDER BY MAX(timestamp) DESC
+				 LIMIT 1`
+			)
+			.get() as { thread_id?: string } | undefined;
+		return latest?.thread_id || 'default';
+	} catch (e: unknown) {
+		console.error('getActiveThread error:', e);
+		return 'default';
+	} finally {
+		db.close();
+	}
+}
+
+export function setActiveThread(threadId: string): void {
+	const t = (threadId || '').trim() || 'default';
+	const db = new Database(serverConfig.memoryDbPath);
+	try {
+		db.prepare(
+			`INSERT INTO chat_user_state (user_id, last_thread, updated_at)
+			 VALUES ('operator', ?, CURRENT_TIMESTAMP)
+			 ON CONFLICT(user_id) DO UPDATE SET last_thread = excluded.last_thread, updated_at = CURRENT_TIMESTAMP`
+		).run(t);
+	} catch (e: unknown) {
+		console.error('setActiveThread error:', e);
+	} finally {
+		db.close();
+	}
+}
+
+/**
+ * List distinct threads in chat_messages with a count + latest activity.
+ * Used by the chat tab's thread switcher.
+ */
+export function listChatThreads(): {
+	thread_id: string;
+	message_count: number;
+	latest_ts: string;
+}[] {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];
+	const db = getDb();
+	try {
+		const rows = db
+			.prepare(
+				`SELECT thread_id, COUNT(*) AS message_count, MAX(timestamp) AS latest_ts
+				 FROM chat_messages
+				 GROUP BY thread_id
+				 ORDER BY latest_ts DESC`
+			)
+			.all() as any[];
+		return rows.map((r) => ({
+			thread_id: r.thread_id || 'default',
+			message_count: r.message_count,
+			latest_ts: r.latest_ts
+		}));
+	} catch (e: unknown) {
+		console.error('listChatThreads error:', e);
+		return [];
+	} finally {
+		db.close();
+	}
+}
+
+export function addChatMessage(
+	sender: string,
+	message: string,
+	traceId: string | null = null,
+	ticketId: string | null = null,
+	interactiveAction: InteractiveAction | null = null,
+	status = 'sent',
+	threadId = 'default'
+): ChatMessage {
+	const db = getDb();
+	try {
+		const actionStr = interactiveAction ? JSON.stringify(interactiveAction) : null;
+		const info = db
+			.prepare(
+				`INSERT INTO chat_messages (sender, message, trace_id, ticket_id, interactive_action, status, thread_id)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`
+			)
+			.run(sender, message, traceId, ticketId, actionStr, status, threadId);
+
+		const insertedId = info.lastInsertRowid;
+		const row = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(insertedId) as any;
+		return parseRow(row);
+	} catch (e: unknown) {
+		console.error('addChatMessage error:', e);
+		throw e;
+	} finally {
+		db.close();
+	}
+}
+
+// Delete a single chat message by id. Used by the regenerate flow to remove
+// the old assistant reply before re-streaming a new one. Returns true if a
+// row was actually deleted, false otherwise — caller can decide whether a
+// missing id is an error.
+export function deleteChatMessage(messageId: number): boolean {
+	const db = getDb();
+	try {
+		const info = db.prepare('DELETE FROM chat_messages WHERE id = ?').run(messageId);
+		return info.changes > 0;
+	} catch (e: unknown) {
+		console.error('deleteChatMessage error:', e);
+		return false;
+	} finally {
+		db.close();
+	}
+}
+
+export function updateActionStatus(messageId: number, status: 'approved' | 'denied'): boolean {
+	const db = getDb();
+	try {
+		// First get the existing message
+		const row = db.prepare('SELECT * FROM chat_messages WHERE id = ?').get(messageId) as any;
+		if (!row) return false;
+
+		let interactive_action: InteractiveAction | null = null;
+		if (row.interactive_action) {
+			try {
+				interactive_action = JSON.parse(row.interactive_action);
+			} catch {
+				interactive_action = null;
+			}
+		}
+
+		if (interactive_action) {
+			interactive_action.status = status;
+			const actionStr = JSON.stringify(interactive_action);
+
+			db.prepare('UPDATE chat_messages SET status = ?, interactive_action = ? WHERE id = ?').run(
+				status,
+				actionStr,
+				messageId
+			);
+			return true;
+		}
+
+		return false;
+	} catch (e: unknown) {
+		console.error('updateActionStatus error:', e);
+		return false;
+	} finally {
+		db.close();
+	}
+}

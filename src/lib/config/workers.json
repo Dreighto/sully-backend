@@ -1,0 +1,44 @@
+{
+	"_README": "Single source of truth for the LogueOS worker roster. To swap a worker (e.g. gemini -> agy), edit that entry's label/model/color/dispatchName/terminal and add the old name to 'aliases', then run windows/sync_worker_terminals.ps1. To add a worker, append a new entry. NEVER rename an existing 'id' -- it is a stable slot key that logs, costs, and history reference; 'aliases' is what keeps old data resolving after a model swap. Consumed by src/lib/config/workers.ts, windows/start_https.js, and windows/sync_worker_terminals.ps1.",
+	"workers": [
+		{
+			"id": "backend-1",
+			"role": "backend",
+			"label": "Claude Code",
+			"shortLabel": "CC",
+			"color": "#D97757",
+			"model": "Claude Opus 4.7",
+			"dispatchName": "claude-code",
+			"terminal": { "path": "/cc", "port": 7681 },
+			"tracePrefixes": ["cc-"],
+			"aliases": ["cc", "claude"],
+			"enabled": true
+		},
+		{
+			"id": "frontend-1",
+			"role": "frontend",
+			"label": "Antigravity",
+			"shortLabel": "AGY",
+			"color": "#AD89EB",
+			"model": "Gemini",
+			"dispatchName": "gemini",
+			"terminal": { "path": "/gmi", "port": 7682 },
+			"tracePrefixes": ["gemini-", "gmi-", "cc-LOS-"],
+			"aliases": ["gemini-cli", "gmi", "antigravity", "agy"],
+			"enabled": true
+		},
+		{
+			"id": "operator",
+			"role": "operator",
+			"label": "Operator",
+			"shortLabel": "OP",
+			"color": "#F5A623",
+			"model": "",
+			"dispatchName": "operator",
+			"terminal": null,
+			"tracePrefixes": ["operator-"],
+			"aliases": ["human", "captain"],
+			"enabled": true
+		}
+	]
+}
