@@ -48,5 +48,24 @@ export const MODEL_CHOICES: ModelChoice[] = [
 		tier: 'deep',
 		provider: 'gemini'
 	},
-	{ id: 'local', label: 'Local (Ollama)', sublabel: 'offline', tier: 'local', provider: 'local' }
+	{ id: 'local', label: 'Local (Ollama)', sublabel: 'offline', tier: 'local', provider: 'local' },
+	// Ollama Cloud — giant models the local GPU can't run. The local daemon
+	// proxies any `*-cloud` tag up to ollama.com (after `ollama signin`), so
+	// these route through the same local provider path; no API key in the app.
+	{
+		id: 'cloud-gpt-oss-120b',
+		label: 'GPT-OSS 120B',
+		sublabel: 'cloud · big reasoning',
+		tier: 'local',
+		provider: 'local',
+		model: 'gpt-oss:120b-cloud'
+	},
+	{
+		id: 'cloud-qwen3-coder-480b',
+		label: 'Qwen3-Coder 480B',
+		sublabel: 'cloud · coding',
+		tier: 'local',
+		provider: 'local',
+		model: 'qwen3-coder:480b-cloud'
+	}
 ];

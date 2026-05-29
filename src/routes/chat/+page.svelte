@@ -202,7 +202,8 @@
 			body: () => ({
 				thread: activeThread,
 				target_repo: selectedRepo,
-				provider: providerOverride === 'gemini' ? 'google' : (providerOverride ?? undefined)
+				provider: providerOverride === 'gemini' ? 'google' : (providerOverride ?? undefined),
+				model: modelOverride ?? undefined
 			})
 		})
 	});
@@ -323,6 +324,9 @@
 	}
 
 	let providerOverride = $state<ProviderPref>(null);
+	// Explicit model id pinned by a picker choice that carries one (e.g. an
+	// Ollama Cloud model). Sent as body.model; session-scoped (not persisted).
+	let modelOverride = $state<string | null>(null);
 
 	// Chip-display tier: prefer the operator's explicit override over the
 	// classifier-driven `currentTier`. Server keeps current_tier untouched
@@ -331,13 +335,17 @@
 	// operator manually chose a different one.
 	const effectiveTier = $derived(operatorOverride ?? currentTier);
 	const selectedModelChoice = $derived(
-		MODEL_CHOICES.find(
-			(c) =>
-				(c.tier ?? null) ===
-					(effectiveTier === 'chat' && !providerOverride && !operatorOverride
-						? null
-						: effectiveTier) && c.provider === providerOverride
-		) ?? MODEL_CHOICES[0]
+		modelOverride
+			? (MODEL_CHOICES.find((c) => c.model === modelOverride) ?? MODEL_CHOICES[0])
+			: (MODEL_CHOICES.find(
+					(c) =>
+						(c.tier ?? null) ===
+							(effectiveTier === 'chat' && !providerOverride && !operatorOverride
+								? null
+								: effectiveTier) &&
+						c.provider === providerOverride &&
+						!c.model
+				) ?? MODEL_CHOICES[0])
 	);
 
 	async function openWorkspaceContextEditor() {
@@ -398,6 +406,9 @@
 
 	async function setModelChoice(choice: ModelChoice) {
 		showModelOverrideModal = false;
+		// Pin an explicit model id when the choice carries one (Ollama Cloud
+		// models); clear it otherwise so tier→model resolution applies.
+		modelOverride = choice.model ?? null;
 		try {
 			const resp = await fetch(resolve('/api/chat/tier'), {
 				method: 'PUT',

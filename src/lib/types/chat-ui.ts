@@ -62,4 +62,8 @@ export type ModelChoice = {
 	sublabel: string;
 	tier: Tier | null;
 	provider: ProviderPref;
+	// Optional explicit model id sent as `body.model` (overrides the tier→model
+	// default). Used to pin a specific local/cloud Ollama model — e.g. an Ollama
+	// Cloud `*-cloud` tag that the local daemon proxies up to ollama.com.
+	model?: string;
 };
