@@ -88,7 +88,7 @@
 			aria-label="Return to Dashboard"
 			class="ml-0.5 flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-80"
 		>
-			<img src="{base}/favicon.png" alt="LogueOS" class="h-6 w-6" />
+			<img src="{base}/favicon.png" alt="Companion" class="h-6 w-6" />
 		</a>
 	</div>
 
