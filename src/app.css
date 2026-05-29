@@ -79,6 +79,13 @@
 }
 
 @layer base {
+	html,
+	body {
+		height: 100%;
+		margin: 0;
+		overflow: hidden;
+	}
+
 	* {
 		@apply border-border;
 		/* Eliminate the 300ms double-tap-to-zoom delay on mobile touch targets */
@@ -93,7 +100,7 @@
 			'rlig' 1,
 			'calt' 1;
 		/* Prevent boundary scroll rubber-banding on mobile */
-		overscroll-behavior-y: none;
+		overscroll-behavior: none;
 	}
 
 	/* Prevent annoying accidental text selection when double tapping tabs/buttons */

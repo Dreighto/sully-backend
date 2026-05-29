@@ -169,6 +169,11 @@
 	let textareaEl = $state<HTMLTextAreaElement | null>(null);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
+	function scrollFeedToBottom(behavior: ScrollBehavior = 'smooth') {
+		if (!feedContainer) return;
+		feedContainer.scrollTo({ top: feedContainer.scrollHeight, behavior });
+	}
+
 	// SDK chat instance — handles streaming sends through /api/chat/sdk-stream.
 	// PR 2b.2 (this commit) uses it for the conversational happy path only.
 	// Dispatch (@cc/@agy), image-gen, and slash commands still go through the
@@ -442,7 +447,7 @@
 				}
 				messages = newMessages;
 				if (userAtBottom) {
-					queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+					queueMicrotask(() => scrollFeedToBottom('smooth'));
 				}
 			}
 		} catch {
@@ -529,7 +534,7 @@
 		messages = [...messages, optimistic];
 		textDraft = '';
 		attachments = [];
-		queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+		queueMicrotask(() => scrollFeedToBottom('smooth'));
 
 		// Routing decision: if the message looks like an explicit worker
 		// dispatch or it's an image-gen request, use the non-streaming
@@ -695,7 +700,7 @@
 			messages = messages.map((m) => (m.id === id ? { ...m, message: txt } : m));
 		});
 		if (userAtBottom) {
-			queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+			queueMicrotask(() => scrollFeedToBottom('smooth'));
 		}
 	});
 
@@ -1289,7 +1294,7 @@
 			);
 			sentinelObs.observe(scrollSentinel);
 		}
-		queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'auto' }));
+		queueMicrotask(() => scrollFeedToBottom('auto'));
 		pollTimer = setInterval(pollMessages, 3000);
 		activityTimer = setInterval(pollActivity, 5000);
 	});
@@ -1377,7 +1382,7 @@
 	<!-- ═════════════════════════════════════════════════════════════════
 	     MAIN CONVERSATIONAL CANVAS
 	     ═════════════════════════════════════════════════════════════════ -->
-	<main class="relative flex h-full flex-1 flex-col overflow-hidden select-text">
+	<main class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden select-text">
 		<!-- ═════════════════════════════════════════════════════════════════
 		     QUIET HEADER
 		     ═════════════════════════════════════════════════════════════════ -->
@@ -1429,7 +1434,7 @@
 		     ═════════════════════════════════════════════════════════════════ -->
 		<div
 			bind:this={feedContainer}
-			class="relative z-10 flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-4 md:px-6"
+			class="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-4 md:px-6"
 		>
 			{#if messages.length === 0}
 				<div class="flex flex-1 items-center justify-center text-center select-none">
@@ -1614,7 +1619,7 @@
 				onclick={() => {
 					userAtBottom = true;
 					unseenCount = 0;
-					scrollSentinel?.scrollIntoView({ behavior: 'smooth' });
+					scrollFeedToBottom('smooth');
 				}}
 				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-mono text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
 				style="box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);"

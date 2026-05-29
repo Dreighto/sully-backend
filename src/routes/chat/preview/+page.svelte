@@ -26,8 +26,14 @@
 
 	let input = $state('');
 	let provider = $state<Provider>('anthropic');
+	let feedContainer = $state<HTMLElement | null>(null);
 	let textareaEl = $state<HTMLTextAreaElement | null>(null);
 	let scrollSentinel = $state<HTMLDivElement | null>(null);
+
+	function scrollFeedToBottom(behavior: ScrollBehavior = 'smooth') {
+		if (!feedContainer) return;
+		feedContainer.scrollTo({ top: feedContainer.scrollHeight, behavior });
+	}
 
 	// SDK 6 Chat class does NOT accept `api`/`body` shorthand at the top
 	// level — those keys are silently ignored. Use DefaultChatTransport.
@@ -44,7 +50,7 @@
 		if (!text) return;
 		chat.sendMessage({ text });
 		input = '';
-		queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+		queueMicrotask(() => scrollFeedToBottom('smooth'));
 	}
 
 	function handleKey(e: KeyboardEvent) {
@@ -54,7 +60,7 @@
 			if (!text) return;
 			chat.sendMessage({ text });
 			input = '';
-			queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+			queueMicrotask(() => scrollFeedToBottom('smooth'));
 		}
 	}
 
@@ -76,7 +82,7 @@
 	$effect(() => {
 		const _ = chat.messages.length;
 		void _;
-		queueMicrotask(() => scrollSentinel?.scrollIntoView({ behavior: 'smooth' }));
+		queueMicrotask(() => scrollFeedToBottom('smooth'));
 	});
 </script>
 
@@ -84,7 +90,7 @@
 	<title>SDK Preview · Companion</title>
 </svelte:head>
 
-<div class="relative flex h-[100dvh] flex-col bg-background text-white">
+<div class="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background text-white">
 	<!-- Radial atmosphere -->
 	<div
 		class="pointer-events-none absolute inset-0 -z-0"
@@ -128,7 +134,10 @@
 	</header>
 
 	<!-- Feed -->
-	<main class="relative z-10 flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-3">
+	<main
+		bind:this={feedContainer}
+		class="relative z-10 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-3"
+	>
 		{#if chat.messages.length === 0 && chat.status !== 'error'}
 			<div
 				class="flex flex-1 flex-col items-center justify-center gap-2 text-center select-none"

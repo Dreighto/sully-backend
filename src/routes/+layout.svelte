@@ -23,7 +23,7 @@
 </svelte:head>
 
 <!-- Companion is chat-only: full-bleed immersive shell, no Console chrome/nav. -->
-<div class="flex min-h-[100dvh] flex-col bg-background text-foreground">
+<div class="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
 	{@render children()}
 	<ToastContainer />
 </div>
