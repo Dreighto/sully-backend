@@ -4,8 +4,12 @@ import Database from 'better-sqlite3';
 import { serverConfig } from '$lib/server/config';
 import { updateActionStatus, addChatMessage } from '$lib/server/chat';
 import type { InteractiveAction } from '$lib/types/chat';
+import { runMode } from '$lib/server/config';
 
 export const POST: RequestHandler = async ({ request }) => {
+	// Approvals only exist for dispatched interactive actions (a kernel feature).
+	// Companion mode has none — no-op success.
+	if (!runMode.dispatchEnabled) return json({ ok: true });
 	try {
 		const body = await request.json();
 		const { message_id, status } = body; // status is 'approved' or 'denied'

@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getChatMessages, addChatMessage, deleteChatMessage } from '$lib/server/chat';
-import { serverConfig } from '$lib/server/config';
+import { serverConfig, runMode } from '$lib/server/config';
 import { callHermes, chatRowsToHermesHistory } from '$lib/server/hermes';
 import { generateGeminiImage } from '$lib/server/gemini';
 import { classifyTier } from '$lib/server/phase_classifier';
@@ -230,6 +230,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			!imageMode;
 		// Back-compat alias for the existing dispatch block below.
 		const shouldTrigger = shouldDispatch;
+
+		// Companion mode: @cc/@agy worker dispatch runs through the kernel gateway,
+		// which is OFF here. Return a friendly note instead of dispatching (and
+		// don't silently route the @-mention to the local model). Everything else
+		// flows through the normal local conversational path below.
+		if (shouldTrigger && !runMode.dispatchEnabled) {
+			addChatMessage(
+				'system',
+				'Worker dispatch (@cc / @agy) is a kernel feature and is not available in the Companion — this app talks to your local model. Just ask me directly.',
+				null,
+				null,
+				null,
+				'sent',
+				threadId
+			);
+			return json({ ok: true });
+		}
 
 		// Hermes branch — local Ollama, no worker spawn, ~1-3s round-trip.
 		// Skips the entire gateway/listener pipeline. Hermes has no file

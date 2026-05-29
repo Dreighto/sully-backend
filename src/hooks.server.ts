@@ -14,8 +14,19 @@
 
 import type { Handle } from '@sveltejs/kit';
 import { startCompletionPoller } from '$lib/server/completion_poller';
+import { bootstrapCompanionDb } from '$lib/server/bootstrap';
+import { runMode } from '$lib/server/config';
 
-startCompletionPoller();
+// Create the two kernel-made tables on a fresh companion DB BEFORE anything
+// touches it. Idempotent; a no-op against the shared kernel DB in wired mode.
+bootstrapCompanionDb();
+
+// The completion poller tails the kernel's cc_completion_log.jsonl — a kernel
+// artifact. In companion mode (kernelWired=false) there is no kernel to poll,
+// so it never starts.
+if (runMode.completionPoller) {
+	startCompletionPoller();
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	return resolve(event);

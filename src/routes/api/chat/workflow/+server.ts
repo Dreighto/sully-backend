@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Database from 'better-sqlite3';
-import { serverConfig } from '$lib/server/config';
+import { serverConfig, runMode } from '$lib/server/config';
 import { addChatMessage, getChatMessages } from '$lib/server/chat';
 
 const GATEWAY_TIMEOUT_MS = 10_000;
@@ -217,6 +217,15 @@ Target repository: ${targetRepo}.${replyProtocolFooter}`
 }
 
 export const POST: RequestHandler = async ({ request }) => {
+	// Workflow buttons (Critique/Build/Verify/Retry) dispatch workers through the
+	// kernel gateway, which is off in companion mode. Buttons are also hidden
+	// client-side; this is the server-side belt-and-suspenders.
+	if (!runMode.dispatchEnabled) {
+		return json(
+			{ error: 'Workflow dispatch is a kernel feature and is not available in the Companion.' },
+			{ status: 200 }
+		);
+	}
 	try {
 		const body = await request.json();
 		const action: WorkflowAction = body.action;

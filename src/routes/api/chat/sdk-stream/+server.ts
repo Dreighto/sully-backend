@@ -42,6 +42,7 @@ import { classifyTier, type Tier } from '$lib/server/phase_classifier';
 import { getThreadState, upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity, upsertThreadMeta } from '$lib/server/thread_meta';
 import { getWorkspaceContext } from '$lib/server/workspace_context';
+import { serverConfig, runMode } from '$lib/server/config';
 
 // LogueOS-on-SDK tools — read-only operator-context fetches the LLM can call
 // when answering. PR 10a shipped the first tool; PR 10c (this commit) adds
@@ -386,7 +387,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	// has explicitly overridden. Lets the existing "Local (Ollama)" model
 	// picker option route through Ollama without per-thread setup.
 	const tierImpliesLocal: Provider | null = currentTier === 'local' ? 'local' : null;
-	const provider: Provider = body.provider ?? overrideFromState ?? tierImpliesLocal ?? 'google';
+	// Companion mode defaults to the LOCAL provider (companion-v1) instead of
+	// cloud Google — while keeping cloud models selectable via the picker.
+	const companionDefault: Provider | null = runMode.companion ? 'local' : null;
+	const provider: Provider =
+		body.provider ?? overrideFromState ?? tierImpliesLocal ?? companionDefault ?? 'google';
 
 	// Resolve the model id up-front so we can decide between the direct API
 	// route and the Claude CLI bridge. Anthropic's Claude Max OAuth only
@@ -396,7 +401,14 @@ export const POST: RequestHandler = async ({ request }) => {
 	// "use the CLI bridge, do NOT prompt for a billed API key — defeats the
 	// purpose of paying for Max." So Sonnet/Opus ALWAYS route through CLI
 	// regardless of any API-key env presence.
-	const resolvedModelId = body.model || TIER_MODELS[currentTier][provider];
+	// Companion mode + local provider (no explicit model) → the operator's chosen
+	// companion model (companion-v1) rather than the generic local-tier default.
+	// An explicit body.model still wins.
+	const resolvedModelId =
+		body.model ||
+		(runMode.companion && provider === 'local'
+			? serverConfig.companionDefaultModel
+			: TIER_MODELS[currentTier][provider]);
 	const useClaudeCLI = provider === 'anthropic' && /sonnet|opus/i.test(resolvedModelId);
 
 	const systemPrompt = buildSystemPrompt({ targetRepo, currentTier, threadId });

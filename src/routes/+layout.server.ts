@@ -6,7 +6,10 @@
 
 import type { LayoutServerLoad } from './$types';
 import { readKillSwitchStateSafe } from '$lib/server/kill-switch';
+import { runMode } from '$lib/server/config';
 
+// The kill switch (system_halt file) is a kernel artifact. In companion mode
+// there is no kernel, so report a static CLEAR state instead of reading it.
 export const load: LayoutServerLoad = async () => ({
-	killSwitch: await readKillSwitchStateSafe()
+	killSwitch: runMode.killSwitchEnabled ? await readKillSwitchStateSafe() : { active: false }
 });

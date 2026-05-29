@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
-import { serverConfig } from './config';
+import { serverConfig, runMode } from './config';
 import { redactEnvValues } from './env_redactor';
 import { setRememberFlag, getThreadMeta } from './thread_meta';
 
@@ -88,6 +88,10 @@ export function emitObservation(params: ObservationParams): {
 	reason?: string;
 	observation_id?: string;
 } {
+	// Companion mode: Tier-0 observations are shared-kernel memory. Don't write
+	// them (keeps companion.db clean + avoids reading the kernel's .env for the
+	// redactor). Belt-and-suspenders alongside the gated callers.
+	if (!runMode.observationsEnabled) return { ok: false, reason: 'companion_mode' };
 	const redacted = redactEnvValues(params.body);
 	if (redacted === null) {
 		return { ok: false, reason: 'redaction_failed' };
@@ -173,6 +177,7 @@ export function emitDispatchLinkObservation(
  * archive or manual flag per §2H.
  */
 export function maybeMarkDeepCandidate(threadId: string, tier: string, messageCount: number): void {
+	if (!runMode.observationsEnabled) return; // companion mode: no Tier-0 candidacy
 	if (tier !== 'deep') return;
 	// 6 non-system messages ≈ 3 user + 3 assistant exchanges.
 	if (messageCount < 6) return;

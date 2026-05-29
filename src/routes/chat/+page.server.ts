@@ -4,7 +4,7 @@
 import type { PageServerLoad } from './$types';
 import { getChatMessages, listChatThreads, getActiveThread } from '$lib/server/chat';
 import { listThreadMeta } from '$lib/server/thread_meta';
-import { serverConfig } from '$lib/server/config';
+import { serverConfig, runMode } from '$lib/server/config';
 
 export type Workspace = {
 	name: string;
@@ -120,18 +120,23 @@ export const load: PageServerLoad = async ({ url }) => {
 	const threads = rows;
 
 	let allWorkspaces: Workspace[] = FALLBACK_WORKSPACES;
-	try {
-		const resp = await fetch(`${serverConfig.gatewayUrl}/api/v1/workspaces`, {
-			signal: AbortSignal.timeout(3000)
-		});
-		if (resp.ok) {
-			const body = (await resp.json()) as { workspaces?: unknown[] };
-			if (Array.isArray(body.workspaces)) {
-				allWorkspaces = body.workspaces as Workspace[];
+	// Companion mode: the workspace list comes from the kernel gateway (off here).
+	// Skip the fetch entirely to avoid a 3s timeout on every page load — the
+	// FALLBACK list is the right answer when the kernel isn't running.
+	if (runMode.gatewayWorkspaces) {
+		try {
+			const resp = await fetch(`${serverConfig.gatewayUrl}/api/v1/workspaces`, {
+				signal: AbortSignal.timeout(3000)
+			});
+			if (resp.ok) {
+				const body = (await resp.json()) as { workspaces?: unknown[] };
+				if (Array.isArray(body.workspaces)) {
+					allWorkspaces = body.workspaces as Workspace[];
+				}
 			}
+		} catch {
+			/* fall back silently */
 		}
-	} catch {
-		/* fall back silently */
 	}
 
 	const workspaces = allWorkspaces.filter((w) => !w.is_archived);

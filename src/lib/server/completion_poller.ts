@@ -5,7 +5,7 @@
 // Only reads bytes appended since the last poll — no replay of history on boot.
 
 import fs from 'node:fs';
-import { serverConfig } from './config';
+import { serverConfig, runMode } from './config';
 import { sendPushToAll } from './web_push';
 
 let lastKnownSize = 0;
@@ -67,6 +67,9 @@ function poll() {
 }
 
 export function startCompletionPoller(): void {
+	// Tails the kernel's cc_completion_log.jsonl — meaningless in companion mode.
+	// hooks.server.ts already gates the call; this is belt-and-suspenders.
+	if (!runMode.completionPoller) return;
 	if (started) return;
 	started = true;
 
