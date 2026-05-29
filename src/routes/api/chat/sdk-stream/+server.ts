@@ -432,14 +432,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			: TIER_MODELS[currentTier][provider]);
 	const useClaudeCLI = provider === 'anthropic' && /sonnet|opus/i.test(resolvedModelId);
 
-	// Sensitive machine-read + web tools are attached ONLY for requests that did
-	// NOT arrive over the public Tailscale Funnel. A Funnel request carries the
-	// `Tailscale-Funnel-Request` header (present even from the tailnet when the
-	// public Funnel hostname is used); its ABSENCE means a tailnet-only path —
-	// the operator's own devices. Public visitors get chat + safe context tools,
-	// never file-read or web access.
+	// Sensitive machine-read + web tools are attached only for the operator's own
+	// devices. Two ways to qualify:
+	//   1. Tailnet path — the request did NOT arrive over the public Funnel (no
+	//      `Tailscale-Funnel-Request` header).
+	//   2. Unlock code — the device sent a valid `x-companion-tools-key` header
+	//      matching COMPANION_TOOLS_KEY. This lets the operator turn the powers on
+	//      over the normal public Funnel link (via `/unlock <code>`), since a
+	//      non-standard tailnet port doesn't reliably open on phones. The code is
+	//      stored per-device in localStorage; public visitors don't have it.
+	// Public visitors with neither get chat + the safe context tools only.
 	const viaFunnel = request.headers.get('tailscale-funnel-request') !== null;
-	const allowSensitive = !viaFunnel;
+	const TOOLS_SECRET = process.env.COMPANION_TOOLS_KEY || '';
+	const providedKey = request.headers.get('x-companion-tools-key') || '';
+	const keyValid = TOOLS_SECRET.length > 0 && providedKey === TOOLS_SECRET;
+	const allowSensitive = !viaFunnel || keyValid;
 
 	const systemPrompt = buildSystemPrompt({ targetRepo, currentTier, threadId, allowSensitive });
 

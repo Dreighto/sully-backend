@@ -204,7 +204,11 @@
 				target_repo: selectedRepo,
 				provider: providerOverride === 'gemini' ? 'google' : (providerOverride ?? undefined),
 				model: modelOverride ?? undefined
-			})
+			}),
+			// Per-device tools-unlock code (set via /unlock). Sent only when present
+			// so the companion's file-read + web tools turn on for this device.
+			headers: (): Record<string, string> =>
+				toolsKey ? { 'x-companion-tools-key': toolsKey } : {}
 		})
 	});
 	// While an SDK stream is active, this carries the placeholder bubble's
@@ -327,6 +331,10 @@
 	// Explicit model id pinned by a picker choice that carries one (e.g. an
 	// Ollama Cloud model). Sent as body.model; session-scoped (not persisted).
 	let modelOverride = $state<string | null>(null);
+	// Per-device unlock code for the sensitive machine-read + web tools. Set via
+	// `/unlock <code>`, stored in localStorage, sent as a header so the tools
+	// work over the normal public link only on devices the operator unlocked.
+	let toolsKey = $state<string>('');
 
 	// Chip-display tier: prefer the operator's explicit override over the
 	// classifier-driven `currentTier`. Server keeps current_tier untouched
@@ -1242,6 +1250,41 @@
 			}
 		},
 		{
+			key: 'unlock',
+			usage: '/unlock <code>',
+			description: 'Enable file-reading + web tools on this device (paste the code CC gave you)',
+			run: (rest) => {
+				const code = rest.trim();
+				if (!code) {
+					toasts.add('Paste the code: /unlock <code>', 'error');
+					return;
+				}
+				toolsKey = code;
+				try {
+					localStorage.setItem('companion-tools-key', code);
+				} catch {
+					/* private mode — stays in memory for this session */
+				}
+				addLocalSystemMessage(
+					'🔓 Tools unlocked on this device. The companion can now read files and search the web here.'
+				);
+			}
+		},
+		{
+			key: 'lock',
+			usage: '/lock',
+			description: 'Disable file-reading + web tools on this device',
+			run: () => {
+				toolsKey = '';
+				try {
+					localStorage.removeItem('companion-tools-key');
+				} catch {
+					/* ignore */
+				}
+				addLocalSystemMessage('🔒 Tools locked on this device.');
+			}
+		},
+		{
 			key: 'help',
 			usage: '/help',
 			description: 'Show available slash commands',
@@ -1301,6 +1344,12 @@
 
 	onMount(() => {
 		void loadTier(activeThread);
+		// Restore this device's tools-unlock code (set previously via /unlock).
+		try {
+			toolsKey = localStorage.getItem('companion-tools-key') ?? '';
+		} catch {
+			/* ignore */
+		}
 		if (feedContainer && scrollSentinel) {
 			sentinelObs = new IntersectionObserver(
 				(entries) => {
