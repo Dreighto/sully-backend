@@ -47,7 +47,9 @@ const config: CapacitorConfig = {
   },
 
   ios: {
-    contentInset: 'always',
+    // 'never': the web app owns safe areas via env(safe-area-inset-*) + viewport-fit=cover.
+    // 'always' made Capacitor ALSO inset the content -> double-handled -> composer cut off the bottom.
+    contentInset: 'never',
     // Leave OFF. With Capacitor 8, turning this on requires a WKAppBoundDomains
     // array and makes bridge injection fragile. A side effect (relied on for
     // Build 1): iOS does NOT run the remote app's service worker in the WebView
