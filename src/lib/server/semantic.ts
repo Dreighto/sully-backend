@@ -1,32 +1,46 @@
 // Layer 3 — Semantic memory: embedding write + similarity recall.
-// Embeddings come from a DEDICATED embedding model (nomic-embed-text) via
-// Ollama's /api/embed — NOT a chat/coder model (those produce poor-quality,
-// slow embeddings). Pull once: `ollama pull nomic-embed-text`.
+// Embeddings come from a DEDICATED embedding model via Ollama's /api/embed —
+// NOT a chat/coder model (those produce poor, slow embeddings).
 //
-// Vectors are stored as JSON float arrays in episodic_embeddings, tagged with
-// the embed model. getRelevantFacts only compares vectors made by the SAME
-// model (dimensions/space must match) — so swapping embed models later can't
-// silently corrupt cosine scores.
+// Default: mxbai-embed-large. Tuning (2026-05-30) showed it ranks the correct
+// fact #1 on hard/oblique queries where nomic-embed-text did not, and it
+// separates relevant (cosine ~0.49–0.73) from irrelevant (~0.33) cleanly — so a
+// 0.42 floor catches real matches and rejects noise. Pull: `ollama pull
+// mxbai-embed-large`. Override with COMPANION_EMBED_MODEL if desired.
+//
+// Vectors are stored tagged with the embed model; getRelevantFacts only compares
+// vectors made by the SAME model, so swapping models can't corrupt cosine.
 
 import Database from 'better-sqlite3';
 import { serverConfig } from './config';
 
 const OLLAMA_BASE =
 	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
-const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'nomic-embed-text';
+const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'mxbai-embed-large';
+const DEFAULT_THRESHOLD = Number(process.env.COMPANION_SEMANTIC_THRESHOLD || '0.42');
 
-// nomic-embed-text v1.5 expects task prefixes for best retrieval quality:
-// stored docs use `search_document:`, queries use `search_query:`.
+// Each embed model wants its own task-prefix scheme for best retrieval.
+function withPrefix(text: string, kind: 'document' | 'query'): string {
+	if (EMBED_MODEL.startsWith('nomic')) {
+		return `${kind === 'query' ? 'search_query' : 'search_document'}: ${text}`;
+	}
+	if (EMBED_MODEL.startsWith('mxbai')) {
+		// mxbai prefixes ONLY the query side.
+		return kind === 'query'
+			? `Represent this sentence for searching relevant passages: ${text}`
+			: text;
+	}
+	return text;
+}
+
 async function embed(text: string, kind: 'document' | 'query'): Promise<number[]> {
-	const input = `${kind === 'query' ? 'search_query' : 'search_document'}: ${text}`;
 	const res = await fetch(`${OLLAMA_BASE}/api/embed`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ model: EMBED_MODEL, input })
+		body: JSON.stringify({ model: EMBED_MODEL, input: withPrefix(text, kind) })
 	});
 	if (!res.ok) throw new Error(`embed HTTP ${res.status}`);
 	const data = (await res.json()) as { embeddings?: number[][]; embedding?: number[] };
-	// /api/embed → { embeddings: [[...]] }; legacy /api/embeddings → { embedding: [...] }.
 	const vec = data.embeddings?.[0] ?? data.embedding;
 	if (!Array.isArray(vec) || !vec.length) throw new Error('embed: no vector in response');
 	return vec;
@@ -77,7 +91,7 @@ export async function writeEpisodicFact(
 export async function getRelevantFacts(
 	query: string,
 	topK = 3,
-	threshold = 0.6
+	threshold = DEFAULT_THRESHOLD
 ): Promise<string[]> {
 	if (!query.trim()) return [];
 	let rows: { fact: string; embedding: string }[] = [];
