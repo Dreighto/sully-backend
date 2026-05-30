@@ -29,6 +29,9 @@ describe('appIdentity (PR A)', () => {
 		expect(mod.appIdentity.defaultWorkspace).toBe('companion');
 		expect(mod.appIdentity.basePath).toBe('/companion');
 		expect(mod.appIdentity.pushDefaultUrl).toBe('/companion/chat');
+		// The model itself is named Sully (operator's chosen persona name).
+		expect(mod.appIdentity.personaName).toBe('Sully');
+		expect(mod.appIdentity.coreLabel).toBe('Sully');
 	});
 
 	it('wired mode keeps the legacy Console identity', async () => {

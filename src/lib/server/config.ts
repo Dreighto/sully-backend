@@ -163,10 +163,10 @@ const _companionIdentity = {
 	basePath: '/companion',
 	/** The workspace string surfaced in the repo chip + persisted in thread state. */
 	defaultWorkspace: 'companion',
-	/** Pretty label for the sidebar footer "CORE:" pill. */
-	coreLabel: 'LogueOS Companion',
-	/** What the model calls itself in its system prompt. */
-	personaName: 'companion',
+	/** Pretty label for the sidebar footer "CORE:" pill — the model's name. */
+	coreLabel: 'Sully',
+	/** What the model calls itself in its system prompt (named after the operator's late rabbit). */
+	personaName: 'Sully',
 	pushIconUrl: '/companion/favicon.png',
 	pushDefaultUrl: '/companion/chat'
 } as const;

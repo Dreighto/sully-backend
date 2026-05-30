@@ -149,6 +149,81 @@ function carriesSecret(s: string): boolean {
 }
 
 const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY || '';
+const PERPLEXITY_KEY = process.env.PERPLEXITY_API_KEY || '';
+
+// Web-search providers: Perplexity primary (cited factual answers), Firecrawl
+// fall-forward on 5xx / 401 (quota exhausted) / 429 (rate-limited). Mirrors
+// the OAuth-first fall-forward shape in llm_router. Wrapped as small helpers
+// so the tool's execute() stays readable.
+
+type WebSearchResult = { title?: string; url?: string; snippet?: string };
+type WebSearchOk = { results: WebSearchResult[]; provider: 'perplexity' | 'firecrawl'; answer?: string };
+type WebSearchFail = { error: string; status: number };
+
+async function searchPerplexity(query: string, limit: number): Promise<WebSearchOk | WebSearchFail> {
+	if (!PERPLEXITY_KEY) return { error: 'perplexity not configured', status: 0 };
+	try {
+		const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${PERPLEXITY_KEY}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				model: 'sonar',
+				messages: [{ role: 'user', content: query }]
+			}),
+			signal: AbortSignal.timeout(WEB_TIMEOUT_MS)
+		});
+		if (!resp.ok) return { error: `HTTP ${resp.status}`, status: resp.status };
+		const data = await resp.json();
+		const answer = data?.choices?.[0]?.message?.content ?? '';
+		const sources = data?.citations ?? data?.search_results ?? [];
+		const results: WebSearchResult[] = (Array.isArray(sources) ? sources : [])
+			.slice(0, limit)
+			.map((s: unknown) => {
+				if (typeof s === 'string') return { url: s };
+				const o = s as { title?: string; url?: string; snippet?: string };
+				return { title: o.title, url: o.url, snippet: o.snippet };
+			});
+		return { results, provider: 'perplexity', answer: String(answer).slice(0, MAX_WEB_CHARS) };
+	} catch (e) {
+		return { error: (e as Error).message, status: 0 };
+	}
+}
+
+async function searchFirecrawl(query: string, limit: number): Promise<WebSearchOk | WebSearchFail> {
+	if (!FIRECRAWL_KEY) return { error: 'firecrawl not configured', status: 0 };
+	try {
+		const resp = await fetch('https://api.firecrawl.dev/v2/search', {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${FIRECRAWL_KEY}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ query, limit }),
+			signal: AbortSignal.timeout(WEB_TIMEOUT_MS)
+		});
+		if (!resp.ok) return { error: `HTTP ${resp.status}`, status: resp.status };
+		const data = await resp.json();
+		const web = data?.data?.web ?? data?.web ?? [];
+		const results: WebSearchResult[] = (Array.isArray(web) ? web : [])
+			.slice(0, limit)
+			.map((r: { title?: string; url?: string; description?: string }) => ({
+				title: r.title,
+				url: r.url,
+				snippet: r.description
+			}));
+		return { results, provider: 'firecrawl' };
+	} catch (e) {
+		return { error: (e as Error).message, status: 0 };
+	}
+}
+
+/** Should the search provider fall forward to the secondary? 5xx, quota (401), rate (429). */
+function shouldFallForward(status: number): boolean {
+	return status === 401 || status === 429 || (status >= 500 && status < 600);
+}
 
 /**
  * The sensitive, tailnet-only tool set. Returned fresh per request so the route
@@ -212,38 +287,36 @@ export function getSensitiveTools() {
 
 		web_search: tool({
 			description:
-				'Search the web for current, factual, or recent information. Use whenever the answer might be newer than your knowledge or you are unsure. Returns a list of results (title, url, snippet); call web_fetch on a result url to read its full page.',
+				'Search the web for current, factual, or recent information. Use whenever the answer might be newer than your knowledge or you are unsure. Returns a list of results (title, url, snippet) and, when Perplexity is the active backend, a one-paragraph cited answer; call web_fetch on a result url to read its full page.',
 			inputSchema: z.object({
 				query: z.string().describe('The search query or question'),
 				limit: z.number().int().min(1).max(10).default(5).describe('How many results (default 5)')
 			}),
 			execute: async ({ query, limit }: { query: string; limit?: number }) => {
-				if (!FIRECRAWL_KEY) return { error: 'web search is not configured on this server' };
 				if (carriesSecret(query)) return { error: 'refused: the query contains a secret-like string' };
-				try {
-					const resp = await fetch('https://api.firecrawl.dev/v2/search', {
-						method: 'POST',
-						headers: {
-							Authorization: `Bearer ${FIRECRAWL_KEY}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({ query, limit: Math.min(Math.max(limit ?? 5, 1), 10) }),
-						signal: AbortSignal.timeout(WEB_TIMEOUT_MS)
-					});
-					if (!resp.ok) return { error: `search failed (HTTP ${resp.status})`, query };
-					const data = await resp.json();
-					const web = data?.data?.web ?? data?.web ?? [];
-					const results = (Array.isArray(web) ? web : []).slice(0, 10).map(
-						(r: { title?: string; url?: string; description?: string }) => ({
-							title: r.title,
-							url: r.url,
-							snippet: r.description
-						})
-					);
-					return { query, note: UNTRUSTED_NOTE, results };
-				} catch (e) {
-					return { error: (e as Error).message, query };
+				if (!PERPLEXITY_KEY && !FIRECRAWL_KEY) {
+					return { error: 'web search is not configured on this server' };
 				}
+				const cap = Math.min(Math.max(limit ?? 5, 1), 10);
+
+				// Try Perplexity first (cited answers, lower-noise output). Fall
+				// forward to Firecrawl on quota/rate/5xx — same OAuth-first chain
+				// shape as llm_router. If Perplexity isn't configured, go straight
+				// to Firecrawl.
+				let primary: WebSearchOk | WebSearchFail = PERPLEXITY_KEY
+					? await searchPerplexity(query, cap)
+					: { error: 'perplexity not configured', status: 0 };
+				if ('results' in primary) {
+					return { query, note: UNTRUSTED_NOTE, ...primary };
+				}
+				if (FIRECRAWL_KEY && (primary.status === 0 || shouldFallForward(primary.status))) {
+					const fallback = await searchFirecrawl(query, cap);
+					if ('results' in fallback) {
+						return { query, note: UNTRUSTED_NOTE, ...fallback, primaryFailed: primary.error };
+					}
+					return { error: `both providers failed (perplexity: ${primary.error}; firecrawl: ${fallback.error})`, query };
+				}
+				return { error: `search failed (perplexity: ${primary.error})`, query };
 			}
 		}),
 
