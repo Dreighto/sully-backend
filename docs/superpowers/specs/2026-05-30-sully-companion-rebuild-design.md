@@ -96,9 +96,17 @@ Designed-for-later seams (interfaces built in v1, implementations later):
 
 ## 7. iOS / Capacitor specifics
 
-- **Distribution:** TestFlight (operator's own device) via the Apple Developer Program. App ID + signing managed in Xcode/Capacitor.
+**Toolchain (confirmed 2026-05-30):** Node 22 / npm 11 present; nothing Capacitor/iOS installed yet (clean slate). Capacitor **8.x** set to add: `@capacitor/core`·`/cli`·`/ios` (8.3.4), plus plugins `push-notifications` `haptics` `keyboard` `status-bar` `splash-screen` `preferences` `app` `share` (8.x — all must track the same major). `keyboard` is load-bearing for the chat composer.
+
+**Build & distribution machine (RESOLVED): cloud-CI, no Mac, no hardware.**
+- The dev box is **Linux** — `@capacitor/core`/`cli`/plugins + the whole web build install and run here fine. `@capacitor/ios` (`pod install` → Xcode build → sign → TestFlight) **cannot** run on Linux.
+- Decision: the iOS compile/sign/ship step runs on a **cloud macOS CI runner**. Linux stays Sully's home (server, model, voice, web dev); CI does only the native wrap + TestFlight push via **fastlane**.
+- Recommended runner: **Codemagic** (generous free tier, first-class Capacitor support, handles signing + TestFlight with minimal config) — or **GitHub Actions `macos` runner** if we'd rather keep it in the existing GitHub flow (more manual fastlane/signing setup). Final pick in the plan.
+- Apple Developer Program (operator enrolled) supplies the signing identity / App ID / TestFlight; the CI runner is the missing build machine.
+
+**Per-capability:**
 - **Mic:** native `getUserMedia`/Capacitor permission → fixes the PWA mic pain; voice mode gets reliable capture.
-- **Push:** APNs via Capacitor push plugin; the existing web-push/dispatcher concept adapts to native tokens. (iOS Web Push gotchas no longer apply once native.)
+- **Push:** APNs via `@capacitor/push-notifications`; the existing web-push/dispatcher concept adapts to native device tokens. (iOS Web Push gotchas no longer apply once native.)
 - **Backend reach:** the app talks to the local server over Tailscale (same boundary as today). The shell is a thin native wrapper; the server stays on the ROOM machine.
 
 ## 8. Error handling
