@@ -14,7 +14,7 @@
 # PREREQUISITES (done once in the Codemagic / App Store Connect UI — see
 # docs/ios-build-runbook.md):
 #   - App Store Connect API key (ID R8SY4X6JM4) wired as a Codemagic *integration*
-#     under Team settings, named exactly `codemagic` (matches the integrations block).
+#     under Team settings, named exactly `LogueOS` (matches the integrations block).
 #   - App record for bundle com.dreighto.sully exists in App Store Connect.
 #   - This file lives on branch feat/ios-capacitor-shell.
 # ---------------------------------------------------------------------------
@@ -29,7 +29,7 @@ workflows:
     # Press "Start new build" in the Codemagic UI and pick this workflow.
 
     integrations:
-      app_store_connect: codemagic      # App Store Connect API key integration (key ID R8SY4X6JM4)
+      app_store_connect: LogueOS      # App Store Connect API key integration (key ID R8SY4X6JM4)
 
     environment:
       vars:
@@ -127,7 +127,7 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration             # uses the `codemagic` App Store Connect integration
+        auth: integration             # uses the `LogueOS` App Store Connect integration
         submit_to_testflight: true    # send to TestFlight during post-processing
         submit_to_app_store: false
       email:
