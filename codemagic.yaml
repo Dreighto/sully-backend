@@ -40,10 +40,10 @@ workflows:
         XCODE_SCHEME: "App"                  # Capacitor default scheme name
         BUNDLE_ID: "com.dreighto.sully"
         TEAM_ID: "G3KJW4VXM9"
-        # REPLACE 0000000000 with the numeric Apple ID once the app record exists
+        # App Store Connect Apple ID for Sully (set 2026-05-30; SKU com.dreighto.sully)
         # (App Store Connect > Apps > Sully > General > App Information > Apple ID).
         # Until then the build still works via the $BUILD_NUMBER fallback below.
-        APP_APPLE_ID: "0000000000"
+        APP_APPLE_ID: "6775013884"
       xcode: latest                     # resolves to 26.4 today (satisfies Capacitor 8's Xcode 26+). `latest` avoids a free-tier version-pin gamble; pin 26.4 once confirmed.
       cocoapods: default
       node: 22
