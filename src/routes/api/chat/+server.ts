@@ -302,7 +302,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					routerMessages,
 					'gemini',
 					undefined,
-					buildSystemPrompt({ targetRepo, currentTier, threadId })
+					await buildSystemPrompt({ targetRepo, currentTier, threadId }, message.trim())
 				);
 				addChatMessage('agy', result.reply, null, null, null, 'sent', threadId);
 				upsertThreadTier(threadId, currentTier, result.model_used);

@@ -55,6 +55,25 @@ export function bootstrapCompanionDb(): void {
 				last_thread TEXT NOT NULL DEFAULT 'default',
 				updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 			);
+
+			-- Layer 2 (episodic): durable facts extracted from remember-flagged threads.
+			CREATE TABLE IF NOT EXISTS episodic_facts (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				thread_id TEXT NOT NULL,
+				fact TEXT NOT NULL,
+				source_message_id INTEGER,
+				importance INTEGER DEFAULT 1,
+				created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+				last_seen_at TEXT
+			);
+			CREATE INDEX IF NOT EXISTS idx_episodic_thread ON episodic_facts(thread_id);
+
+			-- Layer 3 (semantic): one embedding per fact (JSON float array + model tag).
+			CREATE TABLE IF NOT EXISTS episodic_embeddings (
+				fact_id INTEGER PRIMARY KEY REFERENCES episodic_facts(id) ON DELETE CASCADE,
+				embedding TEXT NOT NULL,
+				embed_model TEXT NOT NULL
+			);
 		`);
 	} finally {
 		db.close();

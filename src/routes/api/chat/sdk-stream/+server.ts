@@ -371,7 +371,18 @@ export const POST: RequestHandler = async ({ request }) => {
 	const keyValid = TOOLS_SECRET.length > 0 && providedKey === TOOLS_SECRET;
 	const allowSensitive = !viaFunnel || keyValid;
 
-	const systemPrompt = buildSystemPrompt({ targetRepo, currentTier, threadId, allowSensitive });
+	const userMessageText =
+		[...messages]
+			.reverse()
+			.find((m) => m.role === 'user')
+			?.parts?.filter((p) => p.type === 'text')
+			.map((p) => (p as { type: 'text'; text: string }).text)
+			.join(' ')
+			.trim() || '';
+	const systemPrompt = await buildSystemPrompt(
+		{ targetRepo, currentTier, threadId, allowSensitive },
+		userMessageText
+	);
 
 	// ─── CLI bridge path (Sonnet/Opus over OAuth) ────────────────────────
 	if (useClaudeCLI) {

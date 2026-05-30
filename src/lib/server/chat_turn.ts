@@ -17,6 +17,7 @@ import {
 	type ThreadState
 } from './thread_state';
 import { touchLastActivity, upsertThreadMeta } from './thread_meta';
+import { maybeUpdateThreadSummary } from './working_memory';
 
 /**
  * Persist the operator's incoming turn. Returns the row so the route can return
@@ -88,4 +89,8 @@ export function persistAssistantTurn(args: {
 	addChatMessage(args.sender, args.text, null, null, null, 'sent', args.threadId);
 	upsertThreadTier(args.threadId, args.tier, args.model);
 	touchLastActivity(args.threadId);
+
+	// Layer 1 (working memory): refresh the pre-hot-window summary in the
+	// background. Fire-and-forget — never block the reply.
+	void maybeUpdateThreadSummary(args.threadId).catch(() => {});
 }

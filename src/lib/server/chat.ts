@@ -58,6 +58,44 @@ export function getChatMessages(limit = 100, threadId = 'default'): ChatMessage[
 	}
 }
 
+export function getChatMessageCount(threadId = 'default'): number {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return 0;
+	const db = getDb();
+	try {
+		const r = db
+			.prepare('SELECT COUNT(*) AS n FROM chat_messages WHERE thread_id = ?')
+			.get(threadId) as { n: number } | undefined;
+		return r?.n ?? 0;
+	} catch (e: unknown) {
+		console.error('getChatMessageCount error:', e);
+		return 0;
+	} finally {
+		db.close();
+	}
+}
+
+// Messages OLDER than the most recent `recentN` (history scrolled out of the
+// hot window), ascending. Feeds the Layer-1 working-memory summary.
+export function getMessagesBeforeRecent(recentN: number, threadId = 'default'): ChatMessage[] {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];
+	const db = getDb();
+	try {
+		const boundary = db
+			.prepare('SELECT id FROM chat_messages WHERE thread_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?')
+			.get(threadId, recentN - 1) as { id?: number } | undefined;
+		if (!boundary?.id) return [];
+		const rows = db
+			.prepare('SELECT * FROM chat_messages WHERE thread_id = ? AND id < ? ORDER BY id ASC')
+			.all(threadId, boundary.id) as any[];
+		return rows.map(parseRow);
+	} catch (e: unknown) {
+		console.error('getMessagesBeforeRecent error:', e);
+		return [];
+	} finally {
+		db.close();
+	}
+}
+
 /**
  * Single-operator chat UI state — survives page reloads + device switches.
  * The chat_user_state table has one row keyed 'operator'; we just store

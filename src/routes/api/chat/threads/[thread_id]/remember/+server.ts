@@ -5,6 +5,7 @@ import { setRememberFlag, getThreadMeta } from '$lib/server/thread_meta';
 import { getThreadState } from '$lib/server/thread_state';
 import { emitObservation } from '$lib/server/observation_emit';
 import { routeChat } from '$lib/server/llm_router';
+import { extractAndStoreEpisodicFacts } from '$lib/server/episode_extractor';
 
 /**
  * POST /api/chat/threads/[thread_id]/remember
@@ -27,6 +28,13 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		setRememberFlag(thread_id, true);
 
 		const messages = getChatMessages(30, thread_id);
+
+		// Layer 2 (episodic): extract + persist durable facts about Captain.
+		try {
+			await extractAndStoreEpisodicFacts(thread_id, messages);
+		} catch (e) {
+			console.error('episodic extraction failed:', e);
+		}
 		const threadState = getThreadState(thread_id);
 		const threadMeta = getThreadMeta(thread_id);
 
