@@ -20,16 +20,90 @@
 		AudioLines,
 		AlertCircle,
 		Hand,
+		Info,
 		Infinity as InfinityIcon
 	} from 'lucide-svelte';
 	import type { RealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
 
 	let { voice }: { voice: RealtimeVoiceController } = $props();
 
+	// ── Diagnostic: mic permission + PWA install state ──────────────────
+	// iOS PWA mic-permission behavior is famously inconsistent. This probes
+	// the actual state on entry so Captain can see what iOS REALLY thinks at
+	// any given moment (vs. inferring from the prompt's UI). Settles the
+	// "did the permission persist?" question with data instead of theory.
+	type MicProbe = {
+		permission: 'granted' | 'prompt' | 'denied' | 'unsupported' | 'pending';
+		standalone: boolean;
+		displayMode: string;
+		secureContext: boolean;
+		hostname: string;
+		userAgent: string;
+	};
+	let probe = $state<MicProbe>({
+		permission: 'pending',
+		standalone: false,
+		displayMode: '',
+		secureContext: false,
+		hostname: '',
+		userAgent: ''
+	});
+	let showProbe = $state(false);
+
+	async function runProbe(): Promise<void> {
+		const result: MicProbe = {
+			permission: 'unsupported',
+			standalone: false,
+			displayMode: 'unknown',
+			secureContext: false,
+			hostname: '',
+			userAgent: ''
+		};
+		if (typeof window === 'undefined') {
+			probe = result;
+			return;
+		}
+		result.hostname = location.hostname;
+		result.userAgent = navigator.userAgent.slice(0, 80);
+		result.secureContext = window.isSecureContext;
+		// iOS Safari: navigator.standalone === true when launched from home-screen icon.
+		const std = (
+			navigator as Navigator & { standalone?: boolean }
+		).standalone;
+		result.standalone = std === true;
+		const modes = ['standalone', 'fullscreen', 'minimal-ui', 'browser'];
+		for (const m of modes) {
+			if (window.matchMedia?.(`(display-mode: ${m})`).matches) {
+				result.displayMode = m;
+				break;
+			}
+		}
+		try {
+			if (navigator.permissions?.query) {
+				const status = await navigator.permissions.query({
+					name: 'microphone' as PermissionName
+				});
+				result.permission = status.state as MicProbe['permission'];
+			}
+		} catch {
+			result.permission = 'unsupported';
+		}
+		probe = result;
+	}
+
+	// Re-probe every time voice mode opens AND on visibility-change (so when
+	// Captain backgrounds + foregrounds, we see whether iOS re-evaluated state).
+	$effect(() => {
+		if (voice.open) void runProbe();
+	});
+
 	// iOS suspends AudioContexts when the tab/PWA backgrounds; resume on return.
 	$effect(() => {
 		const onVisible = () => {
-			if (document.visibilityState === 'visible') voice.resumeAudio();
+			if (document.visibilityState === 'visible') {
+				voice.resumeAudio();
+				void runProbe();
+			}
 		};
 		document.addEventListener('visibilitychange', onVisible);
 		return () => document.removeEventListener('visibilitychange', onVisible);
@@ -109,6 +183,16 @@
 				<span>Voice</span>
 			</div>
 			<div class="flex items-center gap-1">
+				<!-- Diagnostic probe (small ⓘ — toggles a permission + PWA state panel) -->
+				<button
+					type="button"
+					onclick={() => (showProbe = !showProbe)}
+					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+					aria-label="Toggle mic permission + PWA diagnostic"
+					title="Mic permission + PWA diagnostic"
+				>
+					<Info size={18} />
+				</button>
 				<!-- Mode toggle: hands-free ⇄ push-to-talk -->
 				<button
 					type="button"
@@ -150,6 +234,43 @@
 				</button>
 			</div>
 		</div>
+
+		{#if showProbe}
+			<!-- Diagnostic panel — shows what iOS *actually* reports about mic permission +
+			     PWA install state. Useful for confirming whether re-prompting is iOS
+			     dropping the grant vs. our code asking when it shouldn't. -->
+			<div class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-mono text-[11px] text-zinc-300">
+				<div class="mb-1 flex items-center justify-between text-zinc-400">
+					<span>diagnostic</span>
+					<button
+						type="button"
+						onclick={() => void runProbe()}
+						class="rounded px-2 py-0.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+					>refresh</button>
+				</div>
+				<div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+					<span class="text-zinc-500">mic permission:</span>
+					<span class={
+						probe.permission === 'granted' ? 'text-emerald-400'
+						: probe.permission === 'denied' ? 'text-red-400'
+						: probe.permission === 'prompt' ? 'text-amber-400'
+						: 'text-zinc-500'
+					}>{probe.permission}</span>
+					<span class="text-zinc-500">standalone PWA:</span>
+					<span class={probe.standalone ? 'text-emerald-400' : 'text-amber-400'}>
+						{probe.standalone ? 'yes' : 'no (in Safari?)'}
+					</span>
+					<span class="text-zinc-500">display mode:</span>
+					<span>{probe.displayMode}</span>
+					<span class="text-zinc-500">secure context:</span>
+					<span class={probe.secureContext ? 'text-emerald-400' : 'text-red-400'}>
+						{probe.secureContext ? 'yes' : 'NO'}
+					</span>
+					<span class="text-zinc-500">hostname:</span>
+					<span class="break-all">{probe.hostname}</span>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Transcript region -->
 		<div class="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-4">
