@@ -86,17 +86,22 @@ workflows:
           # (so the Podfile iOS-15 floor set by the patch step is honored).
           npx cap sync ios
 
-      - name: Set up automatic code signing
+      - name: Set up code signing (instrumented)
         script: |
-          # First-build-safe automatic signing: CREATE the distribution cert + App
-          # Store provisioning profile for the bundle id if they don't exist yet,
-          # then apply them. The removed environment.ios_signing block only FETCHED
-          # existing profiles (none exist on build 1) -> "No matching profiles found".
-          # Requires the App Store Connect API key to have App Manager/Admin role.
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
-          xcode-project use-profiles
+          DBG="$CM_BUILD_DIR/signing-debug.log"; : > "$DBG"
+          keychain initialize 2>&1 | tee -a "$DBG"
+          # --create makes the distribution cert + App Store profile if missing.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create 2>&1 | tee -a "$DBG"
+          keychain add-certificates 2>&1 | tee -a "$DBG"
+          echo "=== provisioning profiles on disk ===" | tee -a "$DBG"
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>&1 | tee -a "$DBG" || true
+          echo "=== keychain certificates ===" | tee -a "$DBG"
+          keychain list-certificates 2>&1 | tee -a "$DBG" || true
+          echo "=== use-profiles (explicit project) ===" | tee -a "$DBG"
+          cd "$CM_BUILD_DIR/ios/App"
+          xcode-project use-profiles --project "App.xcodeproj" 2>&1 | tee -a "$DBG"
+          echo "=== resulting App signing settings ===" | tee -a "$DBG"
+          xcodebuild -showBuildSettings -workspace "App.xcworkspace" -scheme "App" 2>/dev/null | grep -E "DEVELOPMENT_TEAM|PROVISIONING_PROFILE|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE" | sort -u | tee -a "$DBG" || true
 
       - name: Increment build number
         script: |
@@ -121,6 +126,7 @@ workflows:
             --scheme "$XCODE_SCHEME"
 
     artifacts:
+      - signing-debug.log
       - ios/App/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
