@@ -149,7 +149,7 @@
 					? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[0_0_30px_rgba(6,182,212,0.15)]'
 					: sending
 						? 'animate-pulse border-purple-500/40 bg-purple-500/[0.04] shadow-[0_0_30px_rgba(168,85,247,0.15)]'
-						: 'border-zinc-800/80 bg-zinc-950/80 shadow-[0_0_24px_rgba(168,85,247,0.06)] focus-within:border-zinc-600/80 hover:border-zinc-700/80'}"
+						: 'border-zinc-800/80 bg-zinc-950/80 shadow-[0_0_28px_rgba(236,45,120,0.1)] focus-within:border-[#ec2d78]/50 focus-within:shadow-[0_0_32px_rgba(236,45,120,0.18)] hover:border-zinc-700/80'}"
 	>
 		<!-- Dictation / Talkback Status indicators inside composer -->
 		{#if composerMode === 'recording' || composerMode === 'talkback'}
@@ -295,7 +295,7 @@
 							? 'Continuously monitoring stream… hands free.'
 							: imageMode
 								? 'Describe the image you want to generate…'
-								: 'Ask or command loops…'}
+								: 'Talk to Sully…'}
 					autocomplete="off"
 					autocapitalize="sentences"
 					spellcheck="false"
@@ -394,11 +394,11 @@
 						composerMode === 'recording' ||
 						composerMode === 'talkback' ||
 						attachments.some((a) => a.uploading)}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:border disabled:border-zinc-800 disabled:from-zinc-900 disabled:to-zinc-900 disabled:text-zinc-600 disabled:shadow-none sm:h-9 sm:w-9"
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff4d94] to-[#c4186a] text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:border disabled:border-zinc-800 disabled:from-zinc-900 disabled:to-zinc-900 disabled:text-zinc-600 disabled:shadow-none sm:h-9 sm:w-9"
 					aria-label="Send Message"
 					title="Send (Enter)"
 					style={textDraft.trim() && !sending && composerMode === 'idle'
-						? 'box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);'
+						? 'box-shadow: 0 0 16px rgba(236, 45, 120, 0.45);'
 						: ''}
 				>
 					<Send size={14} />

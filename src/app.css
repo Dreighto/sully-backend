@@ -6,7 +6,15 @@
 
 	--color-background: #050505;
 	--color-surface: #111111;
-	--color-cta: #a3e635;
+	--color-cta: #ec2d78;
+
+	/* ── Sully brand: the magenta "thought-drop" identity (companion-brand-sheet.png).
+	   This is the resting/identity accent. Functional MODE colors (amber=recording,
+	   emerald=talkback, cyan=image) are intentionally left alone so modes stay
+	   distinguishable — magenta is reserved for "this is Sully". */
+	--color-brand: #ec2d78;
+	--color-brand-bright: #ff4d94;
+	--color-brand-deep: #c4186a;
 
 	--color-status-green: #22c55e;
 	--color-status-amber: #f59e0b;
@@ -22,8 +30,8 @@
 	/* shadcn-svelte compatibility */
 	--radius: 0.5rem;
 
-	--color-primary: #a3e635;
-	--color-primary-foreground: #0d1117;
+	--color-primary: #ec2d78;
+	--color-primary-foreground: #ffffff;
 
 	--color-secondary: #18181b;
 	--color-secondary-foreground: #ffffff;
@@ -39,7 +47,7 @@
 
 	--color-border: #27272a;
 	--color-input: #27272a;
-	--color-ring: #a3e635;
+	--color-ring: #ec2d78;
 
 	/* Tailwind 4 utility-class tokens — these must live in @theme (not just
      :root) for text-foreground / bg-card / bg-popover etc. to compile.
@@ -61,8 +69,8 @@
 		--card-foreground: #ffffff;
 		--popover: #111111;
 		--popover-foreground: #ffffff;
-		--primary: #a3e635;
-		--primary-foreground: #050505;
+		--primary: #ec2d78;
+		--primary-foreground: #ffffff;
 		--secondary: #18181b;
 		--secondary-foreground: #ffffff;
 		--muted: #18181b;
@@ -73,7 +81,7 @@
 		--destructive-foreground: #ffffff;
 		--border: #27272a;
 		--input: #27272a;
-		--ring: #a3e635;
+		--ring: #ec2d78;
 		--radius: 0.5rem;
 	}
 }
@@ -101,6 +109,15 @@
 			'calt' 1;
 		/* Prevent boundary scroll rubber-banding on mobile */
 		overscroll-behavior: none;
+		/* Sully ambient glow — two faint magenta auras (top-right + bottom-left)
+		   bleeding off the near-black so the surface reads warm and alive rather
+		   than dead-flat. Fixed so it doesn't scroll with the feed. */
+		background-color: var(--color-background);
+		background-image:
+			radial-gradient(60% 50% at 85% -5%, rgba(236, 45, 120, 0.1), transparent 70%),
+			radial-gradient(55% 45% at 0% 105%, rgba(196, 24, 106, 0.07), transparent 70%);
+		background-attachment: fixed;
+		background-repeat: no-repeat;
 	}
 
 	/* Prevent annoying accidental text selection when double tapping tabs/buttons */

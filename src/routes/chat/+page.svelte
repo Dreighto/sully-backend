@@ -11,7 +11,7 @@
 	//   - 100% wired controls (Mic dictation, Paperclip uploads, Sparkles image mode, Talkback loop).
 
 	import { onMount, onDestroy, untrack } from 'svelte';
-	import { resolve } from '$app/paths';
+	import { resolve, base } from '$app/paths';
 	import type { SlashCmd } from '$lib/types/slash';
 	import type {
 		Tier,
@@ -799,10 +799,6 @@
 		}
 	}
 
-	function senderDisplay(s: string): string {
-		if (s === 'operator') return 'You';
-		return s.toUpperCase();
-	}
 </script>
 
 <svelte:head>
@@ -924,13 +920,14 @@
 		>
 			{#if messages.length === 0}
 				<div class="flex flex-1 items-center justify-center text-center select-none">
-					<div class="max-w-xs space-y-2">
-						<div class="font-sans text-sm font-light text-zinc-500/60">
-							Active terminal partner loop established.
-						</div>
-						<div class="font-mono text-[10px] tracking-widest text-zinc-700 uppercase">
-							{selectedWorkspace?.display_name ?? selectedRepo} · {currentTier}
-						</div>
+					<div class="flex max-w-xs flex-col items-center gap-3">
+						<img
+							src="{base}/favicon.png"
+							alt="Sully"
+							class="h-16 w-16 drop-shadow-[0_0_22px_rgba(236,45,120,0.5)]"
+						/>
+						<div class="font-sans text-base text-zinc-200">Hey Captain — what's on your mind?</div>
+						<div class="font-sans text-xs text-zinc-500">Sully's here. Think out loud.</div>
 					</div>
 				</div>
 			{:else}
@@ -945,10 +942,17 @@
 							<!-- Custom Labeling / Bubble Headers -->
 							{#if m.sender !== 'operator'}
 								<div
-									class="mb-1.5 flex w-fit items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-950/20 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-cyan-400 uppercase select-none"
+									class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-[#ec2d78]/30 bg-[#ec2d78]/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ff7eb3] select-none"
 								>
-									<Sparkles size={10} class="shrink-0 text-cyan-400" />
-									<span>{m.sender === 'system' ? 'LOGUEOS' : senderDisplay(m.sender)}</span>
+									<span
+										class="h-2 w-2 shrink-0 rounded-full"
+										style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
+									></span>
+									<span
+										>{m.sender === 'system'
+											? 'LOGUEOS'
+											: (data.appIdentity?.coreLabel ?? 'Sully')}</span
+									>
 								</div>
 							{/if}
 
@@ -957,10 +961,10 @@
 						     bubbles render through the Markdown component for
 						     code-block highlighting, inline code, lists, etc. -->
 							<div
-								class="max-w-[85%] rounded-2xl px-3.5 py-2 font-sans text-[13.5px] leading-snug tracking-[-0.005em] antialiased selection:bg-purple-900/50 selection:text-white sm:max-w-[80%]
+								class="max-w-[85%] rounded-2xl px-3.5 py-2 font-sans text-[13.5px] leading-snug tracking-[-0.005em] antialiased selection:bg-[#ec2d78]/40 selection:text-white sm:max-w-[80%]
 								{m.sender === 'operator'
-									? 'border border-orange-500/30 bg-orange-500/[0.03] text-orange-50 shadow-[0_0_20px_rgba(249,115,22,0.06)]'
-									: 'border border-zinc-900 bg-zinc-950/40 text-zinc-100'}"
+									? 'border border-zinc-700/70 bg-zinc-900/70 text-zinc-100'
+									: 'border border-[#ec2d78]/20 bg-[#ec2d78]/[0.06] text-zinc-100 shadow-[0_0_22px_rgba(236,45,120,0.06)]'}"
 							>
 								{#if m.sender === 'operator'}
 									<span class="whitespace-pre-wrap">{m.message}</span>
@@ -1025,32 +1029,29 @@
 				{#if streamState && messages.find((m) => m.id === streamState!.placeholderId)?.message === ''}
 					<div class="flex flex-col items-start gap-1">
 						<div
-							class="mb-1.5 flex w-fit items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-950/20 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-cyan-400 uppercase select-none"
+							class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-[#ec2d78]/30 bg-[#ec2d78]/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ff7eb3] select-none"
 						>
-							<Sparkles size={10} class="shrink-0 text-cyan-400" />
 							<span
-								>{providerOverride === 'anthropic'
-									? 'CC'
-									: providerOverride === 'local'
-										? 'LOCAL'
-										: 'AGY'}</span
-							>
+								class="h-2 w-2 shrink-0 rounded-full"
+								style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
+							></span>
+							<span>{data.appIdentity?.coreLabel ?? 'Sully'}</span>
 						</div>
 						<div
-							class="flex items-center gap-1.5 rounded-2xl border border-zinc-900 bg-zinc-950/40 px-4 py-3.5"
-							aria-label="Assistant is thinking"
+							class="flex items-center gap-1.5 rounded-2xl border border-[#ec2d78]/20 bg-[#ec2d78]/[0.06] px-4 py-3.5"
+							aria-label="Sully is thinking"
 							role="status"
 						>
 							<span
-								class="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400/70"
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
 								style="animation-delay: 0ms"
 							></span>
 							<span
-								class="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400/70"
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
 								style="animation-delay: 150ms"
 							></span>
 							<span
-								class="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400/70"
+								class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
 								style="animation-delay: 300ms"
 							></span>
 						</div>
