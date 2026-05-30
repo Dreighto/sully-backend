@@ -11,3 +11,4 @@ data/chat_uploads/
 
 # Aider CLI session artifacts (operator's interactive tool)
 .aider*
+.superpowers/
