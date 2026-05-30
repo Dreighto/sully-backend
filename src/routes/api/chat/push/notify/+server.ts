@@ -9,7 +9,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { sendPushToAll } from '$lib/server/web_push';
-import { serverConfig } from '$lib/server/config';
+import { serverConfig, appIdentity } from '$lib/server/config';
 
 export const POST: RequestHandler = async ({ request }) => {
 	if (!serverConfig.enableWebPush) {
@@ -32,7 +32,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const result = await sendPushToAll({
 		title: title.trim(),
 		body: typeof msgBody === 'string' ? msgBody.trim() : '',
-		url: typeof url === 'string' ? url.trim() : '/console'
+		url: typeof url === 'string' ? url.trim() : appIdentity.basePath
 	});
 
 	return json({ ok: true, ...result });

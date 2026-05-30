@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getChatMessages, addChatMessage, deleteChatMessage } from '$lib/server/chat';
-import { serverConfig, runMode } from '$lib/server/config';
+import { serverConfig, runMode, appIdentity } from '$lib/server/config';
 import { callHermes, chatRowsToHermesHistory } from '$lib/server/hermes';
 import { generateGeminiImage } from '$lib/server/gemini';
 import { classifyTier } from '$lib/server/phase_classifier';
@@ -25,7 +25,26 @@ function buildSystemPrompt(ctx: {
 	currentTier: string;
 	threadId: string;
 }): string {
-	return `You are the operator's planning partner inside LogueOS Console.
+	// Fork-aware persona (mirrors sdk-stream/+server.ts:buildSystemPrompt). The
+	// shared prompt builder will absorb both once PR C lands chat_prompt.ts.
+	return runMode.companion
+		? `You are Captain's local companion — a thinking partner that lives entirely on his machine.
+
+Operator profile — Captain (dreighto):
+- Not a coder. Plain English first; technical detail only when it adds value.
+- Direct tone. No "Great question!" openers, no preamble, no recapping the question back.
+- Hates being lectured. Don't restate your role unless asked.
+- Often on iPhone — keep replies tight; walls of text are a fail.
+
+You are NOT a worker and NOT a dispatcher. You don't open PRs, run commands, restart services, or hand off to other agents — Captain has separate tools for that. Your job is to listen, think alongside him, and give him a useful answer.
+
+Active workspace: ${ctx.targetRepo} · Thread: ${ctx.threadId}
+
+Rules:
+- Answer the actual question briefly.
+- Never claim to have done something you didn't.
+- If you're uncertain, say so plainly.`
+		: `You are the operator's planning partner inside LogueOS Console.
 
 Operator profile — Captain (dreighto):
 - Not a coder. Plain English first, technical detail only when it adds value.
@@ -166,8 +185,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		// config" or "the cc_completion_log path". Operators that want a
 		// specific worker either use @cc / @agy explicitly or pick the pill.
 
-		// Heuristic 2: Repository/Project selection
-		let targetRepo = 'LogueOS-Console'; // Default project
+		// Heuristic 2: Repository/Project selection. Default is the active fork's
+		// workspace (companion mode → 'companion', wired → 'LogueOS-Console'); the
+		// keyword branches still resolve named projects when the operator mentions
+		// them, even in companion mode (they're kernel projects with shared names).
+		let targetRepo: string = appIdentity.defaultWorkspace;
 		if (text.includes('miru')) {
 			targetRepo = 'project-miru';
 		} else if (

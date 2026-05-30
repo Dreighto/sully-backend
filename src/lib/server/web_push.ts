@@ -9,7 +9,7 @@
 import webpush from 'web-push';
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
-import { serverConfig } from './config';
+import { serverConfig, appIdentity } from './config';
 
 let vapidConfigured = false;
 const ensuredTables = new Set<string>();
@@ -136,8 +136,8 @@ export async function sendPush(
 	const body = JSON.stringify({
 		title: payload.title,
 		body: payload.body,
-		icon: '/console/favicon.png',
-		data: { url: payload.url ?? '/console' }
+		icon: appIdentity.pushIconUrl,
+		data: { url: payload.url ?? appIdentity.basePath }
 	});
 
 	try {

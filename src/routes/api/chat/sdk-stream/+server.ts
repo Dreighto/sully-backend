@@ -42,7 +42,7 @@ import { classifyTier, type Tier } from '$lib/server/phase_classifier';
 import { getThreadState, upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity, upsertThreadMeta } from '$lib/server/thread_meta';
 import { getWorkspaceContext } from '$lib/server/workspace_context';
-import { serverConfig, runMode } from '$lib/server/config';
+import { serverConfig, runMode, appIdentity } from '$lib/server/config';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 
 // LogueOS-on-SDK tools — read-only operator-context fetches the LLM can call
@@ -257,7 +257,28 @@ function buildSystemPrompt(ctx: {
 	threadId: string;
 	allowSensitive: boolean;
 }): string {
-	const base = `You are the operator's planning partner inside LogueOS Console.
+	// Fork-aware persona. In companion mode the model is Captain's local
+	// companion (its OWN app); in wired mode it's the Console planning partner.
+	// Sharing one prompt with a Console reference made the model say it was the
+	// Console in every companion conversation — visibly wrong since the fork.
+	const base = runMode.companion
+		? `You are Captain's local companion — a thinking partner that lives entirely on his machine.
+
+Operator profile — Captain (dreighto):
+- Not a coder. Plain English first; technical detail only when it adds value.
+- Direct tone. No "Great question!" openers, no preamble, no recapping the question back.
+- Hates being lectured. Don't restate your role unless asked.
+- Often on iPhone — keep replies tight; walls of text are a fail.
+
+You are NOT a worker and NOT a dispatcher. You don't open PRs, run commands, restart services, or hand off to other agents — Captain has separate tools for that. Your job is to listen, think alongside him, and give him a useful answer.
+
+Active workspace: ${ctx.targetRepo} · Thread: ${ctx.threadId}
+
+Rules:
+- Answer the actual question briefly.
+- Never claim to have done something you didn't.
+- If you're uncertain, say so plainly.`
+		: `You are the operator's planning partner inside LogueOS Console.
 
 Operator profile — Captain (dreighto):
 - Not a coder. Plain English first, technical detail only when it adds value.
@@ -315,7 +336,8 @@ function detectTargetRepo(message: string, hint?: string): string {
 		return 'LogueOS-Orchestrator';
 	}
 	if (text.includes('nasdoom')) return 'NASDOOM';
-	return 'LogueOS-Console';
+	// Fork-aware fallback: companion mode → 'companion', wired → 'LogueOS-Console'.
+	return appIdentity.defaultWorkspace;
 }
 
 // Pull the latest user message's plain-text content from a UIMessage[] —

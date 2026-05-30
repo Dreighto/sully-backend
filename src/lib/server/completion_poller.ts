@@ -5,7 +5,7 @@
 // Only reads bytes appended since the last poll — no replay of history on boot.
 
 import fs from 'node:fs';
-import { serverConfig, runMode } from './config';
+import { serverConfig, runMode, appIdentity } from './config';
 import { sendPushToAll } from './web_push';
 
 let lastKnownSize = 0;
@@ -58,7 +58,7 @@ function poll() {
 			sendPushToAll({
 				title: 'LogueOS: Worker complete',
 				body: `${ticketLabel}${statusLabel}`,
-				url: '/console/chat'
+				url: appIdentity.pushDefaultUrl
 			}).catch(() => {});
 		}
 	} catch {

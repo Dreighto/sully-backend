@@ -52,7 +52,8 @@
 		ontoggleArchive,
 		ondeleteThread,
 		onopenRename,
-		onclearAll
+		onclearAll,
+		coreLabel = 'LogueOS-Console'
 	}: {
 		threads: Thread[];
 		activeThread: string;
@@ -71,6 +72,8 @@
 		ondeleteThread: (thread: Thread) => void;
 		onopenRename: (thread: Thread) => void;
 		onclearAll: () => void;
+		/** Footer "CORE:" pill label — fork-aware (companion vs console). */
+		coreLabel?: string;
 	} = $props();
 </script>
 
@@ -289,7 +292,7 @@
 		class="shrink-0 space-y-0.5 border-t border-zinc-800/50 bg-black/25 p-3 font-mono text-[9px] text-zinc-600 select-none"
 		style="padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));"
 	>
-		<div>CORE: LogueOS-Console</div>
+		<div>CORE: {coreLabel}</div>
 		<div>HOST: 127.0.0.1:18080</div>
 	</div>
 </aside>

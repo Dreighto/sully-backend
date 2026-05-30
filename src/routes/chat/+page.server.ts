@@ -4,7 +4,7 @@
 import type { PageServerLoad } from './$types';
 import { getChatMessages, listChatThreads, getActiveThread } from '$lib/server/chat';
 import { listThreadMeta } from '$lib/server/thread_meta';
-import { serverConfig, runMode } from '$lib/server/config';
+import { serverConfig, runMode, clientSafeConfig, appIdentity } from '$lib/server/config';
 
 export type Workspace = {
 	name: string;
@@ -16,7 +16,7 @@ export type Workspace = {
 	is_archived: boolean;
 };
 
-const FALLBACK_WORKSPACES: Workspace[] = [
+const WIRED_FALLBACK_WORKSPACES: Workspace[] = [
 	{
 		name: 'LogueOS-Console',
 		display_name: 'Console',
@@ -54,6 +54,25 @@ const FALLBACK_WORKSPACES: Workspace[] = [
 		is_archived: false
 	}
 ];
+
+// Companion mode is a standalone local app — the kernel workspace list is
+// vestigial here. Surface a single fork-aware entry so the repo chip doesn't
+// hand the user "LogueOS-Console" as option 1 in companion mode.
+const COMPANION_FALLBACK_WORKSPACES: Workspace[] = [
+	{
+		name: appIdentity.defaultWorkspace,
+		display_name: 'Companion',
+		group: 'Local',
+		emoji: '🦉',
+		default_branch: 'main',
+		pool_size: 1,
+		is_archived: false
+	}
+];
+
+const FALLBACK_WORKSPACES: Workspace[] = runMode.companion
+	? COMPANION_FALLBACK_WORKSPACES
+	: WIRED_FALLBACK_WORKSPACES;
 
 export const load: PageServerLoad = async ({ url }) => {
 	const queryThread = url.searchParams.get('thread');
@@ -145,6 +164,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		messages,
 		threads,
 		activeThread: thread,
-		workspaces
+		workspaces,
+		appIdentity: clientSafeConfig.appIdentity
 	};
 };

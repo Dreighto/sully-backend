@@ -152,6 +152,35 @@ export const runMode = {
 	killSwitchEnabled: _wired // read the system_halt kernel artifact
 } as const;
 
+// ── App identity ──────────────────────────────────────────────────────────
+// One place to ask "who am I" — fork-aware. The companion is NOT the Console,
+// and shipping prompts/UI/pushes that say "LogueOS Console" in companion mode
+// is a visible identity bug (the model literally tells itself it's the Console
+// every turn). Read from here, do NOT hard-code 'LogueOS-Console' or '/console'
+// anywhere fork-sensitive.
+const _companionIdentity = {
+	appName: 'LogueOS Companion',
+	basePath: '/companion',
+	/** The workspace string surfaced in the repo chip + persisted in thread state. */
+	defaultWorkspace: 'companion',
+	/** Pretty label for the sidebar footer "CORE:" pill. */
+	coreLabel: 'LogueOS Companion',
+	/** What the model calls itself in its system prompt. */
+	personaName: 'companion',
+	pushIconUrl: '/companion/favicon.png',
+	pushDefaultUrl: '/companion/chat'
+} as const;
+const _consoleIdentity = {
+	appName: 'LogueOS Console',
+	basePath: '/console',
+	defaultWorkspace: 'LogueOS-Console',
+	coreLabel: 'LogueOS-Console',
+	personaName: 'Console assistant',
+	pushIconUrl: '/console/favicon.png',
+	pushDefaultUrl: '/console/chat'
+} as const;
+export const appIdentity = runMode.companion ? _companionIdentity : _consoleIdentity;
+
 // Subset of serverConfig that's safe to expose to the client via load().
 // Specifically excludes filesystem paths (leak risk).
 export const clientSafeConfig = {
@@ -163,5 +192,12 @@ export const clientSafeConfig = {
 	// Companion-mode flags drive client-side UI (surface companion model first,
 	// hide @cc/@agy + workflow affordances). No server paths leaked.
 	companionMode: serverConfig.mode === 'companion',
-	companionDefaultModel: serverConfig.companionDefaultModel
+	companionDefaultModel: serverConfig.companionDefaultModel,
+	// Fork-aware identity — labels + the default workspace the chip starts on.
+	// Read this on the client instead of hard-coding 'LogueOS-Console'.
+	appIdentity: {
+		appName: appIdentity.appName,
+		defaultWorkspace: appIdentity.defaultWorkspace,
+		coreLabel: appIdentity.coreLabel
+	}
 };

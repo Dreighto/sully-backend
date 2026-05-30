@@ -50,7 +50,12 @@
 	let threads = $state(untrack(() => data.threads || []));
 
 	let textDraft = $state('');
-	let selectedRepo = $state('LogueOS-Console');
+	// Initial workspace from the loader — fork-aware (companion mode starts on
+	// 'companion', wired mode on 'LogueOS-Console'). Never hard-code the wired
+	// default here; that's how the model started identifying itself as Console.
+	let selectedRepo = $state<string>(
+		untrack(() => data.appIdentity?.defaultWorkspace || 'LogueOS-Console')
+	);
 	let currentTier = $state<Tier>('chat');
 	// Operator's explicit tier override, separate from the classifier-driven
 	// `currentTier`. We need this for chip display: when the operator picks
@@ -1452,6 +1457,7 @@
 		ondeleteThread={(t) => void deleteThreadById(t)}
 		onopenRename={openRename}
 		onclearAll={() => void clearAllSessions()}
+		coreLabel={data.appIdentity?.coreLabel ?? 'LogueOS-Console'}
 	/>
 
 	<!-- ═════════════════════════════════════════════════════════════════
