@@ -4,65 +4,24 @@ import { getChatMessages, addChatMessage, deleteChatMessage } from '$lib/server/
 import { serverConfig, runMode, appIdentity } from '$lib/server/config';
 import { callHermes, chatRowsToHermesHistory } from '$lib/server/hermes';
 import { generateGeminiImage } from '$lib/server/gemini';
-import { classifyTier } from '$lib/server/phase_classifier';
-import { getThreadState, upsertThreadTier } from '$lib/server/thread_state';
+import { upsertThreadTier } from '$lib/server/thread_state';
 import { routeChat } from '$lib/server/llm_router';
 import type { RouterMessage } from '$lib/server/llm_router';
-import { touchLastActivity, upsertThreadMeta } from '$lib/server/thread_meta';
+// touchLastActivity no longer imported here — persistAssistantTurn calls it.
 import { emitDispatchLinkObservation, maybeMarkDeepCandidate } from '$lib/server/observation_emit';
 import { buildMultimodalContent } from '$lib/server/multimodal';
+import {
+	persistUserTurn,
+	classifyAndTouchThread,
+	persistAssistantTurn
+} from '$lib/server/chat_turn';
+import { buildSystemPrompt } from '$lib/server/chat_prompt';
 
 const GATEWAY_TIMEOUT_MS = 10_000;
 
-// System prompt for the conversational chat path. Context-first, not
-// instructional. Earlier draft caused the model to recite a bulleted job
-// description in response to the first message — operator's feedback: "the
-// model has no context" was answered too literally by listing my own context
-// back at them. This pass treats LogueOS facts as background and the
-// behavior rules as terse constraints.
-function buildSystemPrompt(ctx: {
-	targetRepo: string;
-	currentTier: string;
-	threadId: string;
-}): string {
-	// Fork-aware persona (mirrors sdk-stream/+server.ts:buildSystemPrompt). The
-	// shared prompt builder will absorb both once PR C lands chat_prompt.ts.
-	return runMode.companion
-		? `You are Captain's local companion — a thinking partner that lives entirely on his machine.
-
-Operator profile — Captain (dreighto):
-- Not a coder. Plain English first; technical detail only when it adds value.
-- Direct tone. No "Great question!" openers, no preamble, no recapping the question back.
-- Hates being lectured. Don't restate your role unless asked.
-- Often on iPhone — keep replies tight; walls of text are a fail.
-
-You are NOT a worker and NOT a dispatcher. You don't open PRs, run commands, restart services, or hand off to other agents — Captain has separate tools for that. Your job is to listen, think alongside him, and give him a useful answer.
-
-Active workspace: ${ctx.targetRepo} · Thread: ${ctx.threadId}
-
-Rules:
-- Answer the actual question briefly.
-- Never claim to have done something you didn't.
-- If you're uncertain, say so plainly.`
-		: `You are the operator's planning partner inside LogueOS Console.
-
-Operator profile — Captain (dreighto):
-- Not a coder. Plain English first, technical detail only when it adds value.
-- Direct tone. No "Great question!" openers, no preamble, no recapping the question back.
-- Hates being lectured. Don't restate your role unless asked.
-
-LogueOS context (background — don't lecture about it):
-- Kernel: LogueOS-Orchestrator. Project payloads: LogueOS-Console, project-miru, NASDOOM.
-- Workers: CC (Claude Code) and AGY (Antigravity / Gemini-class). Both ship code via dispatched sessions.
-- This surface is for conversation, not execution. The operator dispatches real work by typing @cc / @agy in the chat, or pressing workflow buttons (Critique / Build / Verify / Retry) on a previous reply.
-- Active workspace: ${ctx.targetRepo} · Tier: ${ctx.currentTier} · Thread: ${ctx.threadId}
-
-Rules:
-- Answer the actual question briefly. Operator is often on iPhone — long replies become walls.
-- If a task needs files edited, commands run, tests written, PRs opened, or services restarted, say "that's a @cc job" (or @agy) — don't pretend you can do it from this chat.
-- Never claim to have done something you didn't.
-- If you're uncertain, say so plainly.`;
-}
+// buildSystemPrompt: extracted to $lib/server/chat_prompt.ts (PR C). The
+// legacy route does not take the sdk-stream's allowSensitive flag (no SDK
+// tools attached on this path) — pass allowSensitive: false.
 
 async function fetchWithTimeout(
 	url: string,
@@ -136,36 +95,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: 'Message content is required.' }, { status: 400 });
 		}
 
-		// 1. Insert the operator's message into SQLite
-		const chatMsg = addChatMessage(
-			sender || 'operator',
-			message.trim(),
-			null,
-			ticket_id || null,
-			null,
-			'sent',
-			threadId
-		);
-		// Ensure the thread has a meta row and update last_activity_at.
-		upsertThreadMeta(threadId, {});
-		touchLastActivity(threadId);
-
-		// Classify conversation tier and persist. Runs on every message regardless
-		// of which branch handles the response (gateway dispatch, LLM router, etc.)
-		// so the status badge always reflects the current conversation phase.
-		const threadState = getThreadState(threadId);
-		const allForClassify = getChatMessages(30, threadId);
-		// Exclude the just-inserted operator message — depth signal reads assistant turns.
-		const recentForClassify = allForClassify.slice(0, -1);
-		const currentTier = classifyTier({
-			userMessage: message.trim(),
-			recentMessages: recentForClassify,
-			currentTier: threadState.current_tier,
-			operatorOverride: threadState.operator_override
+		// 1. Persist the operator's turn + classify the conversation tier via
+		// the shared chat_turn service (PR C). The legacy route alone needs the
+		// returned row + the recent-message count for downstream side-effects.
+		const chatMsg = persistUserTurn({
+			text: message,
+			threadId,
+			sender: sender || 'operator',
+			ticketId: ticket_id || null
 		});
-		upsertThreadTier(threadId, currentTier, null);
-		// PR 8: silently mark Deep-tier threads with 3+ exchanges as observation candidates.
-		maybeMarkDeepCandidate(threadId, currentTier, recentForClassify.length);
+		const { currentTier, threadState } = classifyAndTouchThread({
+			threadId,
+			userText: message
+		});
+		// PR 8: silently mark Deep-tier threads with 3+ exchanges as observation
+		// candidates. Count excludes the just-inserted operator message.
+		const recentCount = Math.max(getChatMessages(30, threadId).length - 1, 0);
+		maybeMarkDeepCandidate(threadId, currentTier, recentCount);
 		let routerMeta: { provider_used: string; model_used: string } | null = null;
 
 		// 2. Resolve worker selection. Operator's explicit pill wins if set;

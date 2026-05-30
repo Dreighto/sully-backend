@@ -50,33 +50,13 @@ describe('appIdentity (PR A)', () => {
 	});
 });
 
-// Source-level regression guard: the companion-mode prompt branch must never
-// re-introduce "LogueOS Console". Runtime-import test of the prompt builder
-// itself is deferred to PR C (when chat_prompt.ts extracts it from the routes —
-// route files pull in $types/$app and don't import cleanly from a vitest node
-// env). For now we lock the SOURCE of the route's companion branch.
+// PR C extracted buildSystemPrompt → $lib/server/chat_prompt.ts; it's now
+// tested directly in tests/chat-prompt.test.ts (runtime, not source-regex).
+// Only the page.svelte hard-code guard remains here.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-describe('companion prompt regression guard (source-level)', () => {
-	const PROMPT_ROUTES = [
-		'src/routes/api/chat/sdk-stream/+server.ts',
-		'src/routes/api/chat/+server.ts'
-	];
-
-	for (const rel of PROMPT_ROUTES) {
-		it(`${rel}: companion branch does not mention 'LogueOS Console'`, () => {
-			const src = readFileSync(join(process.cwd(), rel), 'utf-8');
-			// Extract the companion-mode prompt branch — text between
-			// `runMode.companion` and the `: \`` that opens the wired branch.
-			const m = src.match(/runMode\.companion[\s\S]*?\?\s*`([\s\S]*?)`\s*:\s*`/);
-			expect(m, 'expected runMode.companion ? `…` : `…` shape').toBeTruthy();
-			const companionPrompt = m![1];
-			expect(companionPrompt).not.toMatch(/LogueOS Console/);
-			expect(companionPrompt).not.toMatch(/inside LogueOS/);
-			expect(companionPrompt).not.toMatch(/@cc|@agy/);
-		});
-	}
+describe('client-side identity guard', () => {
 
 	it('no client-fork-sensitive code hard-codes "LogueOS-Console" outside FALLBACK', () => {
 		// page.svelte default workspace was the original regression spot.
