@@ -26,13 +26,21 @@ export const POST: RequestHandler = async ({ request }) => {
 	// its own ref; cloud voice synthesized locally → its clone fallback ref). A
 	// legacy explicit `voice_ref` path still works; absent both, the Chatterbox
 	// service falls back to its own TTS_VOICE_REF default.
-	const ref = (body.voice ? localRefFor(getVoice(body.voice)) : undefined) || body.voice_ref;
+	const voice = body.voice ? getVoice(body.voice) : null;
+	const ref = (voice ? localRefFor(voice) : undefined) || body.voice_ref;
 
 	try {
 		const upstream = await fetch(`${TTS_URL}/tts`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ text, voice_ref: ref }),
+			body: JSON.stringify({
+				text,
+				voice_ref: ref,
+				// Per-voice synthesis tuning (omitted ⇒ Chatterbox keeps its defaults).
+				cfg_weight: voice?.cfgWeight,
+				exaggeration: voice?.exaggeration,
+				temperature: voice?.temperature
+			}),
 			signal: request.signal // barge-in: client abort cancels upstream synthesis
 		});
 		if (!upstream.ok || !upstream.body) {

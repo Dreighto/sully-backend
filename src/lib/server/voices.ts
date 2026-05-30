@@ -29,6 +29,15 @@ export interface VoiceDef {
 	voiceRef?: string;
 	/** Chatterbox reference used when a CLOUD voice degrades to local synthesis. */
 	fallbackVoiceRef?: string;
+	/**
+	 * Optional Chatterbox synthesis knobs. cfg_weight 0.5 (default) follows the
+	 * reference's pacing rigidly — drop to ~0.3 for natural cadence when the ref
+	 * is short or stitched; 0.7 to lock voice character harder. exaggeration 0.5
+	 * neutral; bump for more expressive delivery. temperature 0.8 default.
+	 */
+	cfgWeight?: number;
+	exaggeration?: number;
+	temperature?: number;
 }
 
 /** Client-safe view of a voice — no filesystem paths, no provider ids. */
@@ -64,7 +73,11 @@ export const VOICES: VoiceDef[] = [
 		label: 'Sulley',
 		blurb: 'Big & gravelly (Goodman) — local',
 		engine: 'chatterbox',
-		voiceRef: `${VOICES_DIR}/sully_goodman.wav`
+		voiceRef: `${VOICES_DIR}/sully_goodman.wav`,
+		// Natural cadence (0.5 default makes it follow the ref pacing too rigidly
+		// → "slow and weird"); slight expressiveness bump to keep Goodman's warmth.
+		cfgWeight: 0.3,
+		exaggeration: 0.6
 	}
 ];
 
