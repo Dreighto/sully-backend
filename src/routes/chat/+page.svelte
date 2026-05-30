@@ -24,6 +24,7 @@
 	import { MODEL_CHOICES } from '$lib/chat/model-choices';
 	import { createThreadsController } from '$lib/chat/threads.svelte';
 	import { createSlashCommandsController } from '$lib/chat/slash-commands';
+	import { createComposerStateController } from '$lib/chat/composer-state.svelte';
 	import { createVoiceController } from '$lib/chat/voice.svelte';
 	import { createRealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
 	import { replaceState } from '$app/navigation';
@@ -70,7 +71,13 @@
 			}
 		}
 	});
-	let textDraft = $state('');
+	const composerCtrl = createComposerStateController({
+		getActiveThread: () => threadsCtrl.activeThread,
+		getSelectedRepo: () => selectedRepo,
+		focusComposer: () => textareaEl?.focus()
+	});
+	const textDraft = $derived(composerCtrl.textDraft);
+	const attachments = $derived(composerCtrl.attachments);
 	// Initial workspace from the loader — fork-aware (companion mode starts on
 	// 'companion', wired mode on 'LogueOS-Console'). Never hard-code the wired
 	// default here; that's how the model started identifying itself as Console.
@@ -179,7 +186,7 @@
 		getComposerMode: () => composerMode,
 		setComposerMode: (m) => (composerMode = m),
 		appendDictation: (text) => {
-			textDraft = (textDraft + ' ' + text).trim();
+			composerCtrl.textDraft = (textDraft + ' ' + text).trim();
 		},
 		focusComposer: () => textareaEl?.focus(),
 		appendMessage: (m) => {
@@ -252,7 +259,6 @@
 	// a fenced code block on send. See [[reference_chat_app_competitive_borrows]]
 	// for the ChatGPT-borrow rationale (long pastes auto-convert to keep
 	// composer clean + prevent context-window blowout).
-	let attachments = $state<Attachment[]>([]);
 
 	// Canvas (Artifacts) side panel — PR A of #20 epic. View-only for now;
 	// multi-tab + persistence land in follow-up PRs.
@@ -263,7 +269,6 @@
 	function closeCanvas() {
 		canvasArtifact = null;
 	}
-	const PASTE_TO_ATTACHMENT_THRESHOLD = 5000;
 
 	// Scroll state
 	let userAtBottom = $state(true);
@@ -283,51 +288,6 @@
 					: '🪶'
 	);
 
-	// ─────────────────────────────────────────────────────────────────────
-	// Draft Persist Effect
-	// ─────────────────────────────────────────────────────────────────────
-	let draftDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let draftPersistFailing = $state(false); // shown as a subtle inline indicator
-	$effect(() => {
-		const text = textDraft;
-		if (draftDebounceTimer) clearTimeout(draftDebounceTimer);
-		draftDebounceTimer = setTimeout(() => {
-			const tid = threadsCtrl.activeThread;
-			void fetch(resolve(`/api/chat/drafts?thread_id=${encodeURIComponent(tid)}`), {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ body: text })
-			})
-				.then((r) => {
-					// Surface persistent failures so the operator knows their draft
-					// is in volatile memory only. Previously we swallowed the error
-					// entirely — operator would lose work on tab close without ever
-					// seeing a warning. Audit 2026-05-27.
-					if (!r.ok) {
-						if (!draftPersistFailing) {
-							console.warn('[draft] persist failed:', r.status);
-							toasts.add(
-								`Draft autosave failing (${r.status}) — finish your message before closing the tab.`,
-								'warning'
-							);
-							draftPersistFailing = true;
-						}
-					} else if (draftPersistFailing) {
-						draftPersistFailing = false;
-					}
-				})
-				.catch((err) => {
-					if (!draftPersistFailing) {
-						console.warn('[draft] network error:', err);
-						toasts.add(
-							'Draft autosave failing — finish your message before closing the tab.',
-							'warning'
-						);
-						draftPersistFailing = true;
-					}
-				});
-		}, 400);
-	});
 
 	// Composer textarea auto-grow $effect moved into <Composer /> as part of
 	// Task #7 PR 4 — the effect's deps are local to the component (`textDraft`
@@ -587,8 +547,8 @@
 			timestamp: new Date().toISOString()
 		};
 		messages = [...messages, optimistic];
-		textDraft = '';
-		attachments = [];
+		composerCtrl.textDraft = '';
+		composerCtrl.attachments = [];
 		queueMicrotask(() => scrollFeedToBottom('smooth'));
 
 		// Routing decision: if the message looks like an explicit worker
@@ -618,52 +578,12 @@
 			}
 		} catch (e) {
 			toasts.add(`Send failed: ${e instanceof Error ? e.message : 'unknown'}`, 'error');
-			textDraft = text; // restore
+			composerCtrl.textDraft = text; // restore
 		} finally {
 			sending = false;
 		}
 	}
 
-	function handlePaste(e: ClipboardEvent) {
-		const items = Array.from(e.clipboardData?.items ?? []);
-		const imageFiles = items
-			.filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
-			.map((it) => it.getAsFile())
-			.filter((f): f is File => f !== null);
-		if (imageFiles.length > 0) {
-			e.preventDefault();
-			for (const f of imageFiles) {
-				void uploadOneFile(f);
-			}
-			return;
-		}
-		// Long-paste auto-attach (ChatGPT-borrow #19): pastes over the
-		// threshold get converted to an attachment chip rather than dumped
-		// into the textarea. Keeps the composer clean and prevents huge
-		// context-window blowout when pasting logs / docs / JSON. The text
-		// is folded back into the message body as a fenced code block on send.
-		const pastedText = e.clipboardData?.getData('text/plain') ?? '';
-		if (pastedText.length > PASTE_TO_ATTACHMENT_THRESHOLD) {
-			e.preventDefault();
-			const id =
-				typeof crypto !== 'undefined' && 'randomUUID' in crypto
-					? crypto.randomUUID()
-					: `paste-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-			const ts = new Date().toISOString().slice(11, 19);
-			attachments = [
-				...attachments,
-				{
-					id,
-					filename: `paste-${ts}.txt`,
-					url: '',
-					mime: 'text/plain',
-					size: pastedText.length,
-					text: pastedText
-				}
-			];
-			toasts.add(`Pasted ${pastedText.length.toLocaleString()} chars as attachment`, 'info');
-		}
-	}
 
 	function handleKey(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
@@ -845,107 +765,8 @@
 		fileInputEl?.click();
 	}
 
-	// Uploads a single File via /api/chat/uploads and stages it as a chip.
-	// Shared between the paperclip-triggered <input type=file> and the
-	// drag-and-drop handler. Errors surface via toast; success is silent
-	// because the chip itself is the success indicator.
-	async function uploadOneFile(file: File): Promise<void> {
-		const tempId = crypto.randomUUID();
-		attachments = [
-			...attachments,
-			{
-				id: tempId,
-				filename: file.name,
-				url: '',
-				mime: file.type,
-				size: file.size,
-				uploading: true
-			}
-		];
-		const fd = new FormData();
-		fd.append('file', file);
-		fd.append('target_repo', selectedRepo);
-		try {
-			toasts.add(`Uploading ${file.name}...`, 'info');
-			const r = await fetch(resolve('/api/chat/uploads'), {
-				method: 'POST',
-				body: fd
-			});
-			if (!r.ok) {
-				const err = await r.json().catch(() => ({}));
-				throw new Error(err.message || `HTTP ${r.status}`);
-			}
-			const body = await r.json();
-			if (body.url) {
-				attachments = attachments.map((a) =>
-					a.id === tempId
-						? {
-								...a,
-								id: body.filename || tempId,
-								url: body.url,
-								mime: body.mime || file.type,
-								size: body.size || file.size,
-								uploading: false
-							}
-						: a
-				);
-			}
-		} catch (err) {
-			attachments = attachments.filter((a) => a.id !== tempId);
-			toasts.add(`Upload failed: ${err instanceof Error ? err.message : 'unknown'}`, 'error');
-		}
-	}
 
-	async function handleUpload(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (!file) return;
-		try {
-			await uploadOneFile(file);
-			textareaEl?.focus();
-		} finally {
-			target.value = '';
-		}
-	}
 
-	// Drag-and-drop wiring. dragover MUST preventDefault for drop to fire.
-	// Use a counter for dragenter/leave because they bubble across child
-	// elements — naive boolean would flicker as the cursor crosses child
-	// boundaries inside the drop zone.
-	let isDragging = $state(false);
-	let dragCounter = 0;
-	function handleDragEnter(e: DragEvent) {
-		if (!e.dataTransfer?.types.includes('Files')) return;
-		e.preventDefault();
-		dragCounter++;
-		isDragging = true;
-	}
-	function handleDragOver(e: DragEvent) {
-		if (!e.dataTransfer?.types.includes('Files')) return;
-		e.preventDefault();
-		e.dataTransfer.dropEffect = 'copy';
-	}
-	function handleDragLeave(e: DragEvent) {
-		if (!e.dataTransfer?.types.includes('Files')) return;
-		e.preventDefault();
-		dragCounter = Math.max(0, dragCounter - 1);
-		if (dragCounter === 0) isDragging = false;
-	}
-	async function handleDrop(e: DragEvent) {
-		e.preventDefault();
-		dragCounter = 0;
-		isDragging = false;
-		const files = Array.from(e.dataTransfer?.files ?? []);
-		if (files.length === 0) return;
-		for (const file of files) {
-			await uploadOneFile(file);
-		}
-		textareaEl?.focus();
-	}
-
-	function removeAttachment(id: string) {
-		attachments = attachments.filter((a) => a.id !== id);
-	}
 
 	// humanSize moved into <Composer /> with the staged-attachments chip row
 	// in Task #7 PR 4.
@@ -978,10 +799,10 @@
 		getActiveThread: () => threadsCtrl.activeThread,
 		getMessages: () => messages,
 		setTextDraft: (s) => {
-			textDraft = s;
+			composerCtrl.textDraft = s;
 		},
 		clearAttachments: () => {
-			attachments = [];
+			composerCtrl.attachments = [];
 		},
 		focusComposer: () => textareaEl?.focus(),
 		appendSystemMessage: addLocalSystemMessage,
@@ -1074,9 +895,9 @@
 		clearInterval(pollTimer);
 		clearInterval(activityTimer);
 		sentinelObs?.disconnect();
-		if (draftDebounceTimer) clearTimeout(draftDebounceTimer);
 		if (activityFadeTimer) clearTimeout(activityFadeTimer);
 		threadsCtrl.destroy?.();
+		composerCtrl.destroy?.();
 		void voice.destroy();
 		void rtVoice.destroy();
 	});
@@ -1110,15 +931,15 @@
 	accept="image/*"
 	bind:this={fileInputEl}
 	class="hidden"
-	onchange={handleUpload}
+	onchange={composerCtrl.handleUpload}
 />
 
 <div
 	class="relative flex h-[100dvh] w-full overflow-hidden bg-[#050505] font-sans text-foreground"
-	ondragenter={handleDragEnter}
-	ondragover={handleDragOver}
-	ondragleave={handleDragLeave}
-	ondrop={handleDrop}
+	ondragenter={composerCtrl.handleDragEnter}
+	ondragover={composerCtrl.handleDragOver}
+	ondragleave={composerCtrl.handleDragLeave}
+	ondrop={composerCtrl.handleDrop}
 	role="region"
 	aria-label="Chat surface (drop images to attach)"
 >
@@ -1407,23 +1228,23 @@
 
 		<!-- ═════════════════════════════════════════════════════════════════
 		     HERO COMPOSER PILL — extracted to <Composer /> (Task #7 PR 4).
-		     Drag handlers stay on the outer wrapper (handleDragEnter/Over/
+		     Drag handlers stay on the outer wrapper (composerCtrl.handleDragEnter/Over/
 		     Leave/Drop above); Composer renders the drop overlay conditional
 		     on `isDragging`.
 		     ═════════════════════════════════════════════════════════════════ -->
 		<Composer
-			bind:textDraft
+			bind:textDraft={() => composerCtrl.textDraft, (v) => (composerCtrl.textDraft = v)}
 			bind:imageMode
-			bind:isDragging
+			bind:isDragging={() => composerCtrl.isDragging, (v) => (composerCtrl.isDragging = v)}
 			bind:textareaEl
-			{attachments}
+			attachments={composerCtrl.attachments}
 			{composerMode}
 			{sending}
 			talkbackPhase={voice.phase}
 			{slashMode}
 			{slashMatches}
 			onsend={() => void sendMessage()}
-			onpaste={handlePaste}
+			onpaste={composerCtrl.handlePaste}
 			onkey={handleKey}
 			onfocus={() => composerMode === 'idle' && (composerMode = 'focused')}
 			onblur={() => composerMode === 'focused' && (composerMode = 'idle')}
@@ -1433,7 +1254,7 @@
 			onstopTalkback={() => void voice.stopTalkback()}
 			onvoiceMode={() => void rtVoice.enter()}
 			onpickSlash={(cmd) => void pickSlash(cmd)}
-			onremoveAttachment={removeAttachment}
+			onremoveAttachment={composerCtrl.removeAttachment}
 		/>
 	</main>
 </div>
