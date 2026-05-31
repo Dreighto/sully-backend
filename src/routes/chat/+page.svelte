@@ -13,6 +13,7 @@
 	import { onMount, onDestroy, untrack } from 'svelte';
 	import { resolve, base } from '$app/paths';
 	import { createDispatchStream } from '$lib/chat/dispatchStream.svelte';
+	import { parseDbTimestamp } from '$lib/utils/format';
 	import WorkingBubble from '$lib/components/WorkingBubble.svelte';
 	import type { SlashCmd } from '$lib/types/slash';
 	import type {
@@ -488,7 +489,7 @@
 			const cutoff = Date.now() - 5 * 60 * 1000;
 			let live: typeof activityPill = null;
 			for (const row of rows) {
-				if (new Date(row.timestamp).getTime() < cutoff) continue;
+				if ((parseDbTimestamp(row.timestamp)?.getTime() ?? cutoff) < cutoff) continue;
 				if (row.action === 'completed' || row.action === 'failed') continue;
 				const worker = row.trace_id.startsWith('agy-') ? 'AGY' : 'CC';
 				const step = row.target ? `${row.action} '${row.target}'` : row.action;
@@ -877,7 +878,8 @@
 	// Utilities
 	function fmtTime(iso: string): string {
 		try {
-			return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+			const d = parseDbTimestamp(iso);
+			return d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 		} catch {
 			return '';
 		}
@@ -1125,7 +1127,7 @@
 								rows={ctrl.rows}
 								status={ctrl.status}
 								resultRef={ctrl.resultRef}
-								startedAt={new Date(m.timestamp).getTime()}
+								startedAt={parseDbTimestamp(m.timestamp)?.getTime() ?? Date.now()}
 							/>
 						{/if}
 					{/if}
