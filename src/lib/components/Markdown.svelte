@@ -376,7 +376,7 @@
 	}
 
 	.md-content :global(a) {
-		color: var(--cta, #a3e635);
+		color: var(--color-brand-bright, #ff4d94);
 		text-decoration: underline;
 		text-underline-offset: 2px;
 		word-break: break-word;

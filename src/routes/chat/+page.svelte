@@ -961,10 +961,10 @@
 						     bubbles render through the Markdown component for
 						     code-block highlighting, inline code, lists, etc. -->
 							<div
-								class="max-w-[85%] rounded-2xl px-3.5 py-2 font-sans text-[13.5px] leading-snug tracking-[-0.005em] antialiased selection:bg-[#ec2d78]/40 selection:text-white sm:max-w-[80%]
+								class="font-sans text-[14px] leading-relaxed tracking-[-0.005em] antialiased selection:bg-brand/40 selection:text-white
 								{m.sender === 'operator'
-									? 'border border-zinc-700/70 bg-zinc-900/70 text-zinc-100'
-									: 'border border-[#ec2d78]/20 bg-[#ec2d78]/[0.06] text-zinc-100 shadow-[0_0_22px_rgba(236,45,120,0.06)]'}"
+									? 'max-w-[85%] rounded-2xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
+									: 'w-full px-0.5 text-zinc-100/95'}"
 							>
 								{#if m.sender === 'operator'}
 									<span class="whitespace-pre-wrap">{m.message}</span>
