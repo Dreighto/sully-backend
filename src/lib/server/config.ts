@@ -218,6 +218,10 @@ export const clientSafeConfig = {
 	// hide @cc/@agy + workflow affordances). No server paths leaked.
 	companionMode: serverConfig.mode === 'companion',
 	companionDefaultModel: serverConfig.companionDefaultModel,
+	// Gate for companion-native SSE dispatch (WorkingBubble). True only when
+	// COMPANION_DISPATCH_ENABLED=true + mode=companion. Client reads this to
+	// short-circuit the legacy 5s pollActivity loop.
+	companionDispatchEnabled: runMode.companionDispatchEnabled,
 	// Fork-aware identity — labels + the default workspace the chip starts on.
 	// Read this on the client instead of hard-coding 'LogueOS-Console'.
 	appIdentity: {

@@ -165,6 +165,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		threads,
 		activeThread: thread,
 		workspaces,
-		appIdentity: clientSafeConfig.appIdentity
+		appIdentity: clientSafeConfig.appIdentity,
+		companionDispatchEnabled: clientSafeConfig.companionDispatchEnabled
 	};
 };

@@ -25,6 +25,8 @@ export type ChatMessage = {
 	message: string;
 	timestamp: string;
 	image_path?: string | null;
+	// Companion dispatch SSE: present on system rows inserted by companionDispatch.
+	trace_id?: string | null;
 };
 
 export type Attachment = {
