@@ -24,7 +24,7 @@ describe('buildSystemPrompt — companion mode', () => {
 	it('introduces the model as Sully and never mentions LogueOS Console', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const out = buildSystemPrompt({
+		const out = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1'
@@ -49,13 +49,13 @@ describe('buildSystemPrompt — companion mode', () => {
 	it('appends the sensitive-tools clause only when allowSensitive=true', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const off = buildSystemPrompt({
+		const off = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1',
 			allowSensitive: false
 		});
-		const on = buildSystemPrompt({
+		const on = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1',
@@ -75,7 +75,7 @@ describe('workspace context addendum', () => {
 			getWorkspaceContext: () => 'remember the secret marker BANANA'
 		}));
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const out = buildSystemPrompt({
+		const out = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1'
@@ -88,7 +88,7 @@ describe('workspace context addendum', () => {
 	it('omits the addendum section when getWorkspaceContext returns null', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const out = buildSystemPrompt({
+		const out = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1'
@@ -99,12 +99,12 @@ describe('workspace context addendum', () => {
 	it('treats allowSensitive=undefined the same as allowSensitive=false', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const omitted = buildSystemPrompt({
+		const omitted = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1'
 		});
-		const explicit = buildSystemPrompt({
+		const explicit = await buildSystemPrompt({
 			targetRepo: 'companion',
 			currentTier: 'chat',
 			threadId: 't1',
@@ -119,7 +119,7 @@ describe('buildSystemPrompt — wired (Console) mode', () => {
 	it('keeps the legacy Console persona', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'wired';
 		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
-		const out = buildSystemPrompt({
+		const out = await buildSystemPrompt({
 			targetRepo: 'LogueOS-Console',
 			currentTier: 'chat',
 			threadId: 't1'
