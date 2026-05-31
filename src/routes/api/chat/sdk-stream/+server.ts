@@ -621,7 +621,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 			return apiErr.message || (err as { message?: string }).message || 'unknown_stream_error';
 		},
-		onFinish: ({ responseMessage }) => {
+		onFinish: async ({ responseMessage }) => {
 			// Concatenate every text part of the response into a single string
 			// for the chat_messages row. Matches the legacy `addChatMessage`
 			// call shape for backwards compatibility with existing readers.
@@ -665,6 +665,42 @@ export const POST: RequestHandler = async ({ request }) => {
 				// the picker chip can show "Claude Haiku 4.5" instead of "Auto".
 				upsertThreadTier(threadId, currentTier, modelHandle.modelId);
 				touchLastActivity(threadId);
+			}
+
+			// ── Autonomous dispatch on the DIRECT/LOCAL path (spec §4.2) ──────────
+			// The CLI-bridge branch gates via the teacher's hidden self-assessment
+			// block, but the companion's DEFAULT reply model is the local one, which
+			// runs HERE. Without this, Sully never dispatches in normal use. No gate
+			// block on this path (it can't be cleanly stripped from streamText's
+			// output); the deterministic gates decide: ruleGate (@cc/@agy override) +
+			// valueGate (file/code/repo/long-imperative signals).
+			if (runMode.companionDispatchEnabled) {
+				const forced = ruleGate(userMessageText);
+				const vg = valueGate({ text: userMessageText, fromTool: false });
+				if (forced.forced || (vg.qualifies && !vg.forceAsk)) {
+					const worker = forced.forced && forced.worker ? forced.worker : 'claude-code';
+					const traceId = `sully-${Date.now()}`;
+					const res = await dispatchToWorker({
+						traceId,
+						worker,
+						category: 'code',
+						brief: userMessageText.slice(0, 200),
+						targetRepo,
+						task: userMessageText,
+						threadId
+					});
+					addChatMessage(
+						'system',
+						res.ok
+							? `Sully sent this to **${worker === 'claude-code' ? 'CC' : 'AGY'}** on **${targetRepo}** — watching it now.`
+							: `⚠️ Dispatch held: ${res.reason}.`,
+						res.ok ? traceId : null,
+						null,
+						null,
+						'sent',
+						threadId
+					);
+				}
 			}
 		}
 	});
