@@ -72,11 +72,20 @@ jobs:
 
       - name: Set up code signing (automatic, via ASC API)
         run: |
+          # The codemagic CLI auto-discovers the ASC API key as a FILE at
+          # ~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8 (Codemagic places it
+          # there; on a bare runner only the secret exists). Materialize it so ASC
+          # auth works for fetch-signing-files / get-latest-build-number / publish.
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          echo "ASC key sanity: len=${#APP_STORE_CONNECT_PRIVATE_KEY} begins=[$(printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | head -c 27)]"
           keychain initialize
           # --create makes the distribution cert (from CERTIFICATE_PRIVATE_KEY)
           # + App Store profile if missing/expired — self-healing signing.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
             --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
