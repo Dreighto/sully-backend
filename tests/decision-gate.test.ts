@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ruleGate, valueGate } from '$lib/server/decisionGate';
+import { GATE_INSTRUCTION, extractGateBlock, validateGate } from '$lib/server/decisionGate';
 
 describe('ruleGate', () => {
 	it('hard-routes an explicit @cc mention to dispatch', () => {
@@ -32,5 +33,55 @@ describe('valueGate', () => {
 		const r = valueGate({ text: 'update src/lib/server/chat.ts please', fromTool: true });
 		expect(r.qualifies).toBe(true);
 		expect(r.forceAsk).toBe(true);
+	});
+});
+
+describe('schema self-assessment (rides the CLI-bridge reply)', () => {
+	it('GATE_INSTRUCTION documents the exact marker the model must emit', () => {
+		expect(GATE_INSTRUCTION).toContain('<<<SULLY_GATE');
+		expect(GATE_INSTRUCTION).toContain('>>>');
+		expect(GATE_INSTRUCTION).toContain('escalate');
+		expect(GATE_INSTRUCTION).toContain('est_scope');
+	});
+
+	it('extracts + validates a well-formed gate block and strips it from the visible reply', () => {
+		const raw =
+			'Sure, I can hand that to a worker.\n\n' +
+			'<<<SULLY_GATE {"escalate":true,"worker":"claude-code","confidence":0.82,"category":"code","brief":"fix failing build in src/foo.ts","est_scope":"small"} >>>';
+		const { visible, block } = extractGateBlock(raw);
+		expect(visible).toBe('Sure, I can hand that to a worker.');
+		const v = validateGate(block);
+		expect(v.ok).toBe(true);
+		if (v.ok) {
+			expect(v.gate.escalate).toBe(true);
+			expect(v.gate.worker).toBe('claude-code');
+			expect(v.gate.est_scope).toBe('small');
+			expect(v.gate.confidence).toBeCloseTo(0.82);
+		}
+	});
+
+	it('no gate block -> treated as no-escalation, full text stays visible', () => {
+		const { visible, block } = extractGateBlock('Just chatting, no need for a worker.');
+		expect(visible).toBe('Just chatting, no need for a worker.');
+		expect(block).toBeNull();
+	});
+
+	it('rejects an invalid worker value (server-side validation = correctness, not a brake)', () => {
+		const v = validateGate(
+			'{"escalate":true,"worker":"rogue","confidence":0.9,"category":"x","brief":"y","est_scope":"small"}'
+		);
+		expect(v.ok).toBe(false);
+	});
+
+	it('rejects an out-of-range confidence', () => {
+		const v = validateGate(
+			'{"escalate":true,"worker":"gemini","confidence":1.7,"category":"x","brief":"y","est_scope":"large"}'
+		);
+		expect(v.ok).toBe(false);
+	});
+
+	it('clamps a malformed block to no-escalation rather than throwing', () => {
+		const v = validateGate('not json at all');
+		expect(v.ok).toBe(false);
 	});
 });
