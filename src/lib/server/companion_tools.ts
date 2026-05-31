@@ -26,6 +26,7 @@ import fs from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { streamViaClaudeCLI } from './claude_cli_stream';
 import {
 	addWebSpendCents,
 	dailyBudgetCents,
@@ -57,6 +58,10 @@ const OLLAMA_BASE = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').re
 const DEEP_THINK_MODEL = process.env.COMPANION_DEEP_THINK_MODEL || 'gpt-oss:120b-cloud';
 // Default Claude model for consult_claude. Latest opus per system env block.
 const CLAUDE_CONSULT_MODEL = process.env.COMPANION_CLAUDE_CONSULT_MODEL || 'claude-opus-4-8';
+// Minimal system prompt for the stateless consult call (the tool carries its
+// own self-contained question; no conversation memory).
+const CONSULT_SYSTEM_PROMPT =
+	'You are a frontier reasoning assistant. Answer the question directly, completely, and accurately.';
 
 // ── Secret deny-list ────────────────────────────────────────────────────────
 // Checked against the REAL (symlink-resolved) absolute path. Defense-in-depth:
@@ -107,7 +112,10 @@ export function denyReason(real: string): string | null {
 	const segs = real.split(path.sep);
 	if (segs.some((s) => DENY_DIR_SEGMENTS.has(s))) return 'protected directory';
 	if (base === 'card_catalog.db') return 'project-miru protected database';
-	if (real.includes('/LogueOS-Orchestrator/data/') && (real.endsWith('.jsonl') || real.endsWith('.db')))
+	if (
+		real.includes('/LogueOS-Orchestrator/data/') &&
+		(real.endsWith('.jsonl') || real.endsWith('.db'))
+	)
 		return 'kernel audit log / database';
 	if (real.startsWith('/home/dreighto/dev/LogueOS-Companion/data/') && real.endsWith('.db'))
 		return 'companion database';
@@ -177,10 +185,17 @@ const PERPLEXITY_KEY = process.env.PERPLEXITY_API_KEY || '';
 // so the tool's execute() stays readable.
 
 type WebSearchResult = { title?: string; url?: string; snippet?: string };
-type WebSearchOk = { results: WebSearchResult[]; provider: 'perplexity' | 'firecrawl'; answer?: string };
+type WebSearchOk = {
+	results: WebSearchResult[];
+	provider: 'perplexity' | 'firecrawl';
+	answer?: string;
+};
 type WebSearchFail = { error: string; status: number };
 
-async function searchPerplexity(query: string, limit: number): Promise<WebSearchOk | WebSearchFail> {
+async function searchPerplexity(
+	query: string,
+	limit: number
+): Promise<WebSearchOk | WebSearchFail> {
 	if (!PERPLEXITY_KEY) return { error: 'perplexity not configured', status: 0 };
 	try {
 		const resp = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -202,10 +217,7 @@ async function searchPerplexity(query: string, limit: number): Promise<WebSearch
 		// missing — a request reached Perplexity, so we already owe ≥ that.
 		const usage = data?.usage ?? {};
 		addWebSpendCents(
-			estimateSonarCostCents(
-				Number(usage.prompt_tokens ?? 0),
-				Number(usage.completion_tokens ?? 0)
-			)
+			estimateSonarCostCents(Number(usage.prompt_tokens ?? 0), Number(usage.completion_tokens ?? 0))
 		);
 		const answer = data?.choices?.[0]?.message?.content ?? '';
 		const sources = data?.citations ?? data?.search_results ?? [];
@@ -276,7 +288,8 @@ export function getSensitiveTools() {
 						return { error: 'that is a directory — use list_directory', path: r.real };
 					const buf = await fs.readFile(r.real);
 					const slice = buf.subarray(0, MAX_FILE_BYTES);
-					if (slice.includes(0)) return { error: 'binary file — not readable as text', path: r.real };
+					if (slice.includes(0))
+						return { error: 'binary file — not readable as text', path: r.real };
 					return {
 						path: r.real,
 						bytes: stat.size,
@@ -301,14 +314,18 @@ export function getSensitiveTools() {
 				if (!r.ok) return { error: r.error, requested: p };
 				try {
 					const stat = await fs.stat(r.real);
-					if (!stat.isDirectory())
-						return { error: 'that is a file — use read_file', path: r.real };
+					if (!stat.isDirectory()) return { error: 'that is a file — use read_file', path: r.real };
 					const ents = await fs.readdir(r.real, { withFileTypes: true });
 					const entries = ents
 						.filter((e) => !denyReason(path.join(r.real, e.name)))
 						.slice(0, MAX_DIR_ENTRIES)
 						.map((e) => ({ name: e.name, type: e.isDirectory() ? 'dir' : 'file' }));
-					return { path: r.real, count: entries.length, hidden: ents.length - entries.length, entries };
+					return {
+						path: r.real,
+						count: entries.length,
+						hidden: ents.length - entries.length,
+						entries
+					};
 				} catch (e) {
 					return { error: (e as Error).message, path: r.real };
 				}
@@ -323,7 +340,8 @@ export function getSensitiveTools() {
 				limit: z.number().int().min(1).max(10).default(5).describe('How many results (default 5)')
 			}),
 			execute: async ({ query, limit }: { query: string; limit?: number }) => {
-				if (carriesSecret(query)) return { error: 'refused: the query contains a secret-like string' };
+				if (carriesSecret(query))
+					return { error: 'refused: the query contains a secret-like string' };
 				if (!PERPLEXITY_KEY && !FIRECRAWL_KEY) {
 					return { error: 'web search is not configured on this server' };
 				}
@@ -357,7 +375,10 @@ export function getSensitiveTools() {
 					if ('results' in fallback) {
 						return { query, note: UNTRUSTED_NOTE, ...fallback, primaryFailed: primary.error };
 					}
-					return { error: `both providers failed (perplexity: ${primary.error}; firecrawl: ${fallback.error})`, query };
+					return {
+						error: `both providers failed (perplexity: ${primary.error}; firecrawl: ${fallback.error})`,
+						query
+					};
 				}
 				return { error: `search failed (perplexity: ${primary.error})`, query };
 			}
@@ -429,7 +450,8 @@ export function getSensitiveTools() {
 						return { error: `deep_think failed (HTTP ${resp.status})`, model: DEEP_THINK_MODEL };
 					const data = await resp.json();
 					const answer = data?.message?.content ?? '';
-					if (!answer) return { error: 'deep_think returned an empty answer', model: DEEP_THINK_MODEL };
+					if (!answer)
+						return { error: 'deep_think returned an empty answer', model: DEEP_THINK_MODEL };
 					return {
 						model: DEEP_THINK_MODEL,
 						note: CONSULT_NOTE,
@@ -461,16 +483,50 @@ export function getSensitiveTools() {
 				const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
 				if (!apiKey && !oauthToken) return { error: 'Claude API not configured on this server' };
 				const usingModel = model || CLAUDE_CONSULT_MODEL;
+
+				// OAuth path: raw Bearer against /v1/messages works for HAIKU ONLY —
+				// Sonnet/Opus return 429. Route OAuth through the Claude CLI bridge,
+				// the authorized OAuth client for every tier (free under Max). The raw
+				// fetch below is the billed api-key fallback (reached only when no OAuth).
+				if (oauthToken) {
+					try {
+						let answer = '';
+						let cliError = '';
+						for await (const chunk of streamViaClaudeCLI({
+							model: usingModel,
+							systemPrompt: CONSULT_SYSTEM_PROMPT,
+							userPrompt: question,
+							signal: AbortSignal.timeout(CONSULT_TIMEOUT_MS)
+						})) {
+							if (chunk.type === 'text-delta') answer += chunk.delta;
+							else if (chunk.type === 'error') cliError = chunk.message;
+						}
+						if (cliError)
+							return {
+								error: `consult_claude (CLI bridge) failed: ${cliError}`,
+								model: usingModel
+							};
+						answer = answer.trim();
+						if (!answer)
+							return { error: 'consult_claude returned an empty answer', model: usingModel };
+						return {
+							model: usingModel,
+							note: CONSULT_NOTE,
+							answer: answer.slice(0, MAX_CONSULT_CHARS)
+						};
+					} catch (e) {
+						return { error: (e as Error).message, model: usingModel };
+					}
+				}
+
+				// Billed api-key fallback — raw /v1/messages works for all tiers.
 				try {
 					const resp = await fetch('https://api.anthropic.com/v1/messages', {
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/json',
 							'anthropic-version': '2023-06-01',
-							// OAuth-first (free under Claude Max plan) → API key fallback.
-							...(oauthToken
-								? { Authorization: `Bearer ${oauthToken}` }
-								: { 'x-api-key': apiKey })
+							'x-api-key': apiKey
 						},
 						body: JSON.stringify({
 							model: usingModel,
@@ -495,7 +551,8 @@ export function getSensitiveTools() {
 						.map((b: { text?: string }) => b.text || '')
 						.join('\n')
 						.trim();
-					if (!answer) return { error: 'consult_claude returned an empty answer', model: usingModel };
+					if (!answer)
+						return { error: 'consult_claude returned an empty answer', model: usingModel };
 					return {
 						model: usingModel,
 						note: CONSULT_NOTE,
