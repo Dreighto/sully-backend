@@ -8,25 +8,53 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getTodayTtsUsage, addTtsUsage } from '$lib/server/voice_usage';
-import { getVoice } from '$lib/server/voices';
+import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
 
 const EMMA_VOICE_ID = '56bWURjYFHyYyVf490Dp';
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
+const TTS_URL = (process.env.COMPANION_TTS_URL || 'http://127.0.0.1:18771').replace(/\/+$/, '');
 
 export const POST: RequestHandler = async ({ request }) => {
+	const body = await request.json().catch(() => null);
+	if (!body || typeof body.text !== 'string' || !body.text.trim()) {
+		throw error(400, { message: 'Missing text' });
+	}
+	const text: string = body.text.trim();
+
+	// Force-local master switch (VOICE_TTS_PROVIDER=local): route this "cloud"
+	// endpoint to the local Chatterbox service instead of ElevenLabs. Talkback
+	// calls this route directly, so this is what makes Talkback honor "go fully
+	// local" the same way realtime voice mode does (which routes via voices.ts).
+	if (!cloudAvailable()) {
+		const v = getVoice(typeof body.voice === 'string' ? body.voice : DEFAULT_VOICE_ID);
+		const ref = localRefFor(v);
+		const upstream = await fetch(`${TTS_URL}/tts`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				text,
+				voice_ref: ref,
+				cfg_weight: v.cfgWeight,
+				exaggeration: v.exaggeration,
+				temperature: v.temperature
+			}),
+			signal: request.signal
+		}).catch(() => null);
+		if (!upstream || !upstream.ok || !upstream.body) {
+			throw error(502, { message: 'local TTS unavailable' });
+		}
+		return new Response(upstream.body, {
+			status: 200,
+			headers: { 'content-type': 'audio/wav', 'cache-control': 'no-store' }
+		});
+	}
+
 	const apiKey = env.ELEVENLABS_API_KEY;
 	if (!apiKey) {
 		throw error(503, { message: 'TTS not configured' });
 	}
 
 	const dailyCharCap = Number(env.ELEVENLABS_DAILY_CHAR_CAP ?? 50_000);
-
-	const body = await request.json().catch(() => null);
-	if (!body || typeof body.text !== 'string' || !body.text.trim()) {
-		throw error(400, { message: 'Missing text' });
-	}
-
-	const text: string = body.text.trim();
 	// Resolve the requested voice server-side by opaque id. No `voice` → legacy
 	// default (Emma + the body.model override or turbo), keeping read-aloud
 	// unchanged. Voice mode sends voice:'emma' → Emma + flash. A non-ElevenLabs

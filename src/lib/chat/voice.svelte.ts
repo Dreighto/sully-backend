@@ -168,8 +168,21 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 
 	function playChime(): Promise<void> {
 		return new Promise((done) => {
+			let settled = false;
+			const finish = () => {
+				if (settled) return;
+				settled = true;
+				done();
+			};
+			// The loop MUST advance even if the chime never fires `onended`. On iOS
+			// an AudioContext created outside a user-gesture window comes back
+			// suspended, so osc.onended never fires — which froze Talkback after the
+			// first turn (the next capture was gated on this promise). The chime is a
+			// nicety; never let it block the loop.
+			const fallback = setTimeout(finish, 600);
 			try {
 				const ctx = new AudioContext();
+				if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
 				const osc = ctx.createOscillator();
 				const gain = ctx.createGain();
 				osc.connect(gain);
@@ -182,10 +195,12 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 				osc.stop(ctx.currentTime + 0.25);
 				osc.onended = () => {
 					ctx.close().catch(() => {});
-					done();
+					clearTimeout(fallback);
+					finish();
 				};
 			} catch {
-				done();
+				clearTimeout(fallback);
+				finish();
 			}
 		});
 	}
