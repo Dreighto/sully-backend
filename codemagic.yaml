@@ -150,3 +150,25 @@ workflows:
         notify:
           success: true
           failure: true
+
+  # One-time helper: copies the ASC API credentials that live in the Codemagic
+  # `LogueOS` integration into GitHub Actions secrets, so the GitHub iOS build can
+  # sign without the operator manually retrieving the .p8. Guarded — does nothing
+  # unless RELAY_GH_TOKEN is passed at trigger time. Secrets are never echoed.
+  relay-secrets:
+    name: Relay ASC creds to GitHub secrets
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: LogueOS
+    scripts:
+      - name: Push ASC creds (from Codemagic integration) into GitHub secrets
+        script: |
+          if [ -z "${RELAY_GH_TOKEN:-}" ]; then echo "RELAY_GH_TOKEN not set — refusing"; exit 1; fi
+          command -v gh >/dev/null 2>&1 || brew install gh
+          # Values come from the LogueOS ASC integration env (masked by Codemagic);
+          # never echoed. gh encrypts client-side before upload.
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | GH_TOKEN="$RELAY_GH_TOKEN" gh secret set APP_STORE_CONNECT_PRIVATE_KEY -R Dreighto/LogueOS-Companion
+          GH_TOKEN="$RELAY_GH_TOKEN" gh secret set APP_STORE_CONNECT_ISSUER_ID -R Dreighto/LogueOS-Companion --body "$APP_STORE_CONNECT_ISSUER_ID"
+          GH_TOKEN="$RELAY_GH_TOKEN" gh secret set APP_STORE_CONNECT_KEY_IDENTIFIER -R Dreighto/LogueOS-Companion --body "$APP_STORE_CONNECT_KEY_IDENTIFIER"
+          echo "Relayed APP_STORE_CONNECT_PRIVATE_KEY + ISSUER_ID + KEY_IDENTIFIER to GitHub secrets."
