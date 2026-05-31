@@ -99,7 +99,7 @@
 		style="padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.75rem));"
 	>
 		<div class="flex items-center gap-2">
-			<img src="{base}/favicon.png" alt="Companion" class="h-6 w-6" />
+			<img src="{base}/sully-mark.png" alt="Companion" class="h-6 w-6" />
 			<span class="font-mono text-xs font-semibold tracking-wider text-zinc-300 uppercase"
 				>Sessions</span
 			>

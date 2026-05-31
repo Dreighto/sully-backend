@@ -1000,7 +1000,7 @@
 				<div class="flex flex-1 items-center justify-center text-center select-none">
 					<div class="flex max-w-xs flex-col items-center gap-3">
 						<img
-							src="{base}/favicon.png"
+							src="{base}/sully-mark.png"
 							alt="Sully"
 							class="h-16 w-16 drop-shadow-[0_0_22px_rgba(236,45,120,0.5)]"
 						/>

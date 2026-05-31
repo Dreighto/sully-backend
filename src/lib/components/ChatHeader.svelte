@@ -90,7 +90,7 @@
 			class="ml-0.5 flex items-center gap-2 transition-opacity hover:opacity-80"
 		>
 			<img
-				src="{base}/favicon.png"
+				src="{base}/sully-mark.png"
 				alt="Sully"
 				class="h-8 w-8 shrink-0 drop-shadow-[0_0_10px_rgba(236,45,120,0.5)]"
 			/>
