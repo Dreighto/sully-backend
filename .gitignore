@@ -12,3 +12,7 @@ data/chat_uploads/
 # Aider CLI session artifacts (operator's interactive tool)
 .aider*
 .superpowers/
+
+# Capacitor — generated fresh in Codemagic CI, never committed
+/ios
+/www

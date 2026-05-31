@@ -1,0 +1,19 @@
+name: Sully iOS keepalive (beat the 90-day TestFlight expiry)
+
+# WHY: a TestFlight build expires 90 days after upload and can't be reactivated.
+# A periodic rebuild keeps a fresh build live AND auto-rotates any signing
+# cert/profile nearing expiry (fetch-signing-files --create regenerates them),
+# so the operator never has to think about expiry.
+#
+# The `schedule:` is COMMENTED until the signing secrets are set and one manual
+# build has gone green — otherwise the cron would just fail and email every
+# cycle. Uncomment it after the first successful ios-testflight run.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 9 */21 * *'   # every ~21 days, well inside the 90-day window
+
+jobs:
+  rebuild:
+    uses: ./.github/workflows/ios-testflight.yml
+    secrets: inherit
