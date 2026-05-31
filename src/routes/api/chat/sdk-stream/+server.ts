@@ -44,6 +44,14 @@ import { touchLastActivity } from '$lib/server/thread_meta';
 import { serverConfig, runMode, appIdentity } from '$lib/server/config';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import {
+	ruleGate,
+	valueGate,
+	extractGateBlock,
+	validateGate,
+	GATE_INSTRUCTION
+} from '$lib/server/decisionGate';
+import { dispatchToWorker } from '$lib/server/companionDispatch';
+import {
 	persistUserTurn,
 	classifyAndTouchThread,
 	persistAssistantTurn
@@ -387,6 +395,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	// ─── CLI bridge path (Sonnet/Opus over OAuth) ────────────────────────
 	if (useClaudeCLI) {
 		const senderLabel = 'cc' as const;
+		// Autonomous dispatch gate (spec §4.2): when the companion dispatcher is
+		// on, the teacher (Opus) appends a hidden self-assessment block to its
+		// reply; we strip it and act on it. Sully decides — no @cc command needed.
+		const gateOn = runMode.companionDispatchEnabled;
+		const cliSystemPrompt = gateOn ? `${systemPrompt}\n\n${GATE_INSTRUCTION}` : systemPrompt;
 		const stream = createUIMessageStream({
 			execute: async ({ writer }) => {
 				const messageId = generateId();
@@ -410,10 +423,12 @@ export const POST: RequestHandler = async ({ request }) => {
 					.join('\n\n');
 
 				let collected = '';
+				let written = 0;
 				let errored = false;
+				const SENT = '<<<SULLY_GATE';
 				for await (const chunk of streamViaClaudeCLI({
 					model: resolvedModelId,
-					systemPrompt,
+					systemPrompt: cliSystemPrompt,
 					userPrompt: transcript || 'hello',
 					// Propagate client disconnect/abort so the CLI child is
 					// killed promptly instead of running on (burning Max quota).
@@ -421,7 +436,20 @@ export const POST: RequestHandler = async ({ request }) => {
 				})) {
 					if (chunk.type === 'text-delta') {
 						collected += chunk.delta;
-						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						// Suppress the hidden <<<SULLY_GATE ...>>> self-assessment from
+						// the operator's view: emit up to the sentinel, or hold back a
+						// sentinel-length tail so a partial marker never flashes.
+						const sentIdx = collected.indexOf(SENT);
+						const safeEnd =
+							sentIdx >= 0 ? sentIdx : Math.max(written, collected.length - SENT.length);
+						if (safeEnd > written) {
+							writer.write({
+								type: 'text-delta',
+								id: textId,
+								delta: collected.slice(written, safeEnd)
+							});
+							written = safeEnd;
+						}
 					} else if (chunk.type === 'error') {
 						errored = true;
 						writer.write({ type: 'error', errorText: chunk.message });
@@ -429,24 +457,69 @@ export const POST: RequestHandler = async ({ request }) => {
 					// 'finish' falls through to the writer.write below
 				}
 
+				// Split the operator-visible reply from the hidden self-assessment.
+				const { visible, block } = extractGateBlock(collected);
+				// No gate block → flush the held-back tail (it was plain text).
+				if (block === null && collected.length > written) {
+					writer.write({ type: 'text-delta', id: textId, delta: collected.slice(written) });
+				}
+
 				writer.write({ type: 'text-end', id: textId });
 				writer.write({ type: 'finish-step' });
 				writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
 
-				// Persist only a clean reply — don't record a half/failed
-				// generation or advance thread state on error.
-				if (collected && !errored) {
+				// Persist the gate-stripped visible reply — never a half/failed gen.
+				if (visible && !errored) {
 					persistAssistantTurn({
-						text: collected,
+						text: visible,
 						sender: senderLabel,
 						threadId,
 						model: resolvedModelId,
 						tier: currentTier
 					});
 				} else if (!errored) {
-					// No text but no error → still advance state (legacy parity).
 					upsertThreadTier(threadId, currentTier, resolvedModelId);
 					touchLastActivity(threadId);
+				}
+
+				// ── Autonomous dispatch (spec §4.2). Sully decides; Full-auto fires
+				// it in the background. @cc/@agy stays as an explicit override. ────
+				if (gateOn && !errored) {
+					const forced = ruleGate(userMessageText);
+					const gate = validateGate(block);
+					const vg = valueGate({ text: userMessageText, fromTool: false });
+					const autonomous = gate.ok && gate.gate.escalate && vg.qualifies && !vg.forceAsk;
+					if (forced.forced || autonomous) {
+						const worker =
+							forced.forced && forced.worker
+								? forced.worker
+								: gate.ok
+									? gate.gate.worker
+									: 'claude-code';
+						const brief = gate.ok ? gate.gate.brief : userMessageText.slice(0, 200);
+						const category = gate.ok ? gate.gate.category : 'code';
+						const traceId = `sully-${Date.now()}`;
+						const res = await dispatchToWorker({
+							traceId,
+							worker,
+							category,
+							brief,
+							targetRepo,
+							task: userMessageText,
+							threadId
+						});
+						addChatMessage(
+							'system',
+							res.ok
+								? `Sully sent this to **${worker === 'claude-code' ? 'CC' : 'AGY'}** on **${targetRepo}** — watching it now.`
+								: `⚠️ Dispatch held: ${res.reason}.`,
+							res.ok ? traceId : null,
+							null,
+							null,
+							'sent',
+							threadId
+						);
+					}
 				}
 			},
 			onError: (error: unknown) => {
