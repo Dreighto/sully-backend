@@ -180,7 +180,7 @@ Graduate per category on **outcomes**, bounded against value-gate bypass: requir
 
 - **Auth reality:** teacher/workers on Max OAuth (quota, no dollars). Brakes use **countable** signals; the billed API-key path is gated/off.
 - **Brakes (all from day one):** (1) **dispatch-count budget** + worker **wall-clock** per rolling window — in Full-auto with the operator away, hitting it is a **HARD stop** until reset; (2) **429 circuit-breaker** (the real quota signal — cooldown, halt-all, **no retry**); (3) bounded retries (default **2**) for **transient** errors only (never 429); (4) **token-bucket rate limiter** before the handoff POST; (5) **no re-escalation by content fingerprint** (`brief|category|target_repo` hash + per-conversation cap); (6) deterministic value gate (§4.2); (7) **two-level companion-LOCAL kill switch** — gate new **and abort in-flight** (iterate `working` rows → POST cancel → `aborted` → stop SSE). Phase-1 acceptance = "aborts an in-flight dispatch."
-- **Actual-token capture:** read the **worker result-marker telemetry** (`usage_capture.js`: prompt/completion/cache*read/cache_creation/total) into NEW `actual*_`columns, distinct from`predicted\__`. Also capture the AI-SDK `onFinish` usage on the local reply path (currently ignored). **agy has no actuals** (binary protobuf) → predicted-only for agy dispatches.
+- **Actual-token capture:** read the **worker result-marker telemetry** (`usage_capture.js`: prompt/completion/cache*read/cache_creation/total) into NEW `actual*\_`columns, distinct from`predicted\_\_`. Also capture the AI-SDK `onFinish` usage on the local reply path (currently ignored). **agy has no actuals** (binary protobuf) → predicted-only for agy dispatches.
 - **Telemetry:** Phase-1 companion-app meter = dispatch count + wall-clock today (countable, honest), labeled predicted-vs-actual. The cross-repo **Console tracker** waits on the team-pool write + actual columns.
 
 ### 4.12 Animated avatar (later phase)
@@ -291,3 +291,11 @@ Log every decision (category, confidence, escalated?, objective outcome, actual 
 - **1c:** the SSE bubble streams via the `:8444` tailnet path and collapses to the final result; background→foreground **recreates the stream and reconciles** (no stale "working"); state survives a server restart; the meter shows dispatch count + wall-clock.
 - **Phase 3:** a Sully episode produces a labeled `routing_history` row + a `sully_episodes.jsonl` decision; a manual `hermes_apprentice.py` run yields a non-`no_decision` learning case; an observation reaches `provisional_lessons` after the cadence runs; the RAG store returns a past decision and the bandit updates on an approve/override.
 - **N1:** a real lock-screen "Dispatch complete" lands on a closed app via APNs.
+
+---
+
+## 13. Decision log
+
+- **2026-05-31 — Teacher transport (resolves the §11 OAuth item).** The teacher runs via the **Claude CLI bridge now** (free on Max OAuth, proven for Opus in the chat path), behind a thin **`callTeacher(messages) → {text, decision, usage?}` seam**. Context continuity is handled by re-feeding the **windowed** conversation each turn (already the mechanism at `sdk-stream/+server.ts:289/400`) — the stateless per-message process is fine because Sully supplies the memory. **Migrate just the seam to the Claude Agent SDK after 2026-06-15**, when the Agent-SDK-on-subscription credit goes live (today it would either bill per-token via an API key or sit in a ToS grey zone for OAuth). The SDK migration then yields native **usage/cache telemetry** (fixes §7 + the spend-meter gaps) and clean **session resume** for free. The gate, brakes, `pending_jobs`, SSE, and UI are transport-agnostic and unaffected.
+- **2026-05-31 — Workers stay on the Orchestrator dispatch listener** (not the Agent SDK). The kernel already owns worker subprocess lifecycle, worktrees, signing, and HMAC; the official Agent-SDK guidance agrees the SDK adds complexity with no gain here.
+- **2026-05-31 — `consult_claude` re-pointed** to the CLI bridge for the OAuth path (was silently 429-ing on Opus over raw Bearer). Shipped: `db0e4d2`.
