@@ -1,8 +1,8 @@
 # Sully Dispatcher — Design Spec
 
 - **Date:** 2026-05-31
-- **Version:** v2 — corrected against live companion code after an adversarial 7-lens review.
-- **Status:** Approved design → ready for implementation planning (Phase 1 decomposed).
+- **Version:** v3 — Hermes-learning fix grounded in real Orchestrator code, all review flags resolved, notifications scaffolding added.
+- **Status:** Approved design → implementation plan written (`docs/superpowers/plans/`).
 - **Repo:** LogueOS-Companion ("Sully")
 - **Related:** `2026-05-30-sully-companion-rebuild-design.md`, `2026-05-30-sully-voice-mode-design.md`
 - **Memory layer:** full schema is a **later** project; this spec defines only the _seams_ the dispatcher needs.
@@ -11,304 +11,283 @@
 
 ## 0. Ground truth (verified against live code, 2026-05-31)
 
-The first draft assumed the existing kernel dispatch was ~55% present and could be "layered on." **That is false in companion mode.** Verified facts (file:line) that re-scope this work:
+Two grounded code-reading passes (companion + Orchestrator) overturned several first-draft assumptions. Verified facts (file:line) that re-scope this work:
 
-- **Dispatch is deliberately OFF.** `config.ts:143` → `const _wired = serverConfig.mode !== 'companion'`; `.env` → `LOGUEOS_APP_MODE=companion`. So `runMode.dispatchEnabled`, `observationsEnabled`, `completionPoller`, `killSwitchEnabled` are all **false** (`config.ts:148-152`). `src/routes/api/chat/+server.ts:206-209` hard-short-circuits any `@cc`/`@agy` message: _"Worker dispatch … is not available in the Companion."_
-- **Local memory ≠ team pool.** `.env` → `LOGUEOS_MEMORY_DB_PATH=…/LogueOS-Companion/data/companion.db`. The local pool is already distinct from the Orchestrator's `logueos_memory.db`.
-- **Spend tracking is a prediction, not actuals.** `usage.ts:43-44` stores `predicted_cost_usd` / `predicted_tokens` (a dispatch-time guess, never reconciled). `sdk-stream` `onFinish` never reads the AI-SDK `usage` object; no `cache_read_input_tokens` is captured. Max OAuth returns no dollar/quota figure.
-- **The app is 100 % polling.** Chat polls activity at 3000/5000 ms; there is **no** client `EventSource` anywhere. SSE is greenfield.
-- **iOS push is non-functional.** The Capacitor shell's PWA service worker "stays inert" in the WebView; APNs (`@capacitor/push-notifications`) is deferred; there is **no** client `pushManager.subscribe` / `Notification.requestPermission`; `chat_web_push_subscriptions` is empty; `completion_poller.ts` (the only completion-push caller) is gated off in companion mode.
-- **No activity writer.** `chatActivity.ts` has only readers; nothing inserts into `chat_activity` in companion mode (kernel-side dispatch populated it).
-- **OAuth is not wired into the router.** `providers/anthropic.ts` authenticates with `x-api-key` only; only the standalone `consult_claude` tool implements OAuth-first → API-key. `model_catalog.ts` wires the Anthropic top tier to `claude-opus-4-7`; only the consult tool / `COMPANION_CLAUDE_CONSULT_MODEL` references `opus-4-8`.
-- **The "Hermes apprentice" does not read observations.** Orchestrator `hermes_apprentice.py` is a _routing_ predictor over `routing_history.jsonl` + operator approve/override; the only consumer of dual-written observations is `hermes_injector.py`, a RAG/prompt-injection librarian (`SELECT … WHERE project_id=?`). Team `lessons` are written only by `synthesize_lessons.py` (a clustering job); there is no skills/procedural table and no write-a-skill API.
-- **Existing cloud escalation already ships.** `companion_tools.ts` exposes `consult_claude` + `deep_think` (model-decided cloud calls, OAuth-first). The dispatcher must say how it relates to these.
+**Companion (LogueOS-Companion):**
 
-**Consequence:** Phase 1 is **net-new companion dispatch infrastructure**, gated behind a new companion-native flag, not a re-skin of kernel dispatch.
+- **Dispatch is deliberately OFF.** `config.ts:143` → `_wired = serverConfig.mode !== 'companion'`; `.env` → `LOGUEOS_APP_MODE=companion`. So `runMode.dispatchEnabled / observationsEnabled / completionPoller / killSwitchEnabled` are all **false** (`config.ts:148-152`). `src/routes/api/chat/+server.ts:206-209` hard-short-circuits `@cc`/`@agy`: _"Worker dispatch … is not available in the Companion."_
+- **OAuth Bearer works for HAIKU ONLY.** `sdk-stream/+server.ts:180-217` (`getAnthropicAuthForModel`, verified 2026-05-27): `Authorization: Bearer <CLAUDE_CODE_OAUTH_TOKEN>` against `api.anthropic.com/v1/messages` grants API access to **Haiku**; **Sonnet/Opus return HTTP 429 `rate_limit_error`**. The working OAuth path for Sonnet/Opus is the **Claude CLI bridge** (`claude_cli_stream.ts` — the `claude` binary is the authorized OAuth client). ⚠️ This contradicts memory `claude-max-oauth-direct-api`; see §11.
+- **`consult_claude` is silently broken on Opus over OAuth.** `companion_tools.ts:444-508` uses the raw-Bearer fetch with default `claude-opus-4-8` → 429 unless a billed `ANTHROPIC_API_KEY` is set. The dispatcher teacher must NOT copy this pattern.
+- **Spend tracking is a prediction.** `usage.ts:43-44` stores `predicted_cost_usd/predicted_tokens` (a guess, never reconciled). `sdk-stream` `onFinish:551` ignores the AI-SDK `usage` object; no `cache_read` captured.
+- **The app is 100% polling** (3000/5000 ms); no client `EventSource`. SSE is greenfield.
+- **iOS push is non-functional in the app.** `capacitor.config.ts` sets `limitsNavigationsToAppBoundDomains:false` so the PWA service worker stays inert in the WebView; APNs is deferred ("BUILD 2"); no client subscription exists; `chat_web_push_subscriptions` is empty. Web Push works only for desktop / real-Safari PWA.
+- **No activity writer, and the kernel one writes the wrong DB.** `chatActivity.ts` has only readers on `companion.db`. The only writer, Orchestrator `tools/emit_chat_activity.py`, writes to `logueos_memory.db` — a DB the companion never reads. Row schema: `(id, trace_id, action, target, timestamp)`, `action ∈ {reading,edited,ran,thinking,completed,failed}`.
+
+**Orchestrator (LogueOS-Orchestrator) — the Hermes pipeline:**
+
+- **The "apprentice" is a labeling BRIDGE, not a trainer.** `tools/hermes_apprentice.py` joins `routing_history.jsonl` (proposal) + `pending_callbacks.jsonl` decided-rows (operator label) + completion/VP-Ops (outcome) → emits `hermes_learning_cases.jsonl`. **No model is fine-tuned anywhere** (roadmap Stage 3 = NOT STARTED).
+- **Its decision signal is DEAD today.** The label keys off an operator `action` code (a/o/c/u/x/g/t/r) on a `decided` row joined by `task_identifier`; live `pending_callbacks.jsonl` has 3 decided rows, **0 joinable** → almost everything is `learning_signal='no_decision'`. **This empty decision channel is the whole "no data path" problem.**
+- **`routing_history.jsonl` is written by n8n (W2 workflow), not Python; it is NOT hash-chained.** `task_identifier` (e.g. `PRO-960`) is the join key.
+- **Two injection paths diverge.** `hermes_injector.py` (gatekeeper, **shadow mode**) reads `observations` + `lessons` by `project_id`. The **live listener** (`memory.js getRelevantLessons`) reads **only** `provisional_lessons` (+ adopted-lessons.md) — never raw observations, never the apprentice output.
+- **Observation pipeline (hash-chained):** `emit_observation.py` → `agent_decisions.jsonl` (`audit_chain.append_chained`, tamper-evident) → `ingest_memory.py` → `observations` table → `synthesize_lessons.py` (Ollama qwen2.5:14b clusters, fails-closed) → `provisional_lessons` (6-week TTL) → `memory.js` injects.
+- **`ingest_memory` / `synthesize_lessons` / `hermes_apprentice` are all MANUAL** (no scheduler). Written episodes sit cold without a cadence.
+- **Append-only invariant:** `routing_history.jsonl` and `pending_callbacks.jsonl` are on the 12-file append-only list — raw `fs`-append only; `agent_decisions.jsonl` MUST use `append_chained`.
+- **The `logueos-shadow-loop.service` is miru's card-catalog learner, NOT the routing Hermes** — do not wire Sully into it.
+
+**Consequence:** Phase 1 is **net-new companion dispatch infrastructure**. The Hermes fix is **closing a dead data channel + adding a no-GPU learning layer**, not "turning on training."
 
 ---
 
 ## 1. Purpose
 
-Give Sully the ability to **decide, autonomously and value-gated, when a request is beyond what she should answer directly — and dispatch it to a cloud worker (CC / AGY)** while streaming the worker's live activity into a chat "Working bubble." Every dispatch doubles as a **training episode**: a capable teacher model demonstrates good behavior, the episode is captured to memory, and a smaller local apprentice gradually learns to take over — saving quota/latency and gaining offline capability.
-
-This is **not** a multi-agent framework. It is a **model cascade** (cheap local decision → one cloud worker) in a hub-and-spoke shape, **built new** on the companion (the kernel path is deliberately disabled here).
+Give Sully autonomous, **value-gated** escalation: decide when a request is beyond her, dispatch it to one cloud worker (CC / AGY), and stream the worker's live activity into a chat "Working bubble." Every dispatch doubles as a **training episode** feeding a teacher → apprentice loop. This is a **model cascade** (cheap local decision → one cloud worker), **built new** on the companion.
 
 ### Goals
 
-- Autonomous, **value-gated** escalation decided cheaply, with a deterministic gate independent of the model.
-- A **live, visible** Working bubble over SSE, with a **reconnect-on-resume reconciliation** floor (the real correctness guarantee on iOS).
-- **App-native** control surface (touch UI), never CLI slash-commands.
-- A **trust ladder** that graduates per task-category from **objective operator-outcome** evidence (not model self-rating).
-- A **teacher → apprentice** loop feeding Sully's local 4-layer memory; **optionally** emitting L2 episodes to the team pool (see §4.10 — this is an _open question_, not a settled goal).
-- Hard **safety brakes** anchored to **countable** signals against the #1 failure mode (runaway cost/retry).
-- Token-spend **visibility**: a companion-app meter in Phase 1; the cross-repo Console tracker once actual-usage capture + the team-pool write land.
-- **Hardware-safe** on a single 16 GB GPU with a proven VRAM budget; cloud is the only parallelism lane.
+- Value-gated escalation, decided cheaply, with a deterministic gate independent of the model.
+- A live, visible Working bubble over SSE, with **reconnect-on-resume reconciliation** as the iOS correctness floor.
+- App-native control surface (touch UI), never CLI slash-commands.
+- A trust ladder graduating per category from **objective operator-outcome** evidence.
+- A **real Hermes-learning data path** (§4.10) + a no-GPU learning mechanism, plus the seam for Sully's own apprentice.
+- Useful **notifications** (§4.13): lock-screen completion, actionable approve/retry, a live "Working…" status — not just "tap to return."
+- Hardware-safe on one 16 GB GPU with a proven VRAM budget; cloud is the only parallelism lane.
+- Brakes anchored to **countable** signals against the runaway loop.
 
 ### Non-goals (this spec)
 
-- The full 4-layer memory schema + retrieval engine (later project; seams only).
-- Parallel multi-worker fan-out / adversarial verification (build only when data proves the need).
-- A measured-confidence/entropy router (later upgrade); v1 uses a deterministic gate + structured self-assessment.
-- Final avatar character selection and the accent **Theme** system (later polish phase).
-- "Hermes (the Orchestrator routing predictor) trains on Sully's data" — **demoted to an open question** (§4.10); no data path exists today.
+- Full 4-layer memory schema/retrieval (later); parallel multi-worker fan-out; a measured-confidence router (v1 uses a deterministic gate + structured self-assessment); final avatar character + accent Theme system; GPU fine-tuning of any model in Phase 1.
 
 ---
 
 ## 2. Research basis (one paragraph)
 
-Every flagship (Anthropic lead-agent, OpenAI manager, Google ADK Coordinator, xAI orchestrator) and the OSS field converge: **one central brain classifies intent and delegates a typed job to a worker** — never a chatty peer mesh. Cost anchors: single agent ≈ 4× a chat in tokens, multi-agent ≈ 15×; escalation must be **value-gated**, and tuned routers keep ~85–97 % of turns local. Deterministic (code) routing costs **zero** tokens; reserve the model for the ambiguous middle. The #1 production failure is the **runaway cost/retry loop** — brakes first. Verification caveats honored: (a) "small models can't emit strict JSON" is _partly stale_ (Ollama added grammar enforcement) — we **empirically test**; (b) several third-party cost figures were unverified — no decision rests on them.
+Flagships and OSS converge: one central brain classifies intent and delegates a typed job to a worker — never a peer mesh. Single agent ≈ 4× a chat in tokens, multi-agent ≈ 15×; escalation must be value-gated; tuned routers keep ~85–97% of turns local. Deterministic routing costs zero tokens. The #1 failure is the runaway cost/retry loop — brakes first. For making a small apprentice learn from a big teacher on one 16 GB GPU, the field favors **training-free first**: RAG-as-memory + a contextual bandit + confidence calibration (CPU, no GPU, improves from the first approve/override), with periodic LoRA distillation later behind an eval gate. (Some cited papers may be model-fabricated — mechanism-level guidance is sound; treat exact citations as leads.)
 
 ---
 
-## 3. Architecture overview ("the shape")
+## 3. Architecture overview
 
 ```
-You ──▶ Sully (the BRAIN = a role slot; today = cloud Opus via Max OAuth)
+You ──▶ Sully (BRAIN = role slot; today = cloud Opus via the Claude CLI bridge/OAuth)
             ├─ answers you directly (most turns)
             └─ DECISION GATE
-                  ├─ rule pre-filter (free, no model)
+                  ├─ rule pre-filter (free)
                   ├─ deterministic VALUE gate (server-side, model-independent)
-                  └─ schema self-assessment  ── emitted IN the same cloud reply call
-                        │  {escalate, worker, confidence, category, brief, est_scope}
-                        ▼  (validated → rejected if malformed)
-                  DISPATCH ── typed handoff ──▶ ONE cloud worker (CC / AGY)
-                        │                              │ activity rows
-                  pending_jobs (typed store)      worker callback ──▶ ACTIVITY WRITER
-                        │                              │
-                        ▼                              ▼
-                  WORKING BUBBLE ◀── SSE (id: trace:seq, heartbeat) ──┘
-                  (live rows → collapses to final result; reconcile-on-resume)
+                  └─ schema self-assessment  ── emitted IN the same CLI-bridge reply
+                        ▼ {escalate, worker, confidence, category, brief, est_scope} (validated)
+                  DISPATCH ── typed handoff ──▶ ONE cloud worker (dispatchName=gemini / claude-code)
+                        │                            │ activity rows
+                  pending_jobs (companion.db)   worker HTTP-callback ──▶ ACTIVITY WRITER (companion.db)
+                        ▼                            ▼
+                  WORKING BUBBLE ◀── SSE (id: trace:seq, heartbeat) ──┘   + APNs notify (§4.13)
+                  (live rows → final result; reconcile-on-resume)
 
-  Wrapping it:  TEACHING LOOP
-    teacher (cloud Opus, Sully persona) → episodes (L2) + skills (L4, local-only)
-       → Sully local memory (companion.db);  L2 episodes OPTIONALLY → team pool (§4.10)
-       → apprentice (local) scored on OBJECTIVE outcomes → graduates into the BRAIN slot
+  TEACHING / LEARNING LOOP (§4.9–4.10)
+    episode close → (a) labeled routing_history row + sully_episodes.jsonl decision  → revives hermes_apprentice
+                    (b) emit_observation (hash-chained) → ingest → synthesize → provisional_lessons → memory.js
+                    (c) local RAG store + contextual bandit + calibration  (no-GPU learning, improves immediately)
 ```
 
-**The brain is a role slot.** Today = **Claude Opus 4.8, cloud, via Max OAuth**; swappable; end-state = a graduated small local apprentice.
-
-**Cloud is the only concurrency lane.** Exactly **one** local model resident at steady state. Two heavy tasks → two _cloud_ workers, never a second local model.
+The brain is a **role slot** (today cloud Opus; end-state a graduated local apprentice). **Cloud is the only concurrency lane** — exactly one local model resident.
 
 ---
 
 ## 4. Components
 
-### 4.1 The Brain (role slot) + model strategy
+### 4.1 The Brain + model strategy
 
-- **Purpose:** answer the user and emit the gate self-assessment in the _same_ call.
-- **Teacher (now):** Claude Opus 4.8, cloud, OAuth-first (`CLAUDE_CODE_OAUTH_TOKEN`), API-key only as a gated, billed fallback (off by default).
-- **Code-path decision (must be made in the plan):** either (a) **route the teacher through a `consult_claude`-style direct call** (already OAuth-capable in `companion_tools.ts`) — _preferred_, or (b) **route through the model router**, which then requires a Phase-1 task to add an **OAuth Bearer branch to `providers/anthropic.ts`** and bump the tier to `opus-4-8` (catalog currently `opus-4-7`). Do **not** imply the router is OAuth-ready — it is not.
-- **Relation to existing escalation:** `consult_claude` / `deep_think` already exist (model-decided cloud calls). The dispatcher is a **superset for action-taking work** (file edits, builds, multi-step). Spec rule: a turn fires **either** an inline consult **or** a dispatch, never both; the gate chooses.
+- **Teacher (now): cloud Opus 4.8 via the Claude CLI bridge** (`claude_cli_stream.ts streamViaClaudeCLI`), which is the proven OAuth path for Opus/Sonnet (clean `$HOME`, `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY` stripped). **Do NOT** use raw Bearer (Haiku-only → 429 on Opus) or the router (`providers/anthropic.ts` is x-api-key only). API-key is a gated, billed fallback (off by default).
+- **Relation to existing escalation:** `consult_claude`/`deep_think` already exist (and `consult_claude` is currently broken on Opus over OAuth — re-point it at the CLI bridge or mark it Haiku/api-key-only). The dispatcher is the **action-taking** superset; a turn fires **either** an inline consult **or** a dispatch, never both.
 - **Apprentice (target):** a small local model that graduates in (§4.9), subject to the VRAM budget (§8).
-- **Persona artifact** (§4.9.1) is the byte-stable prefix for cache reuse (§7).
+- **Persona artifact** (§4.9.1) is the byte-stable system-prompt prefix.
 
 ### 4.2 The Decision Gate
 
-- **Purpose:** decide _answer locally_ vs _dispatch_, cheaply, **without a second local model**.
-- **Three stages:**
-  1. **Rule pre-filter — zero tokens.** Patterns (`fix…`, `build`, `run tests`, `search the repo`, a file path, literal `@cc`/`@agy`) route obvious cases.
-  2. **Deterministic value gate — server-side, model-independent.** Blocks dispatch unless an objective signal is present (e.g. a code/repo/file signal, or length/complexity above a floor). A small model emitting `{escalate:true,confidence:high}` for trivial/hallucinated/pasted content does **not** get to dispatch. **Injection guard:** content originating from tool output or pasted external text never auto-dispatches — it always requires an Ask-chip, even in Full-auto.
-  3. **Schema self-assessment — emitted inside the same cloud Opus reply call** (while Opus is the brain → **zero extra local model**, no swap, no queue):
-     ```json
-     {
-     	"escalate": true,
-     	"worker": "cc",
-     	"confidence": "high",
-     	"category": "research",
-     	"brief": "one line",
-     	"est_scope": "single"
-     }
-     ```
-- **No separate local classifier while Opus is the brain.** When the apprentice eventually owns the brain slot, the classify hop is served by grammar-enforced decoding on the **same resident** model, or (if unreliable per the operator's qwen3 schema bench) by making a schema-reliable model the **only** resident model — never a co-resident second model.
-- **Validation:** the object is validated before any dispatch; malformed → rejected (fall back to answer/ask). _(This is correctness, not a cost brake — see §4.11.)_
-- **Logging:** every decision (escalated or not) logged with category/confidence/**objective outcome** — fuel for §4.8 and telemetry.
+Three stages, **no second local model**:
+
+1. **Rule pre-filter** — zero tokens (keywords, file paths, literal `@cc`/`@agy`).
+2. **Deterministic value gate** — server-side, model-independent: blocks dispatch unless an objective signal is present (code/repo/file signal, or length/complexity floor). **Injection guard:** content from tool output / pasted text never auto-dispatches — always an Ask-chip, even in Full-auto.
+3. **Schema self-assessment** — emitted as a structured tail of the **same** CLI-bridge Opus reply (`{escalate,worker,confidence,category,brief,est_scope}`), validated server-side after the stream assembles. Zero extra model, zero extra round-trip.
+
+When the apprentice owns the brain, the classify hop must be grammar-enforced decoding on the **same** resident model, or a schema-reliable model as the **sole** resident (operator bench: qwen2.5:7b 100% vs qwen3.x 0/20 under `format=schema`). Validation = correctness, not a brake.
 
 ### 4.3 Companion Dispatch Enablement + Worker Contract
 
-- **Purpose:** make dispatch _possible_ on the companion (it is currently blocked) and define a typed handoff.
-- **Enablement (Phase 1a):** add a **companion-native dispatch flag** (not `_wired`) and a companion path to reach a worker — either a companion gateway endpoint or a direct authenticated POST to the dispatch listener. Remove/replace the `+server.ts:206-209` short-circuit behind this flag.
-- **Handoff schema** (mirrors `cc_handoff` frontmatter): `{ task, scope, target_repo, brief, trace_id }`. **Worker name:** confirm the listener's accepted `dispatchName` — `workers.json` labels the frontend slot `gemini` with `agy` as an alias; reference the accepted name or note the swap as a prerequisite.
-- **Contract:** the worker streams activity rows while running and returns **only a final synthesized message**; large output goes to an artifact store, a short **reference** comes back (avoids token blowup).
-- **Default = one worker.** Parallel fan-out is out of scope.
+- **Enablement (1a):** a **companion-native dispatch flag** (NOT `_wired`); replace the `+server.ts:206-209` short-circuit behind it; reach a worker via an authenticated POST to the dispatch listener (HMAC, per existing direct-POST pattern).
+- **Handoff:** `{ task, scope, target_repo, brief, trace_id }`. **dispatchName = `gemini`** (frontend, listener-accepted today; `agy` valid at the listener but not the companion's current `workers.json` value — see §11) or `claude-code` (backend).
+- **Contract:** worker streams activity rows + returns only a final message; big output → artifact store + a short ref. **Default = one worker.**
 
 ### 4.4 Job Store (`pending_jobs`) + State Machine
 
-- **Purpose:** orchestration state **outside** the model context; survives restarts/backgrounding.
-- **Shape:** `{ id, trace_id, worker, status, category, current_activity, seq_cursor, started_at, ended_at, predicted_tokens, result_ref }`. `predicted_tokens` is **telemetry-only, never a brake input**.
-- **States:** `decided → dispatched → working → done | failed | retry | aborted`.
-- **Concurrency:** keyed by `trace_id`; concurrent dispatches never clobber each other.
+- `{ id, trace_id, worker, status, category, current_activity, seq_cursor, started_at, ended_at, predicted_tokens, actual_tokens, result_ref }` in `companion.db`. `predicted_tokens` is telemetry-only, never a brake input.
+- States: `decided → dispatched → working → done | failed | retry | aborted`. Keyed by `trace_id`.
 
 ### 4.5 SSE Transport + Activity Writer + iOS reconciliation
 
-- **Activity writer (Phase 1a, genuinely missing):** define **who emits** `chat_activity` rows for a companion dispatch (worker callback/webhook to a companion endpoint, or companion re-emitting from a poll), the **row schema**, and the `trace_id` key. The bubble cannot stream what nothing writes.
-- **SSE contract (greenfield):** server emits `id: <trace_id>:<seq>` per row; headers set **directly on the streamed `Response`** (`Content-Type: text/event-stream`, `Cache-Control: no-cache,no-transform`, `Connection: keep-alive`) — _not_ via `setHeaders`; a **~15 s heartbeat comment** defeats Tailscale Serve / carrier idle-reaping. Client opens the stream via `resolve('/api/chat/<route>')` so `paths.base` (`/companion`) is respected. **Verify through the real `:8444` tailnet path, not localhost.**
-- **Resume / reconnect (REQUIRED correctness floor, not an edge case):** the chat page currently has **no** `visibilitychange` listener. Add handlers for `visibilitychange` (PWA) **and** Capacitor `App` `resume` (native): on resume, tear down + recreate the `EventSource` with `Last-Event-ID`, replay rows with `seq > cursor` from `pending_jobs`, dedupe by `seq`, and **reconcile the bubble against a fresh GET of the job-store row.** Because SSE _and_ push both currently fail when the iPhone backgrounds, this resume reconciliation is the primary guarantee.
-- **iOS push — DESCOPED for Phase 1.** The SW is inert in the WebView, there is no client subscription, and APNs is deferred. "Backgrounded finish pings via push" is **removed from Phase-1 acceptance.** The real channel is **APNs via `@capacitor/push-notifications`** (a later phase) and/or a real web-push subscription flow for the PWA; until then, resume-reconciliation covers correctness. Drop the "Declarative Web Push primary" claim from "canon honored" — `web_push.ts` sends a flat imperative payload.
+- **Activity writer (1a — genuinely missing):** a NEW authenticated companion endpoint (e.g. `POST /api/chat/activity`) the worker HTTP-calls to write `chat_activity` rows into **`companion.db`** (the worker can't reach that DB directly and the kernel `emit_chat_activity.py` writes the wrong DB). Add a `writeActivity(traceId, action, target)` helper (`chatActivity.ts` is read-only today). Re-gate the activity route (currently returns `[]` in companion mode) behind the new dispatch flag.
+- **SSE contract (greenfield):** `id: <trace_id>:<seq>` per row; headers on the streamed `Response` (`text/event-stream`, `no-cache,no-transform`, keep-alive) — not `setHeaders`; ~15 s heartbeat to beat Tailscale/carrier idle-reaping; client opens via `resolve('/api/chat/<route>')` (respects `/companion` base). **Verify via the `:8444` tailnet path.**
+- **Resume/reconnect (REQUIRED floor):** add `visibilitychange` (PWA) + Capacitor `App` `resume` (native) handlers; on resume recreate the `EventSource` with `Last-Event-ID`, replay `seq > cursor` from `pending_jobs`, dedupe, and reconcile against a fresh GET of the job row. Because SSE+push both fail when the iPhone backgrounds, this is the primary correctness guarantee.
+- iOS push is handled in §4.13 (APNs), not here.
 
 ### 4.6 The Working Bubble (UI)
 
-- While `working`: live activity rows + elapsed timer. On `done`: collapse to the final message. On `failed`/`aborted`: show state + a bounded **retry** affordance. Renders entirely off `pending_jobs` + SSE; styled per `companion-ui-design` (flat reply under `● Sully`).
+`working` → live rows + elapsed timer; `done` → collapse to final message; `failed`/`aborted` → state + bounded retry. Renders off `pending_jobs` + SSE; styled per `companion-ui-design`.
 
 ### 4.7 App-Native Control Surface (no slash-commands)
 
-- **Inline chips:** _"Sully wants to send this to CC — [brief]"_ → **[Approve] · [Skip] · [Edit brief]**.
+- **Inline chips:** _"Sully wants to send this to CC — [brief]"_ → [Approve] · [Skip] · [Edit brief].
 - **Autonomy control (Settings):** segmented **Ask · Auto-for-safe · Full-auto** (full-auto still bounded by §4.11 + kill switch).
-- **Clarification:** the existing slash-command system (`/clear`, `/new`, `/regen`, `/unlock`, …) stays for its current functions; the dispatch surface is **chips-only** — do **not** add a `/dispatch` command.
+- Existing slash-commands stay; **no `/dispatch` command.**
 
 ### 4.8 The Autonomy Ladder
 
-- **Graduate on evidence, per category** — but bounded against being a value-gate bypass:
-  - Require a **minimum sample size AND a low false-dispatch rate** (not a raw approval streak).
-  - **Any** worker `failed` / operator-Skip / operator-correction **immediately demotes** the category to Ask.
-  - **Never auto-graduate while Full-auto is selected.**
-  - Newly-graduated categories run under a **tighter probation budget**.
-- Reconcile with §9's deliberate over-escalation bias (which can train rubber-stamping): the ladder counts **outcomes**, not chip taps alone.
+Graduate per category on **outcomes**, bounded against value-gate bypass: require a minimum sample size AND a low false-dispatch rate (not a streak); any `failed`/Skip/correction immediately demotes to Ask; never auto-graduate while Full-auto is selected; newly-graduated categories get a tighter probation budget. This is the **same mechanism** as §4.9.4 (both score objective outcomes).
 
 ### 4.9 The Teaching Loop
 
-#### 4.9.1 Persona / method artifact
+- **4.9.1 Persona artifact:** a canonical source with per-runtime renderings (cloud-prefix for cache, local-prefix for Ollama KV, an L4 object). Only the source is single.
+- **4.9.2 Episode capture → L2:** `{ ask, decision, worker_actions, outcome, operator_reaction, trace_id }` in local `companion.db`.
+- **4.9.3 Skill acquisition → L4 (LOCAL ONLY):** the team pool has no procedural/skills table — skills stay local to Sully.
+- **4.9.4 Graduation scorer (objective):** the apprentice's readiness is scored on **objective operator outcomes** already logged in §4.2 (dispatch succeeded / approved / a local answer was corrected) — never teacher-text-similarity. Eligibility bounded to deterministic/low-judgment categories; persona/judgment turns stay on the cloud teacher.
+- **4.9.5 Handoff payoff (VRAM corrected):** graduation makes the apprentice **resident → adds** local VRAM (contends with voice's ~14.6 GB peak); the real payoff is **quota/cost, latency, offline**. During voice, the apprentice is evicted on-demand and cold-reloads on voice exit.
 
-A canonical **source** describing how Sully behaves (tone, warmth, operator-comms style, dispatch judgment), with **per-runtime renderings**: a cloud-prefix form (Anthropic cache breakpoints), a local-prefix form (Ollama KV reuse), and a retrievable L4 object. Only the _source_ is single; do not promise byte-identical reuse across runtimes from one literal.
+### 4.10 Memory seams + the Hermes-learning fix
 
-#### 4.9.2 Episode capture → memory L2 (episodic)
+**The two-part fix** (this is the resolved "Hermes learning problem"):
 
-Each meaningful turn → `{ ask, decision, worker_actions, outcome, operator_reaction, trace_id }`, stored in Sully's **local** L2 (companion.db).
+**Part A — close the dead data channel (the real bug).** On episode close, the companion writes, append-only:
 
-#### 4.9.3 Skill acquisition → memory L4 (procedural, LOCAL ONLY)
+1. a **labeled `routing_history.jsonl` row** mirroring the n8n W2 intent shape (`timestamp, trace_id, task_identifier=SULLY-<n>, extracted_signals, ranked_candidates, chosen_worker, confidence, risk, operator_override_flag, outcome`), raw `fs`-append, synthetic `SULLY-<n>` namespace (regex-conforming so `ticket_id` inference works);
+2. a paired **operator-decision record** to a NEW `data/sully_episodes.jsonl` (`{task_identifier:'SULLY-<n>', action, action_label, decided_at}`; map approve→`a`, skip→`t`, correct-to-X→`{c/u/x/g}`, generic-correct→`o`);
+3. extend `hermes_apprentice.py` with a small additive `load_sully_episodes()` feeding `decided_map` by `task_identifier` — **zero change** to its tested `_classify_signal`/`_actual_worker`. This revives the fully-built labeling pipeline that today only emits `no_decision`, producing `hermes_learning_cases.jsonl` — the corpus roadmap Stage 3 fine-tunes on.
+4. ALSO `emit_observation.py` (`project_id='logueos-companion'`, `observation_kind ∈ {routing-correction, what-worked, what-didnt-work}`) per high-signal episode → rides the hash-chained `agent_decisions.jsonl → ingest → synthesize → provisional_lessons` pipeline → surfaces to future companion dispatches via `memory.js`. (Lossy: one ≤2000-char observation row; the full episode stays in local L2.)
+5. **Wire the cadence (its own task):** schedule `ingest_memory.py` + `synthesize_lessons.py` + `hermes_apprentice.py` (cron/Console) — they are manual today, so without this the episodes sit cold.
 
-Recurring, proven patterns distilled into reusable skills the apprentice can load. **L4 stays local to Sully** — the team pool has no procedural/skills table or write API, so skills do **not** cross the boundary.
+**Part B — the learning mechanism (no GPU, improves immediately).** Don't start with fine-tuning. Layer, in order:
 
-#### 4.9.4 Graduation scorer (objective, not teacher-similarity)
+1. **RAG-as-memory:** log every decision (query + route + rationale + approve/override) to a local vector store (sqlite-vec/HNSW); at decision time retrieve k=4–8 nearest past decisions as dynamic few-shot so the apprentice imitates teacher precedent. Adapts the instant a new row lands; CPU; ~zero training.
+2. **Contextual bandit router** (LinUCB / Vowpal Wabbit, ~50–100 LOC, <50 MB CPU): arms = {handle-locally, escalate-to-Sully}; reward = approve(+1)/override(0); recency-decayed. Learns **when** to trust the apprentice in ~500–700 interactions.
+3. **Confidence calibration** (temperature/Platt/conformal on logs, CPU) as the deferral threshold.
+4. **Later, behind an eval gate:** periodic offline **LoRA/QLoRA distillation** on accumulated vetted decisions (champion/challenger + shadow + LLM-as-judge, human-in-the-loop promotion). Avoid RLAIF (won't fit 16 GB) and starting with DPO/KTO (fragile on 16 GB; unnecessary for routing).
 
-The apprentice's readiness is scored on **objective operator-outcome signals already logged in §4.2** (dispatch succeeded / operator approved / a local answer got corrected) — **not** text-similarity to the teacher (non-deterministic, undefined metric). This makes §4.8 and §4.9.4 genuinely the same mechanism. **Eligibility is bounded:** only deterministic/low-judgment categories can graduate locally; persona/judgment turns stay on the cloud teacher.
+**Three entities, kept straight:** Sully's **brain-apprentice** (§4.9), the Orchestrator **routing-Hermes** (`hermes_apprentice.py` + `predict.js`/gatekeeper), and the companion **local-tier Hermes** (qwen2.5:7b). They share the **same corpus + pattern**, not one model. "Hermes trains too" realistically = (a) the routing-Hermes corpus finally gets a live decision signal, and (b) Sully's observations become retrievable team context via `memory.js`. No model is fine-tuned in Phase 1.
 
-#### 4.9.5 Handoff — the real payoff (VRAM narrative corrected)
+**Partition discipline:** every team-pool row carries `project_id='logueos-companion'` + `source='sully'`; `synthesize_lessons` must bucket/skip Sully rows so chat/persona noise isn't promoted into team lessons, and `hermes_injector` (filters by `project_id`) never leaks Sully episodes into unrelated workers' prompts.
 
-Pre-graduation the brain is cloud Opus (**0 local VRAM**); post-graduation the apprentice is **resident** and **adds** local VRAM pressure (contending with voice's ~14.6 GB peak — §8). So graduation does **not** "free VRAM." The real payoff is **quota/cost reduction, lower latency, and offline capability.** During a voice session, only one model can be resident: specify that voice mode **evicts** the apprentice on-demand (the pattern voice already uses) and the apprentice cold-reloads on voice exit.
-
-### 4.10 4-layer memory seams + the team-pool question
-
-- **Layers** (full schema deferred): **L1 Working** (exists) · **L2 Episodic** (§4.9.2) · **L3 Semantic** (embeddings via `mxbai-embed-large`) · **L4 Procedural** (§4.9.3, local only).
-- **L3 must not swap the GPU:** with one resident model, synchronously embedding on the turn path forces an unload/reload (multi-second cliff). Run the embedder **CPU-resident** (mirrors Silero VAD's CPU pinning) or query a precomputed vector index; gate L3 retrieval **behind the rule pre-filter** (only on flagged ambiguity), not every turn.
-- **Team-pool dual-write — OPEN QUESTION, not a Phase-1 goal.** Verified: the local pool is already `companion.db` (distinct), and there is **no live companion→team path** (`observation_emit.ts` returns `{ok:false, reason:'companion_mode'}`). If pursued (Phase 3+):
-  - Define a **narrow authenticated emit endpoint** (e.g. `POST /api/v1/observation`) that validates **one Tier-0 observation** through the redactor and **`append_chained`** to the hash-chained `agent_decisions.jsonl` (JSONL is source-of-truth; do **not** write the DB table directly à la the bypassing `observation_emit.ts`, and do **not** use generic `write_query`).
-  - **Lossy by design:** flatten the local episode into one observation row — pick `observation_kind` from the closed enum `{what-worked|what-didnt-work|surprise|routing-correction}`, ≤2000 chars, kebab `task_shape` tags. Full structured episodes stay only in local L2.
-  - **Enforced partition:** stamp a reserved `project_id` namespace (`sully-companion`) + `source='sully'` on every row; `synthesize_lessons.py` must **bucket/skip** Sully-sourced rows so chat/persona noise is not promoted into team lessons, and `hermes_injector` (which filters `WHERE project_id=?`) never leaks Sully episodes into unrelated workers' prompts.
-- **"Hermes apprentice trains too" is downgraded to an open question.** The Orchestrator's `hermes_apprentice.py` is a _routing_ predictor that never reads observations; the observations consumer is `hermes_injector.py` (context-injection RAG). So the realistic benefit is "Sully's episodes become **retrievable team context** via `hermes_injector`," not "a Hermes model learns." Sully's local graduation and the Orchestrator pipeline share a **pattern, not a data path.**
+**L3 must not swap the GPU:** run the embedder CPU-resident; gate L3 retrieval behind the rule pre-filter (not every turn).
 
 ### 4.11 Cost/quota brakes + spend telemetry
 
-- **Auth reality:** teacher + workers run on **Max OAuth** (quota, not dollars). Max OAuth returns **no** spend figure, so brakes must use **countable** signals. The only _billed_ path (API-key fallback) is gated and off by default. Limits are **generous but bounded** (more dispatch = more training data) — not penny-pinching.
-- **Brakes (all on from day one):**
-  1. **Dispatch-count budget** — a real `dispatches_today` counter incremented **at dispatch time**, plus cumulative worker **wall-clock** per rolling window. (Replaces the dollar/predicted-token "budget," which measured a fiction.) In **Full-auto with the operator away, hitting the cap is a HARD stop** — dispatch halts and stays halted until the operator explicitly resets it; never auto-resume on a timed-out prompt.
-  2. **429 circuit-breaker (the real quota signal).** Opus/Sonnet over Max OAuth return HTTP **429 `rate_limit_error`** on quota exhaustion. On the first 429 from the teacher/worker path: **trip a cooldown, halt ALL dispatch for a back-off window, surface "Sully hit her cloud quota — paused until <time>", and do NOT retry.**
-  3. **Bounded retries — transient errors only.** Retry (default **2**) only `overloaded_error` / network / SSE-drop; **never** 429. Then `failed`.
-  4. **Rate limiter (token-bucket).** Server-side, before the handoff POST: max 1 dispatch / N seconds and B / rolling minute, independent of daily budget and autonomy level (a fast loop or double-firing handler can emit a burst of distinct, valid dispatches in seconds; the listener has no per-caller cap).
-  5. **No re-escalation by content fingerprint.** Hash the normalized `brief|category|target_repo`; block (or force an Ask-chip) on a match to a recent failed/cooldown dispatch, even under a fresh `trace_id`. Plus a per-conversation cap (max K dispatches in T minutes without operator re-confirmation). "Distinct task" = distinct fingerprint.
-  6. **Deterministic value gate** (§4.2) — trivial/injected content never dispatches.
-  7. **Two-level companion-LOCAL kill switch** (the `system_halt` mirror is inert here): (a) **gate** new dispatches AND (b) **abort in-flight** — iterate `working` rows by `trace_id`, POST cancel to the worker/listener, flip to `aborted`, stop the SSE stream. Backed by a companion-data-dir file or settings flag. **Phase-1 acceptance = "aborts an in-flight dispatch,"** not just "blocks a new one." If the listener cannot terminate a running worker, that is a named Phase-1 dependency.
-- **Spend telemetry:**
-  - **Phase 1:** a companion-app meter showing **dispatch count + wall-clock today** (countable, honest). Capture **actual** tokens from the worker's final usage where available; clearly label predicted-vs-actual so the meter is never silently fed router predictions.
-  - **Console tracker (later):** the Console is a **separate repo** reading the team pool, so it surfaces nothing until the team-pool write (§4.10) lands and actual-token + per-category columns exist. Gate it on that phase.
+- **Auth reality:** teacher/workers on Max OAuth (quota, no dollars). Brakes use **countable** signals; the billed API-key path is gated/off.
+- **Brakes (all from day one):** (1) **dispatch-count budget** + worker **wall-clock** per rolling window — in Full-auto with the operator away, hitting it is a **HARD stop** until reset; (2) **429 circuit-breaker** (the real quota signal — cooldown, halt-all, **no retry**); (3) bounded retries (default **2**) for **transient** errors only (never 429); (4) **token-bucket rate limiter** before the handoff POST; (5) **no re-escalation by content fingerprint** (`brief|category|target_repo` hash + per-conversation cap); (6) deterministic value gate (§4.2); (7) **two-level companion-LOCAL kill switch** — gate new **and abort in-flight** (iterate `working` rows → POST cancel → `aborted` → stop SSE). Phase-1 acceptance = "aborts an in-flight dispatch."
+- **Actual-token capture:** read the **worker result-marker telemetry** (`usage_capture.js`: prompt/completion/cache*read/cache_creation/total) into NEW `actual*_`columns, distinct from`predicted\__`. Also capture the AI-SDK `onFinish` usage on the local reply path (currently ignored). **agy has no actuals** (binary protobuf) → predicted-only for agy dispatches.
+- **Telemetry:** Phase-1 companion-app meter = dispatch count + wall-clock today (countable, honest), labeled predicted-vs-actual. The cross-repo **Console tracker** waits on the team-pool write + actual columns.
 
 ### 4.12 Animated avatar (later phase)
 
-- **Style (locked):** outline / terminal CRT line-art — stroke + phosphor glow + scanlines.
-- **Character:** leading candidate **KAIJU** (original big-friendly-horned-monster, Sulley-spirited — _not_ the trademarked character); final pick deferred to a polish pass.
-- **Accent → Theme system (later):** magenta (default) · phosphor · amber · cyan, selectable.
-- **Tech:** **Rive** (state-machine-driven), fed the live job/voice state — the avatar _is_ the read-out. States: idle · listening · thinking · deciding · working · speaking · done · error.
-- **Phasing:** its own phase; the core dispatcher ships without it.
+Outline/terminal CRT line-art (locked); candidate **KAIJU** (original, Sulley-spirited); accent **Theme** (magenta default · phosphor · amber · cyan) later; **Rive** state-machine fed live job/voice state; its own phase, ships without it.
+
+### 4.13 Notifications (NEW — scaffolding)
+
+**Channel reality:** APNs (`@capacitor/push-notifications`) is the **only** channel that wakes the iPhone-as-app (Web Push is dead in the WebView by design; keep Web Push for desktop/Safari). APNs needs a **net-new server sender** (HTTP/2 + JWT from a `.p8` key) — VAPID can't reach it.
+
+**Channel-agnostic envelope** (server emits once; per-channel adapters translate): `{ v, kind, trace_id, ticket_id, thread_id, worker_id, title, body, status, category, interruption_level, relevance_score, thread_group, collapse_id, deep_link, actions[], live_activity?, extra }`. APNs adapter maps to `aps.*` + headers; web-push adapter maps to the existing `{title,body,data.url}`.
+
+**Categories / actions** (buttons act from the lock screen WITHOUT opening the app): `DISPATCH_RESULT` (view/rerun/mute), `APPROVAL_REQUEST` (approve/deny/view — reuses `/api/chat/approve` with a trace_id→message_id lookup; time-sensitive), `DISPATCH_RETRYABLE` (retry/skip/view), `QUOTA_WARNING` (view/snooze, per-provider collapse_id), `DIGEST` (passive daily/while-away summary), `LIVE_STATUS_FALLBACK` (plain-notification substitute for the Live Activity).
+
+**Live Activity / Dynamic Island** (the "useful beyond tap" showpiece, **build last**): a persistent lock-screen card — _"Dispatch 1/3 · building · 4:12"_ — with an **OS-animated** timer/progress (`Text(timerInterval:)`/`ProgressView(timerInterval:)`) so the server pushes only on **step changes**. Requires native Swift: a Widget Extension target, an `ActivityAttributes`+`ContentState` struct compiled into both targets, `NSSupportsLiveActivities`, an App Group — and, because CI regenerates `ios/` fresh, a committed **codemagic.yaml post-`cap add ios` patch step** to inject all of it. Plugin: `ludufre/capacitor-live-activities` (push-to-start, iOS 17.2+).
+
+**Critical nuance:** Capacitor surfaces actions via JS only once the WebView is alive. For Approve/Skip/Retry to round-trip while Sully stays **closed**, a small committed native `UNUserNotificationCenterDelegate` handler must POST to the server (keyed on trace_id), with JS reconciling on next open.
+
+**Build order:** **N1 — APNs spine** (`notify.ts` envelope dispatcher · `apns.ts` HTTP/2 JWT sender · `chat_apns_tokens` table + reaper · capacitor BUILD-2 block + client registration + `aps-environment` entitlement · upgrade `completion_poller.ts` to envelopes). **N2 — actionable approvals** (categories + native delegate + `/api/chat/approve` trace_id lookup + quota-warning + digest). **N3 — Live Activity** (Swift widget extension + CI injection; `LIVE_STATUS_FALLBACK` until then).
 
 ---
 
 ## 5. Data flow (a real dispatch)
 
-1. You send a message → brain answers; gate runs (rules → value gate → schema self-assessment in the same cloud call).
+1. Message → brain answers; gate runs (rules → value gate → schema self-assessment in the same CLI-bridge call).
 2. Dispatch chosen → value-gated → fingerprint-checked → rate-limited → schema-validated.
-3. Autonomy: `Ask` shows chips (you approve) / `Auto-*` proceeds.
-4. `pending_jobs` row `decided`; trimmed handoff POSTed (`dispatched → working`).
-5. Worker streams rows → **activity writer** → SSE (`id: trace:seq`, heartbeat) → bubble.
-6. Worker finishes → artifacts + final message + ref → bubble collapses (`done`).
-7. Turn captured as a local L2 episode (+ local L4 skill if recurring). **Optionally** a lossy L2 observation is emitted to the team pool (§4.10, if that phase is built).
-8. Objective outcome logged → autonomy ladder + spend meter update.
-9. On app resume: recreate SSE with `Last-Event-ID` + reconcile the bubble against the job-store row.
+3. Autonomy: `Ask` shows chips / `Auto-*` proceeds.
+4. `pending_jobs` `decided`; HMAC handoff POST (`dispatched → working`).
+5. Worker streams rows → **companion activity-callback** → SSE → bubble. On background, APNs (N1) notifies.
+6. Worker finishes → artifacts + final message + ref → bubble collapses (`done`); actual tokens captured from the result marker.
+7. Episode → local L2 (+ local L4 if recurring) → **Part A** writes (routing_history + sully_episodes + observation) → cadence ingests.
+8. RAG store + bandit + calibration update (Part B); autonomy ladder + spend meter update.
+9. On resume: recreate SSE with `Last-Event-ID` + reconcile against the job row.
 
 ---
 
 ## 6. Error handling
 
-- **Malformed decision:** rejected at validation → answer/ask locally.
-- **429 / quota:** circuit-breaker (§4.11 #2) — cooldown, halt-all, no retry.
-- **Transient worker failure:** bounded retry (2), then `failed` with retry affordance; no self-re-escalation.
-- **SSE drop / app resume:** recreate `EventSource` + replay by `seq` + reconcile via job-store GET (the correctness floor).
-- **Cold local model:** surface a "waking Sully" state; re-warm on app focus. Ollama env (below) is a deployment precondition.
-- **Budget hit / kill switch:** hard stop (budget) / gate + in-flight abort (switch); chat still works.
+Malformed decision → answer/ask. 429 → circuit-breaker (cooldown, halt-all, no retry). Transient worker failure → bounded retry (2) → `failed`. SSE drop/resume → recreate + replay by `seq` + reconcile. Cold local model → "waking Sully" + re-warm. Budget/kill → hard stop / gate + in-flight abort. `synthesize_lessons` Ollama-down → fails closed (no raw-obs dumping).
 
 ---
 
 ## 7. Token / quota efficiency
 
-- **Deterministic routing first** — rules + value gate cost zero tokens.
-- **Prompt caching is UNVERIFIED over OAuth — treat as explicit work.** Cached-read pricing and "cached tokens skip rate limits" are documented for API-key usage; not confirmed over `CLAUDE_CODE_OAUTH_TOKEN`. **Phase-1 acceptance check:** POST two identical-prefix requests via OAuth <5 min apart and confirm `usage.cache_read_input_tokens > 0`; if it fails, drop caching from the projection or use the API-key path for cached workloads. State savings as a **range** (idle gaps past the ~5 min TTL degrade to repeated cache-**write** penalties — request the **1 h TTL** for long dispatches). Keep the persona/canon/tool-defs as a byte-stable prefix; volatile suffix + run-id/timer **last**; never a timestamp early.
-- **Local prefix/KV reuse** is free **only within continuous single-model residency** — any GPU model swap (reply↔embed↔classify, or voice's on-demand load/unload) discards the KV cache. So §8's swap-minimization rule is a _prerequisite_ for this win; it applies only to sustained multi-turn chat with no interleaved GPU calls.
-- **Artifact + reference** — workers persist big output; pass back a short ref.
-- **Summarizer for long briefs:** prefer the resident local model or a deterministic extractive/truncation summary (zero cloud tokens). **Forbid** a cloud summarization round-trip on the Max quota unless the brief exceeds a hard token threshold.
+- Deterministic routing first (zero tokens).
+- **Prompt caching is structurally unobservable on the chosen Opus path:** the CLI bridge's NDJSON parser reads no usage block, so `cache_read` can't be seen for the teacher today. **Drop the cache projection for the teacher path** (or add result-event usage parsing later). The **dispatched worker** path DOES capture `cache_read` (`usage_capture.js`). Run the spec's identical-prefix cache test against **Haiku** (the only raw-Bearer-over-OAuth path) to confirm the mechanism. Keep persona/canon as a byte-stable prefix regardless; never a timestamp early.
+- Local prefix/KV reuse pays off **only within continuous single-model residency** (any GPU swap discards KV) — so §8's swap-minimization is a prerequisite.
+- Artifact + reference for big output. Summarize long briefs with the resident local model or deterministic truncation — **no cloud round-trip** on quota unless over a hard threshold.
 
 ---
 
-## 8. Hardware constraints (single 16 GB GPU) — with a real budget
+## 8. Hardware constraints (single 16 GB GPU)
 
-- **Ollama env is a Phase-1 deployment PRECONDITION, set at the systemd level (drop-in `Environment=`), at boot — NOT in an error branch:** `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_KEEP_ALIVE=-1` (or 1h). The default is ~3/GPU; without this, Ollama can silently co-load reply + classifier + embedder + apprentice into a near-OOM box.
-- **VRAM budget table** (commit to values in the plan; example targets, `num_ctx` and KV quant **fixed**, KV bytes folded in):
-
-  | State                          | Resident GPU tenants                                               | Approx peak             |
-  | ------------------------------ | ------------------------------------------------------------------ | ----------------------- |
-  | Voice-ON                       | reply model + faster-whisper (tiny.en + small.en) + Chatterbox TTS | ~14.6 / 16.3 GB         |
-  | Voice-OFF, teacher=cloud       | reply model only (Opus is cloud → 0 local for the brain)           | fits                    |
-  | Voice-OFF, apprentice resident | apprentice (chosen quant/`num_ctx` + KV)                           | must be proven ≤ budget |
-
-  **Implication:** with voice on there is **no room** for a resident classifier, embedder, or apprentice. Therefore: **the decision classifier rides the cloud Opus call** (§4.2), **the embedder runs CPU-resident** (§4.10), and **the apprentice is evicted during voice** (§4.9.5). Because `MAX_LOADED=1` makes every cross-model call a serial unload/reload (multi-second cliff), the design **minimizes distinct resident model names** to ideally one.
-
-- **System RAM (32 GB) note:** since the embedder (and possibly classifier) move to CPU, confirm CPU tenants (embedder, Silero VAD, STT, Chatterbox/torch+CUDA context, SvelteKit) fit in 32 GB with margin — don't relocate the cliff.
-- **Cloud-only concurrency.** Never two local models; fan heavy/parallel work to cloud.
+- **Ollama env is a Phase-1 deployment PRECONDITION at the systemd level (drop-in `Environment=`, at boot):** `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_KEEP_ALIVE=-1`.
+- **VRAM budget** (commit `num_ctx` + KV quant in the plan): Voice-ON peaks ~14.6/16.3 GB (reply + faster-whisper tiny/small + Chatterbox) → **no room** for a resident classifier/embedder/apprentice. Therefore the classifier rides the cloud Opus call (§4.2), the **embedder runs CPU-resident** (§4.10), and the apprentice is **evicted during voice** (§4.9.5). `MAX_LOADED=1` makes every cross-model call a serial unload/reload → minimize distinct resident model names to ~one.
+- **System RAM (32 GB):** confirm CPU tenants (embedder, Silero VAD, STT, Chatterbox/torch+CUDA, SvelteKit) fit with margin.
+- Cloud-only concurrency; never two local models.
 
 ---
 
 ## 9. Telemetry & calibration
 
-Log every decision (category, confidence, escalated?, **objective outcome**, actual tokens where available). Tune the escalation threshold and the autonomy ladder on **the operator's own traffic**. Bias slightly toward over-escalation early (under-escalation = a confident-but-wrong local answer, the worse error for a companion) — but the ladder graduates on **outcomes**, not chip-tap streaks (§4.8).
+Log every decision (category, confidence, escalated?, objective outcome, actual tokens where available). Tune on the operator's own traffic; bias slightly toward over-escalation early (under-escalation is the worse error). The ladder graduates on outcomes, not chip taps.
 
 ---
 
 ## 10. Phasing
 
-**Phase 1 is decomposed** (it bundled ~10 partly-independent subsystems with precondition blockers). Hard ordering:
-
-- **1a — Unblocking layer:** companion dispatch enablement (new flag, replace the `+server.ts` short-circuit) + companion worker contract/route + the **activity writer**. _(Nothing streams until this exists.)_
-- **1b — Backend:** `pending_jobs` + state machine + decision gate (rules + value gate + schema self-assessment + validation) + brakes (dispatch-count, 429 breaker, rate-limiter, fingerprint no-re-escalation, two-level kill switch). Pin starting defaults (retry = 2; a starting daily cap; value-gate heuristic = `est_scope:'single'` + low token estimate stays local). **Acceptance includes the schema-emission empirical test** (pass bar mirroring qwen2.5:7b 100 % vs qwen3.x 0/20).
-- **1c — Frontend:** SSE (contract + headers + heartbeat + resolve-base) + **resume-reconciliation** + Working bubble + chips + Autonomy _Ask_ + the companion-app dispatch meter.
-- Each sub-phase gets its own MVP acceptance slice (not one 11-clause list).
-
-2. **Phase 2 — Autonomy ladder** (objective-outcome graduation, demotion, probation).
-3. **Phase 3 — Teaching loop** (persona artifact, episode capture, local L4 skills) **and**, if approved, the **team-pool L2 emit** (§4.10) + the Console tracker.
-4. **Phase 4 — Apprentice graduation** (local resident handoff; voice-eviction policy).
-5. **Phase 5 — Animated avatar (Rive)** + accent **Theme** system + **APNs push** for the native app.
-6. **Later project — full 4-layer memory** schema + retrieval.
+- **Phase 1 — Core dispatcher** (decomposed):
+  - **1a Unblocking:** companion dispatch flag + listener handoff (HMAC) + **activity-callback writer** into `companion.db`.
+  - **1b Backend:** `pending_jobs` + state machine + decision gate (rules + value gate + CLI-bridge schema self-assessment + validation) + brakes (count, 429 breaker, rate-limiter, fingerprint, two-level kill switch) + actual-token capture. Pin defaults (retry 2; starting daily cap; value-gate heuristic). **Acceptance includes the schema-emission test.**
+  - **1c Frontend:** SSE (contract + headers + heartbeat + resolve-base) + **resume-reconciliation** + Working bubble + chips + Autonomy _Ask_ + companion-app meter.
+- **Phase 2 — Autonomy ladder** (objective-outcome graduation, demotion, probation).
+- **Phase 3 — Teaching/learning:** persona artifact, episode capture, local L4 skills, **Hermes Part A** (routing_history + `sully_episodes.jsonl` + `load_sully_episodes()` + observations + **cadence cron**) and **Part B** (RAG store + contextual bandit + calibration).
+- **Phase 4 — Apprentice graduation** (local resident handoff; voice-eviction) and (optional) LoRA distillation behind an eval gate.
+- **Phase N (parallel track) — Notifications:** N1 APNs spine → N2 actionable approvals → N3 Live Activity.
+- **Phase 5 — Avatar (Rive) + accent Theme.**
+- **Later — full 4-layer memory.**
 
 ---
 
-## 11. Open questions / deferred
+## 11. Resolved review flags + remaining operator decisions
 
-- Team-pool L2 emit (§4.10): build it at all, and the exact endpoint/partition contract — **open**.
-- Teacher code path (router-with-OAuth-branch vs `consult_claude`-style direct) — decide in the 1a/1b plan.
-- Final avatar character; daily dispatch-count + rate-limiter defaults (operator-tuned once real traffic exists).
-- Whether the apprentice classify hop needs grammar-enforced decoding or a dedicated resident model — decided empirically in Phase 3/4.
-- A real iOS notification channel (APNs vs PWA web-push subscription) — Phase 5.
+**Resolved (folded into the spec):**
+
+1. **Teacher code path** → Claude CLI bridge (§4.1), not raw Bearer, not the router.
+2. **Prompt-caching over OAuth** → unobservable on the CLI Opus path; drop the teacher projection; worker path captures it; test on Haiku (§7).
+3. **Classifier hosting** → rides the same CLI-bridge call (§4.2).
+4. **Activity writer** → companion HTTP-callback into `companion.db` (§4.5).
+5. **Workers.json name** → emit `gemini` (§4.3).
+6. **Actual-token capture** → from the worker result-marker telemetry (§4.11).
+7. **Hermes learning** → Part A (close the dead decision channel) + Part B (RAG + bandit + calibration) (§4.10).
+
+**Remaining operator decisions (need your call):**
+
+- **OAuth canon contradiction.** Live code (verified 2026-05-27) proves raw OAuth Bearer is Haiku-only; Sonnet/Opus 429. This supersedes memory `claude-max-oauth-direct-api` ("verified 2026-05-26"). **Decision:** accept the CLI-bridge-for-Opus rule (recommended), and is `consult_claude`'s `opus-4-8` default knowingly billed-api-key-only, or should it be re-pointed at the CLI bridge? (Memory will be updated to the verified nuance.)
+- **agy vs gemini cutover** — emit `gemini` now (safe) vs swap `workers.json` to `agy` once the Antigravity migration cuts over.
+- **Worker→companion callback auth** — HMAC (per the listener's direct-POST) vs a shared secret; and how the worker prompt/env carries the companion callback URL. To pin in the 1a plan.
+- **Cache projection scope** — drop entirely for the Opus teacher (recommended) vs parse the CLI `result` event's usage to recover `cache_read` in Phase 1.
+- **agy actuals gap** — accept predicted-only for agy dispatches until Antigravity token tracking lands.
 
 ---
 
 ## 12. Acceptance (per sub-phase)
 
-- **1a:** an `@cc`/`@agy` (or gate-chosen) request actually reaches a worker on the companion; activity rows are written and readable by `trace_id`.
-- **1b:** the gate proposes a dispatch on a qualifying request and refuses trivial/injected content; the schema-emission test passes; a 429 trips the circuit-breaker (halt-all, no retry); the kill switch **aborts an in-flight dispatch**; fingerprint + rate-limiter block a re-fired/looping dispatch; every decision is logged with its objective outcome.
-- **1c:** the SSE bubble streams live activity through the `:8444` tailnet path and collapses to the final result; backgrounding-then-foregrounding **recreates the stream and reconciles the bubble** against the job store (no stale "working"); state survives a server restart; the companion-app meter shows dispatch count + wall-clock today. _(No push assertion — descoped.)_
+- **1a:** a gate-chosen request reaches a worker on the companion; activity rows are written into `companion.db` and readable by `trace_id`.
+- **1b:** the gate proposes a dispatch on a qualifying request and refuses trivial/injected content; the schema-emission test passes; a 429 trips the circuit-breaker (halt-all, no retry); the kill switch **aborts an in-flight dispatch**; fingerprint + rate-limiter block a looping dispatch; actual tokens are captured from the worker marker; every decision logged with objective outcome.
+- **1c:** the SSE bubble streams via the `:8444` tailnet path and collapses to the final result; background→foreground **recreates the stream and reconciles** (no stale "working"); state survives a server restart; the meter shows dispatch count + wall-clock.
+- **Phase 3:** a Sully episode produces a labeled `routing_history` row + a `sully_episodes.jsonl` decision; a manual `hermes_apprentice.py` run yields a non-`no_decision` learning case; an observation reaches `provisional_lessons` after the cadence runs; the RAG store returns a past decision and the bandit updates on an approve/override.
+- **N1:** a real lock-screen "Dispatch complete" lands on a closed app via APNs.
