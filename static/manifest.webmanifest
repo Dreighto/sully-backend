@@ -36,7 +36,7 @@
 			"purpose": "maskable"
 		},
 		{
-			"src": "/companion/los_logo.png",
+			"src": "/companion/icon-1024.png",
 			"sizes": "1024x1024",
 			"type": "image/png",
 			"purpose": "any"
