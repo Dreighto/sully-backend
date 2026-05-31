@@ -31,7 +31,7 @@
 	import { replaceState } from '$app/navigation';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
-	import { Sparkles, Check, Copy, RefreshCw } from 'lucide-svelte';
+	import { Sparkles, Check, Copy, RefreshCw, Volume2, Square, Loader2 } from 'lucide-svelte';
 	import { toasts } from '$lib/utils/toasts';
 	import Markdown from '$lib/components/Markdown.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
@@ -617,6 +617,71 @@
 		}
 	}
 
+	// Per-message read-aloud (like ChatGPT/Claude). Plays Sully's reply through
+	// the local TTS (Chatterbox via /api/chat/speak). Toggle to stop; one at a time.
+	let speakingId = $state<number | null>(null);
+	let speakLoadingId = $state<number | null>(null);
+	let readAloudAudio: HTMLAudioElement | null = null;
+	let readAloudAbort: AbortController | null = null;
+
+	function stopReadAloud() {
+		readAloudAbort?.abort();
+		readAloudAbort = null;
+		if (readAloudAudio) {
+			try {
+				readAloudAudio.pause();
+			} catch {
+				/* already stopped */
+			}
+			readAloudAudio = null;
+		}
+		speakingId = null;
+		speakLoadingId = null;
+	}
+
+	async function speakMessage(m: ChatMessage) {
+		// Tapping the message that's already playing/loading stops it.
+		if (speakingId === m.id || speakLoadingId === m.id) {
+			stopReadAloud();
+			return;
+		}
+		stopReadAloud();
+		const text = (m.message || '').trim();
+		if (!text) return;
+		voice.unlockAudio(); // iOS audio-unlock — the tap is the user gesture
+		speakLoadingId = m.id;
+		readAloudAbort = new AbortController();
+		try {
+			const resp = await fetch(resolve('/api/chat/speak'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ text }),
+				signal: readAloudAbort.signal
+			});
+			if (!resp.ok) {
+				speakLoadingId = null;
+				toasts.add(resp.status === 429 ? 'TTS daily cap reached' : 'Read-aloud failed', 'error');
+				return;
+			}
+			const url = URL.createObjectURL(await resp.blob());
+			const audio = new Audio(url);
+			readAloudAudio = audio;
+			audio.onended = () => {
+				if (speakingId === m.id) speakingId = null;
+				URL.revokeObjectURL(url);
+				if (readAloudAudio === audio) readAloudAudio = null;
+			};
+			audio.onerror = () => URL.revokeObjectURL(url);
+			speakLoadingId = null;
+			speakingId = m.id;
+			await audio.play();
+		} catch (e) {
+			if ((e as Error).name !== 'AbortError') toasts.add('Read-aloud unavailable', 'error');
+			if (speakLoadingId === m.id) speakLoadingId = null;
+			if (speakingId === m.id) speakingId = null;
+		}
+	}
+
 	let copiedIds = $state(new Set<number>());
 	async function copyMessage(m: ChatMessage) {
 		try {
@@ -788,6 +853,7 @@
 		composerCtrl.destroy?.();
 		void voice.destroy();
 		void rtVoice.destroy();
+		stopReadAloud();
 	});
 
 	// Utilities
@@ -942,7 +1008,7 @@
 							<!-- Custom Labeling / Bubble Headers -->
 							{#if m.sender !== 'operator'}
 								<div
-									class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-[#ec2d78]/30 bg-[#ec2d78]/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ff7eb3] select-none"
+									class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
 								>
 									<span
 										class="h-2 w-2 shrink-0 rounded-full"
@@ -1004,6 +1070,31 @@
 										<RefreshCw size={10} class={regeneratingIds.has(m.id) ? 'animate-spin' : ''} />
 										<span>{regeneratingIds.has(m.id) ? 'Regen…' : 'Regen'}</span>
 									</button>
+									<button
+										type="button"
+										onclick={() => void speakMessage(m)}
+										class="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wider uppercase transition-colors hover:bg-zinc-900 {speakingId ===
+										m.id
+											? 'text-brand-soft'
+											: 'text-zinc-600 hover:text-zinc-300'}"
+										aria-label="Read aloud"
+										title={speakingId === m.id
+											? 'Stop'
+											: speakLoadingId === m.id
+												? 'Loading…'
+												: 'Read aloud'}
+									>
+										{#if speakLoadingId === m.id}
+											<Loader2 size={10} class="animate-spin" />
+											<span>…</span>
+										{:else if speakingId === m.id}
+											<Square size={10} />
+											<span>Stop</span>
+										{:else}
+											<Volume2 size={10} />
+											<span>Play</span>
+										{/if}
+									</button>
 								{/if}
 								<div class="font-mono text-[9px] text-zinc-600">
 									{fmtTime(m.timestamp)}
@@ -1029,7 +1120,7 @@
 				{#if streamState && messages.find((m) => m.id === streamState!.placeholderId)?.message === ''}
 					<div class="flex flex-col items-start gap-1">
 						<div
-							class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-[#ec2d78]/30 bg-[#ec2d78]/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-[#ff7eb3] select-none"
+							class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
 						>
 							<span
 								class="h-2 w-2 shrink-0 rounded-full"

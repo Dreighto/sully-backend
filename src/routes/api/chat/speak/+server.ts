@@ -9,6 +9,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getTodayTtsUsage, addTtsUsage } from '$lib/server/voice_usage';
 import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
+import { startVoiceServices } from '$lib/server/voice_services';
 
 const EMMA_VOICE_ID = '56bWURjYFHyYyVf490Dp';
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
@@ -28,18 +29,26 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!cloudAvailable()) {
 		const v = getVoice(typeof body.voice === 'string' ? body.voice : DEFAULT_VOICE_ID);
 		const ref = localRefFor(v);
-		const upstream = await fetch(`${TTS_URL}/tts`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				text,
-				voice_ref: ref,
-				cfg_weight: v.cfgWeight,
-				exaggeration: v.exaggeration,
-				temperature: v.temperature
-			}),
-			signal: request.signal
-		}).catch(() => null);
+		const synth = () =>
+			fetch(`${TTS_URL}/tts`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					text,
+					voice_ref: ref,
+					cfg_weight: v.cfgWeight,
+					exaggeration: v.exaggeration,
+					temperature: v.temperature
+				}),
+				signal: request.signal
+			}).catch(() => null);
+		let upstream = await synth();
+		if (!upstream || !upstream.ok || !upstream.body) {
+			// TTS is on-demand (stopped when voice mode exits). Wake it + retry once
+			// so read-aloud / Talkback work even from a cold GPU.
+			await startVoiceServices().catch(() => null);
+			upstream = await synth();
+		}
 		if (!upstream || !upstream.ok || !upstream.body) {
 			throw error(502, { message: 'local TTS unavailable' });
 		}
