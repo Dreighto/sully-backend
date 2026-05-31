@@ -235,10 +235,38 @@ export async function generateGeminiImage(prompt: string): Promise<{
 	const data = (await resp.json()) as GeminiResponse;
 	if (data.error) throw new Error(`Gemini image error: ${data.error.message}`);
 
-	const parts = data.candidates?.[0]?.content?.parts || [];
+	const cand = data.candidates?.[0];
+	const parts = cand?.content?.parts || [];
 	const imagePart = parts.find((p) => p.inlineData);
 	if (!imagePart?.inlineData) {
-		throw new Error('Gemini did not return an image in the response.');
+		// 200 OK but no image. Usual causes: a content-policy refusal
+		// (finishReason PROHIBITED_CONTENT / SAFETY / RECITATION — e.g. a
+		// copyrighted character or restricted subject), or the model returned
+		// text instead. Surface the REAL reason — a generic error here wrongly
+		// sends the operator hunting the API key (it's almost never the key).
+		const reason = cand?.finishReason;
+		const text = parts
+			.map((p) => p.text || '')
+			.filter(Boolean)
+			.join(' ')
+			.trim();
+		if (reason && reason !== 'STOP') {
+			let hint = '';
+			if (reason === 'PROHIBITED_CONTENT' || reason === 'RECITATION') {
+				hint = ' — usually a copyrighted character or restricted subject; try an original description instead';
+			} else if (reason === 'SAFETY') {
+				hint = ' — the prompt tripped a safety filter; try rephrasing';
+			}
+			throw new Error(
+				`The image model declined this prompt [${reason}]${hint}.${text ? ` It said: "${text}"` : ''}`
+			);
+		}
+		if (text) {
+			throw new Error(`The model replied with text instead of an image: "${text}"`);
+		}
+		throw new Error(
+			'The image model returned no image and no explanation — try rephrasing the prompt.'
+		);
 	}
 
 	const mime = imagePart.inlineData.mimeType || 'image/png';

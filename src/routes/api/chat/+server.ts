@@ -345,15 +345,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			} catch (err) {
 				console.error('Gemini image gen failed:', err);
 				const msg = err instanceof Error ? err.message : 'unknown error';
-				addChatMessage(
-					'system',
-					`⚠️ **Image generation failed.** \`${msg.slice(0, 300)}\`. Check GEMINI_API_KEY + that the gemini-2.5-flash-image model is available on your Google AI account.`,
-					null,
-					null,
-					null,
-					'sent',
-					threadId
-				);
+				// Only blame the key for genuine auth failures. The common case is
+				// the model declining a prompt (copyrighted character, safety, etc.) —
+				// show that real reason instead of a misleading "check your key".
+				const isAuth = /not set in environment|HTTP 401|HTTP 403|API[_ ]?key/i.test(msg);
+				const body = isAuth
+					? `⚠️ **Image generation failed — API key problem.** \`${msg.slice(0, 300)}\``
+					: `⚠️ **No image generated.** ${msg.slice(0, 400)}`;
+				addChatMessage('system', body, null, null, null, 'sent', threadId);
 			}
 		}
 
