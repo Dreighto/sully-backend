@@ -86,6 +86,14 @@ workflows:
           # (so the Podfile iOS-15 floor set by the patch step is honored).
           npx cap sync ios
 
+      - name: Generate + flatten app icon (custom logo)
+        script: |
+          # ios/ is regenerated each build, so (re)generate the AppIcon set from
+          # assets/logo.png here, AFTER cap add/sync. Flattens the 1024 marketing
+          # icon's alpha (ITMS-90717). See scripts/ci-ios-icons.sh.
+          chmod +x scripts/ci-ios-icons.sh
+          ./scripts/ci-ios-icons.sh
+
       - name: Set up code signing (instrumented)
         script: |
           DBG="$CM_BUILD_DIR/signing-debug.log"; : > "$DBG"

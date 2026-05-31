@@ -16,6 +16,7 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@capacitor/assets": "^3.0.5",
 		"@capacitor/cli": "8.3.4",
 		"@eslint/compat": "^2.0.4",
 		"@eslint/js": "^10.0.1",

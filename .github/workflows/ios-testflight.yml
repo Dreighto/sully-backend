@@ -1,0 +1,103 @@
+name: Sully iOS -> TestFlight
+
+# Manual / callable only — no push or PR trigger, so it never burns macOS
+# minutes unattended and never runs before the signing secrets exist.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  ios-testflight:
+    # Capacitor 8 REQUIRES Xcode 26+. As of 2026-05, github's `macos-latest`
+    # is still macOS 15 (default Xcode 16.4) which would FAIL the build, so we
+    # pin the macos-26 image (default Xcode 26.4.x). Do NOT switch to
+    # macos-latest until it advances to the macОS 26 image.
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      # codemagic-cli-tools reads these App Store Connect names automatically.
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
+      BUNDLE_ID: com.dreighto.sully
+      TEAM_ID: G3KJW4VXM9
+      APP_APPLE_ID: "6775013884"
+      XCODE_WORKSPACE: App.xcworkspace
+      XCODE_SCHEME: App
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install codemagic-cli-tools
+        run: pip3 install codemagic-cli-tools
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Create placeholder webDir (app loads remote server.url, not a bundle)
+        run: |
+          mkdir -p www
+          cat > www/index.html <<'HTML'
+          <!doctype html>
+          <html>
+            <head><meta charset="utf-8" /><title>Sully</title></head>
+            <body>Loading Sully…</body>
+          </html>
+          HTML
+
+      - name: Generate iOS native project fresh (CocoaPods — Cap 8 defaults to SPM)
+        run: npx cap add ios --packagemanager CocoaPods
+
+      - name: Patch native config (mic + export-compliance + iOS-15 floor)
+        run: |
+          chmod +x scripts/ci-ios-patch.sh
+          ./scripts/ci-ios-patch.sh
+
+      - name: Sync web assets + install pods
+        run: npx cap sync ios
+
+      - name: Generate + flatten app icon (custom logo)
+        run: |
+          chmod +x scripts/ci-ios-icons.sh
+          ./scripts/ci-ios-icons.sh
+
+      - name: Set up code signing (automatic, via ASC API)
+        run: |
+          keychain initialize
+          # --create makes the distribution cert (from CERTIFICATE_PRIVATE_KEY)
+          # + App Store profile if missing/expired — self-healing signing.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
+            --create
+          keychain add-certificates
+          cd ios/App
+          xcode-project use-profiles --project App.xcodeproj
+
+      - name: Increment build number
+        run: |
+          LATEST=$(app-store-connect get-latest-build-number "$APP_APPLE_ID" 2>/dev/null || echo "")
+          if [ -z "$LATEST" ]; then NEXT="${{ github.run_number }}"; else NEXT=$((LATEST + 1)); fi
+          echo "Setting CFBundleVersion to $NEXT"
+          cd ios/App
+          agvtool new-version -all "$NEXT"
+
+      - name: Build & archive .ipa
+        run: |
+          cd ios/App
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+
+      - name: Publish to TestFlight
+        run: app-store-connect publish --path "ios/App/build/ios/ipa/*.ipa"
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sully-ios-ipa
+          path: ios/App/build/ios/ipa/*.ipa
+          if-no-files-found: warn
