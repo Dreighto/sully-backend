@@ -117,13 +117,18 @@
 	let activityFadeTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Active companion-dispatch SSE controllers, keyed by sully-* trace_id.
-	let dispatchStreams = $state<Record<string, ReturnType<typeof createDispatchStream>>>({});
+	// Plain (non-reactive) registry of SSE controllers, keyed by sully-* trace_id.
+	// NOT $state: it's mutated from a template {@const} during render (below), and
+	// mutating $state mid-render throws Svelte's state_unsafe_mutation. The bubble
+	// stays live via the controller's OWN $state getters (rows/status/resultRef),
+	// and the row re-renders when `messages` changes — so this map needn't react.
+	const dispatchStreams: Record<string, ReturnType<typeof createDispatchStream>> = {};
 
 	function ensureDispatchStream(traceId: string) {
 		if (dispatchStreams[traceId]) return dispatchStreams[traceId];
 		const ctrl = createDispatchStream(traceId);
 		ctrl.start();
-		dispatchStreams = { ...dispatchStreams, [traceId]: ctrl };
+		dispatchStreams[traceId] = ctrl;
 		return ctrl;
 	}
 

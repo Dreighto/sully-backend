@@ -1,4 +1,5 @@
 import { resolve } from '$app/paths';
+import { browser } from '$app/environment';
 import { App } from '@capacitor/app';
 import { reconcileRows, type StreamRow } from './dispatchReconcile';
 
@@ -82,6 +83,10 @@ export function createDispatchStream(traceId: string) {
 	}
 
 	function start() {
+		// EventSource / document / Capacitor App are browser-only. This runs from
+		// a template {@const} during SSR too, so bail out server-side or the page
+		// 500s with "EventSource is not defined".
+		if (!browser) return;
 		open();
 		document.addEventListener('visibilitychange', () => {
 			if (document.visibilityState === 'visible') onResume();
