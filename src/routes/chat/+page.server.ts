@@ -2,7 +2,7 @@
 // Visual rewrite only; backend contracts unchanged.
 
 import type { PageServerLoad } from './$types';
-import { getChatMessages, listChatThreads, getActiveThread } from '$lib/server/chat';
+import { getChatMessages, listChatThreads } from '$lib/server/chat';
 import { listThreadMeta } from '$lib/server/thread_meta';
 import { serverConfig, runMode, clientSafeConfig, appIdentity } from '$lib/server/config';
 
@@ -74,9 +74,22 @@ const FALLBACK_WORKSPACES: Workspace[] = runMode.companion
 	? COMPANION_FALLBACK_WORKSPACES
 	: WIRED_FALLBACK_WORKSPACES;
 
+// A bare open (no ?thread=) lands the operator on a FRESH thread in The Den,
+// like ChatGPT/Claude — we deliberately do NOT resume the last/default thread.
+// The id isn't persisted until the first message (persistUserTurn), so empty
+// opens never leave phantom threads in the sidebar. Format mirrors the client's
+// newThread() slug (`chat-<base36>`).
+function freshThreadId(): string {
+	const t = Date.now().toString(36).slice(-5);
+	const r = Math.floor(Math.random() * 46656)
+		.toString(36)
+		.padStart(3, '0');
+	return `chat-${t}${r}`;
+}
+
 export const load: PageServerLoad = async ({ url }) => {
-	const queryThread = url.searchParams.get('thread');
-	const thread = (queryThread || getActiveThread() || 'default').trim() || 'default';
+	const queryThread = url.searchParams.get('thread')?.trim();
+	const thread = queryThread || freshThreadId();
 	const messages = getChatMessages(100, thread);
 
 	// Merge two sources: chat_messages-derived list (for backfill of threads

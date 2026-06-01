@@ -208,7 +208,7 @@
 										/>
 										<span class="truncate"
 											>{t.thread_id === 'default' && t.title === 'default'
-												? 'Default Space'
+												? 'The Den'
 												: t.title || t.thread_id}</span
 										>
 										{#if t.archived}
