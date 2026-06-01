@@ -15,10 +15,10 @@
 	import { base } from '$app/paths';
 	import {
 		X,
-		Plus,
+		Compass,
 		Pin,
-		Home,
-		MessageSquare,
+		Moon,
+		Hash,
 		MoreVertical,
 		Edit3,
 		Archive,
@@ -89,36 +89,39 @@
 {/if}
 
 <aside
-	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-2xl backdrop-blur-2xl transition-all duration-300 ease-in-out lg:static lg:z-auto lg:translate-x-0
-		{sidebarOpen
-		? 'translate-x-0 lg:w-72 lg:opacity-100'
-		: '-translate-x-full lg:pointer-events-none lg:w-0 lg:opacity-0'}"
+	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[4px_0_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0"
+	style="transition: transform 320ms cubic-bezier(0.22,0.61,0.36,1), opacity 280ms cubic-bezier(0.22,0.61,0.36,1), width 280ms cubic-bezier(0.22,0.61,0.36,1); transform: {sidebarOpen
+		? 'translateX(0)'
+		: 'translateX(-100%)'}"
 >
-	<!-- Sidebar Header -->
+	<!-- Sidebar Header — padded below the dynamic island / safe area -->
 	<div
-		class="flex shrink-0 items-center justify-between border-b border-zinc-800/50 px-4 pt-4 pb-4"
-		style="padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.75rem));"
+		class="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 pb-3"
+		style="padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 1rem));"
 	>
-		<div class="flex items-center gap-2">
-			<img src="{base}/sully-mark.png" alt="Companion" class="h-6 w-6" />
-			<span class="font-sans text-xs font-semibold tracking-wider text-zinc-300 uppercase"
-				>Sessions</span
+		<div class="flex items-center gap-2.5">
+			<div
+				class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+				style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 12px rgba(236,45,120,0.45);"
 			>
+				<Moon size={13} class="text-white" strokeWidth={2.5} />
+			</div>
+			<span class="font-sans text-[13px] font-semibold tracking-tight text-zinc-200">Sully</span>
 		</div>
-		<div class="flex items-center gap-1.5">
+		<div class="flex items-center gap-1">
 			<button
 				type="button"
 				onclick={onnewThread}
-				class="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 transition-all hover:scale-105 hover:text-white active:scale-95 sm:h-7 sm:w-7"
-				title="Create new session"
+				class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-400 transition-all hover:bg-white/[0.08] hover:text-zinc-200 active:scale-90 sm:h-7 sm:w-7"
+				title="New conversation"
 				aria-label="New thread"
 			>
-				<Plus size={14} />
+				<Compass size={14} />
 			</button>
 			<button
 				type="button"
 				onclick={oncloseSidebar}
-				class="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 transition-all hover:text-white sm:h-7 sm:w-7 lg:hidden"
+				class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-400 transition-all hover:text-white active:scale-90 sm:h-7 sm:w-7 lg:hidden"
 				aria-label="Close sidebar"
 			>
 				<X size={14} />
@@ -133,7 +136,7 @@
 			<button
 				type="button"
 				onclick={() => (showArchived = !showArchived)}
-				class="flex items-center gap-1 font-sans text-[9px] tracking-wider text-zinc-500 uppercase transition-colors hover:text-zinc-300"
+				class="flex h-7 items-center gap-1.5 rounded-lg px-2 font-sans text-[10px] text-zinc-500 transition-all hover:bg-white/[0.04] hover:text-zinc-300 active:scale-95"
 				title={showArchived ? 'Hide archived sessions' : 'Show archived sessions'}
 			>
 				<Archive size={10} />
@@ -142,7 +145,7 @@
 			<button
 				type="button"
 				onclick={onclearAll}
-				class="flex items-center gap-1 rounded font-sans text-[9px] tracking-wider text-zinc-600 uppercase transition-colors hover:text-red-400"
+				class="flex h-7 items-center gap-1.5 rounded-lg px-2 font-sans text-[10px] text-zinc-600 transition-all hover:bg-red-950/30 hover:text-red-400 active:scale-95"
 				title="Archive and delete every thread"
 			>
 				<Eraser size={10} />
@@ -196,15 +199,16 @@
 						{:else}
 							{@const isDen = t.thread_id === 'default'}
 							<div
-								class="group flex w-full items-center gap-1 rounded-xl pr-1 transition-all
+								class="group flex w-full items-center gap-1 rounded-xl pr-1
 									{isDen
 									? activeThread === t.thread_id
 										? 'border border-brand/45 bg-brand/[0.12] shadow-[0_0_16px_-4px_rgba(236,45,120,0.4)]'
-										: 'border border-brand/25 bg-brand/[0.07] hover:bg-brand/[0.12]'
+										: 'border border-brand/25 bg-brand/[0.07] hover:bg-brand/[0.14] hover:shadow-[0_0_12px_-4px_rgba(236,45,120,0.3)]'
 									: activeThread === t.thread_id
 										? 'border border-zinc-700/50 bg-zinc-800/40'
-										: 'border border-transparent hover:bg-zinc-900/40'}
-									{t.archived ? 'opacity-60' : ''}"
+										: 'border border-transparent hover:border-white/[0.05] hover:bg-white/[0.04]'}
+									{t.archived ? 'opacity-50' : ''}"
+								style="transition: background 200ms cubic-bezier(0.22,0.61,0.36,1), border-color 200ms cubic-bezier(0.22,0.61,0.36,1), box-shadow 200ms cubic-bezier(0.22,0.61,0.36,1);"
 							>
 								<button
 									type="button"
@@ -218,11 +222,13 @@
 								>
 									<div class="flex min-w-0 items-center gap-2.5 truncate">
 										{#if isDen}
-											<Home size={14} class="shrink-0 text-brand-soft" />
+											<Moon size={13} class="shrink-0 text-brand-soft" strokeWidth={2} />
 										{:else}
-											<MessageSquare
-												size={13}
-												class={activeThread === t.thread_id ? 'text-purple-400' : 'text-zinc-500'}
+											<Hash
+												size={12}
+												class="shrink-0 transition-colors {activeThread === t.thread_id
+													? 'text-zinc-300'
+													: 'text-zinc-600'}"
 											/>
 										{/if}
 										<span class="truncate"
