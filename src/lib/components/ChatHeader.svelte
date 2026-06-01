@@ -22,6 +22,7 @@
 
 	import { base, resolve } from '$app/paths';
 	import { Menu, ChevronDown, Check, Edit3 } from 'lucide-svelte';
+	import { fly } from 'svelte/transition';
 	import type { Workspace } from '../../routes/chat/+page.server';
 
 	type Tier = 'chat' | 'planning' | 'deep' | 'local';
@@ -128,7 +129,8 @@
 			{#if showModelOverrideModal}
 				<div
 					data-popover
-					class="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-2 left-2 z-50 mt-2 rounded-2xl border border-zinc-800 bg-[#0e0e0e] py-1.5 shadow-2xl min-[430px]:absolute min-[430px]:top-full min-[430px]:right-0 min-[430px]:left-auto min-[430px]:w-64 min-[430px]:max-w-[calc(100vw-1rem)]"
+					transition:fly={{ y: -8, duration: 180 }}
+					class="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-2 left-2 z-50 mt-2 rounded-2xl border border-white/[0.08] bg-[#0e0e11]/85 py-1.5 shadow-2xl backdrop-blur-2xl min-[430px]:absolute min-[430px]:top-full min-[430px]:right-0 min-[430px]:left-auto min-[430px]:w-64 min-[430px]:max-w-[calc(100vw-1rem)]"
 				>
 					<div
 						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"

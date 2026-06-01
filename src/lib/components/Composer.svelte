@@ -199,16 +199,16 @@
 			</div>
 		{:else if imageMode}
 			<div
-				class="flex items-center justify-between border-b border-white/5 px-2 pt-0.5 pb-1 font-mono text-[10px] text-cyan-400 select-none"
+				class="flex items-center justify-between border-b border-white/5 px-2 pt-0.5 pb-1 font-sans text-[11px] font-medium text-cyan-300 select-none"
 			>
 				<div class="flex items-center gap-1.5">
-					<Sparkles size={11} class="shrink-0 text-cyan-400" />
-					<span>✨ Prompt will route to Image Generation</span>
+					<Sparkles size={12} class="shrink-0 text-cyan-300" />
+					<span>Prompt routes to image generation</span>
 				</div>
 				<button
 					type="button"
 					onclick={() => (imageMode = false)}
-					class="rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[9px] tracking-wider text-zinc-400 uppercase transition-all hover:text-white"
+					class="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-0.5 font-sans text-[10px] text-zinc-400 transition-all hover:text-white active:scale-95"
 				>
 					Cancel
 				</button>

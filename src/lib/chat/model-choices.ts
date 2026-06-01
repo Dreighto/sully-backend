@@ -22,7 +22,7 @@ export const MODEL_CHOICES: ModelChoice[] = [
 	},
 	{
 		id: 'claude-opus',
-		label: 'Claude Opus 4.7',
+		label: 'Claude Opus 4.8',
 		sublabel: 'deep',
 		tier: 'deep',
 		provider: 'anthropic'

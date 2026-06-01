@@ -36,9 +36,7 @@ describe('model_catalog.resolveChatModel', () => {
 	it('companion mode + local provider with NO requestedModel uses COMPANION_DEFAULT_MODEL', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { resolveChatModel } = await import('../src/lib/server/model_catalog');
-		expect(resolveChatModel({ tier: 'chat', provider: 'local' })).toBe(
-			'companion-v1:latest'
-		);
+		expect(resolveChatModel({ tier: 'chat', provider: 'local' })).toBe('companion-v1:latest');
 	});
 
 	it('wired mode + local provider falls through the tier matrix (no companion override)', async () => {
@@ -52,18 +50,16 @@ describe('model_catalog.resolveChatModel', () => {
 		expect(resolveChatModel({ tier: 'chat', provider: 'anthropic' })).toBe(
 			'claude-haiku-4-5-20251001'
 		);
-		expect(resolveChatModel({ tier: 'planning', provider: 'google' })).toBe(
-			'gemini-2.5-flash'
-		);
-		expect(resolveChatModel({ tier: 'deep', provider: 'anthropic' })).toBe('claude-opus-4-7');
+		expect(resolveChatModel({ tier: 'planning', provider: 'google' })).toBe('gemini-2.5-flash');
+		expect(resolveChatModel({ tier: 'deep', provider: 'anthropic' })).toBe('claude-opus-4-8');
 	});
 
 	it('throws when an unknown tier × provider pair is requested (no silent fallback)', async () => {
 		const { resolveChatModel } = await import('../src/lib/server/model_catalog');
 		// 'local' tier only registers the local provider — asking for openai must fail loud.
-		expect(() =>
-			resolveChatModel({ tier: 'local', provider: 'openai' })
-		).toThrow(/no model registered/);
+		expect(() => resolveChatModel({ tier: 'local', provider: 'openai' })).toThrow(
+			/no model registered/
+		);
 	});
 });
 

@@ -35,7 +35,7 @@ export const MODELS: Record<Tier, Partial<Record<Provider, string>>> = {
 		local: 'qwen2.5:14b'
 	},
 	deep: {
-		anthropic: 'claude-opus-4-7',
+		anthropic: 'claude-opus-4-8',
 		google: 'gemini-2.5-pro',
 		openai: 'gpt-4o',
 		local: 'qwen2.5:14b'

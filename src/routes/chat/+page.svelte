@@ -177,6 +177,11 @@
 			// Clicks INSIDE an open popover are left alone (let the popover's
 			// own onclick fire — choose a model, switch repo, etc.).
 			if (target.closest('[data-popover]')) return;
+			// Clicks on a popover TRIGGER are also left alone — let the trigger's own
+			// onclick toggle it. Otherwise this capture-phase handler closes it first,
+			// then the trigger's onclick reads the already-reset state and re-opens it
+			// (the "won't close when I tap the button" bug).
+			if (target.closest('[data-popover-trigger]')) return;
 			closeAllPopovers();
 		}
 		window.addEventListener('keydown', onKey);
