@@ -23,8 +23,13 @@
 	<link rel="manifest" href="{base}/manifest.webmanifest" />
 </svelte:head>
 
+<!-- Living aurora — the app's animated magenta background, behind all content. -->
+<div class="app-aurora" aria-hidden="true">
+	<span class="a1"></span><span class="a2"></span><span class="a3"></span>
+</div>
+
 <!-- Companion is chat-only: full-bleed immersive shell, no Console chrome/nav. -->
-<div class="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+<div class="relative z-[1] flex h-[100dvh] flex-col overflow-hidden text-foreground">
 	{@render children()}
 	<ToastContainer />
 	<PwaUpdatePrompt />

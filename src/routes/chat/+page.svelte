@@ -904,7 +904,7 @@
 />
 
 <div
-	class="relative flex h-[100dvh] w-full overflow-hidden bg-[#050505] font-sans text-foreground"
+	class="relative flex h-[100dvh] w-full overflow-hidden font-sans text-foreground"
 	ondragenter={composerCtrl.handleDragEnter}
 	ondragover={composerCtrl.handleDragOver}
 	ondragleave={composerCtrl.handleDragLeave}
