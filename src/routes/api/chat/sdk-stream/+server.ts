@@ -12,6 +12,12 @@
 //   - default to Gemini for chat tier (matches legacy AGY-chat-lock UX)
 //   - emit the SDK Data Stream Protocol so useChat() consumes natively
 //
+// The shared preamble (persist → classify → hot-window → provider/model
+// resolution → CLI-vs-direct decision → tool gating → system prompt) lives in
+// $lib/server/chat/stream_prepare.ts. The autonomous-dispatch decision both
+// paths run after replying lives in $lib/server/chat/autonomous_dispatch.ts.
+// This handler stays a thin orchestrator: parse → prepare → branch.
+//
 // What's intentionally NOT here yet (PR 2b.2 / 2b.3 / PR 4):
 //   - multi-provider fall-forward (SDK middleware can add later)
 //   - image-gen mode (separate dispatch path)
@@ -30,138 +36,23 @@
 //   Google:    GEMINI_API_KEY → GOOGLE_API_KEY
 
 import type { RequestHandler } from './$types';
-import { streamText, convertToModelMessages, generateId, tool, type UIMessage } from 'ai';
-import { z } from 'zod';
+import { streamText, convertToModelMessages, generateId, type UIMessage } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { addChatMessage, getChatMessages, listChatThreads } from '$lib/server/chat';
 import { streamViaClaudeCLI } from '$lib/server/claude_cli_stream';
 import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { type Tier } from '$lib/server/phase_classifier';
 import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
-import { runMode, appIdentity } from '$lib/server/config';
+import { runMode } from '$lib/server/config';
 import { getSensitiveTools } from '$lib/server/companion_tools';
-import {
-	ruleGate,
-	valueGate,
-	extractGateBlock,
-	validateGate,
-	GATE_INSTRUCTION
-} from '$lib/server/decisionGate';
-import { dispatchToWorker } from '$lib/server/companionDispatch';
-import {
-	persistUserTurn,
-	classifyAndTouchThread,
-	persistAssistantTurn
-} from '$lib/server/chat_turn';
-import { buildSystemPrompt } from '$lib/server/chat_prompt';
+import { extractGateBlock, GATE_INSTRUCTION } from '$lib/server/decisionGate';
+import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { resolveChatModel } from '$lib/server/model_catalog';
-import { providerPrefToApi } from '$lib/chat/model-registry';
-
-// LogueOS-on-SDK tools — read-only operator-context fetches the LLM can call
-// when answering. PR 10a shipped the first tool; PR 10c (this commit) adds
-// two more high-value reads. Future PRs (10d+) layer write-tools with
-// operator-approval gates (linear_create_issue, service_restart) and the
-// full MCP-gateway pass-through. See task #10.
-//
-// `baseTools` are always safe to expose (the operator's own chat context +
-// service status). The SENSITIVE tools (read_file/list_directory/web_search/
-// web_fetch, in companion_tools.ts) are attached PER REQUEST and ONLY when the
-// request did not arrive over the public Tailscale Funnel — see the POST
-// handler. This keeps machine-read + web powers to the operator's own devices.
-const baseTools = {
-	list_chat_threads: tool({
-		description:
-			"Lists the operator's chat threads with message counts and latest activity. Use when the operator asks about their threads, history, or what conversations exist.",
-		inputSchema: z.object({
-			limit: z
-				.number()
-				.int()
-				.min(1)
-				.max(50)
-				.default(10)
-				.describe('How many threads to return (default 10, max 50)')
-		}),
-		execute: async ({ limit }: { limit?: number }) => {
-			const all = listChatThreads();
-			const n = Math.min(Math.max(limit ?? 10, 1), 50);
-			return {
-				count: all.length,
-				returned: Math.min(all.length, n),
-				threads: all.slice(0, n).map((t) => ({
-					thread_id: t.thread_id,
-					message_count: t.message_count,
-					latest_ts: t.latest_ts
-				}))
-			};
-		}
-	}),
-	read_thread_messages: tool({
-		description:
-			"Returns the most recent N messages from a specific chat thread. Use when the operator wants to recall, summarize, or refer back to a conversation — including the active thread when they ask 'what did I say earlier?' or 'summarize this thread'.",
-		inputSchema: z.object({
-			thread_id: z
-				.string()
-				.describe(
-					'Thread id (use the active thread id from the system context if the operator does not specify one)'
-				),
-			limit: z
-				.number()
-				.int()
-				.min(1)
-				.max(50)
-				.default(20)
-				.describe('How many recent messages to return (default 20, max 50)')
-		}),
-		execute: async ({ thread_id, limit }: { thread_id: string; limit?: number }) => {
-			const rows = getChatMessages(Math.min(Math.max(limit ?? 20, 1), 50), thread_id);
-			return {
-				thread_id,
-				returned: rows.length,
-				messages: rows.map((m) => ({
-					sender: m.sender,
-					message: m.message,
-					timestamp: m.timestamp
-				}))
-			};
-		}
-	}),
-	get_server_status: tool({
-		description:
-			'Reports the live status of the operator-facing LogueOS services on this machine (Console, dispatch listener, MCP gateway). Use when the operator asks if services are up, what is running, or troubleshoots a "why did nothing happen" symptom.',
-		inputSchema: z.object({}),
-		execute: async () => {
-			const probes: { name: string; url: string }[] = [
-				{ name: 'console', url: 'http://127.0.0.1:18767/console/' },
-				{ name: 'dispatch_listener', url: 'http://127.0.0.1:19100/healthz' },
-				{ name: 'mcp_gateway', url: 'http://127.0.0.1:18766/mcp' }
-			];
-			const results = await Promise.all(
-				probes.map(async (p) => {
-					try {
-						const r = await fetch(p.url, {
-							method: 'GET',
-							signal: AbortSignal.timeout(2000)
-						});
-						return { name: p.name, url: p.url, ok: r.status < 500, status: r.status };
-					} catch (err) {
-						return {
-							name: p.name,
-							url: p.url,
-							ok: false,
-							error: (err as Error).message
-						};
-					}
-				})
-			);
-			return { checked_at: new Date().toISOString(), services: results };
-		}
-	})
-};
-
-type Provider = 'anthropic' | 'google' | 'local';
+import { baseTools } from '$lib/server/chat/base_tools';
+import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
+import { maybeAutonomousDispatch } from '$lib/server/chat/autonomous_dispatch';
 
 // Local Ollama endpoint — OpenAI-compatible interface at
 // http://localhost:11434/v1. Task #11: brings the operator's eGPU into
@@ -246,29 +137,9 @@ function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 	return { model: createGoogleGenerativeAI({ apiKey })(modelId), modelId };
 }
 
-// buildSystemPrompt: extracted to $lib/server/chat_prompt.ts (PR C).
-
-// Repo selection from message text — same keyword-scan heuristic as the
-// legacy endpoint. Client may also pass an explicit `target_repo`.
-function detectTargetRepo(message: string, hint?: string): string {
-	if (hint) return hint;
-	const text = message.toLowerCase();
-	if (text.includes('miru')) return 'project-miru';
-	if (
-		text.includes('orchestrator') ||
-		text.includes('kernel') ||
-		text.includes('logueos-orchestrator')
-	) {
-		return 'LogueOS-Orchestrator';
-	}
-	if (text.includes('nasdoom')) return 'NASDOOM';
-	// Fork-aware fallback: companion mode → 'companion', wired → 'LogueOS-Console'.
-	return appIdentity.defaultWorkspace;
-}
-
 // Pull the latest user message's plain-text content from a UIMessage[] —
-// needed for tier classification + persistence. The SDK ships UIMessage
-// with a `parts` array; only `type: "text"` parts are concatenated here.
+// needed for the no-text-content validation guard below. The SDK ships
+// UIMessage with a `parts` array; only `type: "text"` parts are concatenated.
 function latestUserText(messages: UIMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const m = messages[i];
@@ -318,107 +189,29 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	// Persist the operator's message + classify the conversation tier via the
-	// shared chat_turn service (PR C). Mirrors the legacy /api/chat behaviour.
-	persistUserTurn({ text: userText, threadId });
-	const { currentTier, threadState } = classifyAndTouchThread({
+	// Shared preamble: persist the operator turn, classify the tier, assemble
+	// the hot window, resolve provider + model, decide CLI-vs-direct, compute
+	// tool gating, and build the system prompt. Both paths source from this.
+	const ctx = await prepareStream({
+		messages,
 		threadId,
-		userText
+		userText,
+		provider: body.provider,
+		model: body.model,
+		targetRepoHint: body.target_repo,
+		headers: request.headers
 	});
-
-	// ── Hot window ──────────────────────────────────────────────────────────
-	// The frontend resets its SDK chat each send (streaming.svelte.ts), so
-	// `body.messages` carries only the CURRENT turn. The server is the single
-	// source of truth: assemble the model's real conversation from chat_messages
-	// here. Without this, switching models mid-thread (or any second turn) ships
-	// the new turn with NO history — the model genuinely "forgets" the chat.
-	// HOT_WINDOW must match working_memory.ts (the Layer-1 summary covers only
-	// older-than-window history; these last turns are sent verbatim).
-	const HOT_WINDOW = 20;
-	const priorTurns: UIMessage[] = getChatMessages(HOT_WINDOW, threadId)
-		.filter(
-			(r) => r.sender !== 'system' && typeof r.message === 'string' && r.message.trim() !== ''
-		)
-		.map(
-			(r) =>
-				({
-					id: String(r.id),
-					role: r.sender === 'operator' ? 'user' : 'assistant',
-					parts: [{ type: 'text', text: r.message }]
-				}) as UIMessage
-		);
-	// Drop the DB's text-only copy of the current turn(s) and use the body's
-	// version instead — it preserves rich parts (e.g. image attachments) that
-	// chat_messages stores only as text.
-	const modelMessages: UIMessage[] = [
-		...priorTurns.slice(0, Math.max(0, priorTurns.length - messages.length)),
-		...messages
-	];
-
-	const targetRepo = detectTargetRepo(userText, body.target_repo);
-
-	// Provider preference:
-	//   1. Explicit body.provider (client just chose a model)
-	//   2. thread_state.provider_override (persisted via model picker)
-	//   3. Default 'google' (matches legacy AGY-chat-lock UX). Operator can
-	//      flip to Anthropic via picker; Anthropic-via-OAuth is free.
-	const overrideFromState: Provider | undefined = providerPrefToApi(threadState.provider_override);
-	// Tier 'local' implicitly selects the local provider unless the operator
-	// has explicitly overridden. Lets the existing "Local (Ollama)" model
-	// picker option route through Ollama without per-thread setup.
-	const tierImpliesLocal: Provider | null = currentTier === 'local' ? 'local' : null;
-	// Companion mode defaults to the LOCAL provider (companion-v1) instead of
-	// cloud Google — while keeping cloud models selectable via the picker.
-	const companionDefault: Provider | null = runMode.companion ? 'local' : null;
-	const provider: Provider =
-		body.provider ?? overrideFromState ?? tierImpliesLocal ?? companionDefault ?? 'google';
-
-	// Resolve the model id up-front so we can decide between the direct API
-	// route and the Claude CLI bridge. Anthropic's Claude Max OAuth only
-	// grants direct API access to Haiku — Sonnet/Opus return 429 with a
-	// mislabel'd "rate_limit_error". The CLI binary is the authorized client
-	// that CAN reach Sonnet/Opus through OAuth. Operator directive 2026-05-27:
-	// "use the CLI bridge, do NOT prompt for a billed API key — defeats the
-	// purpose of paying for Max." So Sonnet/Opus ALWAYS route through CLI
-	// regardless of any API-key env presence.
-	// Resolve via the shared catalog — precedence: body.model → companion-mode
-	// local default (companion-v1) → tier × provider matrix. Used here UP-FRONT
-	// to decide between the direct API path and the CLI bridge.
-	const resolvedModelId = resolveChatModel({
-		tier: currentTier,
+	const {
+		currentTier,
+		targetRepo,
 		provider,
-		requestedModel: body.model
-	});
-	const useClaudeCLI = provider === 'anthropic' && /sonnet|opus/i.test(resolvedModelId);
-
-	// Sensitive machine-read + web tools are attached only for the operator's own
-	// devices. Two ways to qualify:
-	//   1. Tailnet path — the request did NOT arrive over the public Funnel (no
-	//      `Tailscale-Funnel-Request` header).
-	//   2. Unlock code — the device sent a valid `x-companion-tools-key` header
-	//      matching COMPANION_TOOLS_KEY. This lets the operator turn the powers on
-	//      over the normal public Funnel link (via `/unlock <code>`), since a
-	//      non-standard tailnet port doesn't reliably open on phones. The code is
-	//      stored per-device in localStorage; public visitors don't have it.
-	// Public visitors with neither get chat + the safe context tools only.
-	const viaFunnel = request.headers.get('tailscale-funnel-request') !== null;
-	const TOOLS_SECRET = process.env.COMPANION_TOOLS_KEY || '';
-	const providedKey = request.headers.get('x-companion-tools-key') || '';
-	const keyValid = TOOLS_SECRET.length > 0 && providedKey === TOOLS_SECRET;
-	const allowSensitive = !viaFunnel || keyValid;
-
-	const userMessageText =
-		[...messages]
-			.reverse()
-			.find((m) => m.role === 'user')
-			?.parts?.filter((p) => p.type === 'text')
-			.map((p) => (p as { type: 'text'; text: string }).text)
-			.join(' ')
-			.trim() || '';
-	const systemPrompt = await buildSystemPrompt(
-		{ targetRepo, currentTier, threadId, allowSensitive },
-		userMessageText
-	);
+		resolvedModelId,
+		useClaudeCLI,
+		allowSensitive,
+		systemPrompt,
+		modelMessages,
+		userText: userMessageText
+	} = ctx;
 
 	// ─── CLI bridge path (Sonnet/Opus over OAuth) ────────────────────────
 	if (useClaudeCLI) {
@@ -511,43 +304,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 
 				// ── Autonomous dispatch (spec §4.2). Sully decides; Full-auto fires
-				// it in the background. @cc/@agy stays as an explicit override. ────
-				if (gateOn && !errored) {
-					const forced = ruleGate(userMessageText);
-					const gate = validateGate(block);
-					const vg = valueGate({ text: userMessageText, fromTool: false });
-					const autonomous = gate.ok && gate.gate.escalate && vg.qualifies && !vg.forceAsk;
-					if (forced.forced || autonomous) {
-						const worker =
-							forced.forced && forced.worker
-								? forced.worker
-								: gate.ok
-									? gate.gate.worker
-									: 'claude-code';
-						const brief = gate.ok ? gate.gate.brief : userMessageText.slice(0, 200);
-						const category = gate.ok ? gate.gate.category : 'code';
-						const traceId = `sully-${Date.now()}`;
-						const res = await dispatchToWorker({
-							traceId,
-							worker,
-							category,
-							brief,
-							targetRepo,
-							task: userMessageText,
-							threadId
-						});
-						addChatMessage(
-							'system',
-							res.ok
-								? `Sully sent this to **${worker === 'claude-code' ? 'CC' : 'AGY'}** on **${targetRepo}** — watching it now.`
-								: `⚠️ Dispatch held: ${res.reason}.`,
-							res.ok ? traceId : null,
-							null,
-							null,
-							'sent',
-							threadId
-						);
-					}
+				// it in the background. @cc/@agy stays as an explicit override. The
+				// CLI path passes the extracted gate block so the teacher's
+				// self-assessment steers the decision. ────
+				if (!errored) {
+					await maybeAutonomousDispatch({
+						userText: userMessageText,
+						targetRepo,
+						threadId,
+						gateBlock: block
+					});
 				}
 			},
 			onError: (error: unknown) => {
@@ -569,8 +335,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
-	// Sensitive tools (computed via `allowSensitive` above) ride along only on
-	// the operator's own devices; public Funnel requests get baseTools only.
+	// Sensitive tools (computed via `allowSensitive` in prepareStream) ride along
+	// only on the operator's own devices; public Funnel requests get baseTools only.
 	const tools = allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
 
 	const result = streamText({
@@ -702,34 +468,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			// block on this path (it can't be cleanly stripped from streamText's
 			// output); the deterministic gates decide: ruleGate (@cc/@agy override) +
 			// valueGate (file/code/repo/long-imperative signals).
-			if (runMode.companionDispatchEnabled) {
-				const forced = ruleGate(userMessageText);
-				const vg = valueGate({ text: userMessageText, fromTool: false });
-				if (forced.forced || (vg.qualifies && !vg.forceAsk)) {
-					const worker = forced.forced && forced.worker ? forced.worker : 'claude-code';
-					const traceId = `sully-${Date.now()}`;
-					const res = await dispatchToWorker({
-						traceId,
-						worker,
-						category: 'code',
-						brief: userMessageText.slice(0, 200),
-						targetRepo,
-						task: userMessageText,
-						threadId
-					});
-					addChatMessage(
-						'system',
-						res.ok
-							? `Sully sent this to **${worker === 'claude-code' ? 'CC' : 'AGY'}** on **${targetRepo}** — watching it now.`
-							: `⚠️ Dispatch held: ${res.reason}.`,
-						res.ok ? traceId : null,
-						null,
-						null,
-						'sent',
-						threadId
-					);
-				}
-			}
+			await maybeAutonomousDispatch({
+				userText: userMessageText,
+				targetRepo,
+				threadId
+			});
 		}
 	});
 };
