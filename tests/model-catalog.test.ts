@@ -42,7 +42,7 @@ describe('model_catalog.resolveChatModel', () => {
 	it('wired mode + local provider falls through the tier matrix (no companion override)', async () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'wired';
 		const { resolveChatModel } = await import('../src/lib/server/model_catalog');
-		expect(resolveChatModel({ tier: 'chat', provider: 'local' })).toBe('qwen2.5:7b');
+		expect(resolveChatModel({ tier: 'chat', provider: 'local' })).toBe('qwen3:14b');
 	});
 
 	it('returns the canonical id per tier × provider', async () => {

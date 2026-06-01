@@ -100,23 +100,27 @@ export const MODEL_REGISTRY: ModelChoice[] = [
 //
 // CANONICAL matrix (moved verbatim from model_catalog.ts's MODELS).
 export const TIER_PROVIDER_MODELS: Record<Tier, Partial<Record<CatalogProvider, string>>> = {
+	// All `local:` slots route to qwen3:14b (Sully's home base — companion-v1
+	// is a Modelfile-tuned variant of this). The legacy qwen2.5:7b / qwen2.5:14b
+	// pins were stale from the qwen2.5 era. qwen2.5:7b stays on disk but ONLY
+	// for the orchestrator's hermes_shadow_v1 predictor — not for chat.
 	chat: {
 		anthropic: 'claude-haiku-4-5-20251001',
 		google: 'gemini-2.5-flash-lite',
 		openai: 'gpt-4o-mini',
-		local: 'qwen2.5:7b'
+		local: 'qwen3:14b'
 	},
 	planning: {
 		anthropic: 'claude-sonnet-4-6',
 		google: 'gemini-2.5-flash',
 		openai: 'gpt-4o',
-		local: 'qwen2.5:14b'
+		local: 'qwen3:14b'
 	},
 	deep: {
 		anthropic: 'claude-opus-4-8',
 		google: 'gemini-2.5-pro',
 		openai: 'gpt-4o',
-		local: 'qwen2.5:14b'
+		local: 'qwen3:14b'
 	},
 	local: {
 		// Local tier hard-pins the local provider. Anthropic/Google are listed so
@@ -124,7 +128,7 @@ export const TIER_PROVIDER_MODELS: Record<Tier, Partial<Record<CatalogProvider, 
 		// valid id when the operator routes off-local for one turn.
 		anthropic: 'claude-haiku-4-5-20251001',
 		google: 'gemini-2.5-flash-lite',
-		local: 'qwen2.5:14b'
+		local: 'qwen3:14b'
 	}
 };
 
