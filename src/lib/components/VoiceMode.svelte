@@ -26,6 +26,7 @@
 		Check,
 		Infinity as InfinityIcon
 	} from 'lucide-svelte';
+	import SullyAvatar from './SullyAvatar.svelte';
 	import type { RealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
 
 	let { voice }: { voice: RealtimeVoiceController } = $props();
@@ -71,9 +72,7 @@
 		result.userAgent = navigator.userAgent.slice(0, 80);
 		result.secureContext = window.isSecureContext;
 		// iOS Safari: navigator.standalone === true when launched from home-screen icon.
-		const std = (
-			navigator as Navigator & { standalone?: boolean }
-		).standalone;
+		const std = (navigator as Navigator & { standalone?: boolean }).standalone;
 		result.standalone = std === true;
 		const modes = ['standalone', 'fullscreen', 'minimal-ui', 'browser'];
 		for (const m of modes) {
@@ -149,42 +148,35 @@
 		if (isContinuous && voice.muted) return 'Muted — tap the mic to talk';
 		if (voice.phase === 'listening') return 'Listening…';
 		if (voice.phase === 'thinking') return 'Thinking…';
-		if (voice.phase === 'speaking') return isContinuous ? 'Speaking — tap to interrupt' : 'Speaking — hold to interrupt';
+		if (voice.phase === 'speaking')
+			return isContinuous ? 'Speaking — tap to interrupt' : 'Speaking — hold to interrupt';
 		// idle
 		return isContinuous ? 'Paused' : 'Hold to talk';
 	});
 
-	// Phase-reactive orb colors (derived class strings — Svelte class directives
-	// can't carry Tailwind's `/opacity` slash syntax, so we compute them here).
-	const haloClass = $derived(
-		voice.phase === 'listening' && !voice.muted
-			? 'bg-orange-500 opacity-20 animate-ping'
-			: voice.phase === 'speaking'
-				? 'bg-sky-500 opacity-20 animate-ping'
-				: voice.phase === 'thinking'
-					? 'bg-zinc-600 opacity-20'
-					: 'bg-zinc-600 opacity-10'
-	);
-	const coreClass = $derived(
-		voice.phase === 'listening' && !voice.muted
-			? 'bg-orange-500'
-			: voice.phase === 'speaking'
-				? 'bg-sky-500'
-				: voice.phase === 'thinking'
-					? 'bg-zinc-700/70'
-					: 'bg-zinc-700'
+	// Map the live voice phase to Sully's avatar state — she IS the orb now.
+	const voiceAvatarState = $derived(
+		voice.phase === 'speaking'
+			? 'speaking'
+			: voice.phase === 'thinking' || isConnecting
+				? 'thinking'
+				: voice.phase === 'listening' && !voice.muted
+					? 'listening'
+					: 'idle'
 	);
 </script>
 
 {#if voice.open}
 	<div
-		class="fixed inset-0 z-[100] flex flex-col bg-zinc-950/95 backdrop-blur-xl text-zinc-100"
+		class="fixed inset-0 z-[100] flex flex-col bg-zinc-950/95 text-zinc-100 backdrop-blur-xl"
 		role="dialog"
 		aria-modal="true"
 		aria-label="Voice mode"
 	>
 		<!-- Header -->
-		<div class="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+		<div
+			class="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2"
+		>
 			<div class="flex items-center gap-2 text-sm font-medium text-zinc-400">
 				<AudioLines size={16} class="text-orange-400" />
 				<span>Voice</span>
@@ -208,7 +200,7 @@
 						</button>
 						{#if showVoicePicker}
 							<div
-								class="absolute right-0 top-12 z-10 w-64 rounded-xl border border-zinc-800 bg-zinc-900/95 p-1 shadow-xl backdrop-blur"
+								class="absolute top-12 right-0 z-10 w-64 rounded-xl border border-zinc-800 bg-zinc-900/95 p-1 shadow-xl backdrop-blur"
 								role="menu"
 							>
 								{#each voice.voices as v (v.id)}
@@ -255,7 +247,9 @@
 					disabled={isConnecting || isError}
 					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
 					aria-label={isContinuous ? 'Switch to push-to-talk' : 'Switch to hands-free'}
-					title={isContinuous ? 'Hands-free (tap for push-to-talk)' : 'Push-to-talk (tap for hands-free)'}
+					title={isContinuous
+						? 'Hands-free (tap for push-to-talk)'
+						: 'Push-to-talk (tap for hands-free)'}
 				>
 					{#if isContinuous}
 						<InfinityIcon size={20} />
@@ -294,23 +288,29 @@
 			<!-- Diagnostic panel — shows what iOS *actually* reports about mic permission +
 			     PWA install state. Useful for confirming whether re-prompting is iOS
 			     dropping the grant vs. our code asking when it shouldn't. -->
-			<div class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-mono text-[11px] text-zinc-300">
+			<div
+				class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-mono text-[11px] text-zinc-300"
+			>
 				<div class="mb-1 flex items-center justify-between text-zinc-400">
 					<span>diagnostic</span>
 					<button
 						type="button"
 						onclick={() => void runProbe()}
 						class="rounded px-2 py-0.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
-					>refresh</button>
+						>refresh</button
+					>
 				</div>
 				<div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
 					<span class="text-zinc-500">mic permission:</span>
-					<span class={
-						probe.permission === 'granted' ? 'text-emerald-400'
-						: probe.permission === 'denied' ? 'text-red-400'
-						: probe.permission === 'prompt' ? 'text-amber-400'
-						: 'text-zinc-500'
-					}>{probe.permission}</span>
+					<span
+						class={probe.permission === 'granted'
+							? 'text-emerald-400'
+							: probe.permission === 'denied'
+								? 'text-red-400'
+								: probe.permission === 'prompt'
+									? 'text-amber-400'
+									: 'text-zinc-500'}>{probe.permission}</span
+					>
 					<span class="text-zinc-500">standalone PWA:</span>
 					<span class={probe.standalone ? 'text-emerald-400' : 'text-amber-400'}>
 						{probe.standalone ? 'yes' : 'no (in Safari?)'}
@@ -327,11 +327,10 @@
 				<div class="mt-2 border-t border-zinc-800 pt-2 leading-snug text-zinc-400">
 					<p class="mb-1 text-zinc-300">iOS note:</p>
 					<p>
-						If this keeps showing a one-time mic prompt in the Home Screen app, set the
-						Safari website permission manually: open this same domain in Safari, tap the page
-						menu, open Website Settings, then set Microphone to Allow. If iOS still prompts
-						after a cold PWA restart, that is a WebKit/iOS standalone-app limitation, not a
-						Companion setting.
+						If this keeps showing a one-time mic prompt in the Home Screen app, set the Safari
+						website permission manually: open this same domain in Safari, tap the page menu, open
+						Website Settings, then set Microphone to Allow. If iOS still prompts after a cold PWA
+						restart, that is a WebKit/iOS standalone-app limitation, not a Companion setting.
 					</p>
 				</div>
 			</div>
@@ -363,20 +362,7 @@
 					aria-label={interruptible ? 'Interrupt' : 'Voice status'}
 					title={interruptible ? 'Tap to interrupt' : ''}
 				>
-					<div class="absolute inset-0 rounded-full transition-all duration-500 {haloClass}"></div>
-					<div
-						class="relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-300 {coreClass}"
-					>
-						{#if voice.phase === 'thinking' || isConnecting}
-							<Loader2 size={32} class="animate-spin text-zinc-200" />
-						{:else if voice.phase === 'speaking'}
-							<AudioLines size={32} class="text-white" />
-						{:else if isContinuous && voice.muted}
-							<MicOff size={32} class="text-zinc-400" />
-						{:else}
-							<Mic size={32} class="text-zinc-100" />
-						{/if}
-					</div>
+					<SullyAvatar state={voiceAvatarState} size={128} />
 				</button>
 
 				<!-- Operator's live / final utterance -->
@@ -387,7 +373,7 @@
 				<!-- Companion reply (captions) -->
 				{#if voice.captions && voice.replyText}
 					<div
-						class="max-h-[40vh] max-w-2xl overflow-y-auto whitespace-pre-wrap rounded-2xl bg-zinc-900/70 px-5 py-4 text-center text-base leading-relaxed text-zinc-300"
+						class="max-h-[40vh] max-w-2xl overflow-y-auto rounded-2xl bg-zinc-900/70 px-5 py-4 text-center text-base leading-relaxed whitespace-pre-wrap text-zinc-300"
 					>
 						{voice.replyText}
 					</div>
@@ -397,7 +383,9 @@
 
 		<!-- Bottom control -->
 		{#if !isError}
-			<div class="flex flex-col items-center gap-3 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+			<div
+				class="flex flex-col items-center gap-3 px-6 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+			>
 				<p class="text-sm text-zinc-400">{statusLabel}</p>
 				{#if isContinuous}
 					<!-- Hands-free: the big button is MUTE/UNMUTE -->
@@ -405,7 +393,7 @@
 						type="button"
 						onclick={() => voice.toggleMute()}
 						disabled={isConnecting}
-						class="flex h-20 w-20 select-none items-center justify-center rounded-full shadow-lg transition-all duration-150 disabled:opacity-40
+						class="flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all duration-150 select-none disabled:opacity-40
 							{voice.muted
 							? 'bg-zinc-800 ring-1 ring-zinc-700'
 							: 'bg-orange-500 ring-4 ring-orange-400/30 active:scale-105'}"
@@ -430,7 +418,7 @@
 						onpointerleave={onPressUp}
 						onpointercancel={onPressUp}
 						oncontextmenu={(e) => e.preventDefault()}
-						class="flex h-20 w-20 select-none items-center justify-center rounded-full shadow-lg transition-all duration-150 disabled:opacity-40
+						class="flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all duration-150 select-none disabled:opacity-40
 							{voice.holding
 							? 'scale-110 bg-orange-500 ring-4 ring-orange-400/40'
 							: 'bg-zinc-100 hover:bg-white active:scale-105'}"
