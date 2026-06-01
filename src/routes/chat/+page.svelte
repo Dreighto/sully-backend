@@ -11,11 +11,9 @@
 	//   - 100% wired controls (Paperclip uploads, Sparkles image mode, Talkback loop).
 
 	import { onMount, onDestroy, untrack } from 'svelte';
-	import { resolve, base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { createDispatchStream } from '$lib/chat/dispatchStream.svelte';
 	import { parseDbTimestamp } from '$lib/utils/format';
-	import WorkingBubble from '$lib/components/WorkingBubble.svelte';
-	import SullyAvatar from '$lib/components/SullyAvatar.svelte';
 	import type { SlashCmd } from '$lib/types/slash';
 	import type {
 		Tier,
@@ -32,16 +30,16 @@
 	import { createStreamingController } from '$lib/chat/streaming.svelte';
 	import { createVoiceController } from '$lib/chat/voice.svelte';
 	import { createRealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
+	import { createMessageActionsController } from '$lib/chat/message-actions.svelte';
 	import { replaceState } from '$app/navigation';
-	import { Sparkles, Check, Copy, RefreshCw, Volume2, Square, Loader2 } from 'lucide-svelte';
 	import { toasts } from '$lib/utils/toasts';
-	import Markdown from '$lib/components/Markdown.svelte';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import WorkspaceContextModal from '$lib/components/WorkspaceContextModal.svelte';
 	import ThreadsSidebar from '$lib/components/ThreadsSidebar.svelte';
 	import ChatHeader from '$lib/components/ChatHeader.svelte';
 	import Composer from '$lib/components/Composer.svelte';
 	import VoiceMode from '$lib/components/VoiceMode.svelte';
+	import MessageFeed from '$lib/components/MessageFeed.svelte';
 
 	let { data } = $props();
 
@@ -260,23 +258,6 @@
 		!!streamState &&
 			sdkChat.messages.some((m) => (m.parts || []).some((p) => p.type?.startsWith('tool-')))
 	);
-	// Friendly labels for the tool-call chips shown while Sully works, instead of
-	// raw tool ids like "web_search".
-	function toolLabel(type: string): string {
-		const name = (type || '').replace(/^tool-/, '');
-		const map: Record<string, string> = {
-			web_search: 'Searching the web',
-			web_fetch: 'Reading a page',
-			read_file: 'Reading a file',
-			list_directory: 'Browsing files',
-			deep_think: 'Thinking it through',
-			consult_claude: 'Consulting Claude',
-			list_chat_threads: 'Checking your threads',
-			read_thread_messages: 'Recalling the conversation',
-			get_server_status: 'Checking the system'
-		};
-		return map[name] ?? name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-	}
 
 	// Pending attachments — uploads stage here as removable chips above the
 	// composer rather than getting injected as markdown into the textarea.
@@ -618,122 +599,21 @@
 		}
 	}
 
-	// Set of message ids currently showing the "Copied" check on their copy
-	// button. Cleared 1500ms after copy fires.
-	// Regenerate flow — operator clicks "Regenerate" on an AGY reply. We
-	// find the prior operator message in the same thread, delete the
-	// existing reply, then re-stream a new one. Old reply gets replaced
-	// rather than stacking up.
-	let regeneratingIds = $state(new Set<number>());
-	async function regenerateReply(m: ChatMessage) {
-		if (sending || regeneratingIds.has(m.id)) return;
-		// Find the most recent operator message before this reply.
-		const idx = messages.findIndex((x) => x.id === m.id);
-		if (idx < 0) return;
-		let priorOperator: ChatMessage | null = null;
-		for (let i = idx - 1; i >= 0; i--) {
-			if (messages[i].sender === 'operator') {
-				priorOperator = messages[i];
-				break;
-			}
-		}
-		if (!priorOperator) {
-			toasts.add('No prior message to regenerate from', 'error');
-			return;
-		}
-		regeneratingIds = new Set([...regeneratingIds, m.id]);
-		sending = true;
-		try {
-			// Drop the old reply server-side + optimistically from the feed so
-			// the streamed replacement lands in the right place.
-			await fetch(resolve(`/api/chat?id=${m.id}`), { method: 'DELETE' }).catch(() => null);
-			messages = messages.filter((x) => x.id !== m.id);
-			await streamingCtrl.run(priorOperator.message);
-		} catch (e) {
-			toasts.add(`Regenerate failed: ${e instanceof Error ? e.message : 'unknown'}`, 'error');
-		} finally {
-			sending = false;
-			regeneratingIds = new Set([...regeneratingIds].filter((i) => i !== m.id));
-		}
-	}
-
-	// Per-message read-aloud (like ChatGPT/Claude). Plays Sully's reply through
-	// the local TTS (Chatterbox via /api/chat/speak). Toggle to stop; one at a time.
-	let speakingId = $state<number | null>(null);
-	let speakLoadingId = $state<number | null>(null);
-	let readAloudAudio: HTMLAudioElement | null = null;
-	let readAloudAbort: AbortController | null = null;
-
-	function stopReadAloud() {
-		readAloudAbort?.abort();
-		readAloudAbort = null;
-		if (readAloudAudio) {
-			try {
-				readAloudAudio.pause();
-			} catch {
-				/* already stopped */
-			}
-			readAloudAudio = null;
-		}
-		speakingId = null;
-		speakLoadingId = null;
-	}
-
-	async function speakMessage(m: ChatMessage) {
-		// Tapping the message that's already playing/loading stops it.
-		if (speakingId === m.id || speakLoadingId === m.id) {
-			stopReadAloud();
-			return;
-		}
-		stopReadAloud();
-		const text = (m.message || '').trim();
-		if (!text) return;
-		voice.unlockAudio(); // iOS audio-unlock — the tap is the user gesture
-		speakLoadingId = m.id;
-		readAloudAbort = new AbortController();
-		try {
-			const resp = await fetch(resolve('/api/chat/speak'), {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ text }),
-				signal: readAloudAbort.signal
-			});
-			if (!resp.ok) {
-				speakLoadingId = null;
-				toasts.add(resp.status === 429 ? 'TTS daily cap reached' : 'Read-aloud failed', 'error');
-				return;
-			}
-			const url = URL.createObjectURL(await resp.blob());
-			const audio = new Audio(url);
-			readAloudAudio = audio;
-			audio.onended = () => {
-				if (speakingId === m.id) speakingId = null;
-				URL.revokeObjectURL(url);
-				if (readAloudAudio === audio) readAloudAudio = null;
-			};
-			audio.onerror = () => URL.revokeObjectURL(url);
-			speakLoadingId = null;
-			speakingId = m.id;
-			await audio.play();
-		} catch (e) {
-			if ((e as Error).name !== 'AbortError') toasts.add('Read-aloud unavailable', 'error');
-			if (speakLoadingId === m.id) speakLoadingId = null;
-			if (speakingId === m.id) speakingId = null;
-		}
-	}
-
-	let copiedIds = $state(new Set<number>());
-	async function copyMessage(m: ChatMessage) {
-		try {
-			await navigator.clipboard.writeText(m.message);
-			copiedIds = new Set([...copiedIds, m.id]);
-			setTimeout(() => {
-				copiedIds = new Set([...copiedIds].filter((i) => i !== m.id));
-			}, 1500);
-		} catch {
-			toasts.add('Clipboard unavailable — long-press to copy manually', 'error');
-		}
-	}
+	// Per-message actions (copy / regenerate / read-aloud) extracted to their own
+	// controller ($lib/chat/message-actions.svelte.ts). It owns the button-state
+	// sets (copiedIds / regeneratingIds / speakingId / speakLoadingId) + the
+	// read-aloud audio resources; `messages` + `sending` stay page-owned and are
+	// reached through the deps port. Regenerate re-streams via streamingCtrl.run.
+	const messageActions = createMessageActionsController({
+		getMessages: () => messages,
+		setMessages: (next) => {
+			messages = next;
+		},
+		getSending: () => sending,
+		setSending: (v) => (sending = v),
+		unlockAudio: () => voice.unlockAudio(),
+		runStream: (messageBody) => streamingCtrl.run(messageBody)
+	});
 
 	// Streaming send via @ai-sdk/svelte's Chat against /api/chat/sdk-stream.
 	// Inserts a placeholder assistant bubble (sender derived from active
@@ -788,7 +668,7 @@
 		setToolsKey: (key) => {
 			toolsKey = key;
 		},
-		regenerateReply: (m) => regenerateReply(m),
+		regenerateReply: (m) => messageActions.regenerateReply(m),
 		createThread: async (rest) => {
 			// /new wraps the threads controller's slug + switch flow.
 			const baseSlug = threadsCtrl.slugifyThreadName(rest);
@@ -883,7 +763,7 @@
 		composerCtrl.destroy?.();
 		void voice.destroy();
 		void rtVoice.destroy();
-		stopReadAloud();
+		messageActions.destroy();
 	});
 
 	// Utilities
@@ -1009,245 +889,26 @@
 			bind:this={feedContainer}
 			class="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-4 md:px-6"
 		>
-			{#if messages.length === 0}
-				<div class="flex flex-1 items-center justify-center text-center select-none">
-					<div class="flex max-w-xs flex-col items-center gap-3">
-						<img
-							src="{base}/sully-mark.png"
-							alt="Sully"
-							class="h-16 w-16 drop-shadow-[0_0_22px_rgba(236,45,120,0.5)]"
-						/>
-						<div class="font-sans text-base text-zinc-200">Hey Captain — what's on your mind?</div>
-						<div class="font-sans text-xs text-zinc-500">Sully's here. Think out loud.</div>
-					</div>
-				</div>
-			{:else}
-				{#each messages as m (m.id)}
-					<!-- Skip rendering the empty stream-placeholder bubble while the
-					     thinking-dots block represents it. Once any token text
-					     arrives, m.message is non-empty and the bubble re-renders. -->
-					{#if !(streamState?.placeholderId === m.id && m.message === '')}
-						<div
-							class="flex flex-col gap-1 {m.sender === 'operator' ? 'items-end' : 'items-start'}"
-						>
-							<!-- Custom Labeling / Bubble Headers -->
-							{#if m.sender !== 'operator'}
-								<div
-									class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
-								>
-									<span
-										class="h-2 w-2 shrink-0 rounded-full"
-										style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
-									></span>
-									<span
-										>{m.sender === 'system'
-											? 'LOGUEOS'
-											: (data.appIdentity?.coreLabel ?? 'Sully')}</span
-									>
-								</div>
-							{/if}
-
-							<!-- Text Bubble. Operator bubbles render raw (whitespace-pre)
-						     since they're literally what was typed. Assistant
-						     bubbles render through the Markdown component for
-						     code-block highlighting, inline code, lists, etc. -->
-							<div
-								class="font-sans text-[14px] leading-relaxed tracking-[-0.005em] antialiased selection:bg-brand/40 selection:text-white
-								{m.sender === 'operator'
-									? 'max-w-[85%] rounded-2xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
-									: 'w-full px-0.5 text-zinc-100/95'}"
-							>
-								{#if m.sender === 'operator'}
-									<span class="whitespace-pre-wrap">{m.message}</span>
-								{:else}
-									<Markdown content={m.message} oncanvas={openCanvas} />
-								{/if}
-							</div>
-
-							<!-- Time + actions footer. Copy + Regenerate on assistant
-						     replies only — operator's own bubbles already echo
-						     their input and can't be re-rolled. -->
-							<div class="flex items-center gap-2 px-1 select-none">
-								{#if m.sender !== 'operator' && m.message}
-									<button
-										type="button"
-										onclick={() => copyMessage(m)}
-										class="flex items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95"
-										aria-label="Copy reply"
-										title={copiedIds.has(m.id) ? 'Copied' : 'Copy reply'}
-									>
-										{#if copiedIds.has(m.id)}
-											<Check size={10} class="text-emerald-400" />
-											<span class="text-emerald-400">Copied</span>
-										{:else}
-											<Copy size={10} />
-											<span>Copy</span>
-										{/if}
-									</button>
-									<button
-										type="button"
-										onclick={() => regenerateReply(m)}
-										disabled={sending || regeneratingIds.has(m.id)}
-										class="flex items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-										aria-label="Regenerate reply"
-										title={regeneratingIds.has(m.id) ? 'Regenerating…' : 'Regenerate reply'}
-									>
-										<RefreshCw size={10} class={regeneratingIds.has(m.id) ? 'animate-spin' : ''} />
-										<span>{regeneratingIds.has(m.id) ? 'Regen…' : 'Regen'}</span>
-									</button>
-									<button
-										type="button"
-										onclick={() => void speakMessage(m)}
-										class="flex items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 {speakingId ===
-										m.id
-											? 'text-brand-soft'
-											: 'text-zinc-500 hover:text-zinc-200'}"
-										aria-label="Read aloud"
-										title={speakingId === m.id
-											? 'Stop'
-											: speakLoadingId === m.id
-												? 'Loading…'
-												: 'Read aloud'}
-									>
-										{#if speakLoadingId === m.id}
-											<Loader2 size={10} class="animate-spin" />
-											<span>…</span>
-										{:else if speakingId === m.id}
-											<Square size={10} />
-											<span>Stop</span>
-										{:else}
-											<Volume2 size={10} />
-											<span>Play</span>
-										{/if}
-									</button>
-								{/if}
-								<div class="font-sans text-[10px] text-zinc-600 tabular-nums">
-									{fmtTime(m.timestamp)}
-								</div>
-							</div>
-						</div>
-						{#if m.sender === 'system' && m.trace_id?.startsWith('sully-')}
-							{@const ctrl = ensureDispatchStream(m.trace_id)}
-							<WorkingBubble
-								worker={m.trace_id.includes('agy') ? 'gemini' : 'claude-code'}
-								rows={ctrl.rows}
-								status={ctrl.status}
-								resultRef={ctrl.resultRef}
-								startedAt={parseDbTimestamp(m.timestamp)?.getTime() ?? Date.now()}
-							/>
-						{/if}
-					{/if}
-				{/each}
-
-				<!-- Thinking indicator — renders an AGY-style bubble with three
-				     staggered bouncing dots while we're waiting on a reply.
-				     Conditions: a send is in flight AND the most recent message
-				     in the feed is from the operator (i.e. we're between their
-				     send and the LLM's response landing). -->
-				<!-- Thinking dots indicator. Renders during the gap between operator
-				     send and first LLM token arriving — that is, when there's a
-				     stream placeholder bubble whose text is still empty. Pre-2b.2
-				     the trigger was "last message is operator", but the SDK
-				     cutover now inserts an optimistic assistant placeholder
-				     immediately on send so the old check never fires. We instead
-				     gate on streamState (set when a stream starts) AND the
-				     placeholder message text being empty (no tokens yet). -->
-				{#if streamState && !hasActiveToolCalls && messages.find((m) => m.id === streamState!.placeholderId)?.message === ''}
-					<div class="flex flex-col items-start gap-1">
-						<div
-							class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
-						>
-							<span
-								class="h-2 w-2 shrink-0 rounded-full"
-								style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
-							></span>
-							<span>{data.appIdentity?.coreLabel ?? 'Sully'}</span>
-						</div>
-						<div
-							class="flex items-center gap-2.5 rounded-2xl border border-[#ec2d78]/20 bg-[#ec2d78]/[0.06] py-2 pr-4 pl-2.5"
-							aria-label="Sully is thinking"
-							role="status"
-						>
-							<!-- Tiny working monster — a living cue that Sully is busy, not
-							     hung. The sprite's own 'thinking' sway provides the motion. -->
-							<SullyAvatar state="thinking" size={34} glow={false} />
-							<div class="flex items-center gap-1.5">
-								<span
-									class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
-									style="animation-delay: 0ms"
-								></span>
-								<span
-									class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
-									style="animation-delay: 150ms"
-								></span>
-								<span
-									class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
-									style="animation-delay: 300ms"
-								></span>
-							</div>
-						</div>
-					</div>
-				{/if}
-			{/if}
-
-			<!-- Tool-call chips for the currently-streaming reply.
-			     Rendered from sdkChat.messages's tool-* parts so the operator
-			     can see what the LLM is doing on their behalf while waiting.
-			     Only visible during an active stream; after the stream
-			     completes, sdkChat.messages resets and these disappear.
-			     History-mode tool-call display lives in a future PR (would
-			     require tool-call persistence into chat_messages). -->
-			{#if streamState}
-				{#each sdkChat.messages as sdkMsg (sdkMsg.id)}
-					{#if sdkMsg.role === 'assistant' && (sdkMsg.parts || []).some( (p) => p.type?.startsWith('tool-') )}
-						<div class="flex flex-col items-start gap-1" data-testid="sdk-tool-row">
-							<!-- ● Sully name-tag — matches the thinking indicator so tool work
-							     reads as Sully working, not a bare system chip. -->
-							<div
-								class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
-							>
-								<span
-									class="h-2 w-2 shrink-0 rounded-full"
-									style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
-								></span>
-								<span>{data.appIdentity?.coreLabel ?? 'Sully'}</span>
-							</div>
-							<div class="flex items-start gap-2.5">
-								<!-- Working monster — a living cue that Sully is on the tools. -->
-								<SullyAvatar state="working" size={34} glow={false} />
-								<div class="flex flex-col gap-1">
-									{#each sdkMsg.parts as part, i (i)}
-										{#if part.type?.startsWith('tool-')}
-											<div
-												class="flex flex-col gap-0.5 rounded-lg border border-brand/25 bg-brand/[0.05] px-2.5 py-1.5 font-sans text-[11px]"
-											>
-												<div class="flex items-center gap-1.5 text-brand-soft">
-													<Sparkles size={11} aria-hidden="true" />
-													<span class="font-semibold tracking-wide">
-														{toolLabel(part.type)}
-													</span>
-													<span
-														class="ml-auto text-[9px] tracking-wider text-brand-soft/60 uppercase"
-													>
-														{(part as { state?: string }).state ?? 'pending'}
-													</span>
-												</div>
-												{#if (part as { state?: string }).state === 'output-error'}
-													<div class="text-[10px] text-red-400">
-														{(part as { errorText?: string }).errorText ?? 'tool error'}
-													</div>
-												{/if}
-											</div>
-										{/if}
-									{/each}
-								</div>
-							</div>
-						</div>
-					{/if}
-				{/each}
-			{/if}
-
-			<div bind:this={scrollSentinel} class="h-px shrink-0" aria-hidden="true"></div>
+			<MessageFeed
+				{messages}
+				{streamState}
+				{sdkChat}
+				{hasActiveToolCalls}
+				appIdentity={data.appIdentity}
+				copiedIds={messageActions.copiedIds}
+				regeneratingIds={messageActions.regeneratingIds}
+				speakingId={messageActions.speakingId}
+				speakLoadingId={messageActions.speakLoadingId}
+				{sending}
+				bind:scrollSentinel
+				oncopy={(m) => void messageActions.copyMessage(m)}
+				onregenerate={(m) => void messageActions.regenerateReply(m)}
+				onspeak={(m) => void messageActions.speakMessage(m)}
+				{openCanvas}
+				{ensureDispatchStream}
+				{fmtTime}
+				{parseDbTimestamp}
+			/>
 		</div>
 
 		{#if unseenCount > 0 && !userAtBottom}
