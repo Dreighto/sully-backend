@@ -289,7 +289,7 @@
 			     PWA install state. Useful for confirming whether re-prompting is iOS
 			     dropping the grant vs. our code asking when it shouldn't. -->
 			<div
-				class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-mono text-[11px] text-zinc-300"
+				class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-sans text-[11px] text-zinc-300"
 			>
 				<div class="mb-1 flex items-center justify-between text-zinc-400">
 					<span>diagnostic</span>

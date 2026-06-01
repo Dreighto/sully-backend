@@ -53,7 +53,7 @@
 		>
 			<div class="flex items-center gap-2">
 				<Edit3 size={14} class="text-purple-400" aria-hidden="true" />
-				<div class="flex-1 font-mono text-[11px] tracking-wider text-zinc-400 uppercase">
+				<div class="flex-1 font-sans text-[11px] tracking-wider text-zinc-400 uppercase">
 					Workspace context · {selectedWorkspace?.display_name ?? selectedRepo}
 				</div>
 				<button
@@ -67,7 +67,7 @@
 			</div>
 			<p class="text-[12px] text-zinc-500">
 				Auto-injects into every chat send within
-				<span class="font-mono text-zinc-300">{selectedRepo}</span>. Keep it focused —
+				<span class="font-sans text-zinc-300">{selectedRepo}</span>. Keep it focused —
 				project intent, key files, gotchas. Saves retyping every new thread.
 			</p>
 			{#if loadError}
@@ -78,7 +78,7 @@
 					<button
 						type="button"
 						onclick={onretry}
-						class="rounded-md border border-red-900/60 bg-red-950/40 px-2 py-1 font-mono text-[10px] tracking-wider text-red-200 uppercase hover:bg-red-900/40"
+						class="rounded-md border border-red-900/60 bg-red-950/40 px-2 py-1 font-sans text-[10px] tracking-wider text-red-200 uppercase hover:bg-red-900/40"
 					>
 						Retry
 					</button>
@@ -94,14 +94,14 @@
 				style="min-height: 160px;"
 			></textarea>
 			<div class="flex items-center justify-between gap-2">
-				<div class="font-mono text-[10px] text-zinc-600">
+				<div class="font-sans text-[10px] text-zinc-600">
 					{draft.length} / {MAX_CHARS}
 				</div>
 				<div class="flex items-center gap-1.5">
 					<button
 						type="button"
 						onclick={onclose}
-						class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-mono text-[10px] tracking-wider text-zinc-400 uppercase transition-colors hover:bg-zinc-900 hover:text-white"
+						class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 font-sans text-[10px] tracking-wider text-zinc-400 uppercase transition-colors hover:bg-zinc-900 hover:text-white"
 					>
 						Cancel
 					</button>
@@ -109,7 +109,7 @@
 						type="button"
 						onclick={onsave}
 						disabled={saving || !loaded}
-						class="rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase shadow-lg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50"
+						class="rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 px-3 py-1.5 font-sans text-[10px] tracking-wider text-white uppercase shadow-lg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-50"
 					>
 						{saving ? 'Saving…' : 'Save'}
 					</button>

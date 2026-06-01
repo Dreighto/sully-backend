@@ -869,12 +869,12 @@
 					style="box-shadow: 0 0 16px rgba(34, 211, 238, 0.1);"
 				>
 					<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400"></span>
-					<span class="font-mono text-[11px] tracking-wide text-cyan-400">
+					<span class="font-sans text-[11px] tracking-wide text-cyan-400">
 						⚡ {activityPill.worker}: {activityPill.step}
 					</span>
 					<a
 						href={resolve('/api/chat/activity')}
-						class="ml-1.5 font-mono text-[10px] text-cyan-300/60 transition-colors hover:text-cyan-300"
+						class="ml-1.5 font-sans text-[10px] text-cyan-300/60 transition-colors hover:text-cyan-300"
 					>
 						[View JSON]
 					</a>
@@ -919,7 +919,7 @@
 					unseenCount = 0;
 					scrollFeedToBottom('smooth');
 				}}
-				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-mono text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
+				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-sans text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
 				style="box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);"
 			>
 				{unseenCount} new messages ↓

@@ -98,7 +98,7 @@
 				title="Pick a specific model or leave on Auto"
 			>
 				<span class="shrink-0">{tierEmoji}</span>
-				<span class="min-w-0 truncate font-mono text-[10px] tracking-wide text-zinc-400"
+				<span class="min-w-0 truncate font-sans text-[10px] tracking-wide text-zinc-400"
 					>{selectedModelChoice.id === 'auto'
 						? lastModelUsed || 'Auto'
 						: selectedModelChoice.label}</span
@@ -113,7 +113,7 @@
 					class="fixed top-[calc(env(safe-area-inset-top,0px)+3.5rem)] right-2 left-2 z-50 mt-2 rounded-2xl border border-white/[0.08] bg-[#0e0e11]/85 py-1.5 shadow-2xl backdrop-blur-2xl min-[430px]:absolute min-[430px]:top-full min-[430px]:right-0 min-[430px]:left-auto min-[430px]:w-64 min-[430px]:max-w-[calc(100vw-1rem)]"
 				>
 					<div
-						class="px-3 py-1 font-mono text-[9px] tracking-wider text-zinc-600 uppercase select-none"
+						class="px-3 py-1 font-sans text-[9px] tracking-wider text-zinc-600 uppercase select-none"
 					>
 						Model
 					</div>
@@ -126,7 +126,7 @@
 						>
 							<span class="flex min-w-0 flex-col leading-tight">
 								<span class="truncate text-xs">{choice.label}</span>
-								<span class="truncate font-mono text-[9px] text-zinc-500">{choice.sublabel}</span>
+								<span class="truncate font-sans text-[9px] text-zinc-500">{choice.sublabel}</span>
 							</span>
 							{#if selectedModelChoice.id === choice.id}
 								<Check size={11} class="shrink-0" />

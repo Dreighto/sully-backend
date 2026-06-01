@@ -137,7 +137,7 @@
 		aria-hidden="true"
 	>
 		<Paperclip size={32} class="text-cyan-300" />
-		<span class="font-mono text-xs tracking-wider text-cyan-200 uppercase">Drop to attach</span>
+		<span class="font-sans text-xs tracking-wider text-cyan-200 uppercase">Drop to attach</span>
 		<span class="px-4 text-center font-sans text-xs text-cyan-300/70"
 			>Images stage as chips above the composer</span
 		>
@@ -165,7 +165,7 @@
 		<!-- Talkback Status indicator inside composer -->
 		{#if composerMode === 'talkback'}
 			<div
-				class="flex items-center justify-between border-b border-white/5 px-2 pt-0.5 pb-1 font-mono text-[10px] select-none"
+				class="flex items-center justify-between border-b border-white/5 px-2 pt-0.5 pb-1 font-sans text-[10px] select-none"
 			>
 				<div class="flex items-center gap-1.5">
 					<span class="h-2 w-2 animate-ping rounded-full bg-emerald-400"></span>
@@ -220,7 +220,7 @@
 						aria-selected="false"
 					>
 						<span class="flex flex-col leading-tight">
-							<span class="font-mono text-xs text-cyan-300">{cmd.usage}</span>
+							<span class="font-sans text-xs text-cyan-300">{cmd.usage}</span>
 							<span class="text-[10px] text-zinc-400">{cmd.description}</span>
 						</span>
 					</button>
@@ -261,7 +261,7 @@
 						</div>
 						<div class="flex flex-col leading-tight">
 							<span class="max-w-[160px] truncate font-medium text-zinc-200">{att.filename}</span>
-							<span class="font-mono text-[10px] text-zinc-500">{humanSize(att.size)}</span>
+							<span class="font-sans text-[10px] text-zinc-500">{humanSize(att.size)}</span>
 						</div>
 						<button
 							type="button"

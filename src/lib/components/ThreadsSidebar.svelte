@@ -101,7 +101,7 @@
 	>
 		<div class="flex items-center gap-2">
 			<img src="{base}/sully-mark.png" alt="Companion" class="h-6 w-6" />
-			<span class="font-mono text-xs font-semibold tracking-wider text-zinc-300 uppercase"
+			<span class="font-sans text-xs font-semibold tracking-wider text-zinc-300 uppercase"
 				>Sessions</span
 			>
 		</div>
@@ -133,7 +133,7 @@
 			<button
 				type="button"
 				onclick={() => (showArchived = !showArchived)}
-				class="flex items-center gap-1 font-mono text-[9px] tracking-wider text-zinc-500 uppercase transition-colors hover:text-zinc-300"
+				class="flex items-center gap-1 font-sans text-[9px] tracking-wider text-zinc-500 uppercase transition-colors hover:text-zinc-300"
 				title={showArchived ? 'Hide archived sessions' : 'Show archived sessions'}
 			>
 				<Archive size={10} />
@@ -142,7 +142,7 @@
 			<button
 				type="button"
 				onclick={onclearAll}
-				class="flex items-center gap-1 rounded font-mono text-[9px] tracking-wider text-zinc-600 uppercase transition-colors hover:text-red-400"
+				class="flex items-center gap-1 rounded font-sans text-[9px] tracking-wider text-zinc-600 uppercase transition-colors hover:text-red-400"
 				title="Archive and delete every thread"
 			>
 				<Eraser size={10} />
@@ -151,7 +151,7 @@
 		</div>
 
 		{#if threads.length === 0}
-			<div class="px-3 py-4 text-center font-mono text-[10px] text-zinc-600">No sessions yet</div>
+			<div class="px-3 py-4 text-center font-sans text-[10px] text-zinc-600">No sessions yet</div>
 		{:else}
 			<div class="space-y-1">
 				{#each threads
@@ -236,7 +236,7 @@
 									</div>
 									{#if t.message_count > 0}
 										<span
-											class="ml-2 shrink-0 rounded border border-zinc-900 bg-zinc-950 px-1.5 py-0.5 font-mono text-[9px] text-zinc-500"
+											class="ml-2 shrink-0 rounded border border-zinc-900 bg-zinc-950 px-1.5 py-0.5 font-sans text-[9px] text-zinc-500"
 											>{t.message_count}</span
 										>
 									{/if}
@@ -308,7 +308,7 @@
 
 	<!-- Sidebar Footer info -->
 	<div
-		class="shrink-0 space-y-0.5 border-t border-zinc-800/50 bg-black/25 p-3 font-mono text-[9px] text-zinc-600 select-none"
+		class="shrink-0 space-y-0.5 border-t border-zinc-800/50 bg-black/25 p-3 font-sans text-[9px] text-zinc-600 select-none"
 		style="padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));"
 	>
 		<div>CORE: {coreLabel}</div>
