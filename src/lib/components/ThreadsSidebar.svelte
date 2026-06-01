@@ -89,7 +89,7 @@
 {/if}
 
 <aside
-	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[4px_0_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0"
+	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[4px_0_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0 lg:transform-none!"
 	style="transition: transform 320ms cubic-bezier(0.22,0.61,0.36,1), opacity 280ms cubic-bezier(0.22,0.61,0.36,1), width 280ms cubic-bezier(0.22,0.61,0.36,1); transform: {sidebarOpen
 		? 'translateX(0)'
 		: 'translateX(-100%)'}"
