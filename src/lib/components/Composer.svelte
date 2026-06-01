@@ -27,7 +27,18 @@
 	import { base } from '$app/paths';
 	import type { SlashCmd } from '$lib/types/slash';
 	import type { Attachment, ComposerMode, TalkbackPhase } from '$lib/types/chat-ui';
-	import { Send, Mic, Paperclip, Sparkles, Headphones, Square, X, Loader2, AudioLines } from 'lucide-svelte';
+	import {
+		Send,
+		Mic,
+		Paperclip,
+		Sparkles,
+		Headphones,
+		Square,
+		X,
+		Loader2,
+		AudioLines,
+		Plus
+	} from 'lucide-svelte';
 
 	const TALKBACK_PHASE_LABELS: Record<TalkbackPhase, string> = {
 		capture: '🔴 Capture',
@@ -111,6 +122,10 @@
 		const target = Math.min(Math.max(textareaEl.scrollHeight, COMPOSER_MIN_PX), max);
 		textareaEl.style.height = `${target}px`;
 	});
+
+	// Hidden composer actions (Attach · Image · Dictation) live behind the +,
+	// tucked away but one tap from reach (the iOS AI-app convention).
+	let actionsOpen = $state(false);
 </script>
 
 <!-- Drag-and-drop overlay — appears when the operator drags a file over
@@ -149,7 +164,7 @@
 					? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[0_0_30px_rgba(6,182,212,0.15)]'
 					: sending
 						? 'animate-pulse border-purple-500/40 bg-purple-500/[0.04] shadow-[0_0_30px_rgba(168,85,247,0.15)]'
-						: 'border-zinc-800/80 bg-zinc-950/80 shadow-[0_0_28px_rgba(236,45,120,0.1)] focus-within:border-[#ec2d78]/50 focus-within:shadow-[0_0_32px_rgba(236,45,120,0.18)] hover:border-zinc-700/80'}"
+						: 'border-white/[0.08] bg-[#0e0e11]/60 shadow-[0_8px_40px_-12px_rgba(236,45,120,0.18)] backdrop-blur-2xl focus-within:border-[#ec2d78]/40 focus-within:shadow-[0_8px_44px_-10px_rgba(236,45,120,0.28)]'}"
 	>
 		<!-- Dictation / Talkback Status indicators inside composer -->
 		{#if composerMode === 'recording' || composerMode === 'talkback'}
@@ -305,65 +320,92 @@
 				></textarea>
 			</div>
 
-			<!-- Row 2: Utility buttons left, Send button right -->
-			<div class="flex items-center justify-between">
+			<!-- Row 2: + reveals hidden actions (Attach · Image · Dictation);
+			     Talkback sits center-right, the voice-mode button anchors the far
+			     end and morphs into Send when there's content (iOS AI-app convention). -->
+			<div class="flex items-center justify-between gap-2">
 				<div class="flex items-center gap-1.5">
-					<!-- Attach File -->
-					<button
-						type="button"
-						onclick={ontriggerUpload}
-						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-800/80 bg-zinc-900 text-zinc-400 transition-colors hover:text-white active:scale-90 sm:h-9 sm:w-9"
-						aria-label="Attach File"
-						title="Attach image"
-					>
-						<Paperclip size={15} />
-					</button>
+					{#if actionsOpen}
+						<button
+							type="button"
+							onclick={() => (actionsOpen = false)}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-300 transition-all active:scale-90 sm:h-9 sm:w-9"
+							aria-label="Close actions"
+							title="Close"
+						>
+							<X size={16} />
+						</button>
 
-					<!-- Sparkles Image Toggle -->
-					<button
-						type="button"
-						onclick={() => (imageMode = !imageMode)}
-						disabled={composerMode === 'recording' || composerMode === 'talkback'}
-						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9
-							{imageMode
-							? 'border border-cyan-500/50 bg-cyan-950 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
-							: 'border border-zinc-800/80 bg-zinc-900 text-zinc-400 hover:text-white'}"
-						aria-label="Toggle Image Gen Mode"
-						title="Image Generation Mode"
-					>
-						<Sparkles size={15} />
-					</button>
+						<!-- Attach File -->
+						<button
+							type="button"
+							onclick={ontriggerUpload}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-400 transition-colors hover:text-white active:scale-90 sm:h-9 sm:w-9"
+							aria-label="Attach File"
+							title="Attach image"
+						>
+							<Paperclip size={15} />
+						</button>
 
-					<!-- Voice Dictation Mic -->
-					<button
-						type="button"
-						onclick={ontoggleRecord}
-						disabled={composerMode === 'talkback'}
-						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9
-							{composerMode === 'recording'
-							? 'animate-pulse border border-amber-500/50 bg-amber-950 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-							: 'border border-zinc-800/80 bg-zinc-900 text-zinc-400 hover:text-white'}"
-						aria-label={composerMode === 'recording' ? 'Stop Recording' : 'Voice Dictation'}
-						title={composerMode === 'recording' ? 'Stop Recording' : 'Voice Dictation'}
-					>
-						{#if composerMode === 'recording'}
-							<Square size={14} />
-						{:else}
-							<Mic size={15} />
-						{/if}
-					</button>
+						<!-- Sparkles Image Toggle -->
+						<button
+							type="button"
+							onclick={() => (imageMode = !imageMode)}
+							disabled={composerMode === 'recording' || composerMode === 'talkback'}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9
+								{imageMode
+								? 'border border-cyan-500/50 bg-cyan-950 text-cyan-400'
+								: 'border border-white/[0.07] bg-white/[0.04] text-zinc-400 hover:text-white'}"
+							aria-label="Toggle Image Gen Mode"
+							title="Image Generation Mode"
+						>
+							<Sparkles size={15} />
+						</button>
 
-					<!-- Talkback Continuous -->
+						<!-- Voice Dictation Mic -->
+						<button
+							type="button"
+							onclick={ontoggleRecord}
+							disabled={composerMode === 'talkback'}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9
+								{composerMode === 'recording'
+								? 'animate-pulse border border-amber-500/50 bg-amber-950 text-amber-400'
+								: 'border border-white/[0.07] bg-white/[0.04] text-zinc-400 hover:text-white'}"
+							aria-label={composerMode === 'recording' ? 'Stop Recording' : 'Voice Dictation'}
+							title="Voice Dictation"
+						>
+							{#if composerMode === 'recording'}
+								<Square size={14} />
+							{:else}
+								<Mic size={15} />
+							{/if}
+						</button>
+					{:else}
+						<!-- + opens the hidden actions -->
+						<button
+							type="button"
+							onclick={() => (actionsOpen = true)}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-400 transition-all hover:text-white active:scale-90 sm:h-9 sm:w-9"
+							aria-label="More actions"
+							title="Attach · Image · Dictation"
+						>
+							<Plus size={18} />
+						</button>
+					{/if}
+				</div>
+
+				<div class="flex items-center gap-1.5">
+					<!-- Talkback — hands-free voice while staying in the chat. -->
 					<button
 						type="button"
 						onclick={ontoggleTalkback}
 						disabled={composerMode === 'recording'}
 						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9
 							{composerMode === 'talkback'
-							? 'animate-pulse border border-emerald-500/50 bg-emerald-950 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-							: 'border border-zinc-800/80 bg-zinc-900 text-zinc-400 hover:text-white'}"
+							? 'animate-pulse border border-emerald-500/50 bg-emerald-950 text-emerald-400'
+							: 'border border-white/[0.07] bg-white/[0.04] text-zinc-400 hover:text-white'}"
 						aria-label="Hands-free continuous Talkback"
-						title="Hands-free continuous Talkback"
+						title="Talkback — stay in the chat"
 					>
 						{#if composerMode === 'talkback'}
 							<Square size={14} />
@@ -372,37 +414,34 @@
 						{/if}
 					</button>
 
-					<!-- Realtime Voice Mode (immersive full-screen) -->
-					<button
-						type="button"
-						onclick={onvoiceMode}
-						disabled={composerMode === 'recording' || composerMode === 'talkback'}
-						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-800/80 bg-zinc-900 text-zinc-400 transition-all hover:text-orange-400 active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9"
-						aria-label="Voice mode"
-						title="Voice mode"
-					>
-						<AudioLines size={15} />
-					</button>
+					<!-- Far end: Send when there's content, else the voice-mode button. -->
+					{#if textDraft.trim() || imageMode || attachments.length > 0}
+						<button
+							type="button"
+							onclick={onsend}
+							disabled={sending ||
+								composerMode === 'recording' ||
+								composerMode === 'talkback' ||
+								attachments.some((a) => a.uploading)}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff4d94] to-[#c4186a] text-white shadow-[0_0_16px_rgba(236,45,120,0.45)] transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:from-zinc-900 disabled:to-zinc-900 disabled:text-zinc-600 disabled:shadow-none sm:h-9 sm:w-9"
+							aria-label="Send Message"
+							title="Send (Enter)"
+						>
+							<Send size={14} />
+						</button>
+					{:else}
+						<button
+							type="button"
+							onclick={onvoiceMode}
+							disabled={composerMode === 'recording' || composerMode === 'talkback'}
+							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff4d94] to-[#c4186a] text-white shadow-[0_0_18px_rgba(236,45,120,0.5)] transition-all hover:scale-105 active:scale-95 disabled:opacity-40 sm:h-9 sm:w-9"
+							aria-label="Voice mode"
+							title="Voice mode — talk out loud"
+						>
+							<AudioLines size={16} />
+						</button>
+					{/if}
 				</div>
-
-				<!-- Send Button -->
-				<button
-					type="button"
-					onclick={onsend}
-					disabled={(!textDraft.trim() && !imageMode && attachments.length === 0) ||
-						sending ||
-						composerMode === 'recording' ||
-						composerMode === 'talkback' ||
-						attachments.some((a) => a.uploading)}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff4d94] to-[#c4186a] text-white shadow-lg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:border disabled:border-zinc-800 disabled:from-zinc-900 disabled:to-zinc-900 disabled:text-zinc-600 disabled:shadow-none sm:h-9 sm:w-9"
-					aria-label="Send Message"
-					title="Send (Enter)"
-					style={textDraft.trim() && !sending && composerMode === 'idle'
-						? 'box-shadow: 0 0 16px rgba(236, 45, 120, 0.45);'
-						: ''}
-				>
-					<Send size={14} />
-				</button>
 			</div>
 		</div>
 	</div>
