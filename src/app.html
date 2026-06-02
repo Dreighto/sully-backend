@@ -103,6 +103,32 @@
 			href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400;1,600&family=Inter:ital,opsz,wght@0,14..32,200..700;1,14..32,200..700&display=swap"
 			rel="stylesheet"
 		/>
+
+		<!-- Eruda — touch-friendly mobile DevTools console for the real-iPhone
+		     debugging path (no Safari Web Inspector on Linux). Activates when
+		     the URL carries ?debug=1 OR localStorage.eruda is set, either of
+		     which the operator can toggle from the phone without redeploying.
+		     ?debug=0 clears the sticky flag. Inline + on-demand from jsdelivr,
+		     so production users see 0 bytes when off. -->
+		<script>
+			(function () {
+				try {
+					var qs = location.search;
+					if (qs.indexOf('debug=0') !== -1) localStorage.removeItem('eruda');
+					else if (qs.indexOf('debug=1') !== -1) localStorage.setItem('eruda', '1');
+					if (localStorage.getItem('eruda') !== '1') return;
+					var s = document.createElement('script');
+					s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+					s.onload = function () {
+						window.eruda && window.eruda.init();
+					};
+					document.head.appendChild(s);
+				} catch (e) {
+					/* private mode or blocked storage — silently skip */
+				}
+			})();
+		</script>
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
