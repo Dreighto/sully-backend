@@ -20,6 +20,12 @@ scripts/finetune/__pycache__/
 # Unsloth's per-run Triton kernel cache; lands in the cwd of train_qlora.py
 # (= repo root by default). 3-10+ MB of compiled Python helpers per run.
 unsloth_compiled_cache/
+
+# Playwright e2e artifacts — traces, screenshots-on-failure, video, reports.
+# Tests + config are committed; the run output is per-machine.
+test-results/
+playwright-report/
+blob-report/
 *.log
 
 # Aider CLI session artifacts (operator's interactive tool)
