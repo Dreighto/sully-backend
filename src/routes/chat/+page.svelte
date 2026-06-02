@@ -428,7 +428,12 @@
 	}
 
 	async function setModelChoice(choice: ModelChoice) {
-		showModelOverrideModal = false;
+		// Hold the sheet open ~180ms so the operator sees the row's brand-pink
+		// highlight + checkmark settle on the new selection before the sheet
+		// slides away — replaces the previous toast confirmation, which the
+		// operator flagged as noisy ("the toast needs to go"). The chip's text
+		// updates instantly off `modelOverride` / `operatorOverride`, so the
+		// sheet-close + chip-text-change reads as one continuous gesture.
 		// Pin an explicit model id when the choice carries one (Ollama Cloud
 		// models); clear it otherwise so tier→model resolution applies.
 		modelOverride = choice.model ?? null;
@@ -448,10 +453,15 @@
 				operatorOverride = (body.operator_override ?? null) as Tier | null;
 				providerOverride = (body.provider_override ?? null) as ProviderPref;
 				await loadTier(threadsCtrl.activeThread);
-				toasts.add(`Model set to ${choice.label}`, 'success');
 			}
 		} catch {
 			toasts.add('Failed to update model preference', 'error');
+		} finally {
+			// Brief settle delay then close. 180ms = ~1 perceptual beat, enough
+			// to register "yes, that one" without lingering.
+			setTimeout(() => {
+				showModelOverrideModal = false;
+			}, 180);
 		}
 	}
 
@@ -874,17 +884,7 @@
 		<!-- ═════════════════════════════════════════════════════════════════
 		     QUIET HEADER
 		     ═════════════════════════════════════════════════════════════════ -->
-		<ChatHeader
-			{tierEmoji}
-			{lastModelUsed}
-			{selectedModelChoice}
-			{MODEL_CHOICES}
-			bind:showModelOverrideModal
-			ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)}
-			onsetModelChoice={(choice) => void setModelChoice(choice)}
-			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
-			oncloseAllPopovers={closeAllPopovers}
-		/>
+		<ChatHeader ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
 
 		<!-- ═════════════════════════════════════════════════════════════════
 		     EPHEMERAL ACTIVITY PILL
@@ -968,12 +968,18 @@
 			bind:imageMode
 			bind:isDragging={() => composerCtrl.isDragging, (v) => (composerCtrl.isDragging = v)}
 			bind:textareaEl
+			bind:showModelOverrideModal
+			bind:workspaceContextOpen
 			attachments={composerCtrl.attachments}
 			{composerMode}
 			{sending}
 			talkbackPhase={voice.phase}
 			{slashMode}
 			{slashMatches}
+			{selectedModelChoice}
+			{MODEL_CHOICES}
+			{tierEmoji}
+			{lastModelUsed}
 			onsend={() => void sendMessage()}
 			onpaste={composerCtrl.handlePaste}
 			onkey={handleKey}
@@ -985,6 +991,9 @@
 			onvoiceMode={() => void rtVoice.enter()}
 			onpickSlash={(cmd) => void pickSlash(cmd)}
 			onremoveAttachment={composerCtrl.removeAttachment}
+			onsetModelChoice={(choice) => void setModelChoice(choice)}
+			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
+			oncloseAllPopovers={closeAllPopovers}
 		/>
 	</main>
 </div>

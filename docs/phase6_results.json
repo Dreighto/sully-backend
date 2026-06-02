@@ -157,16 +157,22 @@
       "h": 44
     },
     {
+      "tag": "BUTTON",
+      "className": "flex flex-1 items-center justify-between truncate px-3 py-2 text-left font-sans text-xs\n\t\t\t\t\t\t\t\t\t\ttext-zinc-300",
+      "w": 225,
+      "h": 33.984375
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-11 w-9 shrink-0 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white sm:h-7 sm:w-6",
+      "w": 36,
+      "h": 44
+    },
+    {
       "tag": "A",
       "className": "ml-0.5 flex items-center gap-2 transition-opacity hover:opacity-80",
       "w": 71.625,
       "h": 32
-    },
-    {
-      "tag": "BUTTON",
-      "className": "flex h-9 max-w-[8.5rem] min-w-0 items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-3 font-sans text-xs text-zinc-300 backdrop-blur-md transition-all hover:bg-white/[0.08] hover:text-white active:scale-95",
-      "w": 85.796875,
-      "h": 36
     },
     {
       "tag": "TEXTAREA",
