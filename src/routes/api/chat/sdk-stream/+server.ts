@@ -468,10 +468,20 @@ export const POST: RequestHandler = async ({ request }) => {
 			// block on this path (it can't be cleanly stripped from streamText's
 			// output); the deterministic gates decide: ruleGate (@cc/@agy override) +
 			// valueGate (file/code/repo/long-imperative signals).
-			await maybeAutonomousDispatch({
+			//
+			// FIRE-AND-FORGET: the AI SDK keeps the SSE stream open until this
+			// onFinish resolves (its TransformStream flush awaits callOnFinish).
+			// Awaiting maybeAutonomousDispatch coupled stream close to the dispatch
+			// listener's roundtrip, which made the composer pulse-fade linger for
+			// seconds after the last token rendered. Same fire-and-forget pattern
+			// as maybeUpdateThreadSummary in chat_turn.ts:95. Dispatch results are
+			// observable via the next pollMessages tick.
+			void maybeAutonomousDispatch({
 				userText: userMessageText,
 				targetRepo,
 				threadId
+			}).catch((e) => {
+				console.error('[sdk-stream] autonomous-dispatch failed', e);
 			});
 		}
 	});

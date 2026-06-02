@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { resolve } from '$app/paths';
 import type { ChatMessage } from '$lib/types/chat-ui';
 import { toasts } from '$lib/utils/toasts';
@@ -28,7 +29,7 @@ export interface ThreadsController {
 	renameDraft: string;
 	showArchived: boolean;
 	threadMenuOpenFor: string | null;
-	switchThread: (threadId: string) => Promise<void>;
+	switchThread: (threadId: string, opts?: { keepSidebarOpen?: boolean }) => Promise<void>;
 	slugifyThreadName: (name: string) => string;
 	findUniqueSlug: (baseSlug: string) => Promise<string>;
 	newThread: () => Promise<void>;
@@ -51,13 +52,17 @@ export function createThreadsController(deps: ThreadsDeps): ThreadsController {
 	let showArchived = $state(false);
 	let threadMenuOpenFor = $state<string | null>(null);
 
-	async function switchThread(threadId: string) {
+	async function switchThread(threadId: string, opts: { keepSidebarOpen?: boolean } = {}) {
 		if (threadId === activeThread) {
-			deps.setSidebarOpen(false);
+			if (!opts.keepSidebarOpen) deps.setSidebarOpen(false);
 			return;
 		}
 		activeThread = threadId;
-		deps.setSidebarOpen(false);
+		// keepSidebarOpen lets newThread() keep the panel visible long enough
+		// for the operator to see the new row appear (otherwise the sidebar
+		// slid shut in the same tick — operator had to re-open to see the
+		// thread they just created).
+		if (!opts.keepSidebarOpen) deps.setSidebarOpen(false);
 		deps.setMessages([]);
 		// Pass the target thread explicitly so pollMessages can drop the
 		// response if another switch happens before this fetch returns.
@@ -120,7 +125,14 @@ export function createThreadsController(deps: ThreadsDeps): ThreadsController {
 			},
 			...threads
 		];
-		void switchThread(slug);
+		// Yield a microtask so the {#each} in ThreadsSidebar materializes the
+		// new row's DOM node BEFORE switchThread runs the auto-scroll $effect
+		// keyed on activeThread. Without this, the scroll-into-view lookup
+		// races and the new entry doesn't visibly land at the top of the list.
+		await tick();
+		// keepSidebarOpen so the operator sees the row appear, instead of the
+		// panel sliding shut in the same tick the row was inserted.
+		void switchThread(slug, { keepSidebarOpen: true });
 	}
 
 	function openRename(t: { thread_id: string; title: string }) {

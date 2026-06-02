@@ -154,3 +154,47 @@ export function providerPrefToApi(
 	if (p === 'gemini') return 'google';
 	return p ?? undefined;
 }
+
+/**
+ * Humanize a raw model id (as it appears in `lastModelUsed` / tier matrix
+ * values) into a compact display name suitable for the picker chip's
+ * sublabel. Tries the registry's labels first, then falls back to a tidy
+ * format derived from the id. Used by Composer.svelte to show "Auto" on the
+ * top line and the actually-resolved model (e.g. "Gemini Flash-lite") below.
+ */
+export function humanizeModelId(id: string): string {
+	if (!id) return '';
+	// Match by registry's explicit `model` field first (Ollama Cloud pins).
+	const direct = MODEL_REGISTRY.find((c) => c.model === id);
+	if (direct) return direct.label;
+	// Match against the tier × provider matrix to pick up a registry entry
+	// with a matching tier+provider pair (covers Auto-resolved cases like
+	// 'gemini-2.5-flash-lite' that don't carry an explicit `model` field).
+	for (const tier of Object.keys(TIER_PROVIDER_MODELS) as (keyof typeof TIER_PROVIDER_MODELS)[]) {
+		const row = TIER_PROVIDER_MODELS[tier];
+		for (const [prov, modelId] of Object.entries(row)) {
+			if (modelId === id) {
+				const reg = MODEL_REGISTRY.find(
+					(c) => c.tier === tier && providerPrefToApi(c.provider) === prov && !c.model
+				);
+				if (reg) return reg.label;
+			}
+		}
+	}
+	// Final fallback: tidy the raw id — strip dated suffixes, prefix the family.
+	if (/^claude/i.test(id)) {
+		if (/opus/i.test(id)) return 'Claude Opus';
+		if (/sonnet/i.test(id)) return 'Claude Sonnet';
+		if (/haiku/i.test(id)) return 'Claude Haiku';
+		return 'Claude';
+	}
+	if (/^gemini/i.test(id)) {
+		if (/flash-lite/i.test(id)) return 'Gemini Flash-lite';
+		if (/flash/i.test(id)) return 'Gemini Flash';
+		if (/pro/i.test(id)) return 'Gemini Pro';
+		return 'Gemini';
+	}
+	if (/^companion/i.test(id)) return id.replace(/:latest$/, '');
+	if (/^qwen/i.test(id)) return id.replace(/:/g, ' ');
+	return id;
+}

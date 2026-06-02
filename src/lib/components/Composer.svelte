@@ -34,6 +34,7 @@
 		TalkbackPhase
 	} from '$lib/types/chat-ui';
 	import PickerIcon from './PickerIcon.svelte';
+	import { humanizeModelId } from '$lib/chat/model-registry';
 	import {
 		Send,
 		Paperclip,
@@ -464,18 +465,25 @@
 						oncloseAllPopovers();
 						showModelOverrideModal = next;
 					}}
-					class="flex h-7 max-w-[10rem] min-w-0 items-center gap-1.5 rounded-full px-2 font-sans text-[11px] tracking-wide transition-all active:scale-95 {showModelOverrideModal
+					class="flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-full px-2 font-sans transition-all active:scale-95 {showModelOverrideModal
 						? 'bg-[#ec2d78]/10 text-white'
 						: 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'}"
-					aria-label={`${selectedModelChoice.id === 'auto' ? lastModelUsed || 'Auto' : selectedModelChoice.label} — Model picker`}
+					aria-label={selectedModelChoice.id === 'auto' && lastModelUsed
+						? `Auto — currently ${humanizeModelId(lastModelUsed)} — Model picker`
+						: `${selectedModelChoice.label} — Model picker`}
 					title="Pick a specific model or leave on Auto"
 				>
 					<PickerIcon provider={pickerProvider} size={14} />
-					<span class="min-w-0 truncate"
-						>{selectedModelChoice.id === 'auto'
-							? lastModelUsed || 'Auto'
-							: selectedModelChoice.label}</span
-					>
+					<span class="flex min-w-0 flex-col items-start leading-[1.1]">
+						<span class="truncate text-[11px] font-medium tracking-wide">
+							{selectedModelChoice.id === 'auto' ? 'Auto' : selectedModelChoice.label}
+						</span>
+						{#if selectedModelChoice.id === 'auto' && lastModelUsed}
+							<span class="truncate text-[9px] tracking-normal text-zinc-500">
+								{humanizeModelId(lastModelUsed)}
+							</span>
+						{/if}
+					</span>
 					<ChevronUp
 						size={10}
 						class="shrink-0 transition-transform duration-200 {showModelOverrideModal
