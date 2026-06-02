@@ -12,6 +12,11 @@ data/chat_uploads/
 data/*.zip
 data/*.tar.gz
 data/ch_data/
+
+# QLoRA fine-tune scratch — venv + checkpoints live alongside the scripts
+# but the artifacts themselves are heavyweight and never committed.
+scripts/finetune/.venv/
+scripts/finetune/__pycache__/
 *.log
 
 # Aider CLI session artifacts (operator's interactive tool)
