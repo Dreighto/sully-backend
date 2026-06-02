@@ -40,6 +40,7 @@
 	import Composer from '$lib/components/Composer.svelte';
 	import VoiceMode from '$lib/components/VoiceMode.svelte';
 	import MessageFeed from '$lib/components/MessageFeed.svelte';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 
 	let { data } = $props();
 
@@ -94,6 +95,10 @@
 	let operatorOverride = $state<Tier | null>(null);
 	let lastModelUsed = $state('');
 	let sending = $state(false);
+	// Lightbox state — set from Markdown's onimagepreview click delegate.
+	// Cleared by ImageLightbox's onclick (scrim or X). When non-null the
+	// overlay is mounted via a host element that listens for the close event.
+	let lightboxImage = $state<{ src: string; alt: string } | null>(null);
 
 	let showModelOverrideModal = $state(false);
 
@@ -970,6 +975,9 @@
 				onspeak={(m) => void messageActions.speakMessage(m)}
 				onfeedback={(m, s) => void messageActions.feedbackMessage(m, s)}
 				{openCanvas}
+				onimagepreview={(src, alt) => {
+					lightboxImage = { src, alt };
+				}}
 				{ensureDispatchStream}
 				{fmtTime}
 				{parseDbTimestamp}
@@ -1047,6 +1055,12 @@
 {#if canvasArtifact}
 	<Canvas code={canvasArtifact.code} language={canvasArtifact.language} onclose={closeCanvas} />
 {/if}
+
+<ImageLightbox
+	src={lightboxImage?.src ?? null}
+	alt={lightboxImage?.alt ?? ''}
+	onclose={() => (lightboxImage = null)}
+/>
 
 <style>
 	@keyframes fade-in {

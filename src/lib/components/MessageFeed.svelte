@@ -55,6 +55,7 @@
 		onspeak,
 		onfeedback,
 		openCanvas,
+		onimagepreview,
 		ensureDispatchStream,
 		fmtTime,
 		parseDbTimestamp
@@ -75,6 +76,8 @@
 		onspeak: (m: ChatMessage) => void;
 		onfeedback: (m: ChatMessage, signal: 1 | -1 | 0) => void;
 		openCanvas: (code: string, language: string) => void;
+		/** Tap-to-preview on any inline image — opens the lightbox at +page.svelte. */
+		onimagepreview: (src: string, alt: string) => void;
 		ensureDispatchStream: (
 			traceId: string
 		) => ReturnType<typeof import('$lib/chat/dispatchStream.svelte').createDispatchStream>;
@@ -140,7 +143,7 @@
 					{#if m.sender === 'operator'}
 						<span class="whitespace-pre-wrap">{m.message}</span>
 					{:else}
-						<Markdown content={m.message} oncanvas={openCanvas} />
+						<Markdown content={m.message} oncanvas={openCanvas} {onimagepreview} />
 					{/if}
 				</div>
 

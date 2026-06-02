@@ -97,11 +97,16 @@
 	let {
 		content,
 		inline = false,
-		oncanvas
+		oncanvas,
+		onimagepreview
 	}: {
 		content: string;
 		inline?: boolean;
 		oncanvas?: (code: string, language: string) => void;
+		/** Fired when an inline image is tapped — opens the full-viewport
+		 *  preview overlay. Operator feedback 2026-06-02: the in-feed image
+		 *  was too small to actually see. */
+		onimagepreview?: (src: string, alt: string) => void;
 	} = $props();
 
 	let rendered = $state('');
@@ -147,6 +152,14 @@
 	// optional, so chat surfaces that don't wire it stay silent (no error).
 	function handleContainerClick(e: Event) {
 		const target = e.target as HTMLElement | null;
+		// Image tap → fire onimagepreview so the parent opens the lightbox.
+		const img = target?.closest('img') as HTMLImageElement | null;
+		if (img && containerEl?.contains(img) && onimagepreview) {
+			e.preventDefault();
+			e.stopPropagation();
+			onimagepreview(img.src, img.alt || '');
+			return;
+		}
 		const canvasBtn = target?.closest('.md-codeblock-canvas') as HTMLButtonElement | null;
 		if (canvasBtn && containerEl?.contains(canvasBtn)) {
 			const wrap = canvasBtn.closest('.md-codeblock-wrap') as HTMLElement | null;
@@ -431,6 +444,11 @@
 		border: 1px solid rgb(255 255 255 / 0.08);
 		margin: 0.4rem 0;
 		display: block;
+		cursor: zoom-in;
+		transition: opacity 160ms ease-out;
+	}
+	.md-content :global(img:active) {
+		opacity: 0.75;
 	}
 
 	.md-content :global(table) {

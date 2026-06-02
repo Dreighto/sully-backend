@@ -590,7 +590,16 @@
 				</button>
 				<button
 					type="button"
-					onclick={() => (imageMode = !imageMode)}
+					onclick={() => {
+						// Toggle the mode AND collapse the action tray. Otherwise the
+						// X + Paperclip + Sparkles row stays expanded behind image
+						// mode and steals 132px from the textarea — text wraps
+						// one word per line. The cyan banner at the top of the
+						// pill already signals image mode; the inline cluster is
+						// redundant once it's on.
+						imageMode = !imageMode;
+						if (imageMode) actionsOpen = false;
+					}}
 					disabled={composerMode === 'talkback'}
 					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 {imageMode
 						? 'border border-cyan-500/50 bg-cyan-500/10 text-cyan-300 shadow-[0_0_18px_rgba(6,182,212,0.18)]'
