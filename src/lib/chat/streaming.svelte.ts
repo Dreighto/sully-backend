@@ -49,6 +49,13 @@ export interface StreamingController {
 	isStreamingFor: (threadId: string) => boolean;
 	/** Send a message through the SDK stream. Resolves when the stream finishes. */
 	run: (messageBody: string) => Promise<void>;
+	/**
+	 * Cancel the in-flight stream. Operator-facing — wired to the composer's
+	 * send-button-becomes-stop affordance + the 90s safety timeout.
+	 * Resolves `run()`'s awaited sendMessage via an AbortError that the
+	 * catch handler classifies as "Stream cancelled."
+	 */
+	abort: () => void;
 	destroy: () => void;
 }
 
@@ -188,6 +195,17 @@ export function createStreamingController(deps: StreamingDeps): StreamingControl
 		},
 		isStreamingFor: (threadId: string) => streamState !== null && streamState.threadId === threadId,
 		run,
+		abort: () => {
+			// SDK's Chat.stop() aborts the in-flight fetch; the awaited
+			// sendMessage() throws an AbortError, our catch classifies it as
+			// "Stream cancelled.", finally clears streamState. Safe to call
+			// even when nothing is in flight (no-op).
+			try {
+				sdkChat.stop();
+			} catch {
+				/* SDK throws if no stream — harmless */
+			}
+		},
 		destroy: () => {
 			/* sdkChat has no explicit close; rely on GC */
 		}

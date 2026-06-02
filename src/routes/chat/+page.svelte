@@ -611,6 +611,17 @@
 		const isDispatch = lower.includes('@cc') || lower.includes('@agy') || lower.includes('@gemini');
 		const useStream = !isDispatch && !isGenImage;
 
+		// 90s safety timeout — if the stream stalls (mobile network drop,
+		// upstream provider hang, etc.) we auto-abort rather than leave the
+		// composer in the pulse-fade "sending" state forever. Operator feedback
+		// 2026-06-02: "the pulsing fading composer is just hanging." The
+		// composer's send-slot also becomes a Stop button while sending=true so
+		// the operator can cancel manually before the timeout.
+		const sendTimeout = setTimeout(() => {
+			streamingCtrl.abort();
+			toasts.add('Reply stalled — stopped after 90s. Try again or switch model.', 'error');
+		}, 90_000);
+
 		try {
 			if (useStream) {
 				await streamingCtrl.run(messageBody);
@@ -632,8 +643,15 @@
 			toasts.add(`Send failed: ${e instanceof Error ? e.message : 'unknown'}`, 'error');
 			composerCtrl.textDraft = text; // restore
 		} finally {
+			clearTimeout(sendTimeout);
 			sending = false;
 		}
+	}
+
+	/** Operator-initiated stop: hits the streaming controller's abort path.
+	 *  Wired into the composer's send-slot when sending=true. */
+	function abortSend() {
+		streamingCtrl.abort();
 	}
 
 	function handleKey(e: KeyboardEvent) {
@@ -996,6 +1014,7 @@
 			{pickerProvider}
 			{lastModelUsed}
 			onsend={() => void sendMessage()}
+			onabort={abortSend}
 			onpaste={composerCtrl.handlePaste}
 			onkey={handleKey}
 			onfocus={() => composerMode === 'idle' && (composerMode = 'focused')}

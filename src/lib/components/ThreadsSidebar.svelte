@@ -15,7 +15,7 @@
 	import { base } from '$app/paths';
 	import {
 		X,
-		Compass,
+		MessageSquarePlus,
 		Pin,
 		Moon,
 		Hash,
@@ -76,6 +76,19 @@
 		/** Footer "CORE:" pill label — fork-aware (companion vs console). */
 		coreLabel?: string;
 	} = $props();
+
+	// When the sidebar opens, scroll the active-thread row into view so the
+	// operator can always see where they are without hunting the list. Fixes
+	// operator feedback 2026-06-02: "I can't even get back to the thread I
+	// started." The 'instant' behavior keeps the open animation un-jittered;
+	// scroll happens after the slide transition starts.
+	$effect(() => {
+		if (!sidebarOpen || !activeThread) return;
+		queueMicrotask(() => {
+			const el = document.getElementById(`thread-row-${CSS.escape(activeThread)}`);
+			if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+		});
+	});
 </script>
 
 {#if sidebarOpen}
@@ -113,21 +126,27 @@
 			/>
 			<span class="font-sans text-sm font-semibold tracking-tight text-zinc-100">Sully</span>
 		</div>
-		<div class="flex items-center gap-1">
+		<div class="flex items-center gap-1.5">
+			<!-- New thread: labeled pill so the affordance is unambiguous. Operator
+			     feedback 2026-06-02: the previous icon-only Compass button read as
+			     "explore," not "new chat." Now: brand-pink-tinted, MessageSquarePlus
+			     icon + visible "New" label. -->
 			<button
 				type="button"
 				onclick={onnewThread}
-				class="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] text-zinc-400 transition-all hover:bg-white/[0.07] hover:text-white active:scale-90 sm:h-9 sm:w-9"
-				title="New conversation"
+				class="flex h-11 items-center gap-1.5 rounded-full bg-[#ec2d78]/10 px-3 text-[#ff7eb3] transition-all hover:bg-[#ec2d78]/20 hover:text-white active:scale-95 sm:h-9"
+				title="Start a new conversation"
 				aria-label="New thread"
 			>
-				<Compass size={16} />
+				<MessageSquarePlus size={15} aria-hidden="true" />
+				<span class="font-sans text-xs font-medium tracking-wide">New</span>
 			</button>
 			<button
 				type="button"
 				onclick={oncloseSidebar}
-				class="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] text-zinc-400 transition-all hover:text-white active:scale-90 sm:h-9 sm:w-9 lg:hidden"
+				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9 lg:hidden"
 				aria-label="Close sidebar"
+				title="Close"
 			>
 				<X size={16} />
 			</button>
@@ -206,6 +225,7 @@
 						{:else}
 							{@const isDen = t.thread_id === 'default'}
 							<div
+								id="thread-row-{t.thread_id}"
 								class="group flex w-full items-center gap-1 rounded-xl pr-1
 									{isDen
 									? activeThread === t.thread_id

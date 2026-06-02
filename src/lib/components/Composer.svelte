@@ -223,6 +223,7 @@
 		pickerProvider,
 		lastModelUsed,
 		onsend,
+		onabort,
 		onpaste,
 		onkey,
 		onfocus,
@@ -257,6 +258,9 @@
 		pickerProvider: ProviderPref;
 		lastModelUsed: string;
 		onsend: () => void;
+		/** Abort the in-flight stream — wired to the send-slot's stop-button
+		 *  when `sending` is true. */
+		onabort: () => void;
 		onpaste: (e: ClipboardEvent) => void;
 		onkey: (e: KeyboardEvent) => void;
 		onfocus: () => void;
@@ -641,11 +645,26 @@
 				{/if}
 			</button>
 
-			{#if textDraft.trim() || imageMode || attachments.length > 0}
+			{#if sending}
+				<!-- While a stream is in flight the send slot becomes a STOP button.
+				     Tap = abort the SDK stream. Gives the operator a recovery path
+				     when the network stalls mid-stream (previously the pulse-fade
+				     state just hung indefinitely). The 90s safety timeout in the
+				     parent fires the same abort path on its own. -->
+				<button
+					type="button"
+					onclick={onabort}
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-red-500/40 bg-red-500/10 text-red-300 transition-all hover:bg-red-500/20 hover:text-red-200 active:scale-90 sm:h-9 sm:w-9"
+					aria-label="Stop generating"
+					title="Stop generating"
+				>
+					<Square size={12} fill="currentColor" />
+				</button>
+			{:else if textDraft.trim() || imageMode || attachments.length > 0}
 				<button
 					type="button"
 					onclick={onsend}
-					disabled={sending || composerMode === 'talkback' || attachments.some((a) => a.uploading)}
+					disabled={composerMode === 'talkback' || attachments.some((a) => a.uploading)}
 					class="btn-tactile-brand h-11 w-11 shrink-0 sm:h-9 sm:w-9"
 					aria-label="Send Message"
 					title="Send (Enter)"
