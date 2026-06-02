@@ -565,61 +565,71 @@
 		     All secondary buttons are rounded-full circles for visual flow
 		     with the brand mic. btn-tactile dropped; flat hover-only
 		     treatment. -->
-		<div class="flex items-end gap-1.5">
-			<!-- Left: + button (or actions row when open) -->
+		<div class="relative flex items-end gap-1.5">
+			<!-- Left: + button — single slot always. Tapping it opens a popup
+			     menu ABOVE the composer (see below) with Attach + Image
+			     options. Previously this expanded inline into 3 buttons
+			     which crowded the textarea to ~150px on iPhone — text
+			     wrapped one word per line. Operator feedback 2026-06-02.
+			     The Plus button rotates 45° when open to feel like a
+			     toggle, and tints brand-pink for affordance. -->
+			<button
+				type="button"
+				data-popover-trigger
+				onclick={() => {
+					actionsOpen = !actionsOpen;
+				}}
+				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 sm:h-9 sm:w-9 {actionsOpen
+					? 'rotate-45 bg-[#ec2d78]/10 text-[#ff7eb3]'
+					: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
+				aria-label="More actions"
+				aria-haspopup="menu"
+				aria-expanded={actionsOpen}
+				title="Attach · Image"
+			>
+				<Plus size={18} />
+			</button>
+
+			<!-- Action popup. Anchored to the bottom-left of the composer row
+			     so it sits ABOVE the pill, not in the row. Tap-outside is
+			     handled by the parent's global popover-close $effect via
+			     data-popover/data-popover-trigger. -->
 			{#if actionsOpen}
-				<button
-					type="button"
-					onclick={() => (actionsOpen = false)}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9"
-					aria-label="Close actions"
-					title="Close"
-					in:fly={{ x: -10, duration: 200 }}
+				<div
+					data-popover
+					role="menu"
+					aria-label="Composer actions"
+					transition:fly={{ y: 8, duration: 180, easing: cubicOut }}
+					class="absolute bottom-full left-0 z-50 mb-2 flex min-w-[10rem] flex-col gap-0.5 rounded-2xl border border-white/[0.08] bg-[#0e0e11]/95 p-1 shadow-2xl backdrop-blur-2xl"
 				>
-					<X size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={ontriggerUpload}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9"
-					aria-label="Attach File"
-					title="Attach image"
-					in:fly={{ x: -12, duration: 220, delay: 45 }}
-				>
-					<Paperclip size={15} />
-				</button>
-				<button
-					type="button"
-					onclick={() => {
-						// Toggle the mode AND collapse the action tray. Otherwise the
-						// X + Paperclip + Sparkles row stays expanded behind image
-						// mode and steals 132px from the textarea — text wraps
-						// one word per line. The cyan banner at the top of the
-						// pill already signals image mode; the inline cluster is
-						// redundant once it's on.
-						imageMode = !imageMode;
-						if (imageMode) actionsOpen = false;
-					}}
-					disabled={composerMode === 'talkback'}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 {imageMode
-						? 'border border-cyan-500/50 bg-cyan-500/10 text-cyan-300 shadow-[0_0_18px_rgba(6,182,212,0.18)]'
-						: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
-					aria-label="Toggle Image Gen Mode"
-					title="Image Generation Mode"
-					in:fly={{ x: -12, duration: 240, delay: 90 }}
-				>
-					<Sparkles size={15} />
-				</button>
-			{:else}
-				<button
-					type="button"
-					onclick={() => (actionsOpen = true)}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9"
-					aria-label="More actions"
-					title="Attach · Image"
-				>
-					<Plus size={18} />
-				</button>
+					<button
+						type="button"
+						role="menuitem"
+						onclick={() => {
+							actionsOpen = false;
+							ontriggerUpload();
+						}}
+						class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-zinc-200 transition-colors hover:bg-white/[0.06] active:bg-white/[0.1]"
+					>
+						<Paperclip size={15} class="shrink-0 text-zinc-400" />
+						<span>Attach image</span>
+					</button>
+					<button
+						type="button"
+						role="menuitem"
+						disabled={composerMode === 'talkback'}
+						onclick={() => {
+							imageMode = !imageMode;
+							actionsOpen = false;
+						}}
+						class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-white/[0.06] active:bg-white/[0.1] disabled:opacity-40 {imageMode
+							? 'text-cyan-300'
+							: 'text-zinc-200'}"
+					>
+						<Sparkles size={15} class="shrink-0 {imageMode ? 'text-cyan-300' : 'text-zinc-400'}" />
+						<span>{imageMode ? 'Image mode (on)' : 'Generate image'}</span>
+					</button>
+				</div>
 			{/if}
 
 			<!-- Middle: textarea, takes remaining width -->

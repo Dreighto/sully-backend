@@ -9,9 +9,10 @@
 	// max-height:60vh. Operator's 2026-06-02 feedback: "no way of previewing
 	// the image generated besides looking at the small box the image was
 	// generated in." Tap-to-expand into a separate layer gives a real look.
-	import { X, Download } from 'lucide-svelte';
+	import { X, Share2 } from 'lucide-svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import { shareImage } from '$lib/utils/share-image';
 
 	let {
 		src,
@@ -22,6 +23,18 @@
 		alt?: string;
 		onclose: () => void;
 	} = $props();
+
+	let saving = $state(false);
+
+	async function onSave() {
+		if (!src || saving) return;
+		saving = true;
+		try {
+			await shareImage(src, alt || 'Image from Sully');
+		} finally {
+			saving = false;
+		}
+	}
 
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
@@ -72,16 +85,26 @@
 			class="fixed top-0 right-0 z-[101] flex items-center gap-2 p-4"
 			style="padding-top: max(1rem, env(safe-area-inset-top, 0px));"
 		>
-			<a
-				href={src}
-				download
-				onclick={(e) => e.stopPropagation()}
-				class="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90"
-				aria-label="Download image"
-				title="Download"
+			<!-- iOS Safari/WebKit silently ignores the `download` attribute on
+			     anchors — tapping a `<a href download>` would navigate the
+			     WebView to the image URL itself, stranding the operator on
+			     a bare image page with no back button (verified 2026-06-02).
+			     The Share API opens the native share sheet on iOS (Save
+			     Image, Save to Files, AirDrop) and falls back to a real
+			     anchor-download on web. See share-image.ts. -->
+			<button
+				type="button"
+				onclick={(e) => {
+					e.stopPropagation();
+					void onSave();
+				}}
+				disabled={saving}
+				class="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90 disabled:opacity-50"
+				aria-label="Save image"
+				title="Save / Share"
 			>
-				<Download size={18} />
-			</a>
+				<Share2 size={18} />
+			</button>
 			<button
 				type="button"
 				onclick={(e) => {
