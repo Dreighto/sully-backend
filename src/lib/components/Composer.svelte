@@ -329,7 +329,7 @@
 			: imageMode
 				? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[0_0_30px_rgba(6,182,212,0.15)]'
 				: sending
-					? 'animate-pulse border-[#ec2d78]/45 bg-[#ec2d78]/[0.05] shadow-[0_0_34px_rgba(236,45,120,0.28)]'
+					? 'composer-sending border-[#ec2d78]/55 bg-[#ec2d78]/[0.05]'
 					: 'border-white/[0.08] bg-[#0e0e11]/60 backdrop-blur-2xl focus-within:border-white/20'}"
 	>
 		<!-- Talkback Status indicator inside composer -->
@@ -660,7 +660,7 @@
 				onclick={ontoggleTalkback}
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 {composerMode ===
 				'talkback'
-					? 'animate-pulse border border-emerald-500/50 bg-emerald-500/10 text-emerald-300 shadow-[0_0_18px_rgba(16,185,129,0.18)]'
+					? 'composer-talkback border border-emerald-500/55 bg-emerald-500/10 text-emerald-300'
 					: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
 				aria-label="Hands-free continuous Talkback"
 				title="Talkback — stay in the chat"

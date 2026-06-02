@@ -419,6 +419,51 @@
 	}
 }
 
+/* Composer-pill sending indicator. Replaces the default Tailwind animate-pulse,
+ * which animated `opacity` on the parent and bled into all children (operator
+ * 2026-06-02: "the other components attached to the composer chat bot fade in
+ * and out with that pulse"). This version animates ONLY the border color +
+ * shadow on the pill itself — children keep their opacity steady so the
+ * placeholder, chips, and brand mic don't ghost. 2s cycle, slow and unmistakable
+ * when active. */
+@keyframes composerSendingGlow {
+	0%,
+	100% {
+		border-color: rgb(236 45 120 / 0.55);
+		box-shadow: 0 0 24px -2px rgb(236 45 120 / 0.22);
+	}
+	50% {
+		border-color: rgb(236 45 120 / 0.95);
+		box-shadow: 0 0 38px -2px rgb(236 45 120 / 0.45);
+	}
+}
+.composer-sending {
+	animation: composerSendingGlow 2s ease-in-out infinite;
+}
+
+@keyframes composerTalkbackGlow {
+	0%,
+	100% {
+		border-color: rgb(16 185 129 / 0.55);
+		box-shadow: 0 0 18px -2px rgb(16 185 129 / 0.2);
+	}
+	50% {
+		border-color: rgb(16 185 129 / 0.95);
+		box-shadow: 0 0 26px -2px rgb(16 185 129 / 0.4);
+	}
+}
+.composer-talkback {
+	animation: composerTalkbackGlow 1.6s ease-in-out infinite;
+}
+
+/* Per-user-prefs respect — don't pulse if reduce-motion is set. */
+@media (prefers-reduced-motion: reduce) {
+	.composer-sending,
+	.composer-talkback {
+		animation: none;
+	}
+}
+
 @keyframes aurora1 {
 	from {
 		transform: translate(0, 0) scale(1);

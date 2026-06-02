@@ -1,4 +1,4 @@
-// Empirical timing of the composer's `animate-pulse` class lifecycle.
+// Empirical timing of the composer's `composer-sending` class lifecycle.
 // Operator reported the pulse persisting after replies — this test gives
 // us hard numbers vs theorizing.
 import { test, expect } from '@playwright/test';
@@ -19,15 +19,15 @@ test('composer pulse clears within 1.5s of last token', async ({ page }) => {
 	const sendBtn = page.getByRole('button', { name: 'Send Message' });
 	await expect(sendBtn).toBeVisible({ timeout: 5_000 });
 
-	// Composer pill (the outer div that gets animate-pulse when sending).
+	// Composer pill (the outer div that gets composer-sending when sending).
 	const composerPill = page.locator('div.rounded-3xl').filter({ has: textarea }).first();
 
 	const tSendClick = Date.now();
 	await sendBtn.click();
 
-	// Wait until animate-pulse class is APPLIED to the composer pill.
+	// Wait until composer-sending class is APPLIED to the composer pill.
 	await expect
-		.poll(() => composerPill.evaluate((el) => el.classList.contains('animate-pulse')), {
+		.poll(() => composerPill.evaluate((el) => el.classList.contains('composer-sending')), {
 			timeout: 5_000,
 			intervals: [50, 100]
 		})
@@ -51,9 +51,9 @@ test('composer pulse clears within 1.5s of last token', async ({ page }) => {
 	}
 	const tLastToken = Date.now();
 
-	// Now wait for animate-pulse class to be REMOVED.
+	// Now wait for composer-sending class to be REMOVED.
 	await expect
-		.poll(() => composerPill.evaluate((el) => el.classList.contains('animate-pulse')), {
+		.poll(() => composerPill.evaluate((el) => el.classList.contains('composer-sending')), {
 			timeout: 10_000,
 			intervals: [50, 100, 200]
 		})
