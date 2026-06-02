@@ -884,7 +884,11 @@
 		<!-- ═════════════════════════════════════════════════════════════════
 		     QUIET HEADER
 		     ═════════════════════════════════════════════════════════════════ -->
-		<ChatHeader ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
+		<ChatHeader
+			bind:workspaceContextOpen
+			ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)}
+			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
+		/>
 
 		<!-- ═════════════════════════════════════════════════════════════════
 		     EPHEMERAL ACTIVITY PILL
@@ -969,7 +973,6 @@
 			bind:isDragging={() => composerCtrl.isDragging, (v) => (composerCtrl.isDragging = v)}
 			bind:textareaEl
 			bind:showModelOverrideModal
-			bind:workspaceContextOpen
 			attachments={composerCtrl.attachments}
 			{composerMode}
 			{sending}
@@ -992,7 +995,6 @@
 			onpickSlash={(cmd) => void pickSlash(cmd)}
 			onremoveAttachment={composerCtrl.removeAttachment}
 			onsetModelChoice={(choice) => void setModelChoice(choice)}
-			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
 			oncloseAllPopovers={closeAllPopovers}
 		/>
 	</main>
