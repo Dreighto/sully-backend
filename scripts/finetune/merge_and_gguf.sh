@@ -8,8 +8,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV_DIR="$REPO_ROOT/scripts/finetune/.venv"
 ADAPTER_DIR="${ADAPTER_DIR:-$HOME/dev/training-corpora/companion-v2-lora/adapter}"
-OUT_DIR="$HOME/dev/training-corpora/companion-v2-lora/gguf"
-BASE_MODEL="${BASE_MODEL:-unsloth/Qwen3-14B}"
+OUT_DIR="${OUT_DIR:-$HOME/dev/training-corpora/companion-v2-lora/gguf}"
+# NOTE: base model is resolved from adapter_config.json (unsloth/Qwen3-14B-bnb-4bit).
+# Unsloth's save_pretrained_gguf handles dequant→merge→requant internally.
 QUANT="${QUANT:-q4_k_m}"
 
 # shellcheck disable=SC1091
@@ -43,14 +44,17 @@ PY
 
 echo ""
 echo "[gguf] output:"
-ls -lh "$OUT_DIR"/*.gguf 2>/dev/null | head -5
-
-# Build a Modelfile next to the gguf so the operator can `ollama create`.
-GGUF_FILE=$(ls -1 "$OUT_DIR"/*.gguf 2>/dev/null | head -1)
+# Unsloth writes the GGUF to ${OUT_DIR}_gguf/ (its own convention),
+# not OUT_DIR. Search both so we find it either way.
+GGUF_FILE=$(ls -1 "$OUT_DIR"/*.gguf "${OUT_DIR}_gguf"/*.gguf 2>/dev/null | head -1)
+ls -lh "$GGUF_FILE" 2>/dev/null
 if [ -z "$GGUF_FILE" ]; then
-  echo "[gguf] ERROR: no GGUF produced" >&2
+  echo "[gguf] ERROR: no GGUF produced (looked in $OUT_DIR and ${OUT_DIR}_gguf)" >&2
   exit 1
 fi
+# Write our custom Modelfile next to the GGUF so register_companion_v2.sh
+# finds it at its expected path ($OUT_DIR/Modelfile).
+mkdir -p "$OUT_DIR"
 
 cat > "$OUT_DIR/Modelfile" <<EOF
 FROM $GGUF_FILE
@@ -68,7 +72,7 @@ PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|endoftext|>"
 PARAMETER temperature 0.7
 PARAMETER top_p 0.9
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 2048
 
 SYSTEM """You are Sully, Captain's companion. You're warm, direct, and concise. You speak in plain English first. You match Captain's style: declarative, no exclamation marks, em-dashes for asides, contractions, and the occasional "Yeah." or "Alright." opener when picking up a thread."""
 EOF

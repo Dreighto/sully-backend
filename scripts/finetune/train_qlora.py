@@ -20,6 +20,11 @@ import os
 import sys
 from pathlib import Path
 
+# Thread caps for CPU side of the pipeline (GMI rec — prevents thread thrash
+# while GPU is the bottleneck). Set BEFORE any torch/numpy imports.
+os.environ.setdefault("OMP_NUM_THREADS", "4")
+os.environ.setdefault("MKL_NUM_THREADS", "4")
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -41,6 +46,11 @@ def main():
     ap.add_argument("--lora-r", type=int, default=16)
     ap.add_argument("--lora-alpha", type=int, default=32)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--resume-from-checkpoint",
+        default=None,
+        help="Path to a checkpoint dir, or 'auto' to use latest in output_dir",
+    )
     args = ap.parse_args()
 
     # Import here so --help works without unsloth installed.
@@ -103,10 +113,13 @@ def main():
         warmup_ratio=args.warmup_ratio,
         logging_steps=10,
         save_steps=200,
-        save_total_limit=3,
+        save_total_limit=10,
         eval_strategy="steps",
         eval_steps=200,
-        per_device_eval_batch_size=2,
+        per_device_eval_batch_size=1,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
         bf16=True,
         optim="adamw_8bit",
         weight_decay=0.0,
@@ -127,7 +140,12 @@ def main():
     )
 
     print(f"[train] starting — {len(ds_train):,} train / {len(ds_eval):,} eval pairs")
-    train_result = trainer.train()
+    resume = args.resume_from_checkpoint
+    if resume == "auto":
+        resume = True
+    if resume:
+        print(f"[train] resuming from checkpoint: {resume}")
+    train_result = trainer.train(resume_from_checkpoint=resume) if resume else trainer.train()
 
     print(f"[train] saving adapter to {out_dir}")
     trainer.save_model(str(out_dir / "adapter"))
