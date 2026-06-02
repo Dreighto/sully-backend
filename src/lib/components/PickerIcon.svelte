@@ -1,17 +1,18 @@
 <script lang="ts">
 	// Brand-icon component for the model picker.
 	//
-	// Each provider in the picker renders the actual brand mark instead of a
-	// generic emoji — Anthropic for Claude tiers, Google Gemini for Gemini
-	// tiers, Ollama for local + Ollama-Cloud tiers, and a temporary Lucide
-	// Sparkles for the null-provider 'Auto' entry until Sully's mark lands.
+	// Each provider renders its actual product mark in its true brand color —
+	// operator directive: "if they don't look like the brand icon or logo we
+	// don't use it." Claude rows show the Claude Code mark in brand orange;
+	// Gemini rows show the Google Gemini sparkle in its brand purple; Ollama
+	// rows show the llama silhouette (currentColor — its native black is
+	// invisible on the dark UI, so we let the parent's text color drive it).
+	// Auto (null provider) uses a temporary Lucide Sparkles until Sully's
+	// mark is finalized.
 	//
-	// SVG paths are inlined (not <img src>) so currentColor works — the parent's
-	// text color drives the fill, and the same component sits in chip context
-	// (14px, brand-pink hint) and sheet context (16px, zinc-200).
-	//
-	// Path data verbatim from simpleicons.org (CC0). Trademarks remain with
-	// their owners; nominative fair use applies (we're identifying the models).
+	// SVG paths are inlined (not <img src>) so per-provider fills + sizing
+	// compose with the parent's tap-target wrapper. Nominative fair use:
+	// the marks identify the underlying model providers in the picker.
 	import { Sparkles } from 'lucide-svelte';
 	import type { ProviderPref } from '$lib/types/chat-ui';
 
@@ -29,13 +30,15 @@
 		width={size}
 		height={size}
 		viewBox="0 0 24 24"
-		fill="currentColor"
+		fill="#D97757"
 		aria-label="Claude · Anthropic"
 		role="img"
 		class="shrink-0"
 	>
 		<path
-			d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"
+			fill-rule="evenodd"
+			clip-rule="evenodd"
+			d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
 		/>
 	</svg>
 {:else if provider === 'gemini'}
@@ -43,7 +46,7 @@
 		width={size}
 		height={size}
 		viewBox="0 0 24 24"
-		fill="currentColor"
+		fill="#8E75B2"
 		aria-label="Gemini · Google"
 		role="img"
 		class="shrink-0"
