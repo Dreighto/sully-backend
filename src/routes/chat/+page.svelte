@@ -794,14 +794,17 @@
 	onchange={composerCtrl.handleUpload}
 />
 
+<!-- ARIA role intentionally omitted: a landmark here would nest <aside> and
+		<main> inside another landmark and break the page hierarchy (axe-core
+		landmark-*-is-top-level violations). Drag-drop intent is conveyed
+		visually via the overlay rendered inside <Composer> when isDragging. -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="relative flex h-[100dvh] w-full overflow-hidden font-sans text-foreground"
 	ondragenter={composerCtrl.handleDragEnter}
 	ondragover={composerCtrl.handleDragOver}
 	ondragleave={composerCtrl.handleDragLeave}
 	ondrop={composerCtrl.handleDrop}
-	role="region"
-	aria-label="Chat surface (drop images to attach)"
 >
 	<!-- Drag-and-drop overlay now lives inside <Composer /> below — drag
 	     handlers stay on this outer wrapper so the operator can drop
@@ -841,6 +844,11 @@
 	     MAIN CONVERSATIONAL CANVAS
 	     ═════════════════════════════════════════════════════════════════ -->
 	<main class="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden select-text">
+		<!-- Visually hidden page heading — satisfies the page-has-heading-one
+		     a11y requirement without imposing visible chrome. ChatHeader's
+		     <span>Sully</span> wordmark is intentionally not an <h1> because
+		     it's the persistent app identity, not the page heading. -->
+		<h1 class="sr-only">Sully chat</h1>
 		<!-- ═════════════════════════════════════════════════════════════════
 		     QUIET HEADER
 		     ═════════════════════════════════════════════════════════════════ -->

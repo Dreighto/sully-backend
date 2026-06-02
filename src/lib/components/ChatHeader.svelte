@@ -78,7 +78,7 @@
 		>
 			<img
 				src="{base}/sully-mark.png"
-				alt="Sully"
+				alt=""
 				class="h-8 w-8 shrink-0 drop-shadow-[0_0_10px_rgba(236,45,120,0.5)]"
 			/>
 			<span class="font-sans text-sm font-semibold tracking-tight text-zinc-100">Sully</span>
