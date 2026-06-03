@@ -98,14 +98,36 @@ workflows:
         script: |
           DBG="$CM_BUILD_DIR/signing-debug.log"; : > "$DBG"
           keychain initialize 2>&1 | tee -a "$DBG"
-          # --create makes the distribution cert + App Store profile if missing.
-          # --delete-stale-profiles regenerates the profile when it no longer
-          # matches the app's capabilities — needed after Push Notifications was
-          # enabled on the App ID (Apple doesn't auto-update existing profiles,
-          # so the old profile lacked aps-environment → archive failed "requires
-          # a provisioning profile with the Push Notifications feature").
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key @env:CERTIFICATE_PRIVATE_KEY --create --delete-stale-profiles 2>&1 | tee -a "$DBG"
+          # Signing-key resolution. The CERTIFICATE_PRIVATE_KEY that signed the
+          # May 30 build vanished from the Codemagic environment, so the old
+          # distribution cert is unusable (its private key is gone). We MINT a
+          # fresh key + let fetch-signing-files --create register a new
+          # distribution certificate from it, then PERSIST the key back to
+          # Codemagic via the API so every subsequent build reuses it (Apple
+          # caps distribution certs at 2-3 — we must not mint one per build).
+          if [ -n "${CERTIFICATE_PRIVATE_KEY:-}" ]; then
+            printf '%s' "$CERTIFICATE_PRIVATE_KEY" > /tmp/sign_key.pem
+            echo "using persisted CERTIFICATE_PRIVATE_KEY" | tee -a "$DBG"
+            MINTED=0
+          else
+            openssl genrsa -out /tmp/sign_key.pem 2048 2>>"$DBG"
+            echo "minted a fresh signing key (will persist after cert creation)" | tee -a "$DBG"
+            MINTED=1
+          fi
+          # --create registers a new distribution cert matching our key (none
+          # matches a fresh key) + the App Store profile WITH the push
+          # capability. --delete-stale-profiles clears the old non-push profile.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key @file:/tmp/sign_key.pem --create --delete-stale-profiles 2>&1 | tee -a "$DBG"
           keychain add-certificates 2>&1 | tee -a "$DBG"
+          # Persist the freshly-minted key as a SECURE app-level Codemagic var so
+          # future builds reuse this cert (no new cert per build). Needs the API
+          # token + app id passed in at trigger time; skipped if absent.
+          if [ "${MINTED:-0}" = "1" ] && [ -n "${CM_API_TOKEN:-}" ] && [ -n "${CM_APP_ID:-}" ]; then
+            BODY=$(python3 -c "import json,sys; print(json.dumps({'key':'CERTIFICATE_PRIVATE_KEY','value':open('/tmp/sign_key.pem').read(),'secure':True}))")
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "https://api.codemagic.io/apps/$CM_APP_ID/variables" \
+              -H "x-auth-token: $CM_API_TOKEN" -H "Content-Type: application/json" -d "$BODY")
+            echo "persist CERTIFICATE_PRIVATE_KEY -> HTTP $CODE" | tee -a "$DBG"
+          fi
           echo "=== provisioning profiles on disk ===" | tee -a "$DBG"
           ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>&1 | tee -a "$DBG" || true
           echo "=== keychain certificates ===" | tee -a "$DBG"
