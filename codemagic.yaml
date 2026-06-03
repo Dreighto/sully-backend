@@ -98,7 +98,28 @@ workflows:
         script: |
           DBG="$CM_BUILD_DIR/signing-debug.log"; : > "$DBG"
           keychain initialize 2>&1 | tee -a "$DBG"
-          # --create makes the distribution cert + App Store profile if missing.
+          # Push Notifications was enabled on the App ID AFTER the original App
+          # Store profile was generated. Apple does NOT auto-update existing
+          # profiles when a capability is added, so the cached profile lacks the
+          # aps-environment entitlement → archive fails "requires a provisioning
+          # profile with the Push Notifications feature". Delete the stale App
+          # Store profile(s) for this bundle so --create regenerates a fresh one
+          # that includes Push. Best-effort; falls through to the existing
+          # profile if listing/deleting hiccups.
+          echo "=== refreshing App Store profile (Push capability) ===" | tee -a "$DBG"
+          app-store-connect list-profiles --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY --json 2>>"$DBG" > /tmp/profiles.json || echo '[]' > /tmp/profiles.json
+          # Delete every IOS_APP_STORE profile whose name carries this bundle id
+          # (Codemagic names auto-created profiles with the bundle id), so the
+          # fetch below regenerates one that includes Push. jq ships on the
+          # Codemagic macOS image. Best-effort — never fail the build here.
+          jq -r --arg b "$BUNDLE_ID" '.[]? | select(.attributes.name | contains($b)) | .id' /tmp/profiles.json 2>/dev/null \
+            | while read -r pid; do
+                [ -n "$pid" ] && { echo "deleting stale profile $pid" | tee -a "$DBG"; \
+                  app-store-connect delete-profile "$pid" --certificate-key @env:CERTIFICATE_PRIVATE_KEY 2>&1 | tee -a "$DBG"; } || true
+              done || true
+          # --create makes the distribution cert + App Store profile if missing
+          # (now regenerated WITH the Push capability after the delete above).
           app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --certificate-key @env:CERTIFICATE_PRIVATE_KEY --create 2>&1 | tee -a "$DBG"
           keychain add-certificates 2>&1 | tee -a "$DBG"
           echo "=== provisioning profiles on disk ===" | tee -a "$DBG"
