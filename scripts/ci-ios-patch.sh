@@ -128,21 +128,22 @@ if [ -f "$APPDELEGATE" ]; then
     grep -q '^import AVFoundation' "$APPDELEGATE" \
       || perl -0pi -e 's/(import Capacitor)/$1\nimport AVFoundation/' "$APPDELEGATE"
     cat > /tmp/audio_session.swift <<'SWIFTEOF'
-        // Voice volume fix — make WKWebView audio obey the iPhone hardware volume
-        // and route to the main speaker, while keeping the mic available for
-        // voice mode. Re-injected every build because ios/ is regenerated fresh.
-        // mode = .default (NOT .voiceChat): .voiceChat marks this a VoIP "call",
-        // and iOS refuses to let the call volume reach absolute zero (it bumped
-        // the volume up a step at the bottom). Voice mode is strictly turn-based
-        // — the mic is released before TTS plays — so .voiceChat's echo
-        // cancellation isn't needed, and .default lets the volume go fully to
-        // zero AND keeps TTS full-quality (no voice-processing).
+        // Voice volume fix — use .playback, NOT .playAndRecord.
+        // Re-injected every build because ios/ is regenerated fresh.
+        // A persistent active .playAndRecord session was WRONG twice over: (1) it
+        // made iOS treat the volume as the non-mutable "call/communication" volume
+        // so it bounced up at the bottom and never reached zero (mode-independent —
+        // .voiceChat and .default both did it), and (2) it collided with WKWebView's
+        // OWN AVAudioSession management for getUserMedia, breaking talkback/mic
+        // capture. The app should NOT own a recording session — WKWebView does that
+        // for getUserMedia. .playback gives normal media behavior: TTS obeys the
+        // hardware volume INCLUDING zero, and the mic keeps working. No
+        // overrideOutputAudioPort (that's call-style routing) — iOS routes media to
+        // the speaker on its own.
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default,
-                                    options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)
-            try session.overrideOutputAudioPort(.speaker)
         } catch { print("[Sully] AVAudioSession config failed: \(error)") }
 SWIFTEOF
     perl -0777 -pi -e 'BEGIN{local $/; open(F,"<","/tmp/audio_session.swift") or die "no audio file"; $a=<F>; close F;} s/(didFinishLaunchingWithOptions[^\n]*-> Bool \{\n)/$1$a/' "$APPDELEGATE"
