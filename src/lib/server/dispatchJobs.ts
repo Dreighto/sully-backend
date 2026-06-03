@@ -389,15 +389,22 @@ export function markGatedProposal(traceId: string, proposal: ProposalPayload): v
  * null. The confirm flow consumes-or-expires it every turn, so at most one is
  * ever live (one-turn lifetime).
  */
-export function getPendingProposal(threadId: string): PendingProposal | null {
+export function getPendingProposal(threadId: string, maxAgeMinutes = 30): PendingProposal | null {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
 	const db = getDb();
 	try {
+		// Recency-bounded: a proposal older than maxAgeMinutes is ignored, so an
+		// errored turn between propose and a much-later "yes" can't fire a stale
+		// proposal (belt-and-suspenders alongside consume-or-expire-each-turn).
+		// datetime() normalizes the space/ISO timestamp forms.
 		const row = db
 			.prepare(
-				"SELECT trace_id, thread_id, result_ref FROM pending_jobs WHERE thread_id = ? AND status = 'gated' ORDER BY id DESC LIMIT 1"
+				`SELECT trace_id, thread_id, result_ref FROM pending_jobs
+				 WHERE thread_id = ? AND status = 'gated'
+				   AND datetime(started_at) > datetime('now', ?)
+				 ORDER BY id DESC LIMIT 1`
 			)
-			.get(threadId) as
+			.get(threadId, `-${Math.floor(maxAgeMinutes)} minutes`) as
 			| { trace_id: string; thread_id: string; result_ref: string | null }
 			| undefined;
 		if (!row || !row.result_ref) return null;

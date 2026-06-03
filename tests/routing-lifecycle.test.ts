@@ -128,6 +128,25 @@ describe('gated proposals (ask-before-dispatch)', () => {
 		const j = await import('$lib/server/dispatchJobs');
 		expect(j.getPendingProposal('empty-thread')).toBeNull();
 	});
+	it('getPendingProposal ignores a stale proposal beyond the recency window', async () => {
+		const j = await import('$lib/server/dispatchJobs');
+		j.proposeTask({
+			taskId: 'sully-stale',
+			threadId: 'tStale',
+			source: 'chat',
+			category: 'general',
+			brief: 'x'
+		});
+		j.markGatedProposal('sully-stale', proposal);
+		// Backdate it well beyond the window.
+		const db = new Database(DB);
+		db.prepare("UPDATE pending_jobs SET started_at = ? WHERE trace_id = 'sully-stale'").run(
+			'2000-01-01T00:00:00.000Z'
+		);
+		db.close();
+		expect(j.getPendingProposal('tStale')).toBeNull();
+		expect(j.getPendingProposal('tStale', 30)).toBeNull();
+	});
 	it('markGatedProposal leaves a dispatched job untouched (no clobber)', async () => {
 		const j = await import('$lib/server/dispatchJobs');
 		j.createJob({
