@@ -679,6 +679,7 @@
 		getSending: () => sending,
 		setSending: (v) => (sending = v),
 		unlockAudio: () => voice.unlockAudio(),
+		getAudioEl: () => audioEl,
 		runStream: (messageBody) => streamingCtrl.run(messageBody)
 	});
 

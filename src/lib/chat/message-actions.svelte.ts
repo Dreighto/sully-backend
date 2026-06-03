@@ -25,6 +25,13 @@ export interface MessageActionsDeps {
 	setSending: (v: boolean) => void;
 	/** iOS audio-unlock blip — the tap is the user gesture (voice controller). */
 	unlockAudio: () => void;
+	/**
+	 * The persistent, already-unlocked <audio> element (the one unlockAudio
+	 * blesses). Read-aloud MUST play through this same element — iOS only allows
+	 * playback on an element unlocked inside the user gesture, so a fresh
+	 * `new Audio()` is silently blocked. Returns null pre-mount (SSR/first paint).
+	 */
+	getAudioEl: () => HTMLAudioElement | null;
 	/** Re-stream a reply for the given prior-operator message body. */
 	runStream: (messageBody: string) => Promise<void>;
 }
@@ -58,6 +65,7 @@ export function createMessageActionsController(deps: MessageActionsDeps): Messag
 	let speakingId = $state<number | null>(null);
 	let speakLoadingId = $state<number | null>(null);
 	let readAloudAudio: HTMLAudioElement | null = null;
+	let readAloudUrl: string | null = null;
 	let readAloudAbort: AbortController | null = null;
 
 	async function copyMessage(m: ChatMessage) {
@@ -111,10 +119,18 @@ export function createMessageActionsController(deps: MessageActionsDeps): Messag
 		if (readAloudAudio) {
 			try {
 				readAloudAudio.pause();
+				// Detach our handlers but DON'T tear down the shared persistent
+				// element (voice mode reuses it) — just release it.
+				readAloudAudio.onended = null;
+				readAloudAudio.onerror = null;
 			} catch {
 				/* already stopped */
 			}
 			readAloudAudio = null;
+		}
+		if (readAloudUrl) {
+			URL.revokeObjectURL(readAloudUrl);
+			readAloudUrl = null;
 		}
 		speakingId = null;
 		speakLoadingId = null;
@@ -145,14 +161,28 @@ export function createMessageActionsController(deps: MessageActionsDeps): Messag
 				return;
 			}
 			const url = URL.createObjectURL(await resp.blob());
-			const audio = new Audio(url);
+			readAloudUrl = url;
+			// Play through the SHARED, already-unlocked <audio> element. iOS only
+			// permits playback on an element blessed inside the tap gesture (which
+			// unlockAudio() did above) — a fresh `new Audio()` here rejects on
+			// play() after the async TTS fetch (the "spinner then error" symptom).
+			// Fall back to a transient element only when the shared one isn't
+			// mounted (e.g. SSR/first paint), which is the non-iOS case anyway.
+			const audio = deps.getAudioEl() ?? new Audio();
+			audio.src = url;
 			readAloudAudio = audio;
+			const revoke = () => {
+				if (readAloudUrl === url) {
+					URL.revokeObjectURL(url);
+					readAloudUrl = null;
+				}
+			};
 			audio.onended = () => {
 				if (speakingId === m.id) speakingId = null;
-				URL.revokeObjectURL(url);
 				if (readAloudAudio === audio) readAloudAudio = null;
+				revoke();
 			};
-			audio.onerror = () => URL.revokeObjectURL(url);
+			audio.onerror = revoke;
 			speakLoadingId = null;
 			speakingId = m.id;
 			await audio.play();
