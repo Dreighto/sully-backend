@@ -123,12 +123,15 @@ workflows:
           # exists, nothing else is deleted. Non-fatal — a hiccup here must never
           # break an otherwise-working build. Issuer/key auth comes from the ASC
           # integration env vars the CLI reads automatically.
-          KEEP=$(app-store-connect certificates list --type IOS_DISTRIBUTION --certificate-key @file:/tmp/sign_key.pem --json 2>/dev/null | python3 -c 'import sys,json; print(" ".join(c.get("id","") for c in json.load(sys.stdin)))' 2>/dev/null || true)
-          echo "dist cert(s) matching our stable key (keep): ${KEEP:-<none yet>}" | tee -a "$DBG"
-          for CID in $(app-store-connect certificates list --type IOS_DISTRIBUTION --json 2>/dev/null | python3 -c 'import sys,json; print("\n".join(c.get("id","") for c in json.load(sys.stdin)))' 2>/dev/null || true); do
+          # Certs may be type DISTRIBUTION (Apple Distribution) or IOS_DISTRIBUTION
+          # (legacy) — fetch-signing-files matches both, so we must too. KEEP =
+          # cert(s) matching our stable key (any type); delete the rest.
+          KEEP=$(app-store-connect certificates list --certificate-key @file:/tmp/sign_key.pem --json 2>/dev/null | python3 -c 'import sys,json; print(" ".join(c.get("id","") for c in json.load(sys.stdin)))' 2>/dev/null || true)
+          echo "cert(s) matching our stable key (keep): ${KEEP:-<none yet>}" | tee -a "$DBG"
+          for CID in $(app-store-connect certificates list --json 2>/dev/null | python3 -c 'import sys,json; print("\n".join(c.get("id","") for c in json.load(sys.stdin) if (c.get("attributes") or {}).get("certificateType","") in ("DISTRIBUTION","IOS_DISTRIBUTION")))' 2>/dev/null || true); do
             case " $KEEP " in
-              *" $CID "*) echo "keeping dist cert $CID" | tee -a "$DBG" ;;
-              *) echo "revoking dead dist cert $CID" | tee -a "$DBG"; app-store-connect certificates delete "$CID" --ignore-not-found 2>&1 | tee -a "$DBG" || true ;;
+              *" $CID "*) echo "keeping cert $CID" | tee -a "$DBG" ;;
+              *) echo "revoking dead distribution cert $CID" | tee -a "$DBG"; app-store-connect certificates delete "$CID" --ignore-not-found 2>&1 | tee -a "$DBG" || true ;;
             esac
           done
           # --create registers a distribution cert matching our key (creating one
