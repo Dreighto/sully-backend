@@ -59,6 +59,45 @@ describe('daily cap', () => {
 		});
 		expect(checkDailyCap().allowed).toBe(false); // cap=2 reached
 	});
+
+	it('does NOT count self-handled (sully) turns or expired proposals toward the cap', async () => {
+		const j = await import('$lib/server/dispatchJobs');
+		const { checkDailyCap } = await import('$lib/server/dispatchBrakes');
+		const { bootstrapCompanionDb } = await import('$lib/server/bootstrap');
+		bootstrapCompanionDb();
+		// 5 self-handled chat/voice turns that reached 'synthesized' (worker='sully').
+		for (let i = 0; i < 5; i++) {
+			j.proposeTask({
+				taskId: `self-${i}`,
+				threadId: 't1',
+				source: 'chat',
+				category: 'general',
+				brief: 'x'
+			});
+			j.markClassified(`self-${i}`, 'chat', null);
+			j.markSelfHandled(`self-${i}`);
+		}
+		// 1 expired ask-before-dispatch proposal (worker set on the gated row, then aborted).
+		j.proposeTask({
+			taskId: 'prop-1',
+			threadId: 't1',
+			source: 'chat',
+			category: 'general',
+			brief: 'x'
+		});
+		j.markGatedProposal('prop-1', {
+			worker: 'claude-code',
+			category: 'code',
+			brief: 'x',
+			targetRepo: 'companion',
+			task: 'x'
+		});
+		j.markAborted('prop-1');
+		// None of the above are REAL worker dispatches — the cap (2) must see 0.
+		const r = checkDailyCap();
+		expect(r.used).toBe(0);
+		expect(r.allowed).toBe(true);
+	});
 });
 
 describe('429 circuit breaker', () => {

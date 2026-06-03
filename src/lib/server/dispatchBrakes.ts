@@ -26,15 +26,20 @@ export function checkDailyCap(): { allowed: boolean; used: number; cap: number }
 		const cutoff = new Date(
 			Date.now() - serverConfig.companionDispatchWindowMin * 60 * 1000
 		).toISOString();
-		// Count only REAL dispatches — exclude the pre-dispatch Task states
-		// (proposed/classified/gated/held) that now exist for every turn under
-		// the task-first architecture. Without this filter the daily cap would
-		// count pure-chat turns and trip far too early.
+		// Count only REAL worker dispatches. Under the task-first / ask-before-
+		// dispatch architecture EVERY turn mints a Task, and self-handled turns now
+		// reach 'synthesized' (and expired proposals reach 'aborted') — so a
+		// status-only filter over-counted pure chat/voice turns and tripped the cap
+		// far too early. A real dispatch is the only kind with worker != 'sully'
+		// (proposeTask sets 'sully'; createJob sets the actual worker). Also drop
+		// 'aborted' so an expired/declined proposal (worker set on the gated row,
+		// never sent) doesn't count.
 		const row = db
 			.prepare(
 				`SELECT COUNT(*) AS n FROM pending_jobs
 				 WHERE started_at >= ?
-				   AND status NOT IN ('proposed','classified','gated','held')`
+				   AND worker != 'sully'
+				   AND status NOT IN ('proposed','classified','gated','held','aborted')`
 			)
 			.get(cutoff) as { n: number };
 		return { allowed: row.n < cap, used: row.n, cap };
