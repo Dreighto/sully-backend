@@ -68,11 +68,16 @@ export async function runDeepThink(question: string): Promise<ConsultResult> {
 }
 
 /** consult_claude implementation: OAuth via CLI bridge first, billed api-key fallback. */
-export async function runConsultClaude(question: string, model?: string): Promise<ConsultResult> {
+export async function runConsultClaude(
+	question: string,
+	model?: string,
+	systemPrompt?: string
+): Promise<ConsultResult> {
 	const apiKey = process.env.ANTHROPIC_API_KEY || '';
 	const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
 	if (!apiKey && !oauthToken) return { error: 'Claude API not configured on this server' };
 	const usingModel = model || CLAUDE_CONSULT_MODEL;
+	const sysPrompt = systemPrompt || CONSULT_SYSTEM_PROMPT;
 
 	// OAuth path: raw Bearer against /v1/messages works for HAIKU ONLY —
 	// Sonnet/Opus return 429. Route OAuth through the Claude CLI bridge,
@@ -84,7 +89,7 @@ export async function runConsultClaude(question: string, model?: string): Promis
 			let cliError = '';
 			for await (const chunk of streamViaClaudeCLI({
 				model: usingModel,
-				systemPrompt: CONSULT_SYSTEM_PROMPT,
+				systemPrompt: sysPrompt,
 				userPrompt: question,
 				signal: AbortSignal.timeout(CONSULT_TIMEOUT_MS)
 			})) {
@@ -120,6 +125,7 @@ export async function runConsultClaude(question: string, model?: string): Promis
 			body: JSON.stringify({
 				model: usingModel,
 				max_tokens: 2048,
+				system: sysPrompt,
 				messages: [{ role: 'user', content: question }]
 			}),
 			signal: AbortSignal.timeout(CONSULT_TIMEOUT_MS)

@@ -10,17 +10,18 @@ import { getJob, markSynthesized } from './dispatchJobs';
 import { appIdentity } from './config';
 import { sendPushToAll } from './web_push';
 import { sendApnsToAll } from './apns';
+import { synthesizeWorkerResult } from './routing/synthesize';
 
 /** Empty string OR null/undefined thread_id → 'default'. (`??` alone misses ''.) */
 export function resolveCompletionThread(threadId: string | null | undefined): string {
 	return threadId && threadId.trim() ? threadId : 'default';
 }
 
-export function closeOutTask(
+export async function closeOutTask(
 	traceId: string,
 	outcome: 'done' | 'failed',
 	resultText: string
-): void {
+): Promise<void> {
 	const job = getJob(traceId);
 	// Idempotency guard: a retried/duplicate terminal callback (network hiccup,
 	// at-least-once delivery) must NOT post a second message or fire a second
@@ -34,8 +35,16 @@ export function closeOutTask(
 	if (hasTaskEvent(traceId, 'synthesis_completed')) return;
 	const threadId = resolveCompletionThread(job?.thread_id);
 	const text = resultText.trim();
-	const msg =
-		outcome === 'done'
+	// Real Sully synthesis (Phase 3): when there's a worker result, have Sully
+	// summarize it in plain English (Haiku) so the Captain can digest it without
+	// a follow-up. Best-effort — on any failure/timeout `summary` is null and we
+	// fall back to posting the raw result verbatim (nothing is lost).
+	const summary = text
+		? await synthesizeWorkerResult({ brief: job?.brief ?? '', result: text })
+		: null;
+	const msg = summary
+		? summary
+		: outcome === 'done'
 			? text
 				? `Done. Here's what came back:\n\n${text}`
 				: `That's finished — the task completed cleanly.`
