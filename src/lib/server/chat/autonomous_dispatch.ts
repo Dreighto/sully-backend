@@ -31,6 +31,8 @@ import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { mintTaskId } from '$lib/server/chat_turn';
 import { markSelfHandled } from '$lib/server/dispatchJobs';
+import { captureGateBlock } from '$lib/server/routing/captureGate';
+import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
 
 export interface AutonomousDispatchArgs {
@@ -90,6 +92,12 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 	const gate = args.gateBlock !== undefined ? validateGate(args.gateBlock ?? null) : null;
 	const category = gate && gate.ok ? gate.gate.category : 'code';
 	const brief = gate && gate.ok ? gate.gate.brief : userText.slice(0, 200);
+
+	// Capture the teacher's model-vote block (CLI path) for later OFFLINE scoring
+	// of the SULLY_GATE layer. Free, env-gated, best-effort — off by default.
+	if (args.gateBlock !== undefined && env.ROUTING_CAPTURE_GATES === '1') {
+		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
+	}
 
 	if (d.action === 'Dispatch' && d.worker) {
 		// taskId is the trace_id — dispatchToWorker → createJob upserts the
