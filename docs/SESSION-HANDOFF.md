@@ -16,7 +16,7 @@ Sully = dreighto's personal local-AI companion. SvelteKit (adapter-node, Svelte 
 
 ## Current state
 
-- `main` @ `f62fd3a`. **Tree clean except 8 pre-existing `docs/agy-audit-shots/*.png`** (AGY's, not ours — do NOT commit).
+- `main`. **The working tree carries several pre-existing, NOT-ours changes** from before this session — `docs/agy-audit-shots/*.png` (AGY's), some `peer-reviews/*` deletions, and `scripts/finetune/train_qlora.py`. Leave them; do NOT sweep them into a commit. Everything from this session's work IS committed + pushed.
 - **134/134 vitest pass · `svelte-check` 0 errors** (3 pre-existing warnings: DispatchChips, ImageLightbox a11y).
 - Services all **active**: `logueos-companion`, `logueos-companion-tts`, `logueos-companion-stt`.
 - **Pushing is fine — it does NOT fire an iOS build.** `ios-testflight.yml` is `workflow_dispatch`/`workflow_call` only. iOS builds go through **Codemagic** via `tools/trigger-ios-build.sh`. The new `.github/workflows/ci.yml` runs check+test on every push (the cheap gate; e2e/Lighthouse deferred per `project_ci_cost_decision_pending`).
