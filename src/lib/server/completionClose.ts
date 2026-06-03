@@ -5,7 +5,7 @@
 // post must happen even when the FSM rejects done→synthesized (e.g. a
 // completed callback that lands after an abort) — synthesis is best-effort.
 import { addChatMessage } from './chat';
-import { logTaskEvent, getActivityForTrace } from './chatActivity';
+import { logTaskEvent, hasTaskEvent } from './chatActivity';
 import { getJob, markSynthesized } from './dispatchJobs';
 import { appIdentity } from './config';
 import { sendPushToAll } from './web_push';
@@ -29,11 +29,9 @@ export function closeOutTask(
 	// failed path where markSynthesized can't flip the row, so the status check
 	// alone would miss it.
 	if (job?.status === 'synthesized') return;
-	try {
-		if (getActivityForTrace(traceId).some((e) => e.action === 'synthesis_completed')) return;
-	} catch {
-		/* best-effort — if the lookup fails, fall through and post */
-	}
+	// Unbounded existence check (not capped to the first N activity rows) so a
+	// late synthesis_completed event can't be missed → no duplicate post/push.
+	if (hasTaskEvent(traceId, 'synthesis_completed')) return;
 	const threadId = resolveCompletionThread(job?.thread_id);
 	const text = resultText.trim();
 	const msg =
@@ -56,19 +54,22 @@ export function closeOutTask(
 		} catch {
 			/* already terminal (aborted/failed/synthesized) — non-fatal */
 		}
+		// Push ONLY after the message persisted — otherwise a failed post would
+		// still ping "task done" with nothing in the thread to show. Both legs are
+		// self-gated (no-op until creds + a device exist).
+		const pushPayload = {
+			title: outcome === 'done' ? 'Sully — task done' : 'Sully — task needs you',
+			body:
+				outcome === 'done' ? 'Your task finished. Tap to see the result.' : 'A task hit a snag.',
+			url: appIdentity.pushDefaultUrl
+		};
+		void sendPushToAll(pushPayload).catch((e) =>
+			console.error('[completionClose] web push failed', e)
+		);
+		void sendApnsToAll(pushPayload).catch((e) =>
+			console.error('[completionClose] apns push failed', e)
+		);
 	} catch (e) {
 		console.error('[completionClose] message failed', e);
 	}
-	const pushPayload = {
-		title: outcome === 'done' ? 'Sully — task done' : 'Sully — task needs you',
-		body: outcome === 'done' ? 'Your task finished. Tap to see the result.' : 'A task hit a snag.',
-		url: appIdentity.pushDefaultUrl
-	};
-	// Two delivery legs, both self-gated (no-op until creds + a device exist).
-	void sendPushToAll(pushPayload).catch((e) =>
-		console.error('[completionClose] web push failed', e)
-	);
-	void sendApnsToAll(pushPayload).catch((e) =>
-		console.error('[completionClose] apns push failed', e)
-	);
 }

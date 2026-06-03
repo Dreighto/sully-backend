@@ -131,6 +131,11 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 			threadId,
 			{ taskId }
 		);
+		// If the dispatch was HELD (brakes/cap/dedupe/kill-switch), no worker took
+		// the turn — close the arc as self-handled rather than stranding the Task
+		// at proposed/classified (the reaper only scans dispatched/working, so it
+		// would never reach it).
+		if (!res.ok) markSelfHandled(taskId);
 		return;
 	}
 

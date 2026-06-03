@@ -133,6 +133,28 @@ export function getActivityForTrace(traceId: string, limit = 200): ChatActivity[
 }
 
 /**
+ * Existence check for a specific journaled event on a trace — unbounded (a
+ * COUNT, not capped to the first N rows like getActivityForTrace). Used by the
+ * completion idempotency guard so a late event beyond the row cap can't be
+ * missed.
+ */
+export function hasTaskEvent(traceId: string, action: string): boolean {
+	if (!traceId || !fs.existsSync(serverConfig.memoryDbPath)) return false;
+	const db = getDb();
+	try {
+		const row = db
+			.prepare('SELECT 1 FROM chat_activity WHERE trace_id = ? AND action = ? LIMIT 1')
+			.get(traceId, action) as { 1: number } | undefined;
+		return row !== undefined;
+	} catch (e: unknown) {
+		console.error('hasTaskEvent error:', e);
+		return false;
+	} finally {
+		db.close();
+	}
+}
+
+/**
  * Fetch the most recent activity row across the most-recent N traces. Used as
  * a "what worker activity exists right now" probe when the UI doesn't know
  * which trace_id to ask about.

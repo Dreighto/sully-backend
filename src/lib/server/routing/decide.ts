@@ -30,18 +30,26 @@ export interface RouteDecision {
 export function decide(input: DecideInput): RouteDecision {
 	const { userText, fromTool, gateBlock } = input;
 
-	// 1. Explicit @cc/@agy mention forces a dispatch, on any path/tier.
+	const vg = valueGate({ text: userText, fromTool });
+
+	// 1. Injection guard FIRST: tool-sourced / pasted content must NEVER auto-fire,
+	//    even when it contains an @cc/@agy mention (a pasted doc could smuggle one).
+	//    A qualifying tool turn becomes Ask (confirm with the operator); pure
+	//    pasted chatter is just Talk. This precedes ruleGate by design.
+	if (fromTool) {
+		return vg.qualifies
+			? { action: 'Ask', reason: 'tool-sourced' }
+			: { action: 'Talk', reason: vg.reason };
+	}
+
+	// 2. Explicit @cc/@agy mention from the operator forces a dispatch, any tier.
 	const forced = ruleGate(userText);
 	if (forced.forced && forced.worker) {
 		return { action: 'Dispatch', worker: forced.worker, reason: 'rule:mention' };
 	}
 
-	// 2. Deterministic objective-signal gate.
-	const vg = valueGate({ text: userText, fromTool });
+	// 3. Deterministic objective-signal gate.
 	if (!vg.qualifies) return { action: 'Talk', reason: vg.reason };
-
-	// 3. Injection guard — tool/pasted content must be confirmed, never auto-fired.
-	if (vg.forceAsk) return { action: 'Ask', reason: 'tool-sourced' };
 
 	// 3b. Safe fix A: never AUTONOMOUSLY fire mid-brainstorm. A qualifying request
 	//     while the thread is in planning/deep is likely "talking about it", not a

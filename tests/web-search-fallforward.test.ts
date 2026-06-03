@@ -5,15 +5,6 @@
 // just because Perplexity ran out.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// The web_search SUT (web_search.ts / web_usage.ts) reads its provider keys from
-// process.env at MODULE-LOAD time. Locally that's masked because .env populates
-// process.env, but a clean CI runner has no .env — so the keys must be present
-// the instant the module is first evaluated in this file's worker, NOT only in
-// beforeEach (whose timing relative to the first transitive import is not
-// guaranteed under CI's worker scheduling). Set them at top level too.
-process.env.PERPLEXITY_API_KEY = 'pplx-test-key';
-process.env.FIRECRAWL_API_KEY = 'fc-test-key';
-
 const STUB_ENV: Record<string, string> = {
 	LOGUEOS_APP_MODE: 'companion',
 	COMPANION_DEFAULT_MODEL: 'companion-v1:latest',
