@@ -100,14 +100,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			} catch (e) {
 				console.warn('activity markDone transition skipped:', e);
 			}
-			closeOutTask(trace_id, 'done', body.result_ref ?? '');
+			await closeOutTask(trace_id, 'done', body.result_ref ?? '');
 		} else if (action === 'failed') {
 			try {
 				markFailed(trace_id, body.target ?? null);
 			} catch (e) {
 				console.warn('activity markFailed transition skipped:', e);
 			}
-			closeOutTask(trace_id, 'failed', body.target ?? '');
+			await closeOutTask(trace_id, 'failed', body.target ?? '');
 		} else {
 			markWorking(trace_id, body.target ? `${action} ${body.target}` : action);
 		}
