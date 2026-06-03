@@ -111,7 +111,11 @@ export async function dispatchToWorker(input: DispatchInput): Promise<DispatchRe
 		const resp = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'X-W4-HMAC': signBody(body, secret) },
-			body
+			body,
+			// Bound the handoff so a wedged listener can't hold the caller open — the
+			// voice path now AWAITS this before closing the audio stream, so an
+			// unbounded fetch would hang the operator's mic. Timeout → markFailed.
+			signal: AbortSignal.timeout(5000)
 		});
 		if (!resp.ok) {
 			jobs.markFailed(input.traceId, `listener HTTP ${resp.status}`);

@@ -30,10 +30,19 @@ import { decide } from '$lib/server/routing/decide';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { mintTaskId } from '$lib/server/chat_turn';
-import { markSelfHandled } from '$lib/server/dispatchJobs';
+import {
+	markSelfHandled,
+	markGatedProposal,
+	getPendingProposal,
+	markAborted
+} from '$lib/server/dispatchJobs';
+import { isAffirmation } from '$lib/server/routing/confirm';
 import { captureGateBlock } from '$lib/server/routing/captureGate';
 import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
+
+/** Operator-facing worker label. */
+const workerLabel = (w: 'claude-code' | 'gemini'): string => (w === 'gemini' ? 'AGY' : 'CC');
 
 export interface AutonomousDispatchArgs {
 	/** The latest user message text (space-joined, trimmed). */
@@ -68,8 +77,10 @@ export interface AutonomousDispatchArgs {
  * `runMode.companionDispatchEnabled` guard. The CLI path additionally gates on
  * `!errored` BEFORE calling this (a half/failed gen should never dispatch).
  */
-export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Promise<void> {
-	if (!runMode.companionDispatchEnabled) return;
+export async function maybeAutonomousDispatch(
+	args: AutonomousDispatchArgs
+): Promise<{ spokenSuffix?: string }> {
+	if (!runMode.companionDispatchEnabled) return {};
 
 	const { userText, targetRepo, threadId } = args;
 	// Reuse the turn's Task id so the dispatch promotes the existing 'proposed'
@@ -77,21 +88,55 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 	// callers that don't pass one.
 	const taskId = args.taskId ?? mintTaskId();
 
-	// The single source of truth for the route — same function the scorecard
-	// grades, so test and production can't drift. gateBlock is undefined on the
-	// direct/local path (no model vote to strip).
-	const d = decide({
-		userText,
-		fromTool: false,
-		recentTier: args.tier,
-		gateBlock: args.gateBlock
-	});
+	// ── Ask-before-dispatch (Phase 2): a pending proposal on this thread is
+	//    consumed (operator said yes) or expired (operator moved on) EVERY turn,
+	//    so it lives only for the operator's immediate next reply — no stale-yes
+	//    hazard. dispatchToWorker upserts the 'gated' row to 'decided'. ──
+	const pending = getPendingProposal(threadId);
+	if (pending) {
+		if (isAffirmation(userText)) {
+			const res = await dispatchToWorker({
+				traceId: pending.taskId,
+				worker: pending.worker,
+				category: pending.category,
+				brief: pending.brief,
+				targetRepo: pending.targetRepo,
+				task: pending.task,
+				threadId
+			});
+			logTaskEvent(pending.taskId, 'gate_evaluated', {
+				action: 'Dispatch',
+				reason: 'operator-confirmed',
+				worker: pending.worker,
+				dispatched: res.ok,
+				held_reason: res.ok ? null : res.reason
+			});
+			const msg = res.ok
+				? `On it — handing that to ${workerLabel(pending.worker)} now. I'll drop the answer right here when it's ready.`
+				: `⚠️ Dispatch held: ${res.reason}.`;
+			addChatMessage('system', msg, res.ok ? pending.taskId : null, null, null, 'sent', threadId, {
+				taskId: pending.taskId
+			});
+			if (!res.ok) markSelfHandled(pending.taskId); // held → close the proposal
+			markSelfHandled(taskId); // the 'yes' turn itself is self-handled
+			return { spokenSuffix: msg };
+		}
+		// Operator moved on without confirming — expire the stale proposal, then
+		// process this turn normally below.
+		markAborted(pending.taskId);
+	}
 
-	// Preserve the teacher's brief/category when a valid gate block is present;
-	// otherwise fall back to a userText slice + 'code'.
+	// ── Normal routing decision — the single source of truth the scorecard
+	//    grades, so test and production can't drift. ──
+	const d = decide({ userText, fromTool: false, recentTier: args.tier, gateBlock: args.gateBlock });
+
+	// Preserve the teacher's brief/category/worker when a valid gate block is
+	// present; otherwise fall back to a userText slice + 'code' + claude-code.
 	const gate = args.gateBlock !== undefined ? validateGate(args.gateBlock ?? null) : null;
 	const category = gate && gate.ok ? gate.gate.category : 'code';
 	const brief = gate && gate.ok ? gate.gate.brief : userText.slice(0, 200);
+	const worker: 'claude-code' | 'gemini' =
+		d.worker ?? (gate && gate.ok ? gate.gate.worker : 'claude-code');
 
 	// Capture the teacher's model-vote block (CLI path) for later OFFLINE scoring
 	// of the SULLY_GATE layer. Free, env-gated, best-effort — off by default.
@@ -99,12 +144,11 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
 	}
 
-	if (d.action === 'Dispatch' && d.worker) {
-		// taskId is the trace_id — dispatchToWorker → createJob upserts the
-		// 'proposed'/'classified' row to 'decided'.
+	if (d.action === 'Dispatch') {
+		// Explicit @cc/@agy — the operator already commanded it, so fire now.
 		const res = await dispatchToWorker({
 			traceId: taskId,
-			worker: d.worker,
+			worker,
 			category,
 			brief,
 			targetRepo,
@@ -114,34 +158,37 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 		logTaskEvent(taskId, 'gate_evaluated', {
 			action: d.action,
 			reason: d.reason,
-			worker: d.worker,
+			worker,
 			category,
 			dispatched: res.ok,
 			held_reason: res.ok ? null : res.reason
 		});
-		addChatMessage(
-			'system',
-			res.ok
-				? `On it — this one needs some real digging, so give me a few minutes. I'll drop the answer right here the moment it's ready.`
-				: `⚠️ Dispatch held: ${res.reason}.`,
-			res.ok ? taskId : null,
-			null,
-			null,
-			'sent',
-			threadId,
-			{ taskId }
-		);
-		// If the dispatch was HELD (brakes/cap/dedupe/kill-switch), no worker took
-		// the turn — close the arc as self-handled rather than stranding the Task
-		// at proposed/classified (the reaper only scans dispatched/working, so it
-		// would never reach it).
+		const msg = res.ok
+			? `On it — this one needs some real digging, so give me a few minutes. I'll drop the answer right here the moment it's ready.`
+			: `⚠️ Dispatch held: ${res.reason}.`;
+		addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, { taskId });
 		if (!res.ok) markSelfHandled(taskId);
-		return;
+		return { spokenSuffix: msg };
 	}
 
-	// Talk or Ask — no worker fired this turn. Journal the routing decision (a
-	// training pair for v3: turn → reason → no-dispatch) AND close the
-	// self-handled arc so the Task reaches a real terminal (Phase 0 fix 0.3).
+	if (d.action === 'Ask') {
+		// Work intent WITHOUT an explicit @mention — propose and wait for the
+		// operator's confirmation rather than firing. Stored as a 'gated' proposal;
+		// the next turn's affirmation consumes it (handled at the top of this fn).
+		markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
+		const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Just say "yes".`;
+		addChatMessage('local', ask, taskId, null, null, 'sent', threadId, { taskId });
+		logTaskEvent(taskId, 'gate_evaluated', {
+			action: 'Ask',
+			reason: d.reason,
+			worker,
+			dispatched: false
+		});
+		return { spokenSuffix: ask };
+	}
+
+	// Talk — pure conversation; close the self-handled arc (Phase 0 fix 0.3).
 	logTaskEvent(taskId, 'gate_evaluated', { action: d.action, reason: d.reason, dispatched: false });
 	markSelfHandled(taskId);
+	return {};
 }

@@ -12,9 +12,9 @@ describe('decide — behavior-preserving extraction', () => {
 	it('plain chatter is Talk', () => {
 		expect(decide({ userText: 'hey how are you', fromTool: false }).action).toBe('Talk');
 	});
-	it('direct path: an objective work request dispatches to claude-code', () => {
+	it('direct path: an objective work request is PROPOSED (Ask), not auto-dispatched', () => {
 		const d = decide({ userText: 'add a settings page to the console', fromTool: false });
-		expect(d.action).toBe('Dispatch');
+		expect(d.action).toBe('Ask');
 		expect(d.worker).toBe('claude-code');
 	});
 	it('tool-sourced content never auto-dispatches (Ask)', () => {
@@ -25,7 +25,7 @@ describe('decide — behavior-preserving extraction', () => {
 		const d = decide({ userText: '@cc fix the build in the auth endpoint', fromTool: true });
 		expect(d.action).toBe('Ask');
 	});
-	it('CLI path: dispatches only when the model gate validates AND escalates', () => {
+	it('CLI path: an escalating model vote is PROPOSED (Ask), not auto-dispatched', () => {
 		const block =
 			'{"escalate":true,"worker":"claude-code","confidence":0.8,"category":"code","brief":"fix","est_scope":"small"}';
 		const d = decide({
@@ -33,7 +33,7 @@ describe('decide — behavior-preserving extraction', () => {
 			fromTool: false,
 			gateBlock: block
 		});
-		expect(d.action).toBe('Dispatch');
+		expect(d.action).toBe('Ask');
 	});
 	it('CLI path: a qualifying request with no model escalation is Talk', () => {
 		const d = decide({
@@ -45,28 +45,22 @@ describe('decide — behavior-preserving extraction', () => {
 	});
 });
 
-describe('decide — tier suppression (safe fix A)', () => {
-	it('a qualifying request during planning becomes Ask, not Dispatch', () => {
-		const d = decide({
-			userText: 'add a settings page to the console',
-			fromTool: false,
-			recentTier: 'planning'
-		});
-		expect(d.action).toBe('Ask');
+describe('decide — propose-everything policy (ask-before-dispatch)', () => {
+	it('qualifying work in ANY tier is proposed (Ask), never auto-fired', () => {
+		for (const tier of ['chat', 'planning', 'deep'] as const) {
+			const d = decide({
+				userText: 'add a settings page to the console',
+				fromTool: false,
+				recentTier: tier
+			});
+			expect(d.action, `tier ${tier}`).toBe('Ask');
+		}
 	});
-	it('@cc still dispatches even during planning', () => {
+	it('@cc still dispatches immediately, even during planning', () => {
 		const d = decide({
 			userText: '@cc add a settings page to the console',
 			fromTool: false,
 			recentTier: 'planning'
-		});
-		expect(d.action).toBe('Dispatch');
-	});
-	it('chat tier is unaffected (still dispatches)', () => {
-		const d = decide({
-			userText: 'add a settings page to the console',
-			fromTool: false,
-			recentTier: 'chat'
 		});
 		expect(d.action).toBe('Dispatch');
 	});

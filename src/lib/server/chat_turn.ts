@@ -15,7 +15,8 @@ import { classifyTier, type Tier } from './phase_classifier';
 import { getThreadState, upsertThreadTier, type ThreadState } from './thread_state';
 import { touchLastActivity, upsertThreadMeta } from './thread_meta';
 import { maybeUpdateThreadSummary } from './working_memory';
-import { proposeTask, markClassified } from './dispatchJobs';
+import { proposeTask, markClassified, expireProposalsForThread } from './dispatchJobs';
+import { isAffirmation } from './routing/confirm';
 import { logTaskEvent } from './chatActivity';
 
 /**
@@ -85,6 +86,14 @@ export function classifyAndTouchThread(args: {
 } {
 	upsertThreadMeta(args.threadId, {});
 	touchLastActivity(args.threadId);
+
+	// Ask-before-dispatch: a pending proposal lives ONLY for the operator's
+	// immediate next reply. Any turn that is NOT an affirmation expires it here —
+	// unconditionally, before the reply — so a proposal can't survive an errored
+	// or empty-reply turn (where maybeAutonomousDispatch is skipped) and later
+	// fire on an unrelated "yes". An affirmation turn leaves it for
+	// maybeAutonomousDispatch to consume (dispatch).
+	if (!isAffirmation(args.userText)) expireProposalsForThread(args.threadId);
 
 	const threadState = getThreadState(args.threadId);
 	const allForClassify = getChatMessages(30, args.threadId);

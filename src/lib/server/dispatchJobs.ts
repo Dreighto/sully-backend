@@ -348,6 +348,99 @@ export function markSelfHandled(traceId: string): void {
 	}
 }
 
+/** The dispatch payload stashed on a 'gated' proposal until the operator confirms. */
+export interface ProposalPayload {
+	worker: 'claude-code' | 'gemini';
+	category: string;
+	brief: string;
+	targetRepo: string;
+	task: string;
+}
+export interface PendingProposal extends ProposalPayload {
+	taskId: string;
+	threadId: string;
+}
+
+/**
+ * Phase 2 (ask-before-dispatch): mark a self-handled turn as a PROPOSAL awaiting
+ * the operator's confirmation. proposed/classified → 'gated'; the full dispatch
+ * payload is stashed in result_ref (unused until a worker completes) so the
+ * confirm turn can fire it verbatim. Status-guarded so it can't clobber a turn
+ * that already dispatched.
+ */
+export function markGatedProposal(traceId: string, proposal: ProposalPayload): void {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return;
+	const db = getDb();
+	try {
+		const row = db.prepare('SELECT status FROM pending_jobs WHERE trace_id = ?').get(traceId) as
+			| { status: JobStatus }
+			| undefined;
+		if (!row || (row.status !== 'proposed' && row.status !== 'classified')) return;
+		db.prepare(
+			"UPDATE pending_jobs SET status = 'gated', worker = ?, category = ?, brief = ?, result_ref = ?, current_activity = 'awaiting operator confirmation' WHERE trace_id = ?"
+		).run(proposal.worker, proposal.category, proposal.brief, JSON.stringify(proposal), traceId);
+	} finally {
+		db.close();
+	}
+}
+
+/**
+ * The most-recent pending proposal ('gated') on a thread, payload parsed, or
+ * null. The confirm flow consumes-or-expires it every turn, so at most one is
+ * ever live (one-turn lifetime).
+ */
+/**
+ * Expire (abort) ALL pending 'gated' proposals on a thread. Called UNCONDITIONALLY
+ * at the start of every non-affirmation turn so a proposal can't outlive the
+ * operator's immediate next reply — even on a turn that errors or yields an empty
+ * reply (where maybeAutonomousDispatch is skipped). Also clears any stacked/
+ * abandoned proposals so gated rows never leak. Returns how many it expired.
+ */
+export function expireProposalsForThread(threadId: string): number {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return 0;
+	const db = getDb();
+	try {
+		const info = db
+			.prepare(
+				"UPDATE pending_jobs SET status = 'aborted', current_activity = 'proposal expired (operator moved on)', ended_at = ? WHERE thread_id = ? AND status = 'gated'"
+			)
+			.run(new Date().toISOString(), threadId);
+		return info.changes;
+	} finally {
+		db.close();
+	}
+}
+
+export function getPendingProposal(threadId: string, maxAgeMinutes = 10): PendingProposal | null {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
+	const db = getDb();
+	try {
+		// Recency-bounded: a proposal older than maxAgeMinutes is ignored, so an
+		// errored turn between propose and a much-later "yes" can't fire a stale
+		// proposal (belt-and-suspenders alongside consume-or-expire-each-turn).
+		// datetime() normalizes the space/ISO timestamp forms.
+		const row = db
+			.prepare(
+				`SELECT trace_id, thread_id, result_ref FROM pending_jobs
+				 WHERE thread_id = ? AND status = 'gated'
+				   AND datetime(started_at) > datetime('now', ?)
+				 ORDER BY id DESC LIMIT 1`
+			)
+			.get(threadId, `-${Math.floor(maxAgeMinutes)} minutes`) as
+			| { trace_id: string; thread_id: string; result_ref: string | null }
+			| undefined;
+		if (!row || !row.result_ref) return null;
+		try {
+			const p = JSON.parse(row.result_ref) as ProposalPayload;
+			return { taskId: row.trace_id, threadId: row.thread_id, ...p };
+		} catch {
+			return null;
+		}
+	} finally {
+		db.close();
+	}
+}
+
 /** All Task rows for a thread, newest first. Reader-API support (turn_replay). */
 export function getJobsForThread(threadId: string, limit = 50): PendingJob[] {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];

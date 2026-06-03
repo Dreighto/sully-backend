@@ -38,11 +38,12 @@ export function decide(input: DecideInput): RouteDecision {
 	//    pasted chatter is just Talk. This precedes ruleGate by design.
 	if (fromTool) {
 		return vg.qualifies
-			? { action: 'Ask', reason: 'tool-sourced' }
+			? { action: 'Ask', worker: 'claude-code', reason: 'tool-sourced' }
 			: { action: 'Talk', reason: vg.reason };
 	}
 
-	// 2. Explicit @cc/@agy mention from the operator forces a dispatch, any tier.
+	// 2. Explicit @cc/@agy mention from the operator is a direct command — the
+	//    ONLY path that dispatches immediately, no confirmation needed.
 	const forced = ruleGate(userText);
 	if (forced.forced && forced.worker) {
 		return { action: 'Dispatch', worker: forced.worker, reason: 'rule:mention' };
@@ -51,24 +52,19 @@ export function decide(input: DecideInput): RouteDecision {
 	// 3. Deterministic objective-signal gate.
 	if (!vg.qualifies) return { action: 'Talk', reason: vg.reason };
 
-	// 3b. Safe fix A: never AUTONOMOUSLY fire mid-brainstorm. A qualifying request
-	//     while the thread is in planning/deep is likely "talking about it", not a
-	//     work order — surface it as Ask (Phase 2 turns this into a real prompt;
-	//     today the caller maps Ask → do-not-fire). @cc already short-circuited above.
-	if (input.recentTier === 'planning' || input.recentTier === 'deep') {
-		return { action: 'Ask', reason: 'qualifies-but-brainstorm-tier' };
-	}
-
-	// 4. Model-vote layer (CLI path only). When a gate block is present it MUST
-	//    validate + escalate; otherwise the qualifying turn is talked, not fired.
+	// 4. Model-vote layer (CLI path only). A gate block that does NOT escalate is
+	//    the teacher saying "not real work" → Talk. (Tier no longer gates the
+	//    Ask/Dispatch choice — under ask-before-dispatch EVERY qualifying turn
+	//    that isn't an explicit @mention is PROPOSED, never auto-fired.)
 	if (gateBlock !== undefined) {
 		const gate = validateGate(gateBlock ?? null);
 		if (!(gate.ok && gate.gate.escalate)) {
 			return { action: 'Talk', reason: 'model-vote-no-escalate' };
 		}
-		return { action: 'Dispatch', worker: gate.gate.worker, reason: 'qualifies+model-vote' };
+		return { action: 'Ask', worker: gate.gate.worker, reason: 'work-intent+model-vote' };
 	}
 
-	// 5. Direct/local path — deterministic qualification alone decides.
-	return { action: 'Dispatch', worker: 'claude-code', reason: 'qualifies' };
+	// 5. Qualifying work intent without an explicit @mention → PROPOSE (ask first),
+	//    never auto-dispatch. The operator confirms with a natural "yes".
+	return { action: 'Ask', worker: 'claude-code', reason: 'work-intent' };
 }

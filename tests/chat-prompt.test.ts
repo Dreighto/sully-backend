@@ -41,10 +41,32 @@ describe('buildSystemPrompt — companion mode', () => {
 		// Console-mode artifacts must NOT appear here
 		expect(out).not.toMatch(/LogueOS Console/);
 		expect(out).not.toMatch(/inside LogueOS/);
-		// She's the hub — dispatches code work to CC/AGY
-		expect(out).toMatch(/hand code off/);
+		// She's the hub — hands work to CC/AGY (she does NOT do it herself)
+		expect(out).toMatch(/hand it off/);
 		expect(out).toMatch(/@cc/);
 		expect(out).toMatch(/Active workspace: companion/);
+	});
+
+	it('carries the anti-confabulation guardrail (no claiming work she did not dispatch)', async () => {
+		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
+		const { buildSystemPrompt } = await import('../src/lib/server/chat_prompt');
+		const out = await buildSystemPrompt({
+			targetRepo: 'companion',
+			currentTier: 'chat',
+			threadId: 't1'
+		});
+		expect(out).toMatch(/do NOT do the work yourself/);
+		expect(out).toMatch(/unless a worker was ACTUALLY dispatched/);
+		expect(out).toMatch(/invent progress/);
+	});
+
+	it('voice prompt also carries the anti-confabulation guardrail', async () => {
+		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
+		const { buildVoiceSystemPrompt } = await import('../src/lib/server/chat_prompt');
+		const out = await buildVoiceSystemPrompt('t1');
+		expect(out).toMatch(/do NOT do work yourself/);
+		expect(out).toMatch(/never invent progress or findings/);
+		expect(out).toMatch(/You are Sully/);
 	});
 
 	it('appends the sensitive-tools clause only when allowSensitive=true', async () => {

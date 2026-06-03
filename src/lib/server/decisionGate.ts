@@ -25,12 +25,16 @@ const FILE_PATH_RE = /\b[\w./-]+\.(ts|tsx|js|svelte|py|json|md|css|sql|sh|yaml|y
 // imperative+target with no real target, which is the kind of vague request
 // we now want Sully to talk through rather than blind-dispatch.
 const CODE_KEYWORD_RE =
-	/\b(function|class|import|export|bug|stack ?trace|compile error|build fails?|test fails?|migration|endpoint|component)\b/i;
+	/\b(function|class|import|export|bug|stack ?trace|compile error|build fails?|test fails?|migration|endpoint|component|directory|folder|codebase|repo|repository|files?)\b/i;
 const REPO_RE = /\b(miru|orchestrator|kernel|console|nasdoom|companion)\b/i;
 // Strong imperatives clearly name a work action; pairing with a repo OR code
-// keyword is enough to qualify.
+// keyword is enough to qualify. Includes investigative verbs (audit/run/review/
+// scan/inspect/check) — broadened 2026-06-03 after a voice "run an audit on the
+// companion directory" slipped through as chatter. Under ask-before-dispatch a
+// false positive is CHEAP (Sully just ASKS "want me to run it?"), so the gate
+// can afford to be generous about recognizing work intent.
 const STRONG_IMPERATIVE_RE =
-	/\b(fix|add|implement|refactor|create|remove|migrate|debug|investigate|write)\b/i;
+	/\b(fix|add|implement|refactor|create|remove|migrate|debug|investigate|write|audit|run|review|scan|analy[sz]e|inspect|examine|check)\b/i;
 // Soft imperatives double as everyday verbs ("update the news", "build a
 // relationship", "wire up X") — they require a CODE/FILE target, not a bare repo.
 const SOFT_IMPERATIVE_RE = /\b(update|build|wire)\b/i;

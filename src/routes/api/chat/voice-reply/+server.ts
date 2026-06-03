@@ -137,17 +137,24 @@ export const POST: RequestHandler = async ({ request }) => {
 						provider: 'local',
 						latencyMs: Date.now() - turnStartedAt
 					});
-					// Voice can dispatch workers too — same gates as text. Fire-and-
-					// forget so it never blocks closing the audio stream.
-					void maybeAutonomousDispatch({
-						userText: text,
-						targetRepo,
-						threadId,
-						taskId,
-						tier: currentTier
-					}).catch((e) => {
+					// Voice can dispatch workers too — same gates as text. AWAITED here
+					// (unlike the old fire-and-forget) so an ask-before-dispatch PROPOSAL
+					// (or an "on it" / "held" notice) gets SPOKEN as a trailing sentence
+					// before the audio stream closes — otherwise the operator would never
+					// hear "Want me to run it?" in voice mode. A propose is a cheap DB
+					// write; a confirm/@cc is a fast local-tailnet listener POST.
+					try {
+						const r = await maybeAutonomousDispatch({
+							userText: text,
+							targetRepo,
+							threadId,
+							taskId,
+							tier: currentTier
+						});
+						if (r?.spokenSuffix) controller.enqueue(enc.encode(' ' + r.spokenSuffix));
+					} catch (e) {
 						console.error('[voice-reply] autonomous-dispatch failed', e);
-					});
+					}
 				}
 				try {
 					controller.close();
