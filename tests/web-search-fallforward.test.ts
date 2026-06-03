@@ -23,6 +23,10 @@ beforeEach(() => {
 	vi.resetModules();
 	process.env.PERPLEXITY_API_KEY = 'pplx-test-key';
 	process.env.FIRECRAWL_API_KEY = 'fc-test-key';
+	// The legacy fall-forward suite tests the Perplexity→Firecrawl chain. Ollama
+	// is the new primary; unset its key here so these cases exercise the chain
+	// they were written for. The Ollama-primary case sets it explicitly.
+	delete process.env.OLLAMA_API_KEY;
 });
 
 // Build a fetch stub that branches on URL.
@@ -59,10 +63,10 @@ describe('web_search dual-source', () => {
 		const { getSensitiveTools } = await import('../src/lib/server/companion_tools');
 		const tools = getSensitiveTools();
 		const exec = tools.web_search.execute!;
-		const out = (await exec(
-			{ query: 'who is OpenAI CEO', limit: 5 },
-			{} as never
-		)) as { provider?: string; answer?: string };
+		const out = (await exec({ query: 'who is OpenAI CEO', limit: 5 }, {} as never)) as {
+			provider?: string;
+			answer?: string;
+		};
 		expect(out.provider).toBe('perplexity');
 		expect(out.answer).toMatch(/Sam Altman/);
 		expect(fc).not.toHaveBeenCalled();
@@ -73,13 +77,14 @@ describe('web_search dual-source', () => {
 			'fetch',
 			makeFetchStub({
 				'api.perplexity.ai': () =>
-					new Response(
-						JSON.stringify({ error: { message: 'insufficient_quota', code: 401 } }),
-						{ status: 401 }
-					),
+					new Response(JSON.stringify({ error: { message: 'insufficient_quota', code: 401 } }), {
+						status: 401
+					}),
 				'api.firecrawl.dev': () =>
 					new Response(
-						JSON.stringify({ data: { web: [{ title: 'Wiki', url: 'https://w', description: 'snip' }] } }),
+						JSON.stringify({
+							data: { web: [{ title: 'Wiki', url: 'https://w', description: 'snip' }] }
+						}),
 						{ status: 200 }
 					)
 			})
@@ -87,13 +92,14 @@ describe('web_search dual-source', () => {
 		const { getSensitiveTools } = await import('../src/lib/server/companion_tools');
 		const tools = getSensitiveTools();
 		const exec = tools.web_search.execute!;
-		const out = (await exec(
-			{ query: 'X', limit: 5 },
-			{} as never
-		)) as { provider?: string; results?: unknown[]; primaryFailed?: string };
+		const out = (await exec({ query: 'X', limit: 5 }, {} as never)) as {
+			provider?: string;
+			results?: unknown[];
+			priorFailures?: string[];
+		};
 		expect(out.provider).toBe('firecrawl');
 		expect(out.results?.length).toBe(1);
-		expect(out.primaryFailed).toMatch(/401/);
+		expect((out.priorFailures ?? []).join(' ')).toMatch(/401/);
 	});
 
 	it('falls forward on Perplexity 429 (rate limit) and 503 (server error)', async () => {
@@ -104,17 +110,16 @@ describe('web_search dual-source', () => {
 					'api.perplexity.ai': () => new Response('err', { status }),
 					'api.firecrawl.dev': () =>
 						new Response(
-							JSON.stringify({ data: { web: [{ title: 'T', url: 'https://u', description: 's' }] } }),
+							JSON.stringify({
+								data: { web: [{ title: 'T', url: 'https://u', description: 's' }] }
+							}),
 							{ status: 200 }
 						)
 				})
 			);
 			const { getSensitiveTools } = await import('../src/lib/server/companion_tools');
 			const exec = getSensitiveTools().web_search.execute!;
-			const out = (await exec(
-				{ query: 'q', limit: 5 },
-				{} as never
-			)) as { provider?: string };
+			const out = (await exec({ query: 'q', limit: 5 }, {} as never)) as { provider?: string };
 			expect(out.provider, `${status} should fall forward`).toBe('firecrawl');
 			vi.resetModules();
 		}
@@ -131,13 +136,42 @@ describe('web_search dual-source', () => {
 		const { getSensitiveTools } = await import('../src/lib/server/companion_tools');
 		const tools = getSensitiveTools();
 		const exec = tools.web_search.execute!;
-		const out = (await exec(
-			{ query: 'x', limit: 5 },
-			{} as never
-		)) as { error?: string };
-		expect(out.error).toMatch(/both providers failed/);
+		const out = (await exec({ query: 'x', limit: 5 }, {} as never)) as { error?: string };
+		expect(out.error).toMatch(/web search failed/);
 		expect(out.error).toMatch(/perplexity.*401/);
 		expect(out.error).toMatch(/firecrawl.*503/);
+	});
+
+	it('uses Ollama Pro as the primary provider when its key is set', async () => {
+		process.env.OLLAMA_API_KEY = 'ollama-test-key';
+		const pplx = vi.fn();
+		vi.stubGlobal(
+			'fetch',
+			makeFetchStub({
+				'ollama.com/api/web_search': () =>
+					new Response(
+						JSON.stringify({
+							results: [
+								{ title: 'Ollama Docs', url: 'https://ollama.com', content: 'full page text' }
+							]
+						}),
+						{ status: 200 }
+					),
+				'api.perplexity.ai': () => {
+					pplx();
+					return new Response('should not be called', { status: 500 });
+				}
+			})
+		);
+		const { getSensitiveTools } = await import('../src/lib/server/companion_tools');
+		const exec = getSensitiveTools().web_search.execute!;
+		const out = (await exec({ query: 'ollama web search', limit: 3 }, {} as never)) as {
+			provider?: string;
+			results?: { snippet?: string }[];
+		};
+		expect(out.provider).toBe('ollama');
+		expect(out.results?.[0].snippet).toMatch(/full page text/);
+		expect(pplx).not.toHaveBeenCalled();
 	});
 
 	it('refuses queries containing secret-shaped strings (no provider call)', async () => {

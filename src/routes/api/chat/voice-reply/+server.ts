@@ -22,8 +22,8 @@ import {
 } from '$lib/server/chat_turn';
 import { detectTargetRepo } from '$lib/server/chat/stream_prepare';
 import { maybeAutonomousDispatch } from '$lib/server/chat/autonomous_dispatch';
+import { runVoiceToolLoop } from '$lib/server/chat/voice_tools';
 
-const OLLAMA = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 // Voice model id resolved via the shared catalog so a "change the default voice
 // model" tweak lands in one place (model_catalog.ts), not three (PR D).
 const VOICE_MODEL = resolveVoiceModel();
@@ -82,59 +82,36 @@ export const POST: RequestHandler = async ({ request }) => {
 	const voiceSystem = await buildVoiceSystemPrompt(threadId, text);
 	const chatMessages = [{ role: 'system', content: voiceSystem }, ...turns];
 
-	let upstream: Response;
-	try {
-		upstream = await fetch(`${OLLAMA}/api/chat`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				model: VOICE_MODEL,
-				messages: chatMessages,
-				stream: true,
-				// Keep the model resident across conversational pauses (pre-warmed on
-				// Voice Mode entry); it still unloads after the session frees the GPU.
-				keep_alive: VOICE_KEEP_ALIVE,
-				options: { num_ctx: 8192 }
-			}),
-			signal: request.signal
-		});
-	} catch {
-		return new Response('voice model unreachable', { status: 502 });
-	}
-	if (!upstream.ok || !upstream.body) return new Response('voice model error', { status: 502 });
-
 	let full = '';
 	const enc = new TextEncoder();
 	const stream = new ReadableStream({
 		async start(controller) {
-			const reader = upstream.body!.getReader();
-			const dec = new TextDecoder();
-			let buf = '';
 			try {
-				for (;;) {
-					const { value, done } = await reader.read();
-					if (done) break;
-					buf += dec.decode(value, { stream: true });
-					let nl: number;
-					while ((nl = buf.indexOf('\n')) >= 0) {
-						const line = buf.slice(0, nl).trim();
-						buf = buf.slice(nl + 1);
-						if (!line) continue;
-						try {
-							const tok = JSON.parse(line)?.message?.content || '';
-							if (tok) {
-								full += tok;
-								controller.enqueue(enc.encode(tok));
-							}
-						} catch {
-							/* skip non-JSON keepalive lines */
-						}
-					}
+				// Tool-calling loop: the voice model can web_search / web_fetch via
+				// the operator's Ollama Pro key, same tools text Sully has. Resolves
+				// non-streaming (we must inspect tool_calls cleanly), then we emit
+				// the final spoken answer below. For a normal no-tool turn this is a
+				// single inference and returns immediately. Tools auto-disable if
+				// OLLAMA_API_KEY is absent.
+				const { content } = await runVoiceToolLoop({
+					model: VOICE_MODEL,
+					messages: chatMessages,
+					keepAlive: VOICE_KEEP_ALIVE,
+					numCtx: 8192,
+					signal: request.signal,
+					taskId
+				});
+				full = content;
+				// Emit the final answer sentence-by-sentence so the client transcript
+				// + per-sentence TTS still get incremental input.
+				for (const piece of full.match(/[^.!?]+[.!?]+|\S[^.!?]*$/g) ?? [full]) {
+					if (piece.trim()) controller.enqueue(enc.encode(piece));
 				}
-			} catch {
-				/* upstream aborted (barge-in) or dropped — fall through to persist what we have */
+			} catch (e) {
+				// barge-in (client abort) or model error — fall through to persist
+				// whatever we have (usually nothing).
+				console.error('[voice-reply] tool loop failed', e);
 			} finally {
-				reader.releaseLock();
 				if (full.trim()) {
 					// Persist the spoken reply through the shared turn service so it
 					// carries task_id + forensics (model/provider/latency) exactly

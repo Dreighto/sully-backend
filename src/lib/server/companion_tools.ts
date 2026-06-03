@@ -44,12 +44,15 @@ import {
 	WEB_TIMEOUT_MS,
 	MAX_WEB_CHARS,
 	UNTRUSTED_NOTE,
+	searchOllama,
+	fetchOllama,
 	searchPerplexity,
 	searchFirecrawl,
 	shouldFallForward,
 	wouldExceedBudget,
 	getTodayWebSpendCents,
 	dailyBudgetCents,
+	OLLAMA_API_KEY,
 	type WebSearchOk,
 	type WebSearchFail
 } from './chat/web_search';
@@ -133,45 +136,44 @@ export function getSensitiveTools() {
 			execute: async ({ query, limit }: { query: string; limit?: number }) => {
 				if (carriesSecret(query))
 					return { error: 'refused: the query contains a secret-like string' };
-				if (!PERPLEXITY_KEY && !FIRECRAWL_KEY) {
+				if (!OLLAMA_API_KEY && !PERPLEXITY_KEY && !FIRECRAWL_KEY) {
 					return { error: 'web search is not configured on this server' };
 				}
 				const cap = Math.min(Math.max(limit ?? 5, 1), 10);
 
-				// Daily-spend gate: if today's Perplexity spend is already at the
-				// operator-set cap (default 50¢/day), skip Perplexity entirely and
-				// go straight to Firecrawl (much cheaper raw search). The cap is
-				// the worst-case ceiling for the API key — Firecrawl is essentially
-				// free at this volume.
-				const overBudget = PERPLEXITY_KEY && wouldExceedBudget();
+				// Provider chain (operator has Ollama Pro — flat-rate, primary):
+				//   1. Ollama Pro hosted web_search  (no per-query budget)
+				//   2. Perplexity                     (cited answers; daily-budget gated)
+				//   3. Firecrawl                      (cheap raw fallback)
+				// Same fall-forward shape as llm_router: try next on 401/429/5xx.
+				const failures: string[] = [];
 
-				// Try Perplexity first (cited answers, lower-noise output). Fall
-				// forward to Firecrawl on quota/rate/5xx — same OAuth-first chain
-				// shape as llm_router. If over budget or Perplexity isn't configured,
-				// go straight to Firecrawl.
-				let primary: WebSearchOk | WebSearchFail =
-					PERPLEXITY_KEY && !overBudget
-						? await searchPerplexity(query, cap)
-						: {
-								error: overBudget
-									? `daily web budget hit (${getTodayWebSpendCents().toFixed(2)}¢ of ${dailyBudgetCents().toFixed(0)}¢)`
-									: 'perplexity not configured',
-								status: 0
-							};
-				if ('results' in primary) {
-					return { query, note: UNTRUSTED_NOTE, ...primary };
+				if (OLLAMA_API_KEY) {
+					const r = await searchOllama(query, cap);
+					if ('results' in r) return { query, note: UNTRUSTED_NOTE, ...r };
+					failures.push(`ollama: ${r.error}`);
 				}
-				if (FIRECRAWL_KEY && (primary.status === 0 || shouldFallForward(primary.status))) {
-					const fallback = await searchFirecrawl(query, cap);
-					if ('results' in fallback) {
-						return { query, note: UNTRUSTED_NOTE, ...fallback, primaryFailed: primary.error };
+
+				const overBudget = PERPLEXITY_KEY && wouldExceedBudget();
+				if (PERPLEXITY_KEY && !overBudget) {
+					const r = await searchPerplexity(query, cap);
+					if ('results' in r) return { query, note: UNTRUSTED_NOTE, ...r };
+					failures.push(`perplexity: ${r.error}`);
+				} else if (overBudget) {
+					failures.push(
+						`perplexity: daily web budget hit (${getTodayWebSpendCents().toFixed(2)}¢ of ${dailyBudgetCents().toFixed(0)}¢)`
+					);
+				}
+
+				if (FIRECRAWL_KEY) {
+					const r = await searchFirecrawl(query, cap);
+					if ('results' in r) {
+						return { query, note: UNTRUSTED_NOTE, ...r, priorFailures: failures };
 					}
-					return {
-						error: `both providers failed (perplexity: ${primary.error}; firecrawl: ${fallback.error})`,
-						query
-					};
+					failures.push(`firecrawl: ${r.error}`);
 				}
-				return { error: `search failed (perplexity: ${primary.error})`, query };
+
+				return { error: `web search failed (${failures.join('; ')})`, query };
 			}
 		}),
 
@@ -182,8 +184,17 @@ export function getSensitiveTools() {
 				url: z.string().url().describe('The page URL to fetch')
 			}),
 			execute: async ({ url }: { url: string }) => {
-				if (!FIRECRAWL_KEY) return { error: 'web fetch is not configured on this server' };
+				if (!OLLAMA_API_KEY && !FIRECRAWL_KEY)
+					return { error: 'web fetch is not configured on this server' };
 				if (carriesSecret(url)) return { error: 'refused: the URL contains a secret-like string' };
+
+				// Ollama Pro web_fetch first (flat-rate); Firecrawl scrape fallback.
+				if (OLLAMA_API_KEY) {
+					const r = await fetchOllama(url);
+					if ('content' in r) return { url, note: UNTRUSTED_NOTE, content: r.content };
+					// fall through to Firecrawl on any Ollama failure
+				}
+				if (!FIRECRAWL_KEY) return { error: 'web fetch failed (ollama only, and it errored)', url };
 				try {
 					const resp = await fetch('https://api.firecrawl.dev/v2/scrape', {
 						method: 'POST',

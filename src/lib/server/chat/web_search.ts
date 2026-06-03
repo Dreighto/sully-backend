@@ -23,6 +23,10 @@ export const UNTRUSTED_NOTE =
 
 export const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY || '';
 export const PERPLEXITY_KEY = process.env.PERPLEXITY_API_KEY || '';
+// Ollama Pro hosted web_search/web_fetch (ollama.com/api/*). The operator's
+// Pro subscription — primary search backend going forward.
+export const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY || '';
+const OLLAMA_WEB_BASE = 'https://ollama.com/api';
 
 // Re-export the budget surface so the web_search tool sources its budget state
 // from this module (single import site for the web layer).
@@ -36,10 +40,71 @@ export { dailyBudgetCents, getTodayWebSpendCents, wouldExceedBudget };
 export type WebSearchResult = { title?: string; url?: string; snippet?: string };
 export type WebSearchOk = {
 	results: WebSearchResult[];
-	provider: 'perplexity' | 'firecrawl';
+	provider: 'ollama' | 'perplexity' | 'firecrawl';
 	answer?: string;
 };
 export type WebSearchFail = { error: string; status: number };
+
+/**
+ * Ollama Pro hosted web_search (ollama.com/api/web_search). The operator's
+ * primary search backend — flat-rate under the Pro subscription, so no
+ * per-query budget gate (unlike Perplexity). Returns {results:[{title,url,
+ * content}]}; we map content→snippet (trimmed) to match the shared shape.
+ */
+export async function searchOllama(
+	query: string,
+	limit: number
+): Promise<WebSearchOk | WebSearchFail> {
+	if (!OLLAMA_API_KEY) return { error: 'ollama web_search not configured', status: 0 };
+	try {
+		const resp = await fetch(`${OLLAMA_WEB_BASE}/web_search`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${OLLAMA_API_KEY}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ query, max_results: limit }),
+			signal: AbortSignal.timeout(WEB_TIMEOUT_MS)
+		});
+		if (!resp.ok) return { error: `HTTP ${resp.status}`, status: resp.status };
+		const data = await resp.json();
+		const raw = Array.isArray(data?.results) ? data.results : [];
+		const results: WebSearchResult[] = raw
+			.slice(0, limit)
+			.map((r: { title?: string; url?: string; content?: string }) => ({
+				title: r.title,
+				url: r.url,
+				// Ollama returns full page content per result; trim to a snippet so
+				// the tool payload stays small. web_fetch gets the full page.
+				snippet: typeof r.content === 'string' ? r.content.slice(0, 600) : undefined
+			}));
+		return { results, provider: 'ollama' };
+	} catch (e) {
+		return { error: (e as Error).message, status: 0 };
+	}
+}
+
+/** Ollama Pro hosted web_fetch — full clean page content for a single URL. */
+export async function fetchOllama(url: string): Promise<{ content: string } | WebSearchFail> {
+	if (!OLLAMA_API_KEY) return { error: 'ollama web_fetch not configured', status: 0 };
+	try {
+		const resp = await fetch(`${OLLAMA_WEB_BASE}/web_fetch`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${OLLAMA_API_KEY}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ url }),
+			signal: AbortSignal.timeout(WEB_TIMEOUT_MS)
+		});
+		if (!resp.ok) return { error: `HTTP ${resp.status}`, status: resp.status };
+		const data = await resp.json();
+		const content = typeof data?.content === 'string' ? data.content : (data?.markdown ?? '');
+		return { content: String(content).slice(0, MAX_WEB_CHARS) };
+	} catch (e) {
+		return { error: (e as Error).message, status: 0 };
+	}
+}
 
 export async function searchPerplexity(
 	query: string,
