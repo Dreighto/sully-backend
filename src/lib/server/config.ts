@@ -132,6 +132,17 @@ export const serverConfig = {
 	// Feature flag: set ENABLE_WEB_PUSH=false to disable without a git revert.
 	// (Companion defaults this OFF in its .env — no kernel completions to notify.)
 	enableWebPush: getEnv('ENABLE_WEB_PUSH', 'true') !== 'false',
+	// APNs (native iOS push) — delivers to the Capacitor/TestFlight app, which
+	// runs the service worker inert so Web Push can't reach it. Empty until the
+	// operator drops the .p8 + key id; the sender self-gates on apnsKeyPath being
+	// set, so it's a no-op until configured. The .p8 lives OUTSIDE git.
+	apnsKeyPath: getEnv('APNS_KEY_PATH', ''),
+	apnsKeyId: getEnv('APNS_KEY_ID', ''),
+	apnsTeamId: getEnv('APNS_TEAM_ID', 'G3KJW4VXM9'),
+	apnsBundleId: getEnv('APNS_BUNDLE_ID', 'com.dreighto.sully'),
+	// TestFlight + App Store builds use the PRODUCTION APNs endpoint. Set
+	// APNS_PRODUCTION=false only for a development-signed build.
+	apnsProduction: getEnv('APNS_PRODUCTION', 'true') !== 'false',
 	// Path to LogueOS-Orchestrator/.env — used by the privacy redactor to scan
 	// observation bodies before persisting. Fail-closed; gated off in companion mode.
 	orchestratorEnvPath: getEnv(

@@ -17,6 +17,7 @@ import {
 import { captureActualTokens, type ResultMarker } from '$lib/server/dispatchUsage';
 import { addChatMessage } from '$lib/server/chat';
 import { sendPushToAll } from '$lib/server/web_push';
+import { sendApnsToAll } from '$lib/server/apns';
 
 /**
  * On a Task reaching a terminal state, close the loop for the operator:
@@ -54,11 +55,16 @@ function closeOutTask(traceId: string, outcome: 'done' | 'failed', resultText: s
 	} catch (e) {
 		console.error('[activity] closeOutTask message failed', e);
 	}
-	void sendPushToAll({
+	const pushPayload = {
 		title: outcome === 'done' ? 'Sully — task done' : 'Sully — task needs you',
 		body: outcome === 'done' ? 'Your task finished. Tap to see the result.' : 'A task hit a snag.',
 		url: appIdentity.pushDefaultUrl
-	}).catch((e) => console.error('[activity] push failed', e));
+	};
+	// Two delivery legs, both self-gated: Web Push for a Safari home-screen PWA,
+	// APNs for the native Capacitor/TestFlight app (its SW is inert). Each is a
+	// no-op until its credentials + a registered device exist.
+	void sendPushToAll(pushPayload).catch((e) => console.error('[activity] web push failed', e));
+	void sendApnsToAll(pushPayload).catch((e) => console.error('[activity] apns push failed', e));
 }
 
 export const GET: RequestHandler = async ({ url }) => {
