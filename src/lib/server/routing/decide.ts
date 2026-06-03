@@ -43,6 +43,14 @@ export function decide(input: DecideInput): RouteDecision {
 	// 3. Injection guard — tool/pasted content must be confirmed, never auto-fired.
 	if (vg.forceAsk) return { action: 'Ask', reason: 'tool-sourced' };
 
+	// 3b. Safe fix A: never AUTONOMOUSLY fire mid-brainstorm. A qualifying request
+	//     while the thread is in planning/deep is likely "talking about it", not a
+	//     work order — surface it as Ask (Phase 2 turns this into a real prompt;
+	//     today the caller maps Ask → do-not-fire). @cc already short-circuited above.
+	if (input.recentTier === 'planning' || input.recentTier === 'deep') {
+		return { action: 'Ask', reason: 'qualifies-but-brainstorm-tier' };
+	}
+
 	// 4. Model-vote layer (CLI path only). When a gate block is present it MUST
 	//    validate + escalate; otherwise the qualifying turn is talked, not fired.
 	if (gateBlock !== undefined) {

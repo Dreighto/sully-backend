@@ -40,3 +40,30 @@ describe('decide — behavior-preserving extraction', () => {
 		expect(d.action).toBe('Talk');
 	});
 });
+
+describe('decide — tier suppression (safe fix A)', () => {
+	it('a qualifying request during planning becomes Ask, not Dispatch', () => {
+		const d = decide({
+			userText: 'add a settings page to the console',
+			fromTool: false,
+			recentTier: 'planning'
+		});
+		expect(d.action).toBe('Ask');
+	});
+	it('@cc still dispatches even during planning', () => {
+		const d = decide({
+			userText: '@cc add a settings page to the console',
+			fromTool: false,
+			recentTier: 'planning'
+		});
+		expect(d.action).toBe('Dispatch');
+	});
+	it('chat tier is unaffected (still dispatches)', () => {
+		const d = decide({
+			userText: 'add a settings page to the console',
+			fromTool: false,
+			recentTier: 'chat'
+		});
+		expect(d.action).toBe('Dispatch');
+	});
+});

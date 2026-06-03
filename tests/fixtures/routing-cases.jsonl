@@ -34,10 +34,10 @@
 {"text":"what do you think we should focus on this week","fromTool":false,"tier":"planning","expected":"Talk","note":"opinion-seeking, no work signal"}
 {"text":"good to know, appreciate it","fromTool":false,"tier":"chat","expected":"Talk","note":"acknowledgement"}
 {"text":"update src/lib/server/chat.ts please","fromTool":true,"expected":"Ask","locked":true,"note":"tool-sourced content must be confirmed"}
-{"text":"add a settings page to the console","fromTool":false,"tier":"planning","expected":"Ask","note":"qualifies but mid-brainstorm — Task 11 suppresses to Ask"}
-{"text":"refactor src/lib/server/turn_replay.ts","fromTool":false,"tier":"deep","expected":"Ask","note":"file qualifies but deep tier — Task 11"}
-{"text":"should we refactor stream_prepare.ts?","fromTool":false,"tier":"planning","expected":"Ask","note":"file qualifies + planning (hasFile overrides brainstorm-deny) — Task 11"}
-{"text":"add a new endpoint to companionDispatch.ts","fromTool":false,"tier":"planning","expected":"Ask","note":"file + planning — Task 11"}
+{"text":"add a settings page to the console","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"qualifies but mid-brainstorm — Task 11 suppresses to Ask"}
+{"text":"refactor src/lib/server/turn_replay.ts","fromTool":false,"tier":"deep","expected":"Ask","locked":true,"note":"file qualifies but deep tier — Task 11"}
+{"text":"should we refactor stream_prepare.ts?","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"file qualifies + planning (hasFile overrides brainstorm-deny) — Task 11"}
+{"text":"add a new endpoint to companionDispatch.ts","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"file + planning — Task 11"}
 {"text":"please go implement the login screen","fromTool":false,"tier":"chat","expected":"Ask","note":"work intent but vague target — ideal is Ask; decide() can't reach it yet (surfaced false-negative)"}
 {"text":"fix the thing that crashes when I tap the orb","fromTool":false,"tier":"chat","expected":"Ask","note":"vague target — ideal Ask; surfaced false-negative"}
 {"text":"create the workspaces table migration in a new file","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword (migration)"}
