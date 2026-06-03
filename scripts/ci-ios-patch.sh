@@ -131,9 +131,15 @@ if [ -f "$APPDELEGATE" ]; then
         // Voice volume fix — make WKWebView audio obey the iPhone hardware volume
         // and route to the main speaker, while keeping the mic available for
         // voice mode. Re-injected every build because ios/ is regenerated fresh.
+        // mode = .default (NOT .voiceChat): .voiceChat marks this a VoIP "call",
+        // and iOS refuses to let the call volume reach absolute zero (it bumped
+        // the volume up a step at the bottom). Voice mode is strictly turn-based
+        // — the mic is released before TTS plays — so .voiceChat's echo
+        // cancellation isn't needed, and .default lets the volume go fully to
+        // zero AND keeps TTS full-quality (no voice-processing).
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat,
+            try session.setCategory(.playAndRecord, mode: .default,
                                     options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
             try session.setActive(true)
             try session.overrideOutputAudioPort(.speaker)
