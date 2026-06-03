@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getTodayTtsUsage, addTtsUsage } from '$lib/server/voice_usage';
 import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
-import { startVoiceServices } from '$lib/server/voice_services';
+import { restartTtsService } from '$lib/server/voice_services';
 import { speakableText } from '$lib/server/tts_normalize';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
 
@@ -46,9 +46,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			}).catch(() => null);
 		let upstream = await synth();
 		if (!upstream || !upstream.ok || !upstream.body) {
-			// TTS is on-demand (stopped when voice mode exits). Wake it + retry once
-			// so read-aloud / Talkback work even from a cold GPU.
-			await startVoiceServices().catch(() => null);
+			// Recovery. The local TTS may be cold (torn down on voice-mode exit) OR
+			// its CUDA context may be poisoned by a device-side assert (every /tts
+			// then 500s instantly until the process is recycled). A plain `start`
+			// can't clear a poisoned context, so restart the TTS service, then
+			// retry once.
+			await restartTtsService().catch(() => null);
 			upstream = await synth();
 		}
 		if (!upstream || !upstream.ok || !upstream.body) {

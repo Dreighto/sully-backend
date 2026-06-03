@@ -52,7 +52,11 @@ async function systemctl(action: 'start' | 'stop' | 'is-active', unit: string): 
 	}
 }
 
-function portOpen(port: number, host = '127.0.0.1', timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
+function portOpen(
+	port: number,
+	host = '127.0.0.1',
+	timeoutMs = PROBE_TIMEOUT_MS
+): Promise<boolean> {
 	return new Promise((resolve) => {
 		const sock = new net.Socket();
 		const done = (ok: boolean) => {
@@ -121,4 +125,35 @@ export async function startVoiceServices(
 export async function stopVoiceServices(): Promise<VoiceServiceStopResult> {
 	await Promise.all([systemctl('stop', STT_UNIT), systemctl('stop', TTS_UNIT)]);
 	return { stopped: true };
+}
+
+/**
+ * Recycle ONLY the TTS service (stop+start) and wait until it's healthy again.
+ *
+ * A CUDA device-side assert poisons the TTS process's GPU context
+ * irrecoverably — every subsequent /tts returns 500 instantly. The Python
+ * service catches the error and keeps running, so systemd's Restart=on-failure
+ * never fires and a plain `start` is a no-op. Talkback calls this on a synth
+ * failure to get a fresh process (it also recovers a cold/torn-down service).
+ * STT is left untouched (talkback doesn't need it). Uses the same narrow
+ * sudoers allowlist (stop + start are permitted; restart is not).
+ */
+export async function restartTtsService(maxWaitMs = START_TIMEOUT_MS): Promise<boolean> {
+	try {
+		await systemctl('stop', TTS_UNIT);
+	} catch {
+		/* stopping an already-stopped unit is fine */
+	}
+	try {
+		await systemctl('start', TTS_UNIT);
+	} catch {
+		return false;
+	}
+	const deadline = Date.now() + maxWaitMs;
+	while (Date.now() < deadline) {
+		const probe = Math.min(PROBE_TIMEOUT_MS, Math.max(1, deadline - Date.now()));
+		if (await ttsHealthy(probe)) return true;
+		await sleep(Math.min(POLL_INTERVAL_MS, Math.max(0, deadline - Date.now())));
+	}
+	return false;
 }
