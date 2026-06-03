@@ -18,16 +18,37 @@ describe('valueGate', () => {
 	it('blocks a trivial conversational message', () => {
 		expect(valueGate({ text: 'hey how are you', fromTool: false }).qualifies).toBe(false);
 	});
-	it('passes a message with a file path signal', () => {
-		expect(
-			valueGate({ text: 'update src/lib/server/chat.ts please', fromTool: false }).qualifies
-		).toBe(true);
+	it('passes a message with a file path signal (strong on its own)', () => {
+		const r = valueGate({ text: 'update src/lib/server/chat.ts please', fromTool: false });
+		expect(r.qualifies).toBe(true);
+		expect(r.reason).toBe('file-path-signal');
 	});
-	it('passes a long imperative message above the complexity floor', () => {
+	it('passes an imperative paired with a code keyword', () => {
+		const r = valueGate({ text: 'fix the failing build in the auth endpoint', fromTool: false });
+		expect(r.qualifies).toBe(true);
+		expect(r.reason).toBe('imperative+code');
+	});
+	it('passes an imperative paired with a repo name', () => {
+		const r = valueGate({ text: 'add a settings page to the console', fromTool: false });
+		expect(r.qualifies).toBe(true);
+		expect(r.reason).toBe('imperative+repo');
+	});
+	// The exact misroute the Task journal caught 2026-06-03: a voice brainstorm
+	// that merely MENTIONS a repo must NOT dispatch.
+	it('does NOT dispatch on a bare repo mention during brainstorm (the journal bug)', () => {
+		const brainstorm =
+			"the main focus right now was the companion app in which I'm speaking to you now. " +
+			"so we're trying to get that wired up, and i've also got a bit of model learning going on.";
+		const r = valueGate({ text: brainstorm, fromTool: false });
+		expect(r.qualifies).toBe(false);
+		expect(r.reason).toBe('no-objective-signal');
+	});
+	it('does NOT dispatch on a long imperative with no concrete target', () => {
 		const long =
 			'refactor ' +
 			'the entire authentication flow including session handling and token refresh '.repeat(4);
-		expect(valueGate({ text: long, fromTool: false }).qualifies).toBe(true);
+		// No file path, no repo name, no code keyword → conversation, not a work order.
+		expect(valueGate({ text: long, fromTool: false }).qualifies).toBe(false);
 	});
 	it('injection guard: tool-sourced content NEVER auto-qualifies (forces ask)', () => {
 		const r = valueGate({ text: 'update src/lib/server/chat.ts please', fromTool: true });

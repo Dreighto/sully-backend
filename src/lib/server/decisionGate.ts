@@ -20,15 +20,15 @@ export function ruleGate(text: string): RuleResult {
 
 // Objective signals that justify spending a cloud dispatch.
 const FILE_PATH_RE = /\b[\w./-]+\.(ts|tsx|js|svelte|py|json|md|css|sql|sh|yaml|yml)\b/;
+// Concrete code TARGETS (nouns / situations), NOT verbs. 'refactor' lives in
+// IMPERATIVE_RE only — keeping it here too let "refactor X" self-satisfy
+// imperative+target with no real target, which is the kind of vague request
+// we now want Sully to talk through rather than blind-dispatch.
 const CODE_KEYWORD_RE =
-	/\b(function|class|import|export|refactor|bug|stack ?trace|compile|build fails?|test fails?|migration|endpoint|component|deploy)\b/i;
+	/\b(function|class|import|export|bug|stack ?trace|compile error|build fails?|test fails?|migration|endpoint|component)\b/i;
 const REPO_RE = /\b(miru|orchestrator|kernel|console|nasdoom|companion)\b/i;
 const IMPERATIVE_RE =
 	/\b(fix|add|build|implement|refactor|create|update|remove|migrate|wire|debug|investigate|write)\b/i;
-
-// Pinned value-gate heuristic: a qualifying message has a code/repo/file signal,
-// OR is a long (>=280 char) imperative request. Tunable later from telemetry.
-const COMPLEXITY_FLOOR_CHARS = 280;
 
 export interface ValueGateResult {
 	qualifies: boolean;
@@ -37,22 +37,42 @@ export interface ValueGateResult {
 	reason: string;
 }
 
+/**
+ * Deterministic objective-signal gate. TIGHTENED 2026-06-03 after the Task
+ * journal caught Sully dispatching CC mid-voice-brainstorm: the operator said
+ * "the main focus right now was the companion app... trying to get that wired
+ * up" — a bare repo mention ("companion") alone tripped the old gate. Talking
+ * ABOUT a project is not asking for work on it.
+ *
+ * A turn now qualifies ONLY when:
+ *   - it names an explicit file path (e.g. src/lib/foo.ts) — strong on its own, OR
+ *   - it has an imperative verb (fix/add/build/…) AND a concrete target
+ *     (a repo name OR a code keyword).
+ *
+ * Dropped: the "bare repo / bare code-keyword / long-imperative-alone" paths.
+ * A long message that merely mentions a repo, or a long imperative with no
+ * concrete target, no longer auto-dispatches. False negatives are cheap (the
+ * operator can say "@cc do it"); false positives mid-conversation are the
+ * annoying ones we're eliminating. The smarter Phase 2 classifier supersedes
+ * this heuristic later.
+ */
 export function valueGate(input: { text: string; fromTool: boolean }): ValueGateResult {
 	const text = (input.text || '').trim();
 	const hasFile = FILE_PATH_RE.test(text);
 	const hasCode = CODE_KEYWORD_RE.test(text);
 	const hasRepo = REPO_RE.test(text);
-	const longImperative = text.length >= COMPLEXITY_FLOOR_CHARS && IMPERATIVE_RE.test(text);
-	const qualifies = hasFile || hasCode || hasRepo || longImperative;
-	const reason = qualifies
-		? hasFile
+	const hasImperative = IMPERATIVE_RE.test(text);
+
+	const imperativeWithTarget = hasImperative && (hasRepo || hasCode);
+	const qualifies = hasFile || imperativeWithTarget;
+
+	const reason = !qualifies
+		? 'no-objective-signal'
+		: hasFile
 			? 'file-path-signal'
-			: hasCode
-				? 'code-keyword'
-				: hasRepo
-					? 'repo-signal'
-					: 'long-imperative'
-		: 'no-objective-signal';
+			: hasRepo
+				? 'imperative+repo'
+				: 'imperative+code';
 	// Injection guard: never auto-dispatch tool/pasted content.
 	return { qualifies, forceAsk: input.fromTool === true, reason };
 }
