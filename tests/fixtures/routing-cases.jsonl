@@ -2,18 +2,18 @@
 {"text":"@agy restyle the chat header","fromTool":false,"expected":"Dispatch","note":"explicit @agy → gemini"}
 {"text":"@cc run the test suite and report failures","fromTool":false,"expected":"Dispatch","locked":true,"note":"explicit @cc"}
 {"text":"@agy tweak the orb glow color","fromTool":false,"expected":"Dispatch","note":"explicit @agy"}
-{"text":"add a settings page to the console","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}
-{"text":"refactor src/lib/server/chat.ts to split the DB helpers","fromTool":false,"tier":"chat","expected":"Dispatch","note":"explicit file path"}
-{"text":"implement the login screen for the companion","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}
-{"text":"create a new endpoint for thread export in the console","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword + repo"}
-{"text":"add error handling to companionDispatch.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
-{"text":"debug the stale-job issue in dispatchJobs.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path + debug"}
-{"text":"fix the type error in turn_replay.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
-{"text":"write a migration to add a workspaces table","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword (migration)"}
-{"text":"fix the failing build in the auth endpoint","fromTool":false,"tier":"chat","gateBlock":"{\"escalate\":true,\"worker\":\"claude-code\",\"confidence\":0.8,\"category\":\"code\",\"brief\":\"fix build\",\"est_scope\":\"small\"}","expected":"Dispatch","note":"CLI path, model escalates"}
-{"text":"investigate the empty thread_id bug and fix it in activity/+server.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path present"}
-{"text":"migrate the auth endpoint to the new session pattern","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative (migrate) + code keyword (endpoint)"}
-{"text":"remove the dead code in Canvas.svelte","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
+{"text":"add a settings page to the console","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + repo"}
+{"text":"refactor src/lib/server/chat.ts to split the DB helpers","fromTool":false,"tier":"chat","expected":"Ask","note":"explicit file path"}
+{"text":"implement the login screen for the companion","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + repo"}
+{"text":"create a new endpoint for thread export in the console","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + code keyword + repo"}
+{"text":"add error handling to companionDispatch.ts","fromTool":false,"tier":"chat","expected":"Ask","locked":true,"note":"file path"}
+{"text":"debug the stale-job issue in dispatchJobs.ts","fromTool":false,"tier":"chat","expected":"Ask","note":"file path + debug"}
+{"text":"fix the type error in turn_replay.ts","fromTool":false,"tier":"chat","expected":"Ask","note":"file path"}
+{"text":"write a migration to add a workspaces table","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + code keyword (migration)"}
+{"text":"fix the failing build in the auth endpoint","fromTool":false,"tier":"chat","gateBlock":"{\"escalate\":true,\"worker\":\"claude-code\",\"confidence\":0.8,\"category\":\"code\",\"brief\":\"fix build\",\"est_scope\":\"small\"}","expected":"Ask","note":"CLI path, model escalates"}
+{"text":"investigate the empty thread_id bug and fix it in activity/+server.ts","fromTool":false,"tier":"chat","expected":"Ask","locked":true,"note":"file path present"}
+{"text":"migrate the auth endpoint to the new session pattern","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative (migrate) + code keyword (endpoint)"}
+{"text":"remove the dead code in Canvas.svelte","fromTool":false,"tier":"chat","expected":"Ask","note":"file path"}
 {"text":"hey how are you today","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"chatter"}
 {"text":"the main focus right now was the companion app in which I'm speaking to you now. so we're trying to get that wired up, and i've also got a bit of model learning going on.","fromTool":false,"tier":"planning","expected":"Talk","locked":true,"note":"the real journal brainstorm false-positive; no imperative"}
 {"text":"wire up the companion app","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"soft imperative + bare repo — Task 12 demotes this"}
@@ -41,5 +41,5 @@
 {"text":"add a new endpoint to companionDispatch.ts","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"file + planning — Task 11"}
 {"text":"please go implement the login screen","fromTool":false,"tier":"chat","expected":"Ask","note":"work intent but vague target — ideal is Ask; decide() can't reach it yet (surfaced false-negative)"}
 {"text":"fix the thing that crashes when I tap the orb","fromTool":false,"tier":"chat","expected":"Ask","note":"vague target — ideal Ask; surfaced false-negative"}
-{"text":"create the workspaces table migration in a new file","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword (migration)"}
-{"text":"add a dark-mode toggle to the console settings","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}
+{"text":"create the workspaces table migration in a new file","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + code keyword (migration)"}
+{"text":"add a dark-mode toggle to the console settings","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + repo"}
