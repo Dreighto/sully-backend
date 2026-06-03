@@ -25,3 +25,5 @@ jobs:
         run: npm run check
       - name: Unit tests (vitest)
         run: npm test
+      - name: Routing scorecard (hard gate)
+        run: npm test -- tests/routing-scorecard.test.ts
