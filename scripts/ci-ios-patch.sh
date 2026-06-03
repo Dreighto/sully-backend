@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # ci-ios-patch.sh — re-apply native iOS config after `npx cap add ios`.
 #
-# BUILD 2 SCOPE: microphone + export-compliance + iOS-15 floor (Build 1) PLUS
-# the APNs push entitlement (aps-environment + CODE_SIGN_ENTITLEMENTS wiring).
+# SHIPPED SCOPE (as of build 15): microphone + export-compliance + iOS-15 floor,
+# the APNs push entitlement (aps-environment + CODE_SIGN_ENTITLEMENTS wiring),
+# and the AppDelegate APNs token-forwarding methods Capacitor 8 omits. Push is
+# live end-to-end — none of this is "deferred."
 #
 # Runs on the Codemagic Mac mini (BSD userland). ios/ is generated fresh every
 # build and NOT committed, so these settings must be re-applied on EVERY build.

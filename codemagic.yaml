@@ -1,22 +1,29 @@
 # codemagic.yaml — Sully (Dreighto/LogueOS-Companion) iOS thin Capacitor shell
 # ---------------------------------------------------------------------------
-# BUILD 1 SCOPE: shell + microphone. Proves the app compiles, auto-signs,
-# uploads to TestFlight, installs, loads Sully over Tailscale, and can use the
-# mic. PUSH (APNs) is intentionally deferred to Build 2 (needs an entitlement +
-# bridge code in the remote app) to keep the first build free of push-signing
-# risk.
+# CURRENT SCOPE (as of 2026-06-02, build 15 on TestFlight): shell + microphone
+# + APNs push notifications, all SHIPPED and verified end-to-end (a test push
+# reached the lock screen). The build compiles, signs, uploads to TestFlight,
+# installs, loads Sully over Tailscale, uses the mic, and registers + receives
+# push. Push is NOT deferred anymore — the entitlement (aps-environment) and the
+# AppDelegate token-forwarding are injected every build by scripts/ci-ios-patch.sh.
+#
+# Signing: a STABLE key (~/dev/secrets/sully_signing_key.pem, outside git) is
+# injected per-build via tools/trigger-ios-build.sh so one distribution cert is
+# reused (live cert 6QD846B8Y2). One-time cert reset: REVOKE_DIST_CERTS=1.
+#
+# NEXT on the iOS roadmap: Dynamic Island Live Activity (reuses the APNs
+# foundation) — a separate, larger build, not yet started.
 #
 # The app is a THIN Capacitor 8 shell: at runtime it loads a REMOTE SvelteKit
 # (adapter-node) server via capacitor.config server.url — it does NOT bundle the
 # client. Nothing under ios/ is committed; the native project is generated fresh
 # every build.
 #
-# PREREQUISITES (done once in the Codemagic / App Store Connect UI — see
-# docs/ios-build-runbook.md):
+# PREREQUISITES (done once in the Codemagic / App Store Connect UI):
 #   - App Store Connect API key (ID R8SY4X6JM4) wired as a Codemagic *integration*
 #     under Team settings, named exactly `LogueOS` (matches the integrations block).
 #   - App record for bundle com.dreighto.sully exists in App Store Connect.
-#   - This file lives on branch feat/ios-capacitor-shell.
+#   - This file lives on `main`; trigger builds with tools/trigger-ios-build.sh.
 # ---------------------------------------------------------------------------
 
 workflows:
