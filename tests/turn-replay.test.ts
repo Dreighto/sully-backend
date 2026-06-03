@@ -5,8 +5,8 @@
 //   - replayTurn / replayTurnByMessage / replayThreadRecent stitch them back.
 //
 // Exercises the two canonical shapes the reader API must handle: a non-
-// dispatched (pure chat) turn that stays 'proposed', and a dispatched turn
-// promoted through the worker FSM to 'done'.
+// dispatched (pure chat) turn that classifies to 'classified' (Phase 0), and a
+// dispatched turn promoted through the worker FSM to 'done'.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 
@@ -84,7 +84,10 @@ describe('turn_replay — non-dispatched (pure chat) turn', () => {
 		const r = replayTurn('sully-chat-1');
 
 		expect(r).not.toBeNull();
-		expect(r!.task?.status).toBe('proposed'); // never dispatched
+		// Phase 0: the classifier now writes its tier onto the Task row, advancing
+		// proposed→classified (still pre-dispatch, so `dispatched` stays false).
+		expect(r!.task?.status).toBe('classified');
+		expect(r!.task?.classification_tier).toBe('chat');
 		expect(r!.dispatched).toBe(false);
 		expect(r!.thread_id).toBe('t1');
 		expect(r!.task?.source).toBe('chat');

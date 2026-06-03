@@ -316,7 +316,8 @@ export const POST: RequestHandler = async ({ request }) => {
 						targetRepo,
 						threadId,
 						gateBlock: block,
-						taskId
+						taskId,
+						tier: currentTier
 					});
 				}
 			},
@@ -503,7 +504,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				userText: userMessageText,
 				targetRepo,
 				threadId,
-				taskId
+				taskId,
+				tier: currentTier
 			}).catch((e) => {
 				console.error('[sdk-stream] autonomous-dispatch failed', e);
 			});

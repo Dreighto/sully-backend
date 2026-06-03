@@ -41,7 +41,9 @@ describe('valueGate', () => {
 			"so we're trying to get that wired up, and i've also got a bit of model learning going on.";
 		const r = valueGate({ text: brainstorm, fromTool: false });
 		expect(r.qualifies).toBe(false);
-		expect(r.reason).toBe('no-objective-signal');
+		// Task 12: the line contains "trying to", so the deny-list now gives the
+		// more-specific reason (still does NOT qualify — the behavior that matters).
+		expect(r.reason).toBe('brainstorm-deny');
 	});
 	it('does NOT dispatch on a long imperative with no concrete target', () => {
 		const long =
@@ -54,6 +56,31 @@ describe('valueGate', () => {
 		const r = valueGate({ text: 'update src/lib/server/chat.ts please', fromTool: true });
 		expect(r.qualifies).toBe(true);
 		expect(r.forceAsk).toBe(true);
+	});
+
+	// Safe fix B (2026-06-03): soft imperatives + a bare repo word, and brainstorm
+	// phrasing, must NOT qualify — proven false-positives from the routing scorecard.
+	it('does NOT qualify a soft imperative + bare repo ("wire up the companion")', () => {
+		expect(valueGate({ text: 'wire up the companion', fromTool: false }).qualifies).toBe(false);
+	});
+	it('does NOT qualify "update the kernel news" (soft imperative + repo word)', () => {
+		expect(valueGate({ text: 'update the kernel news', fromTool: false }).qualifies).toBe(false);
+	});
+	it('STILL qualifies a soft imperative when a file path is present', () => {
+		expect(valueGate({ text: 'update src/lib/server/chat.ts', fromTool: false }).qualifies).toBe(
+			true
+		);
+	});
+	it('does NOT qualify a brainstorm phrase ("trying to figure out the build")', () => {
+		expect(
+			valueGate({ text: 'trying to figure out the build in the console', fromTool: false })
+				.qualifies
+		).toBe(false);
+	});
+	it('STILL qualifies a strong imperative + repo ("add a settings page to the console")', () => {
+		expect(
+			valueGate({ text: 'add a settings page to the console', fromTool: false }).qualifies
+		).toBe(true);
 	});
 });
 

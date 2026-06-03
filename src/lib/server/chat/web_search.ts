@@ -129,10 +129,21 @@ export async function searchPerplexity(
 		// Record actual spend (request fee + tokens from response usage) for the
 		// daily budget cap. Falls back to the request-fee floor when usage is
 		// missing — a request reached Perplexity, so we already owe ≥ that.
-		const usage = data?.usage ?? {};
-		addWebSpendCents(
-			estimateSonarCostCents(Number(usage.prompt_tokens ?? 0), Number(usage.completion_tokens ?? 0))
-		);
+		// BEST-EFFORT: a spend-DB write failure (e.g. the usage DB path is not
+		// writable, as in a clean CI runner) must NOT lose the search result the
+		// operator asked for — wrap it so the outer catch can't turn a budget
+		// hiccup into a silent web-search failure.
+		try {
+			const usage = data?.usage ?? {};
+			addWebSpendCents(
+				estimateSonarCostCents(
+					Number(usage.prompt_tokens ?? 0),
+					Number(usage.completion_tokens ?? 0)
+				)
+			);
+		} catch (e) {
+			console.warn('[web_search] spend record skipped:', (e as Error).message);
+		}
 		const answer = data?.choices?.[0]?.message?.content ?? '';
 		const sources = data?.citations ?? data?.search_results ?? [];
 		const results: WebSearchResult[] = (Array.isArray(sources) ? sources : [])

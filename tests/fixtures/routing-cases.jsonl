@@ -1,0 +1,45 @@
+{"text":"@cc fix the failing build in the auth endpoint","fromTool":false,"expected":"Dispatch","locked":true,"note":"explicit @cc"}
+{"text":"@agy restyle the chat header","fromTool":false,"expected":"Dispatch","note":"explicit @agy → gemini"}
+{"text":"@cc run the test suite and report failures","fromTool":false,"expected":"Dispatch","locked":true,"note":"explicit @cc"}
+{"text":"@agy tweak the orb glow color","fromTool":false,"expected":"Dispatch","note":"explicit @agy"}
+{"text":"add a settings page to the console","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}
+{"text":"refactor src/lib/server/chat.ts to split the DB helpers","fromTool":false,"tier":"chat","expected":"Dispatch","note":"explicit file path"}
+{"text":"implement the login screen for the companion","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}
+{"text":"create a new endpoint for thread export in the console","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword + repo"}
+{"text":"add error handling to companionDispatch.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
+{"text":"debug the stale-job issue in dispatchJobs.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path + debug"}
+{"text":"fix the type error in turn_replay.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
+{"text":"write a migration to add a workspaces table","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword (migration)"}
+{"text":"fix the failing build in the auth endpoint","fromTool":false,"tier":"chat","gateBlock":"{\"escalate\":true,\"worker\":\"claude-code\",\"confidence\":0.8,\"category\":\"code\",\"brief\":\"fix build\",\"est_scope\":\"small\"}","expected":"Dispatch","note":"CLI path, model escalates"}
+{"text":"investigate the empty thread_id bug and fix it in activity/+server.ts","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path present"}
+{"text":"migrate the auth endpoint to the new session pattern","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative (migrate) + code keyword (endpoint)"}
+{"text":"remove the dead code in Canvas.svelte","fromTool":false,"tier":"chat","expected":"Dispatch","note":"file path"}
+{"text":"hey how are you today","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"chatter"}
+{"text":"the main focus right now was the companion app in which I'm speaking to you now. so we're trying to get that wired up, and i've also got a bit of model learning going on.","fromTool":false,"tier":"planning","expected":"Talk","locked":true,"note":"the real journal brainstorm false-positive; no imperative"}
+{"text":"wire up the companion app","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"soft imperative + bare repo — Task 12 demotes this"}
+{"text":"update the kernel news section","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"soft imperative + bare repo — Task 12"}
+{"text":"build a relationship with the console team","fromTool":false,"tier":"chat","expected":"Talk","locked":true,"note":"soft imperative + repo word, not a work order — Task 12"}
+{"text":"thanks, that's perfect","fromTool":false,"tier":"chat","expected":"Talk","note":"acknowledgement"}
+{"text":"let's design the new dashboard layout together","fromTool":false,"tier":"planning","expected":"Talk","note":"brainstorming, design is not a work-keyword"}
+{"text":"i'm thinking about how the voice mode should feel","fromTool":false,"tier":"planning","expected":"Talk","note":"thinking about — brainstorm"}
+{"text":"what's the weather like for you in there","fromTool":false,"tier":"chat","expected":"Talk","note":"chatter"}
+{"text":"i wonder if we should use a different model for voice","fromTool":false,"tier":"planning","expected":"Talk","note":"wonder — brainstorm"}
+{"text":"that one looks good, ship it","fromTool":false,"tier":"chat","expected":"Talk","note":"approval"}
+{"text":"compare the two approaches for me","fromTool":false,"tier":"planning","expected":"Talk","note":"comparison/brainstorm"}
+{"text":"i think the dispatch is too trigger-happy","fromTool":false,"tier":"chat","expected":"Talk","note":"feedback, not a work order"}
+{"text":"good morning sully","fromTool":false,"tier":"chat","expected":"Talk","note":"greeting"}
+{"text":"walk me through how the decision gate works","fromTool":false,"tier":"planning","expected":"Talk","note":"explanation request"}
+{"text":"fix the failing build in the auth endpoint","fromTool":false,"tier":"chat","gateBlock":null,"expected":"Talk","note":"CLI path, no model escalation"}
+{"text":"how should we structure the workspace folders","fromTool":false,"tier":"planning","expected":"Talk","note":"how should we — planning, no concrete target"}
+{"text":"what do you think we should focus on this week","fromTool":false,"tier":"planning","expected":"Talk","note":"opinion-seeking, no work signal"}
+{"text":"good to know, appreciate it","fromTool":false,"tier":"chat","expected":"Talk","note":"acknowledgement"}
+{"text":"update src/lib/server/chat.ts please","fromTool":true,"expected":"Ask","locked":true,"note":"tool-sourced content must be confirmed"}
+{"text":"@cc fix the build in the auth endpoint","fromTool":true,"expected":"Ask","locked":true,"note":"injection guard: a smuggled @cc in pasted/tool content must NOT auto-dispatch"}
+{"text":"add a settings page to the console","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"qualifies but mid-brainstorm — Task 11 suppresses to Ask"}
+{"text":"refactor src/lib/server/turn_replay.ts","fromTool":false,"tier":"deep","expected":"Ask","locked":true,"note":"file qualifies but deep tier — Task 11"}
+{"text":"should we refactor stream_prepare.ts?","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"file qualifies + planning (hasFile overrides brainstorm-deny) — Task 11"}
+{"text":"add a new endpoint to companionDispatch.ts","fromTool":false,"tier":"planning","expected":"Ask","locked":true,"note":"file + planning — Task 11"}
+{"text":"please go implement the login screen","fromTool":false,"tier":"chat","expected":"Ask","note":"work intent but vague target — ideal is Ask; decide() can't reach it yet (surfaced false-negative)"}
+{"text":"fix the thing that crashes when I tap the orb","fromTool":false,"tier":"chat","expected":"Ask","note":"vague target — ideal Ask; surfaced false-negative"}
+{"text":"create the workspaces table migration in a new file","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + code keyword (migration)"}
+{"text":"add a dark-mode toggle to the console settings","fromTool":false,"tier":"chat","expected":"Dispatch","note":"strong imperative + repo"}

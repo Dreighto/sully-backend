@@ -15,7 +15,7 @@ import { classifyTier, type Tier } from './phase_classifier';
 import { getThreadState, upsertThreadTier, type ThreadState } from './thread_state';
 import { touchLastActivity, upsertThreadMeta } from './thread_meta';
 import { maybeUpdateThreadSummary } from './working_memory';
-import { proposeTask } from './dispatchJobs';
+import { proposeTask, markClassified } from './dispatchJobs';
 import { logTaskEvent } from './chatActivity';
 
 /**
@@ -103,6 +103,11 @@ export function classifyAndTouchThread(args: {
 	// signal v3 will eventually train on: (turn → tier → was-it-right via the
 	// reply's quality_signal).
 	if (args.taskId) {
+		markClassified(
+			args.taskId,
+			currentTier,
+			JSON.stringify({ operator_override: threadState.operator_override ?? null })
+		);
 		logTaskEvent(args.taskId, 'classifier_ran', {
 			tier: currentTier,
 			operator_override: threadState.operator_override ?? null

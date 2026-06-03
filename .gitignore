@@ -45,3 +45,5 @@ mcp.json
 
 # Transient dispatch prompt envelopes written at runtime
 data/dispatch-prompts/
+data/peer_reviews/routing-scorecard-latest.md
+data/routing-gate-blocks.jsonl

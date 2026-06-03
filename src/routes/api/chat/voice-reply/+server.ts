@@ -143,7 +143,8 @@ export const POST: RequestHandler = async ({ request }) => {
 						userText: text,
 						targetRepo,
 						threadId,
-						taskId
+						taskId,
+						tier: currentTier
 					}).catch((e) => {
 						console.error('[voice-reply] autonomous-dispatch failed', e);
 					});

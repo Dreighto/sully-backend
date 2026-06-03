@@ -25,10 +25,15 @@
 
 import { addChatMessage } from '$lib/server/chat';
 import { runMode } from '$lib/server/config';
-import { ruleGate, valueGate, validateGate } from '$lib/server/decisionGate';
+import { validateGate } from '$lib/server/decisionGate';
+import { decide } from '$lib/server/routing/decide';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { mintTaskId } from '$lib/server/chat_turn';
+import { markSelfHandled } from '$lib/server/dispatchJobs';
+import { captureGateBlock } from '$lib/server/routing/captureGate';
+import { env } from '$env/dynamic/private';
+import type { Tier } from '$lib/server/phase_classifier';
 
 export interface AutonomousDispatchArgs {
 	/** The latest user message text (space-joined, trimmed). */
@@ -51,6 +56,8 @@ export interface AutonomousDispatchArgs {
 	 * minted id if absent (legacy callers).
 	 */
 	taskId?: string;
+	/** The thread's classified tier this turn — gates brainstorm suppression. */
+	tier?: Tier;
 }
 
 /**
@@ -65,22 +72,39 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 	if (!runMode.companionDispatchEnabled) return;
 
 	const { userText, targetRepo, threadId } = args;
-	const hasGate = args.gateBlock !== undefined;
 	// Reuse the turn's Task id so the dispatch promotes the existing 'proposed'
 	// row rather than creating an orphan. Fall back to a minted id for legacy
 	// callers that don't pass one.
 	const taskId = args.taskId ?? mintTaskId();
 
-	const forced = ruleGate(userText);
-	const vg = valueGate({ text: userText, fromTool: false });
+	// The single source of truth for the route — same function the scorecard
+	// grades, so test and production can't drift. gateBlock is undefined on the
+	// direct/local path (no model vote to strip).
+	const d = decide({
+		userText,
+		fromTool: false,
+		recentTier: args.tier,
+		gateBlock: args.gateBlock
+	});
 
-	// Shared dispatch + system-message + journal write, so the CLI and direct
-	// paths can't drift. taskId is the trace_id — dispatchToWorker → createJob
-	// upserts the 'proposed' row to 'decided'.
-	const fire = async (worker: 'claude-code' | 'gemini', category: string, brief: string) => {
+	// Preserve the teacher's brief/category when a valid gate block is present;
+	// otherwise fall back to a userText slice + 'code'.
+	const gate = args.gateBlock !== undefined ? validateGate(args.gateBlock ?? null) : null;
+	const category = gate && gate.ok ? gate.gate.category : 'code';
+	const brief = gate && gate.ok ? gate.gate.brief : userText.slice(0, 200);
+
+	// Capture the teacher's model-vote block (CLI path) for later OFFLINE scoring
+	// of the SULLY_GATE layer. Free, env-gated, best-effort — off by default.
+	if (args.gateBlock !== undefined && env.ROUTING_CAPTURE_GATES === '1') {
+		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
+	}
+
+	if (d.action === 'Dispatch' && d.worker) {
+		// taskId is the trace_id — dispatchToWorker → createJob upserts the
+		// 'proposed'/'classified' row to 'decided'.
 		const res = await dispatchToWorker({
 			traceId: taskId,
-			worker,
+			worker: d.worker,
 			category,
 			brief,
 			targetRepo,
@@ -88,10 +112,9 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 			threadId
 		});
 		logTaskEvent(taskId, 'gate_evaluated', {
-			forced: forced.forced,
-			qualifies: vg.qualifies,
-			force_ask: vg.forceAsk,
-			worker,
+			action: d.action,
+			reason: d.reason,
+			worker: d.worker,
 			category,
 			dispatched: res.ok,
 			held_reason: res.ok ? null : res.reason
@@ -108,43 +131,17 @@ export async function maybeAutonomousDispatch(args: AutonomousDispatchArgs): Pro
 			threadId,
 			{ taskId }
 		);
-	};
-
-	if (hasGate) {
-		// CLI-bridge path — gate-block-aware escalate decision.
-		const gate = validateGate(args.gateBlock ?? null);
-		const autonomous = gate.ok && gate.gate.escalate && vg.qualifies && !vg.forceAsk;
-		if (forced.forced || autonomous) {
-			const worker =
-				forced.forced && forced.worker ? forced.worker : gate.ok ? gate.gate.worker : 'claude-code';
-			const brief = gate.ok ? gate.gate.brief : userText.slice(0, 200);
-			const category = gate.ok ? gate.gate.category : 'code';
-			await fire(worker, category, brief);
-		} else {
-			// Journal the no-dispatch decision too — this is a routing pair
-			// (turn → classified DIRECT_ANSWER → no worker) for v3 training.
-			logTaskEvent(taskId, 'gate_evaluated', {
-				forced: false,
-				qualifies: vg.qualifies,
-				force_ask: vg.forceAsk,
-				dispatched: false,
-				path: 'cli'
-			});
-		}
+		// If the dispatch was HELD (brakes/cap/dedupe/kill-switch), no worker took
+		// the turn — close the arc as self-handled rather than stranding the Task
+		// at proposed/classified (the reaper only scans dispatched/working, so it
+		// would never reach it).
+		if (!res.ok) markSelfHandled(taskId);
 		return;
 	}
 
-	// Direct/local path — deterministic gates only, no gate block to strip.
-	if (forced.forced || (vg.qualifies && !vg.forceAsk)) {
-		const worker = forced.forced && forced.worker ? forced.worker : 'claude-code';
-		await fire(worker, 'code', userText.slice(0, 200));
-	} else {
-		logTaskEvent(taskId, 'gate_evaluated', {
-			forced: false,
-			qualifies: vg.qualifies,
-			force_ask: vg.forceAsk,
-			dispatched: false,
-			path: 'direct'
-		});
-	}
+	// Talk or Ask — no worker fired this turn. Journal the routing decision (a
+	// training pair for v3: turn → reason → no-dispatch) AND close the
+	// self-handled arc so the Task reaches a real terminal (Phase 0 fix 0.3).
+	logTaskEvent(taskId, 'gate_evaluated', { action: d.action, reason: d.reason, dispatched: false });
+	markSelfHandled(taskId);
 }

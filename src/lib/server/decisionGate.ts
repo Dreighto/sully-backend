@@ -27,8 +27,17 @@ const FILE_PATH_RE = /\b[\w./-]+\.(ts|tsx|js|svelte|py|json|md|css|sql|sh|yaml|y
 const CODE_KEYWORD_RE =
 	/\b(function|class|import|export|bug|stack ?trace|compile error|build fails?|test fails?|migration|endpoint|component)\b/i;
 const REPO_RE = /\b(miru|orchestrator|kernel|console|nasdoom|companion)\b/i;
-const IMPERATIVE_RE =
-	/\b(fix|add|build|implement|refactor|create|update|remove|migrate|wire|debug|investigate|write)\b/i;
+// Strong imperatives clearly name a work action; pairing with a repo OR code
+// keyword is enough to qualify.
+const STRONG_IMPERATIVE_RE =
+	/\b(fix|add|implement|refactor|create|remove|migrate|debug|investigate|write)\b/i;
+// Soft imperatives double as everyday verbs ("update the news", "build a
+// relationship", "wire up X") — they require a CODE/FILE target, not a bare repo.
+const SOFT_IMPERATIVE_RE = /\b(update|build|wire)\b/i;
+// Brainstorm/uncertainty phrasing — talking ABOUT work, not ordering it. Vetoes
+// qualification UNLESS an explicit file path is present (a path is unambiguous).
+const BRAINSTORM_DENY_RE =
+	/\b(trying to|thinking about|think about|figure out|figuring out|not sure|wondering|wonder if|brainstorm|talk through|walk me through|what do you think|how should we)\b/i;
 
 export interface ValueGateResult {
 	qualifies: boolean;
@@ -61,13 +70,22 @@ export function valueGate(input: { text: string; fromTool: boolean }): ValueGate
 	const hasFile = FILE_PATH_RE.test(text);
 	const hasCode = CODE_KEYWORD_RE.test(text);
 	const hasRepo = REPO_RE.test(text);
-	const hasImperative = IMPERATIVE_RE.test(text);
+	const hasStrong = STRONG_IMPERATIVE_RE.test(text);
+	const hasSoft = SOFT_IMPERATIVE_RE.test(text);
+	const isBrainstorm = BRAINSTORM_DENY_RE.test(text);
 
-	const imperativeWithTarget = hasImperative && (hasRepo || hasCode);
-	const qualifies = hasFile || imperativeWithTarget;
+	// A file path is a strong signal on its own — even brainstorm phrasing can't
+	// veto an explicit path. Otherwise: a strong imperative needs a repo OR code
+	// target; a soft imperative needs a CODE/FILE target (a bare repo isn't enough);
+	// and brainstorm phrasing vetoes qualification.
+	const strongTarget = hasStrong && (hasRepo || hasCode);
+	const softTarget = hasSoft && (hasFile || hasCode);
+	const qualifies = hasFile || (!isBrainstorm && (strongTarget || softTarget));
 
 	const reason = !qualifies
-		? 'no-objective-signal'
+		? isBrainstorm && !hasFile
+			? 'brainstorm-deny'
+			: 'no-objective-signal'
 		: hasFile
 			? 'file-path-signal'
 			: hasRepo
