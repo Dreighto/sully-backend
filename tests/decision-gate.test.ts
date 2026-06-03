@@ -82,6 +82,25 @@ describe('valueGate', () => {
 			valueGate({ text: 'add a settings page to the console', fromTool: false }).qualifies
 		).toBe(true);
 	});
+
+	// Coverage broadening (2026-06-03): investigative work verbs caught a real
+	// voice miss — "run an audit on the LogueOS Companion directory" had slipped
+	// through as chatter, so Sully confabulated doing it.
+	it('qualifies the voice case that slipped through ("run an audit on the LogueOS Companion directory")', () => {
+		expect(
+			valueGate({ text: 'run an audit on the LogueOS Companion directory', fromTool: false })
+				.qualifies
+		).toBe(true);
+	});
+	it('qualifies "review the dispatch code in companionDispatch.ts"', () => {
+		expect(
+			valueGate({ text: 'review the dispatch code in companionDispatch.ts', fromTool: false })
+				.qualifies
+		).toBe(true);
+	});
+	it('does NOT qualify conversational "check the weather for me" (no code/repo/file target)', () => {
+		expect(valueGate({ text: 'check the weather for me', fromTool: false }).qualifies).toBe(false);
+	});
 });
 
 describe('schema self-assessment (rides the CLI-bridge reply)', () => {
