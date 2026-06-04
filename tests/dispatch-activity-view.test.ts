@@ -3,17 +3,20 @@ import {
 	friendlyStep,
 	isTerminalStatus,
 	isSuccessStatus,
-	DISPLAYABLE_WORKER_ACTIONS
+	isDisplayableAction,
+	HIDDEN_ACTIONS
 } from '$lib/dispatchActivityView';
 
 describe('friendlyStep', () => {
-	it('maps real worker steps to plain English', () => {
+	it('maps real worker steps to plain English (both tenses)', () => {
+		// The real worker emits present-tense verbs ('running', not 'ran').
+		expect(friendlyStep('running', 'npm test (vitest run)')).toMatch(/running/i);
 		expect(friendlyStep('ran', 'tests')).toMatch(/running/i);
 		expect(friendlyStep('reading', 'src/app.ts')).toMatch(/reading/i);
 		expect(friendlyStep('edited', null)).toMatch(/chang|edit|updat/i);
 		expect(friendlyStep('thinking', null)).toMatch(/work|think/i);
 	});
-	it('drops internal pipeline events (no leak)', () => {
+	it('drops internal pipeline events + terminal markers (no leak)', () => {
 		for (const a of [
 			'synthesis_completed',
 			'synthesis_started',
@@ -26,20 +29,28 @@ describe('friendlyStep', () => {
 			'provider_attempted',
 			'provider_fell_through',
 			'brakes_evaluated',
-			'guardrail_triggered'
+			'guardrail_triggered',
+			'completed',
+			'failed'
 		])
 			expect(friendlyStep(a, '{"x":1}')).toBeNull();
 	});
-	it('never returns raw JSON or event names', () => {
+	it('an unknown verb falls back to a generic phrase, never the raw verb/target', () => {
+		const out = friendlyStep('frobnicating', '/secret/path {"k":"v"}') ?? '';
+		expect(out).not.toContain('{');
+		expect(out).not.toContain('frobnicating');
+		expect(out).not.toContain('/secret/path');
+		expect(out.length).toBeGreaterThan(0);
+	});
+	it('never returns raw JSON for a known verb either', () => {
 		expect(friendlyStep('ran', '{"outcome":"done","via":"worker-result"}') ?? '').not.toContain(
 			'{'
 		);
-		expect(friendlyStep('synthesis_completed', '{"outcome":"done"}')).toBeNull();
 	});
-	it('only the four worker actions are displayable', () => {
-		expect([...DISPLAYABLE_WORKER_ACTIONS].sort()).toEqual(
-			['edited', 'ran', 'reading', 'thinking'].sort()
-		);
+	it('isDisplayableAction hides every HIDDEN_ACTION and shows worker verbs', () => {
+		for (const a of HIDDEN_ACTIONS) expect(isDisplayableAction(a)).toBe(false);
+		for (const a of ['running', 'reading', 'edited', 'thinking', 'frobnicating'])
+			expect(isDisplayableAction(a)).toBe(true);
 	});
 });
 

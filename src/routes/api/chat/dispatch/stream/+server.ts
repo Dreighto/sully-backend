@@ -2,13 +2,14 @@ import type { RequestHandler } from './$types';
 import { runMode, serverConfig } from '$lib/server/config';
 import { sseEvent, parseLastEventId } from '$lib/server/sseFormat';
 import { getJob } from '$lib/server/dispatchJobs';
-import { DISPLAYABLE_WORKER_ACTIONS, isTerminalStatus } from '$lib/dispatchActivityView';
+import { HIDDEN_ACTIONS, isTerminalStatus } from '$lib/dispatchActivityView';
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 
-// Pre-built placeholder list for the action allow-list (P2 leak fix): only real
-// worker steps stream to the card — never internal events like synthesis_completed.
-const DISPLAY_PLACEHOLDERS = DISPLAYABLE_WORKER_ACTIONS.map(() => '?').join(',');
+// Pre-built placeholder list for the action deny-list (P2 leak fix): internal
+// events (synthesis_completed, gate_evaluated, …) + terminal markers never
+// stream to the card; everything else is a real worker step.
+const HIDDEN_PLACEHOLDERS = HIDDEN_ACTIONS.map(() => '?').join(',');
 
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 1_000;
@@ -47,10 +48,10 @@ export const GET: RequestHandler = async ({ url, request }) => {
 					const rows = db
 						.prepare(
 							`SELECT id, action, target FROM chat_activity
-							 WHERE trace_id = ? AND id > ? AND action IN (${DISPLAY_PLACEHOLDERS})
+							 WHERE trace_id = ? AND id > ? AND action NOT IN (${HIDDEN_PLACEHOLDERS})
 							 ORDER BY id ASC LIMIT 200`
 						)
-						.all(traceId, cursor, ...DISPLAYABLE_WORKER_ACTIONS) as {
+						.all(traceId, cursor, ...HIDDEN_ACTIONS) as {
 						id: number;
 						action: string;
 						target: string | null;

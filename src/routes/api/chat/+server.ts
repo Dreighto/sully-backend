@@ -222,7 +222,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			if (res.ok) {
 				addChatMessage(
 					'system',
-					`Sully sent this to **${dispatchWorker === 'claude-code' ? 'CC' : 'AGY'}** on **${targetRepo}**. (Trace: ${traceId})`,
+					// Card-only in the UI (the morphing Task card renders this row); text
+					// kept clean + trace-free for the stored record / non-UI surfaces.
+					`Handing this to ${dispatchWorker === 'claude-code' ? 'CC' : 'AGY'}.`,
 					traceId,
 					ticket_id || null,
 					null,

@@ -122,140 +122,145 @@
 		     thinking-dots block represents it. Once any token text
 		     arrives, m.message is non-empty and the bubble re-renders. -->
 		{#if !(streamState?.placeholderId === m.id && m.message === '')}
-			<div class="flex flex-col gap-1 {m.sender === 'operator' ? 'items-end' : 'items-start'}">
-				<!-- Custom Labeling / Bubble Headers -->
-				{#if m.sender !== 'operator'}
-					<SullyNameTag
-						label={m.sender === 'system' ? 'LOGUEOS' : (appIdentity?.coreLabel ?? 'Sully')}
+			{#if m.sender === 'system' && m.trace_id?.startsWith('sully-')}
+				<!-- Dispatch hand-off: the morphing Task card IS the whole element
+				     (no LOGUEOS text bubble, no Copy/Regen footer) — one seamless unit. -->
+				{@const ctrl = ensureDispatchStream(m.trace_id)}
+				<div class="flex flex-col items-start gap-1">
+					<WorkingBubble
+						worker={m.trace_id.includes('agy') ? 'gemini' : 'claude-code'}
+						rows={ctrl.rows}
+						status={ctrl.status}
+						durationLabel={ctrl.durationLabel}
 					/>
-				{/if}
+				</div>
+			{:else}
+				<div class="flex flex-col gap-1 {m.sender === 'operator' ? 'items-end' : 'items-start'}">
+					<!-- Custom Labeling / Bubble Headers -->
+					{#if m.sender !== 'operator'}
+						<SullyNameTag
+							label={m.sender === 'system' ? 'LOGUEOS' : (appIdentity?.coreLabel ?? 'Sully')}
+						/>
+					{/if}
 
-				<!-- Text Bubble. Operator bubbles render raw (whitespace-pre)
+					<!-- Text Bubble. Operator bubbles render raw (whitespace-pre)
 			     since they're literally what was typed. Assistant
 			     bubbles render through the Markdown component for
 			     code-block highlighting, inline code, lists, etc. -->
-				<div
-					class="font-sans text-[14px] leading-relaxed tracking-[-0.005em] antialiased selection:bg-brand/40 selection:text-white
+					<div
+						class="font-sans text-[14px] leading-relaxed tracking-[-0.005em] antialiased selection:bg-brand/40 selection:text-white
 									{m.sender === 'operator'
-						? 'max-w-[85%] rounded-2xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
-						: 'w-full px-0.5 text-zinc-100/95'}"
-				>
-					{#if m.sender === 'operator'}
-						<span class="whitespace-pre-wrap">{m.message}</span>
-					{:else}
-						<Markdown content={m.message} oncanvas={openCanvas} {onimagepreview} />
-					{/if}
-				</div>
+							? 'max-w-[85%] rounded-2xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
+							: 'w-full px-0.5 text-zinc-100/95'}"
+					>
+						{#if m.sender === 'operator'}
+							<span class="whitespace-pre-wrap">{m.message}</span>
+						{:else}
+							<Markdown content={m.message} oncanvas={openCanvas} {onimagepreview} />
+						{/if}
+					</div>
 
-				<!-- Time + actions footer. Copy + Regenerate on assistant
+					<!-- Time + actions footer. Copy + Regenerate on assistant
 			     replies only — operator's own bubbles already echo
 			     their input and can't be re-rolled. -->
-				<div class="flex items-center gap-2 px-1 select-none">
-					{#if m.sender !== 'operator' && m.message}
-						<button
-							type="button"
-							onclick={() => oncopy(m)}
-							class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 sm:min-h-0"
-							aria-label="Copy reply"
-							title={copiedIds.has(m.id) ? 'Copied' : 'Copy reply'}
-						>
-							{#if copiedIds.has(m.id)}
-								<Check size={10} class="text-emerald-400" />
-								<span class="text-emerald-400">Copied</span>
-							{:else}
-								<Copy size={10} />
-								<span>Copy</span>
-							{/if}
-						</button>
-						<button
-							type="button"
-							onclick={() => onregenerate(m)}
-							disabled={sending || regeneratingIds.has(m.id)}
-							class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"
-							aria-label={regeneratingIds.has(m.id)
-								? 'Regen… — Regenerate reply'
-								: 'Regen — Regenerate reply'}
-							title={regeneratingIds.has(m.id) ? 'Regenerating…' : 'Regenerate reply'}
-						>
-							<RefreshCw size={10} class={regeneratingIds.has(m.id) ? 'animate-spin' : ''} />
-							<span>{regeneratingIds.has(m.id) ? 'Regen…' : 'Regen'}</span>
-						</button>
-						<button
-							type="button"
-							onclick={() => onspeak(m)}
-							class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {speakingId ===
-							m.id
-								? 'text-brand-soft'
-								: 'text-zinc-500 hover:text-zinc-200'}"
-							aria-label={speakLoadingId === m.id
-								? '… — Read aloud (loading)'
-								: speakingId === m.id
-									? 'Stop — Read aloud'
-									: 'Play — Read aloud'}
-							title={speakingId === m.id
-								? 'Stop'
-								: speakLoadingId === m.id
-									? 'Loading…'
-									: 'Read aloud'}
-						>
-							{#if speakLoadingId === m.id}
-								<Loader2 size={10} class="animate-spin" />
-								<span>…</span>
-							{:else if speakingId === m.id}
-								<Square size={10} />
-								<span>Stop</span>
-							{:else}
-								<Volume2 size={10} />
-								<span>Play</span>
-							{/if}
-						</button>
-						<!-- Explicit feedback: thumbs-up / thumbs-down on assistant
+					<div class="flex items-center gap-2 px-1 select-none">
+						{#if m.sender !== 'operator' && m.message}
+							<button
+								type="button"
+								onclick={() => oncopy(m)}
+								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 sm:min-h-0"
+								aria-label="Copy reply"
+								title={copiedIds.has(m.id) ? 'Copied' : 'Copy reply'}
+							>
+								{#if copiedIds.has(m.id)}
+									<Check size={10} class="text-emerald-400" />
+									<span class="text-emerald-400">Copied</span>
+								{:else}
+									<Copy size={10} />
+									<span>Copy</span>
+								{/if}
+							</button>
+							<button
+								type="button"
+								onclick={() => onregenerate(m)}
+								disabled={sending || regeneratingIds.has(m.id)}
+								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"
+								aria-label={regeneratingIds.has(m.id)
+									? 'Regen… — Regenerate reply'
+									: 'Regen — Regenerate reply'}
+								title={regeneratingIds.has(m.id) ? 'Regenerating…' : 'Regenerate reply'}
+							>
+								<RefreshCw size={10} class={regeneratingIds.has(m.id) ? 'animate-spin' : ''} />
+								<span>{regeneratingIds.has(m.id) ? 'Regen…' : 'Regen'}</span>
+							</button>
+							<button
+								type="button"
+								onclick={() => onspeak(m)}
+								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {speakingId ===
+								m.id
+									? 'text-brand-soft'
+									: 'text-zinc-500 hover:text-zinc-200'}"
+								aria-label={speakLoadingId === m.id
+									? '… — Read aloud (loading)'
+									: speakingId === m.id
+										? 'Stop — Read aloud'
+										: 'Play — Read aloud'}
+								title={speakingId === m.id
+									? 'Stop'
+									: speakLoadingId === m.id
+										? 'Loading…'
+										: 'Read aloud'}
+							>
+								{#if speakLoadingId === m.id}
+									<Loader2 size={10} class="animate-spin" />
+									<span>…</span>
+								{:else if speakingId === m.id}
+									<Square size={10} />
+									<span>Stop</span>
+								{:else}
+									<Volume2 size={10} />
+									<span>Play</span>
+								{/if}
+							</button>
+							<!-- Explicit feedback: thumbs-up / thumbs-down on assistant
 						     replies. Toggles on/off — clicking the active signal
 						     clears it (passes 0). Captured in chat_messages.quality_signal
 						     so the fine-tune extractor can harvest explicit
 						     positives alongside the implicit ones it already pulls. -->
-						<button
-							type="button"
-							onclick={() => onfeedback(m, m.quality_signal === 1 ? 0 : 1)}
-							class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
-							1
-								? 'text-emerald-400'
-								: 'text-zinc-500 hover:text-zinc-200'}"
-							aria-label={m.quality_signal === 1 ? 'Remove thumbs-up' : 'Thumbs-up reply'}
-							aria-pressed={m.quality_signal === 1}
-							title={m.quality_signal === 1 ? 'Liked — click to undo' : 'Good reply'}
-							data-testid="feedback-up"
-						>
-							<ThumbsUp size={10} />
-						</button>
-						<button
-							type="button"
-							onclick={() => onfeedback(m, m.quality_signal === -1 ? 0 : -1)}
-							class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
-							-1
-								? 'text-rose-400'
-								: 'text-zinc-500 hover:text-zinc-200'}"
-							aria-label={m.quality_signal === -1 ? 'Remove thumbs-down' : 'Thumbs-down reply'}
-							aria-pressed={m.quality_signal === -1}
-							title={m.quality_signal === -1 ? 'Disliked — click to undo' : 'Bad reply'}
-							data-testid="feedback-down"
-						>
-							<ThumbsDown size={10} />
-						</button>
-					{/if}
-					<div class="font-sans text-[10px] text-zinc-600 tabular-nums">
-						{fmtTime(m.timestamp)}
+							<button
+								type="button"
+								onclick={() => onfeedback(m, m.quality_signal === 1 ? 0 : 1)}
+								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
+								1
+									? 'text-emerald-400'
+									: 'text-zinc-500 hover:text-zinc-200'}"
+								aria-label={m.quality_signal === 1 ? 'Remove thumbs-up' : 'Thumbs-up reply'}
+								aria-pressed={m.quality_signal === 1}
+								title={m.quality_signal === 1 ? 'Liked — click to undo' : 'Good reply'}
+								data-testid="feedback-up"
+							>
+								<ThumbsUp size={10} />
+							</button>
+							<button
+								type="button"
+								onclick={() => onfeedback(m, m.quality_signal === -1 ? 0 : -1)}
+								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
+								-1
+									? 'text-rose-400'
+									: 'text-zinc-500 hover:text-zinc-200'}"
+								aria-label={m.quality_signal === -1 ? 'Remove thumbs-down' : 'Thumbs-down reply'}
+								aria-pressed={m.quality_signal === -1}
+								title={m.quality_signal === -1 ? 'Disliked — click to undo' : 'Bad reply'}
+								data-testid="feedback-down"
+							>
+								<ThumbsDown size={10} />
+							</button>
+						{/if}
+						<div class="font-sans text-[10px] text-zinc-600 tabular-nums">
+							{fmtTime(m.timestamp)}
+						</div>
 					</div>
 				</div>
-			</div>
-			{#if m.sender === 'system' && m.trace_id?.startsWith('sully-')}
-				{@const ctrl = ensureDispatchStream(m.trace_id)}
-				<WorkingBubble
-					worker={m.trace_id.includes('agy') ? 'gemini' : 'claude-code'}
-					rows={ctrl.rows}
-					status={ctrl.status}
-					durationLabel={ctrl.durationLabel}
-				/>
 			{/if}
 		{/if}
 	{/each}
