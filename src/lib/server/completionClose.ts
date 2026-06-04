@@ -42,10 +42,12 @@ export async function closeOutTask(
 
 	// ── Phase 4: deterministic Go/No-Go poll BEFORE synthesis (only on success). ──
 	let pollPosture: 'confirmed' | 'hedge' | 'warn' = 'confirmed';
+	let matrixSummary = ''; // compact per-channel summary for the adversary (Plan B)
 	if (outcome === 'done' && job) {
 		try {
 			const poll = await runPoll(job, evidence);
 			pollPosture = poll.posture;
+			matrixSummary = poll.channels.map((c) => `${c.channel}:${c.state}`).join(', ');
 			logTaskEvent(traceId, 'verification_poll', {
 				overall: poll.posture,
 				needs_review: poll.needs_review,
@@ -75,7 +77,9 @@ export async function closeOutTask(
 	let concerns: string[] = [];
 	if (outcome === 'done' && job && text && shouldReview(job, evidence)) {
 		try {
-			const matrix = `posture=${pollPosture}`;
+			const matrix = matrixSummary
+				? `${matrixSummary} (overall: ${pollPosture})`
+				: `posture=${pollPosture}`;
 			const adv = await runAdversaryReview({ brief: job.brief ?? '', result: text, matrix });
 			concerns = adv.findings.map((f) => f.concern);
 			logTaskEvent(traceId, 'adversary_reviewed', {

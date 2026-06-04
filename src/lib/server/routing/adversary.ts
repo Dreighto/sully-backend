@@ -21,9 +21,16 @@ interface EvidenceLike {
 	health_url?: string | null;
 }
 
+// The dispatch category is free-form LLM text on the gated/proposal path (the
+// teacher emits "backend"/"refactor"/"bugfix"/… not always literally "code"),
+// so match a code-ish set, not just "code". The evidence-pointer fallback below
+// still catches any state-changing task whatever its label.
+const CODE_CATEGORY_RE =
+	/\b(code|backend|frontend|refactor|fix|bug|build|test|deploy|migrat|implement|feature|chore)/i;
+
 /** Deterministic stakes gate: review code/file/state-changing work; skip the rest. */
 export function shouldReview(job: JobLike, evidence: EvidenceLike): boolean {
-	if (job?.category === 'code') return true;
+	if (job?.category && CODE_CATEGORY_RE.test(job.category)) return true;
 	if (evidence?.fs_paths && evidence.fs_paths.length > 0) return true;
 	if (evidence?.git_ref) return true;
 	if (evidence?.pr_number !== undefined && evidence?.pr_number !== null) return true;
