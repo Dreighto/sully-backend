@@ -983,7 +983,6 @@
 				}}
 				{ensureDispatchStream}
 				{fmtTime}
-				{parseDbTimestamp}
 			/>
 		</div>
 

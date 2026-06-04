@@ -57,8 +57,7 @@
 		openCanvas,
 		onimagepreview,
 		ensureDispatchStream,
-		fmtTime,
-		parseDbTimestamp
+		fmtTime
 	}: {
 		messages: ChatMessage[];
 		streamState: StreamState;
@@ -82,7 +81,6 @@
 			traceId: string
 		) => ReturnType<typeof import('$lib/chat/dispatchStream.svelte').createDispatchStream>;
 		fmtTime: (iso: string) => string;
-		parseDbTimestamp: (iso: string) => Date | null;
 	} = $props();
 
 	// Friendly labels for the tool-call chips shown while Sully works, instead of
