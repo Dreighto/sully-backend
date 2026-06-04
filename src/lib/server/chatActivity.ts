@@ -44,7 +44,8 @@ export const TASK_EVENT_ACTIONS = [
 	'guardrail_triggered',
 	'reply_persisted',
 	'synthesis_started',
-	'synthesis_completed'
+	'synthesis_completed',
+	'verification_poll'
 ] as const;
 
 /**

@@ -18,18 +18,30 @@ Rules:
 - If the result is an error or incomplete, say so plainly and suggest the next step.
 - Summarize ONLY what's in the worker's output — never invent results you can't see.`;
 
+const POSTURE_FRAMING: Record<'confirmed' | 'hedge' | 'warn', string> = {
+	confirmed: '',
+	hedge:
+		'\n\nIMPORTANT: Some of what the worker reported could NOT be independently verified. Do not state those parts as fact — lead with the uncertainty ("I couldn\'t confirm whether X — the worker said it did, but I have no evidence either way"). Never headline an unverified claim. Never say "it works" — only "everything I could check held up."',
+	warn: '\n\nIMPORTANT: A deterministic check CONTRADICTS something the worker claimed. Open with a plain "Heads-up — something doesn\'t line up," name what was contradicted in plain English, and do NOT state the contradicted claim as fact. Recommend the Captain review it.'
+};
+
 /**
  * Summarize a finished worker's raw result in Sully's plain-English voice.
  * Returns the summary, or null on empty input / model error / timeout (caller
  * then falls back to the raw result so nothing is lost).
+ * The optional `posture` param (from the Go/No-Go poll) drives framing:
+ * - confirmed → no extra instruction (default)
+ * - hedge     → do-not-state-unverified-claims-as-fact instruction appended
+ * - warn      → heads-up-something-contradicted instruction appended
  */
 export async function synthesizeWorkerResult(
-	args: { brief: string; result: string },
+	args: { brief: string; result: string; posture?: 'confirmed' | 'hedge' | 'warn' },
 	timeoutMs = SYNTH_TIMEOUT_MS
 ): Promise<string | null> {
 	const result = (args.result || '').trim();
 	if (!result) return null;
 
+	const system = SYNTH_SYSTEM + (POSTURE_FRAMING[args.posture ?? 'confirmed'] || '');
 	const question = `Task you handed off: "${(args.brief || '').trim() || '(no brief recorded)'}".
 
 The worker's raw result:
@@ -38,7 +50,7 @@ ${result}
 
 Write the plain-English summary for the Captain now.`;
 
-	const gen = runConsultClaude(question, SYNTH_MODEL, SYNTH_SYSTEM)
+	const gen = runConsultClaude(question, SYNTH_MODEL, system)
 		.then((r) => ('answer' in r && r.answer ? r.answer.trim() : null))
 		.catch(() => null);
 

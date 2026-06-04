@@ -70,6 +70,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		target?: string | null;
 		result_ref?: string | null;
 		marker?: ResultMarker;
+		evidence?: import('$lib/server/verifyPoll').EvidenceEnvelope;
 	};
 	try {
 		body = JSON.parse(raw);
@@ -100,7 +101,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			} catch (e) {
 				console.warn('activity markDone transition skipped:', e);
 			}
-			await closeOutTask(trace_id, 'done', body.result_ref ?? '');
+			await closeOutTask(trace_id, 'done', body.result_ref ?? '', body.evidence ?? {});
 		} else if (action === 'failed') {
 			try {
 				markFailed(trace_id, body.target ?? null);
