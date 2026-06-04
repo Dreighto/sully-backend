@@ -12,7 +12,7 @@
 
 Non-negotiable. Every state and transition below obeys them.
 
-- **I1 — Facts come only from deterministic GO.** A claim may be stated as fact **only** if a deterministic check returned GO. AI judgment (the adversary) can **never** produce a fact and **never** upgrade confidence — only add caveats, flag risks, lower confidence, or recommend review.
+- **I1 — Facts come only from evidence, never from AI confidence.** A claim may be stated as fact **only** if it has evidence Sully can point to: a **deterministic check** (system/work facts) OR a **cited source** (world/current facts). AI judgment (the adversary) and the model's own confidence can **never** produce a fact and **never** upgrade confidence — only add caveats, flag risks, lower confidence, or recommend review.
 - **I2 — One pipeline for voice and text.** `text` and `voice` (talkback or standalone) are the same Sully underneath: same gates, task lifecycle, memory, dispatch, verification, journal, final-answer behavior. Input mode is recorded, never branched on for capability.
 - **I3 — Conversational by default.** A task is minted only on explicit work intent, an `@cc`/`@agy` command, or a confirmed suggestion (Contract 1).
 - **I4 — Classify before you answer.** Every turn is classified **before** Sully produces a full answer. For a worker-dependent answer she emits only a short status ("On it.") and the full answer comes after verification. This is also the fix for the chat-contradiction bug.
@@ -20,6 +20,7 @@ Non-negotiable. Every state and transition below obeys them.
 - **I6 — Journal every stage.** Each transition + artifact (intent, route, worker output, claims, matrix, concerns, summary, outcome) is journaled — not just the final answer.
 - **I7 — Never block or lose a real result.** Verification/review that times out or errors degrades to UNKNOWN / "review unavailable" (a hedge), never to silence or a dropped result. `VERIFYING` and `REVIEWING` are **total** — they cannot fail the task.
 - **I8 — `allowed_in_final == (verification_status == GO)`.** Only GO claims may be asserted as fact. NO_GO and UNKNOWN are surfaced through their own channels (warning / hedge), never as bare facts.
+- **I9 — Sully never pretends certainty about a fact.** Every factual claim resolves to exactly one confidence tier: **verified** (proven by a deterministic machine check), **sourced** (backed by a cited external source), **hedged** (weak/possibly-stale source — "according to X, but…"), or **cannot-confirm** (no reliable evidence → "I couldn't confirm that"). She never states a checkable fact she has no evidence for. The fact-sensitivity gate (Contract 4) decides which facts need this and how to get the evidence. Opinions, plans, reasoning, and creative work are not facts and answer freely.
 
 ---
 
@@ -104,6 +105,29 @@ ClaimLedgerEntry {
 
 ---
 
+## 3b. Contract 4 — Fact-Sensitivity Gate (REQUIRED) (I9)
+
+The same "a fact requires evidence" rule, applied to **conversational** turns — so Sully never states an unverifiable fact as certain in plain chat either, **without** making casual conversation slow or web-heavy. This runs inside the `ANSWER_NOW` path (it is NOT a task; no worker, no PR). It classifies the _content of the answer_ into one of three categories:
+
+| Category                          | Trigger                                                                                               | What Sully does                                                                                                                                                                     | Confidence tier                                                                                      |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **1. Conversational / reasoning** | opinion · brainstorming · planning · explanation · creative reasoning · anything not a checkable fact | **Answer freely. No source required.**                                                                                                                                              | n/a (not a fact)                                                                                     |
+| **2. World / current factual**    | a claim that could be checked against the world and could be **wrong because the world changed**      | **Source-check first** (web_search / web_fetch). Cite or name the source.                                                                                                           | **sourced** (good source) · **hedged** (weak/stale source) · **cannot-confirm** (no reliable source) |
+| **3. System / work factual**      | a claim about local/system state                                                                      | **Deterministic Go/No-Go only** (filesystem, git, service health, database, logs, CI, artifact existence — the same checks as Contract 3, run by Sully herself, no worker dispatch) | **verified** (GO) · **hedged**/**cannot-confirm** (UNKNOWN)                                          |
+
+**Fact-sensitivity triggers (Category 2/3 — when the gate fires):** time · price · location · availability · schedule · current status · recent info · laws/rules · product data · "does X exist" · **anything where being wrong would mislead the Captain.** If none apply → Category 1, answer freely.
+
+**Locked rules:**
+
+- **A web result is evidence, not absolute proof.** For anything that can change — times, prices, availability, schedules, rules, current status — Sully attributes ("According to X…") and never states it as absolute. Especially never present a possibly-stale snippet as the definitive answer.
+- **No reliable source → "I couldn't confirm that"** (+ offer to dig). She does not fall back to a confident guess from training memory.
+- **Do NOT source-check** normal brainstorming, opinions, plans, explanations, or creative work — that's Category 1 and answers immediately (keeps casual chat fast + quota-cheap).
+- The four confidence tiers (I9) — **verified / sourced / hedged / cannot-confirm** — are the single fact-confidence vocabulary shared with the worker pipeline (Contract 3): _verified_ = a deterministic GO; _sourced/hedged_ = the world-fact path; _cannot-confirm_ = UNKNOWN/no source.
+
+**v1 implementation is narrow (operator directive):** ship the **gate** first — classify fact-sensitive vs not; if not → answer normally; if fact-sensitive → route to the source/context check. The richer source-quality grading + the conversational system-fact deterministic checks expand **after Plan A merges** (Plan A already builds the deterministic check engine `verifyPoll.ts` that Category 3 reuses). See §12 + the plan roadmap.
+
+---
+
 ## 4. Turn state machine (every inbound message)
 
 ```
@@ -112,7 +136,7 @@ RECEIVED ──▶ CLASSIFYING ──▶ { ANSWER_NOW | SUGGEST_INVESTIGATION | 
 
 - `RECEIVED` — message in (voice transcribed or typed; mode recorded). → `CLASSIFYING`.
 - `CLASSIFYING` — if a task is active, run the **Mutation Gate** (Contract 2) first; then the **Intent Gate** (Contract 1). Produces exactly one outcome. **No full answer streams before this completes (I4).**
-- `ANSWER_NOW` → reply directly → `TURN_JOURNALED` → end.
+- `ANSWER_NOW` → the **Fact-Sensitivity Gate** (Contract 4) runs: Category 1 (conversational) replies directly; Category 2 (world fact) source-checks then replies with citation + confidence tier; Category 3 (system fact) runs a deterministic check then replies. → `TURN_JOURNALED` → end. (No task, no worker, no PR.)
 - `SUGGEST_INVESTIGATION` → post a proposal (Run / Not now) → `TURN_JOURNALED` → end (next turn resolves/expires it; proposal expiry is a **turn-level** event, never a task state).
 - `MINT_OR_UPDATE_TASK` → enter the Task state machine (§5); emit a short status only ("On it.") → `TURN_JOURNALED`.
 
@@ -225,7 +249,11 @@ Per task: original request · input mode · classification · route + reason · 
 
 ---
 
-## 12. v1 — explicitly OUT of scope (designed-for, built later)
+## 12. v1 — scope notes (built now vs deferred)
+
+**Fact-Sensitivity Gate (Contract 4) — IN v1, narrow first (operator directive 2026-06-04):** ship the gate (classify Category 1/2/3; fact-sensitive → route to source/context check, else answer freely). The richer source-quality grading + the Category-3 conversational deterministic checks expand after Plan A merges (they reuse Plan A's `verifyPoll.ts`). This becomes its own plan in the v1 family.
+
+**Deferred (designed-for, built later):**
 
 - **Self-repair loop** (concern → builder → re-verify). v2.
 - **Multi-round / panel adversary.** v1 = single advisory pass.
