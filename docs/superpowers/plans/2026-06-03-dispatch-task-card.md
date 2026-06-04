@@ -12,6 +12,15 @@
 
 ---
 
+## STATUS (2026-06-03)
+
+- ✅ **Phase A (bug fixes) — SHIPPED + browser-verified** on branch `feat/dispatch-task-card` (commits `3f27189`, `011e799`, `6b9ff42`). Verified against real synthesized job 66: the stuck `claude-code working · 39:53` + leaked `synthesis_completed {json}` now render as a single `✓ CC handled this · 42s` strip above Sully's answer. 208 tests, 0 type errors. Adversarial review: SAFE TO SHIP.
+- ✅ **Phase B (one morphing card) — SHIPPED + browser-verified** (same commits).
+- ⏸️ **Phase C (ask-before-dispatch tap-to-confirm buttons) — DEFERRED** (next focused pass). Ask-before-dispatch already FUNCTIONS via typed "yes"; the buttons are a one-tap nicety with real edge cases (proposal expiry, button-state sync, double-tap) that warrant their own tested change rather than rushing into a verified commit. Design: post the Ask message with `status='pending_approval'`, render Run/Dismiss in MessageFeed, confirm endpoint dispatches/aborts + flips the message status.
+- 📌 **Fast-follow (P2 total):** the legacy kernel-wired activity pill (`chat/+page.svelte` `pollActivity` + `GET /api/chat/activity`) still builds raw `action 'target'` text + a `[View JSON]` link. It only runs when `companionDispatchEnabled === false` (OFF in the operator's config), so it's dormant for the shipping path — but route it through `friendlyStep` + drop `[View JSON]` to make the no-raw-to-non-coder guarantee total in every mode.
+
+---
+
 ## Problems being solved
 
 - **P1 — stuck timer.** Jobs end at status `synthesized`, but the terminal allow-list is `['done','failed','aborted']` (`dispatch/stream/+server.ts:55`, `dispatchStream.svelte.ts:72`), so the card never resolves. Also `WorkingBubble` runs a live `setInterval` from the message timestamp on every render → "39:53" on reload/scrollback.
