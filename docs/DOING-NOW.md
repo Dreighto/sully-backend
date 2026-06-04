@@ -32,7 +32,7 @@
 
 1. **"Today's Ops" dashboard** — the **first task-first real-world test project**. Data-sources design written: `data/peer_reviews/2026-06-02_todays-ops-data-sources_design.md`. **Still blocked, and we now know the real blocker:** Sully has **no write/mkdir tool** + no workspace container, so she physically can't create the dashboard folder (the gap audit confirmed this — `data/peer_reviews/2026-06-03_sully-vision-gap-audit.md`). Needs the **workspace + write-tool slice** before it can run.
 
-2. **Verification stage (Task-first Phase 4)** — Sully still trusts a worker's "done" blindly, and her chat-layer reply can contradict the dispatch result (seen live: a "couldn't find the directory" chat reply next to a successful CC audit). A cheap deterministic check (does the claimed PR/file/result actually exist?) before she reports back. **Not started.** Highest-leverage next correctness step.
+2. **Verification stage (Task-first v1) — ✅ SHIPPED 2026-06-04 (Plan A + Fact-Gate + Plan B, all live).** Deterministic Go/No-Go at completion (`verifyPoll.ts`), the conversational Fact-Gate (`factGate.ts` — source-or-confirm), and the stakes-gated adversary (`adversary.ts` — concerns, never facts). Spec: `docs/superpowers/specs/2026-06-04-sully-task-first-state-machine-v1-design.md`. **Next v1: Plan C — task mutation** (active-task conversation: attach / sibling / conversational, never silently mutate running work), then **Plan D — classify-before-answer reorder** (the streamed-reply/contradiction fix). 5 of 8 acceptance tests proven.
 
 3. **The post-audit refactor** — quick wins done; the higher-effort items (legacy `/api/chat` handler migration, shared DB layer, voice consolidation) are queued behind the CI gate. (PLAN.md.)
 
