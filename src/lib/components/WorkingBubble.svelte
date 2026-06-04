@@ -1,64 +1,72 @@
 <script lang="ts">
 	import type { StreamRow } from '$lib/chat/dispatchReconcile';
+	import { friendlyStep, isTerminalStatus, isSuccessStatus } from '$lib/dispatchActivityView';
 
 	let {
 		worker,
 		rows,
 		status,
-		resultRef,
-		startedAt,
+		durationLabel,
 		onretry
 	}: {
 		worker: string;
 		rows: StreamRow[];
 		status: string;
-		resultRef: string | null;
-		startedAt: number;
+		durationLabel: string | null;
 		onretry?: () => void;
 	} = $props();
 
-	let elapsed = $state(0);
-	$effect(() => {
-		if (status !== 'working') return;
-		const t = setInterval(() => {
-			elapsed = Math.floor((Date.now() - startedAt) / 1000);
-		}, 1000);
-		return () => clearInterval(t);
-	});
-
+	const who = $derived(worker === 'gemini' ? 'AGY' : 'CC');
 	const last = $derived(rows.length ? rows[rows.length - 1] : null);
-	const mmss = $derived(`${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`);
+	// Only ever show a mapped plain-English step — raw actions/targets/JSON never
+	// reach this component, but map defensively anyway.
+	const stepLine = $derived(last ? friendlyStep(last.action, last.target) : null);
+	const working = $derived(!isTerminalStatus(status));
+	const succeeded = $derived(isTerminalStatus(status) && isSuccessStatus(status));
 </script>
 
-{#if status === 'working'}
+{#if working}
+	<!-- Live: a calm pulse + a friendly status line. NO timer (the stuck "39:53"
+	     was a live clock; we never show digits while working). -->
 	<div
-		class="rounded-2xl border border-fuchsia-400/25 bg-fuchsia-950/15 px-4 py-3 backdrop-blur-md"
+		class="flex flex-col gap-1 rounded-2xl border border-fuchsia-400/25 bg-fuchsia-950/15 px-4 py-3 backdrop-blur-md"
+		role="status"
+		aria-label="{who} is working"
 	>
 		<div class="flex items-center gap-2">
 			<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-fuchsia-400"></span>
-			<span class="font-mono text-[12px] tracking-wide text-fuchsia-300">
-				{worker} working · {mmss}
-			</span>
+			<span class="text-[12px] font-medium tracking-wide text-fuchsia-200">{who} is on it</span>
 		</div>
-		{#if last}
-			<div class="mt-1.5 font-mono text-[11px] text-fuchsia-200/70">
-				{last.target ? `${last.action} ${last.target}` : last.action}
-			</div>
+		{#if stepLine}
+			<div class="text-[11px] text-fuchsia-200/70">{stepLine}</div>
 		{/if}
 	</div>
-{:else if status === 'done'}
+{:else if succeeded}
+	<!-- Resolved: a compact strip that sits flush above Sully's plain-English
+	     answer so the two read as one unit. Frozen duration — never counts up. -->
 	<div
-		class="rounded-2xl border border-emerald-400/20 bg-emerald-950/10 px-4 py-2 text-[12px] text-emerald-200/80"
+		class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-950/10 px-3 py-1 text-[11px] text-emerald-200/80"
 	>
-		Done{resultRef ? ` — ${resultRef}` : ''}
+		<span aria-hidden="true">✓</span>
+		<span>{who} handled this{durationLabel ? ` · ${durationLabel}` : ''}</span>
 	</div>
 {:else}
+	<!-- Failed / aborted: blame-free, with an optional one-tap retry. -->
 	<div
-		class="rounded-2xl border border-red-400/25 bg-red-950/15 px-4 py-2 text-[12px] text-red-200/80"
+		class="flex items-center gap-2 rounded-2xl border border-rose-400/25 bg-rose-950/15 px-4 py-2 text-[12px] text-rose-200/85"
 	>
-		{status === 'aborted' ? 'Aborted' : 'Failed'}
+		<span
+			>{status === 'aborted'
+				? `${who} stopped before finishing`
+				: `${who} ran into a problem`}</span
+		>
 		{#if onretry}
-			<button class="ml-2 underline" onclick={onretry}>Retry</button>
+			<button
+				class="ml-1 rounded-md px-2 py-1 font-medium underline hover:bg-white/5"
+				onclick={onretry}
+			>
+				Try again
+			</button>
 		{/if}
 	</div>
 {/if}

@@ -254,8 +254,7 @@
 					worker={m.trace_id.includes('agy') ? 'gemini' : 'claude-code'}
 					rows={ctrl.rows}
 					status={ctrl.status}
-					resultRef={ctrl.resultRef}
-					startedAt={parseDbTimestamp(m.timestamp)?.getTime() ?? Date.now()}
+					durationLabel={ctrl.durationLabel}
 				/>
 			{/if}
 		{/if}
