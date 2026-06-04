@@ -80,12 +80,24 @@ type JobLike = { trace_id: string; status: string; started_at: string | null };
 
 const PER_CHANNEL_TIMEOUT_MS = 5000;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
-// Allow-list of repo roots Sully may verify against (frame-binding; never worker-arbitrary).
-const REPO_ROOTS: Record<string, string> = {
-	'LogueOS-Companion': '/home/dreighto/dev/LogueOS-Companion',
-	'LogueOS-Orchestrator': '/home/dreighto/dev/LogueOS-Orchestrator',
-	'LogueOS-Console': '/home/dreighto/dev/LogueOS-Console',
-	miru: '/home/dreighto/dev/miru'
+// Allow-list of repos Sully may verify against (frame-binding; never worker-arbitrary).
+// Keyed by the targetRepo strings dispatch ACTUALLY emits (config.ts defaultWorkspace
+// = 'companion'; chat routing emits 'project-miru' / 'NASDOOM' / 'LogueOS-*'), each
+// mapped to its on-disk root + its GitHub <owner>/<name>. Aliases included for safety.
+const REPOS: Record<string, { root: string; gh: string }> = {
+	companion: { root: '/home/dreighto/dev/LogueOS-Companion', gh: 'Dreighto/LogueOS-Companion' },
+	'LogueOS-Companion': {
+		root: '/home/dreighto/dev/LogueOS-Companion',
+		gh: 'Dreighto/LogueOS-Companion'
+	},
+	'project-miru': { root: '/home/dreighto/dev/miru', gh: 'Dreighto/project-miru' },
+	miru: { root: '/home/dreighto/dev/miru', gh: 'Dreighto/project-miru' },
+	'LogueOS-Orchestrator': {
+		root: '/home/dreighto/dev/LogueOS-Orchestrator',
+		gh: 'Dreighto/LogueOS-Orchestrator'
+	},
+	'LogueOS-Console': { root: '/home/dreighto/dev/LogueOS-Console', gh: 'Dreighto/LogueOS-Console' },
+	NASDOOM: { root: '/home/dreighto/dev/nasdoom', gh: 'Dreighto/NASDOOM' }
 };
 
 /** Run all v1 channels. Every check resolves to GO/NO_GO/UNKNOWN/SKIPPED — it can never throw (I7). */
@@ -99,7 +111,9 @@ export async function runPoll(
 	needs_review: boolean;
 }> {
 	const startMs = startedMs(job.started_at);
-	const repoRoot = env.repo ? REPO_ROOTS[env.repo] : undefined;
+	const repo = env.repo ? REPOS[env.repo] : undefined;
+	const repoRoot = repo?.root;
+	const ghRepo = repo?.gh;
 	const results: ChannelResult[] = [];
 
 	// 1. worker_completion (always on, critical, LIVENESS — proves it ran, not that a claim is true)
@@ -129,7 +143,7 @@ export async function runPoll(
 		await safe('artifact', true, env.fs_paths, async () => {
 			const paths = env.fs_paths!;
 			for (const p of paths) {
-				if (repoRoot && !path.resolve(p).startsWith(path.resolve(repoRoot))) {
+				if (repoRoot && !path.resolve(p).startsWith(path.resolve(repoRoot) + path.sep)) {
 					return no('artifact', true, p, `path escapes repo root`);
 				}
 				if (!fs.existsSync(p)) return no('artifact', true, p, `missing: ${p}`);
@@ -157,19 +171,11 @@ export async function runPoll(
 	// 5. pr (gh; critical)
 	results.push(
 		await safe('pr', true, env.pr_number, async () => {
-			if (!env.repo) return unk('pr', true, String(env.pr_number), 'unknown repo');
+			if (!ghRepo) return unk('pr', true, String(env.pr_number), 'unknown repo');
 			try {
 				const { stdout } = await exec(
 					'gh',
-					[
-						'pr',
-						'view',
-						String(env.pr_number),
-						'--repo',
-						`Dreighto/${env.repo}`,
-						'--json',
-						'state'
-					],
+					['pr', 'view', String(env.pr_number), '--repo', ghRepo, '--json', 'state'],
 					{ timeout: PER_CHANNEL_TIMEOUT_MS }
 				);
 				const state = (JSON.parse(stdout).state as string) || '';
