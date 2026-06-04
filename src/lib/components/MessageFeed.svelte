@@ -268,14 +268,14 @@
 							<button
 								type="button"
 								onclick={() => onproposal(m, 'run')}
-								class="min-h-[44px] rounded-lg bg-fuchsia-600/90 px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-fuchsia-500 active:scale-95 sm:min-h-0"
+								class="min-h-[44px] rounded-full bg-brand px-4 py-1.5 text-[12px] font-semibold text-white shadow-[0_0_18px_-5px_var(--color-brand)] transition-all hover:bg-brand-bright active:scale-95 sm:min-h-0"
 							>
 								Run it
 							</button>
 							<button
 								type="button"
 								onclick={() => onproposal(m, 'dismiss')}
-								class="min-h-[44px] rounded-lg border border-zinc-700/70 px-3 py-1.5 text-[12px] font-medium text-zinc-300 transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0"
+								class="min-h-[44px] rounded-full border border-brand/30 px-4 py-1.5 text-[12px] font-medium text-brand-soft transition-all hover:border-brand/50 hover:bg-brand/10 active:scale-95 sm:min-h-0"
 							>
 								Not now
 							</button>
