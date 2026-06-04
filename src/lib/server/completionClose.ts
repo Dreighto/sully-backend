@@ -6,11 +6,13 @@
 // completed callback that lands after an abort) — synthesis is best-effort.
 import { addChatMessage } from './chat';
 import { logTaskEvent, hasTaskEvent } from './chatActivity';
-import { getJob, markSynthesized } from './dispatchJobs';
+import { getJob, markSynthesized, markVerified } from './dispatchJobs';
 import { appIdentity } from './config';
 import { sendPushToAll } from './web_push';
 import { sendApnsToAll } from './apns';
 import { synthesizeWorkerResult } from './routing/synthesize';
+import { runPoll } from './verifyPoll';
+import type { EvidenceEnvelope } from './verifyPoll';
 
 /** Empty string OR null/undefined thread_id → 'default'. (`??` alone misses ''.) */
 export function resolveCompletionThread(threadId: string | null | undefined): string {
@@ -20,7 +22,8 @@ export function resolveCompletionThread(threadId: string | null | undefined): st
 export async function closeOutTask(
 	traceId: string,
 	outcome: 'done' | 'failed',
-	resultText: string
+	resultText: string,
+	evidence: EvidenceEnvelope = {}
 ): Promise<void> {
 	const job = getJob(traceId);
 	// Idempotency guard: a retried/duplicate terminal callback (network hiccup,
@@ -35,12 +38,43 @@ export async function closeOutTask(
 	if (hasTaskEvent(traceId, 'synthesis_completed')) return;
 	const threadId = resolveCompletionThread(job?.thread_id);
 	const text = resultText.trim();
+
+	// ── Phase 4: deterministic Go/No-Go poll BEFORE synthesis (only on success). ──
+	let pollPosture: 'confirmed' | 'hedge' | 'warn' = 'confirmed';
+	if (outcome === 'done' && job) {
+		try {
+			const poll = await runPoll(job, evidence);
+			pollPosture = poll.posture;
+			logTaskEvent(traceId, 'verification_poll', {
+				overall: poll.posture,
+				needs_review: poll.needs_review,
+				channels: poll.channels.map((c) => ({
+					channel: c.channel,
+					state: c.state,
+					detail: c.detail
+				}))
+			});
+			try {
+				markVerified(
+					traceId,
+					poll.posture,
+					poll.ledger.find((e) => e.critical)?.evidence_pointer ?? null,
+					JSON.stringify(poll.channels)
+				);
+			} catch {
+				/* terminal-state race — non-fatal */
+			}
+		} catch (e) {
+			console.warn('[completionClose] poll skipped:', e);
+		}
+	}
+
 	// Real Sully synthesis (Phase 3): when there's a worker result, have Sully
 	// summarize it in plain English (Haiku) so the Captain can digest it without
 	// a follow-up. Best-effort — on any failure/timeout `summary` is null and we
 	// fall back to posting the raw result verbatim (nothing is lost).
 	const summary = text
-		? await synthesizeWorkerResult({ brief: job?.brief ?? '', result: text })
+		? await synthesizeWorkerResult({ brief: job?.brief ?? '', result: text, posture: pollPosture })
 		: null;
 	const msg = summary
 		? summary
