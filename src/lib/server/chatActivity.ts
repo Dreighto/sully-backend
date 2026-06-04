@@ -45,7 +45,8 @@ export const TASK_EVENT_ACTIONS = [
 	'reply_persisted',
 	'synthesis_started',
 	'synthesis_completed',
-	'verification_poll'
+	'verification_poll',
+	'adversary_reviewed'
 ] as const;
 
 /**

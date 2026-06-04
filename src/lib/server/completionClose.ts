@@ -11,6 +11,7 @@ import { appIdentity } from './config';
 import { sendPushToAll } from './web_push';
 import { sendApnsToAll } from './apns';
 import { synthesizeWorkerResult } from './routing/synthesize';
+import { shouldReview, runAdversaryReview } from './routing/adversary';
 import { runPoll } from './verifyPoll';
 import type { EvidenceEnvelope } from './verifyPoll';
 
@@ -69,12 +70,35 @@ export async function closeOutTask(
 		}
 	}
 
+	// ── Phase 5 (Plan B): stakes-gated adversary review. After the poll, before
+	// synthesis. TOTAL (I7) — any error → no concerns, proceed; never blocks.
+	let concerns: string[] = [];
+	if (outcome === 'done' && job && text && shouldReview(job, evidence)) {
+		try {
+			const matrix = `posture=${pollPosture}`;
+			const adv = await runAdversaryReview({ brief: job.brief ?? '', result: text, matrix });
+			concerns = adv.findings.map((f) => f.concern);
+			logTaskEvent(traceId, 'adversary_reviewed', {
+				available: adv.available,
+				count: adv.findings.length,
+				findings: adv.findings
+			});
+		} catch (e) {
+			console.warn('[completionClose] adversary skipped:', e); // never blocks (I7)
+		}
+	}
+
 	// Real Sully synthesis (Phase 3): when there's a worker result, have Sully
 	// summarize it in plain English (Haiku) so the Captain can digest it without
 	// a follow-up. Best-effort — on any failure/timeout `summary` is null and we
 	// fall back to posting the raw result verbatim (nothing is lost).
 	const summary = text
-		? await synthesizeWorkerResult({ brief: job?.brief ?? '', result: text, posture: pollPosture })
+		? await synthesizeWorkerResult({
+				brief: job?.brief ?? '',
+				result: text,
+				posture: pollPosture,
+				concerns
+			})
 		: null;
 	const msg = summary
 		? summary
