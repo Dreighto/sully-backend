@@ -176,8 +176,11 @@ export async function maybeAutonomousDispatch(
 		// operator's confirmation rather than firing. Stored as a 'gated' proposal;
 		// the next turn's affirmation consumes it (handled at the top of this fn).
 		markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
-		const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Just say "yes".`;
-		addChatMessage('local', ask, taskId, null, null, 'sent', threadId, { taskId });
+		const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
+		// status='pending_approval' surfaces the tap-to-confirm Run/Not-now buttons
+		// in the UI; the operator can still confirm by typing "yes" (handled at the
+		// top of this fn). The buttons POST /api/chat/dispatch/confirm.
+		addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, { taskId });
 		logTaskEvent(taskId, 'gate_evaluated', {
 			action: 'Ask',
 			reason: d.reason,

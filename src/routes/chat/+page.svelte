@@ -482,6 +482,28 @@
 		}
 	}
 
+	// Ask-before-dispatch tap-to-confirm. The buttons on a proposal bubble call
+	// this; it optimistically clears them, POSTs the decision, then re-polls so
+	// the dispatch card (run) or the hold-off note (dismiss) lands. Safe on
+	// double-tap/expiry — the server only acts on a still-'gated' proposal.
+	async function confirmProposal(m: ChatMessage, decision: 'run' | 'dismiss') {
+		const taskId = m.trace_id;
+		if (!taskId) return;
+		messages = messages.map((x) =>
+			x.id === m.id ? { ...x, status: decision === 'run' ? 'approved' : 'denied' } : x
+		);
+		try {
+			await fetch(resolve('/api/chat/dispatch/confirm'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ taskId, decision })
+			});
+		} catch {
+			/* offline — the next poll reconciles the real state */
+		}
+		void pollMessages();
+	}
+
 	async function pollMessages(forThread?: string) {
 		// Capture the thread the caller intended at the moment of the request.
 		// Without this guard a slow in-flight poll for the previous thread can
@@ -977,6 +999,7 @@
 				onregenerate={(m) => void messageActions.regenerateReply(m)}
 				onspeak={(m) => void messageActions.speakMessage(m)}
 				onfeedback={(m, s) => void messageActions.feedbackMessage(m, s)}
+				onproposal={(m, decision) => void confirmProposal(m, decision)}
 				{openCanvas}
 				onimagepreview={(src, alt) => {
 					lightboxImage = { src, alt };

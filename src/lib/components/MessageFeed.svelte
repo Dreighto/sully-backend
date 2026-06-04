@@ -54,6 +54,7 @@
 		onregenerate,
 		onspeak,
 		onfeedback,
+		onproposal,
 		openCanvas,
 		onimagepreview,
 		ensureDispatchStream,
@@ -74,6 +75,7 @@
 		onregenerate: (m: ChatMessage) => void;
 		onspeak: (m: ChatMessage) => void;
 		onfeedback: (m: ChatMessage, signal: 1 | -1 | 0) => void;
+		onproposal: (m: ChatMessage, decision: 'run' | 'dismiss') => void;
 		openCanvas: (code: string, language: string) => void;
 		/** Tap-to-preview on any inline image — opens the lightbox at +page.svelte. */
 		onimagepreview: (src: string, alt: string) => void;
@@ -258,6 +260,27 @@
 							{fmtTime(m.timestamp)}
 						</div>
 					</div>
+					{#if m.status === 'pending_approval'}
+						<!-- Ask-before-dispatch: one-tap confirm. The same proposal can
+						     still be confirmed by typing "yes"; the server clears these
+						     buttons (flips the row off 'pending_approval') on a decision. -->
+						<div class="mt-1 flex items-center gap-2" data-testid="proposal-actions">
+							<button
+								type="button"
+								onclick={() => onproposal(m, 'run')}
+								class="min-h-[44px] rounded-lg bg-fuchsia-600/90 px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-fuchsia-500 active:scale-95 sm:min-h-0"
+							>
+								Run it
+							</button>
+							<button
+								type="button"
+								onclick={() => onproposal(m, 'dismiss')}
+								class="min-h-[44px] rounded-lg border border-zinc-700/70 px-3 py-1.5 text-[12px] font-medium text-zinc-300 transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0"
+							>
+								Not now
+							</button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		{/if}

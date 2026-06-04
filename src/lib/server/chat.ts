@@ -280,6 +280,27 @@ export function deleteChatMessage(messageId: number): boolean {
 	}
 }
 
+// Flip a 'pending_approval' proposal message (matched by trace_id) to a
+// terminal status so its tap-to-confirm buttons clear. Scoped to
+// 'pending_approval' so it can never disturb a normal 'sent' row. Returns the
+// row count updated. Used by the ask-before-dispatch confirm endpoint.
+export function resolveProposalMessage(traceId: string, status: 'approved' | 'denied'): number {
+	const db = getDb();
+	try {
+		const info = db
+			.prepare(
+				"UPDATE chat_messages SET status = ? WHERE trace_id = ? AND status = 'pending_approval'"
+			)
+			.run(status, traceId);
+		return info.changes;
+	} catch (e: unknown) {
+		console.error('resolveProposalMessage error:', e);
+		return 0;
+	} finally {
+		db.close();
+	}
+}
+
 // Operator's explicit feedback on an assistant reply. `+1` = thumbs-up,
 // `-1` = thumbs-down, `null` = clear any prior signal. Returns the row count
 // updated (0 = message_id not found). Only persists; the explicit-positive

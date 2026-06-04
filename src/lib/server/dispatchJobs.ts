@@ -441,6 +441,36 @@ export function getPendingProposal(threadId: string, maxAgeMinutes = 10): Pendin
 	}
 }
 
+/**
+ * Fetch a still-pending ('gated') proposal by its exact task id. The tap-to-
+ * confirm endpoint targets the specific proposal the operator tapped (not "the
+ * latest on the thread"), and returning ONLY 'gated' rows makes confirm safe
+ * against double-tap + post-expiry taps: once consumed (gated→decided) or
+ * expired (gated→aborted) this returns null, so a second tap can't re-dispatch.
+ */
+export function getProposalByTaskId(taskId: string): PendingProposal | null {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
+	const db = getDb();
+	try {
+		const row = db
+			.prepare(
+				"SELECT trace_id, thread_id, result_ref FROM pending_jobs WHERE trace_id = ? AND status = 'gated' LIMIT 1"
+			)
+			.get(taskId) as
+			| { trace_id: string; thread_id: string; result_ref: string | null }
+			| undefined;
+		if (!row || !row.result_ref) return null;
+		try {
+			const p = JSON.parse(row.result_ref) as ProposalPayload;
+			return { taskId: row.trace_id, threadId: row.thread_id, ...p };
+		} catch {
+			return null;
+		}
+	} finally {
+		db.close();
+	}
+}
+
 /** All Task rows for a thread, newest first. Reader-API support (turn_replay). */
 export function getJobsForThread(threadId: string, limit = 50): PendingJob[] {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];

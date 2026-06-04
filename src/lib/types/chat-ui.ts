@@ -27,6 +27,10 @@ export type ChatMessage = {
 	image_path?: string | null;
 	// Companion dispatch SSE: present on system rows inserted by companionDispatch.
 	trace_id?: string | null;
+	// Message lifecycle status. 'pending_approval' marks an ask-before-dispatch
+	// proposal bubble that should render tap-to-confirm Run/Not-now buttons; the
+	// server flips it to 'approved'/'denied' once acted on (clears the buttons).
+	status?: string | null;
 	// Operator's explicit feedback on this reply (+1/-1/null). Drives the
 	// explicit-positive corpus for Sully fine-tunes alongside the implicit
 	// correction-absence signal we already harvest from chat history.
