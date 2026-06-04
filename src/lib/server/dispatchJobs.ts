@@ -49,6 +49,7 @@ export interface PendingJob {
 	classification_payload: string | null;
 	verification_state: string | null;
 	verification_ref: string | null;
+	verification_evidence: string | null;
 	synthesis_message_id: number | null;
 	ticket_id: string | null;
 }
@@ -83,6 +84,7 @@ const TASK_COLUMNS: Record<string, string> = {
 	classification_payload: 'TEXT',
 	verification_state: 'TEXT',
 	verification_ref: 'TEXT',
+	verification_evidence: 'TEXT',
 	synthesis_message_id: 'INTEGER',
 	ticket_id: 'TEXT'
 };
@@ -283,8 +285,17 @@ export function markAborted(traceId: string): void {
 	transition(traceId, 'aborted', { ended_at: new Date().toISOString() });
 }
 /** Phase 4: PR-merge / CI confirmed the dispatched work landed. */
-export function markVerified(traceId: string, state: string, ref: string | null): void {
-	transition(traceId, 'verified', { verification_state: state, verification_ref: ref });
+export function markVerified(
+	traceId: string,
+	state: string,
+	ref: string | null,
+	evidence: string | null = null
+): void {
+	transition(traceId, 'verified', {
+		verification_state: state,
+		verification_ref: ref,
+		verification_evidence: evidence
+	});
 }
 /** Phase 3: Sully posted her synthesized final answer; link it + close the arc. */
 export function markSynthesized(traceId: string, synthesisMessageId: number): void {

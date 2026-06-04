@@ -171,6 +171,7 @@ export function bootstrapCompanionDb(): void {
 			classification_payload: 'TEXT',
 			verification_state: 'TEXT',
 			verification_ref: 'TEXT',
+			verification_evidence: 'TEXT',
 			synthesis_message_id: 'INTEGER',
 			ticket_id: 'TEXT'
 		};
