@@ -45,3 +45,24 @@ describe('factGate — system/work facts (deterministic check)', () => {
 			expect(factGate(t).sensitive).toBe(true);
 		});
 });
+
+describe('factGate — precision: casual chat must NOT trigger fact-gate', () => {
+	for (const t of [
+		'do you have time to chat',
+		"let me know when you're free",
+		'where should I put this file',
+		'where do I start',
+		'remember when we shipped that',
+		'the companion is so helpful',
+		'are you my companion',
+		'today was rough',
+		"let's do this tonight",
+		'any news on the launch',
+		"that's a good idea",
+		'how are you?'
+	])
+		it(`conversational (no false positive): "${t}"`, () => {
+			expect(factGate(t).category).toBe('conversational');
+			expect(factGate(t).sensitive).toBe(false);
+		});
+});
