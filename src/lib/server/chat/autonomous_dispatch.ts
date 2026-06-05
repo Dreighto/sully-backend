@@ -26,7 +26,6 @@
 import { addChatMessage } from '$lib/server/chat';
 import { runMode } from '$lib/server/config';
 import { validateGate } from '$lib/server/decisionGate';
-import { decide } from '$lib/server/routing/decide';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { mintTaskId } from '$lib/server/chat_turn';
@@ -36,11 +35,11 @@ import {
 	getPendingProposal,
 	markAborted
 } from '$lib/server/dispatchJobs';
-import { isAffirmation, isRoutingAnswer } from '$lib/server/routing/confirm';
 import { captureGateBlock } from '$lib/server/routing/captureGate';
 import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
 import type { MutationGateResult } from '$lib/server/routing/mutation_gate';
+import { resolveTurnDecision, type TurnDecision } from '$lib/server/routing/turn_decision';
 
 /** Operator-facing worker label. */
 const workerLabel = (w: 'claude-code' | 'gemini'): string => (w === 'gemini' ? 'AGY' : 'CC');
@@ -77,69 +76,65 @@ export interface AutonomousDispatchArgs {
 	mutationGate?: MutationGateResult;
 }
 
+export interface ApplyTurnDecisionCtx {
+	taskId: string;
+	threadId: string;
+	targetRepo: string;
+	userText: string;
+}
+
 /**
- * Evaluate the autonomous-dispatch gates and, if they fire, hand the request
- * to a background worker + write the system "sent to worker" chat message.
- *
- * No-op when companion dispatch is disabled — matches both paths' top-level
- * `runMode.companionDispatchEnabled` guard. The CLI path additionally gates on
- * `!errored` BEFORE calling this (a half/failed gen should never dispatch).
+ * Execute the side effects for a turn decision: chat messages, journal events,
+ * dispatch calls, job-state transitions. Exactly mirrors the old bodies of
+ * maybeAutonomousDispatch — one arm per TurnDecision kind.
  */
-export async function maybeAutonomousDispatch(
-	args: AutonomousDispatchArgs
+export async function applyTurnDecision(
+	decision: TurnDecision,
+	ctx: ApplyTurnDecisionCtx
 ): Promise<{ spokenSuffix?: string }> {
-	if (!runMode.companionDispatchEnabled) return {};
+	const { taskId, threadId, targetRepo, userText } = ctx;
 
-	const { userText, targetRepo, threadId } = args;
-	// Reuse the turn's Task id so the dispatch promotes the existing 'proposed'
-	// row rather than creating an orphan. Fall back to a minted id for legacy
-	// callers that don't pass one.
-	const taskId = args.taskId ?? mintTaskId();
-
-	// ── Mutation Gate (R2): honor the gate result FIRST — before the existing
-	//    ask-before-dispatch flow. This ensures a running task is never silently
-	//    injected into or dropped from a new turn. ──────────────────────────────
-
-	// Step A: if there's a pending routing_ask proposal on this thread AND the
-	// operator just answered it, consume it now.
-	const pendingRoutingAsk = (() => {
-		const p = getPendingProposal(threadId);
-		return p?.proposalType === 'routing_ask' ? p : null;
-	})();
-	if (pendingRoutingAsk) {
-		const routingAnswer = isRoutingAnswer(userText);
-		if (routingAnswer === 'sibling') {
-			// Dispatch the held content as a NEW task from the routing-ask proposal.
-			const siblingTraceId = mintTaskId();
-			const res = await dispatchToWorker({
-				traceId: siblingTraceId,
-				worker: pendingRoutingAsk.worker,
-				category: pendingRoutingAsk.category,
-				brief: pendingRoutingAsk.brief,
-				targetRepo: pendingRoutingAsk.targetRepo,
-				task: pendingRoutingAsk.task,
-				threadId
-			});
-			logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
-				action: 'Dispatch',
-				reason: 'routing-ask: sibling',
-				worker: pendingRoutingAsk.worker,
-				dispatched: res.ok,
-				held_reason: res.ok ? null : res.reason
-			});
-			const msg = res.ok
-				? `On it — running that as a separate task. I'll drop the result right here when it's ready.`
-				: `Could not start a new task: ${res.reason}.`;
-			addChatMessage('system', msg, res.ok ? siblingTraceId : null, null, null, 'sent', threadId, {
-				taskId: pendingRoutingAsk.taskId
-			});
-			// Consume the routing_ask proposal (mark the asking-turn self-handled).
-			markAborted(pendingRoutingAsk.taskId);
-			markSelfHandled(taskId);
-			return { spokenSuffix: msg };
-		}
-		if (routingAnswer === 'defer') {
-			// Persist a deferral note and let the operator know nothing is lost.
+	switch (decision.kind) {
+		case 'ROUTING_ANSWER': {
+			const { answer, proposal: pendingRoutingAsk } = decision;
+			if (answer === 'sibling') {
+				const siblingTraceId = mintTaskId();
+				const res = await dispatchToWorker({
+					traceId: siblingTraceId,
+					worker: pendingRoutingAsk.worker,
+					category: pendingRoutingAsk.category,
+					brief: pendingRoutingAsk.brief,
+					targetRepo: pendingRoutingAsk.targetRepo,
+					task: pendingRoutingAsk.task,
+					threadId
+				});
+				logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
+					action: 'Dispatch',
+					reason: 'routing-ask: sibling',
+					worker: pendingRoutingAsk.worker,
+					dispatched: res.ok,
+					held_reason: res.ok ? null : res.reason
+				});
+				const msg = res.ok
+					? `On it — running that as a separate task. I'll drop the result right here when it's ready.`
+					: `Could not start a new task: ${res.reason}.`;
+				addChatMessage(
+					'system',
+					msg,
+					res.ok ? siblingTraceId : null,
+					null,
+					null,
+					'sent',
+					threadId,
+					{
+						taskId: pendingRoutingAsk.taskId
+					}
+				);
+				markAborted(pendingRoutingAsk.taskId);
+				markSelfHandled(taskId);
+				return { spokenSuffix: msg };
+			}
+			// defer
 			markAborted(pendingRoutingAsk.taskId);
 			const msg = `Okay — I'll hold that until the current task finishes.`;
 			addChatMessage('local', msg, null, null, null, 'sent', threadId, {
@@ -153,61 +148,44 @@ export async function maybeAutonomousDispatch(
 			markSelfHandled(taskId);
 			return { spokenSuffix: msg };
 		}
-		// Not a routing answer — fall through; the routing_ask will be expired by
-		// the normal pending-proposal logic below.
-	}
 
-	// Step B: branch on the Mutation Gate classification for the CURRENT turn.
-	const gateClass = args.mutationGate?.classification;
+		case 'RUNNING_WORK_INTENT': {
+			const { activeTaskId } = decision;
+			markGatedProposal(
+				taskId,
+				{
+					worker: 'claude-code',
+					category: 'code',
+					brief: userText.slice(0, 200),
+					targetRepo,
+					task: userText
+				},
+				'routing_ask'
+			);
+			const ask = `I've got a task running. Want me to hold this until it finishes, or run it as a separate task? Just tell me 'hold it' or 'run it separately'.`;
+			addChatMessage('local', ask, activeTaskId, null, null, 'sent', threadId, {
+				taskId
+			});
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'RoutingAsk',
+				reason: 'running-task work-intent — held, not injected',
+				activeTaskId
+			});
+			return { spokenSuffix: ask };
+		}
 
-	if (gateClass === 'RUNNING_WORK_INTENT') {
-		// Work intent while a task is running → post a routing-ask, store held
-		// content, NEVER dispatch or touch the running task.
-		const activeTaskId = args.mutationGate?.activeTaskId ?? null;
-		markGatedProposal(
-			taskId,
-			{
-				worker: 'claude-code',
-				category: 'code',
-				brief: userText.slice(0, 200),
-				targetRepo,
-				task: userText
-			},
-			'routing_ask'
-		);
-		const ask = `I've got a task running. Want me to hold this until it finishes, or run it as a separate task? Just tell me 'hold it' or 'run it separately'.`;
-		addChatMessage('local', ask, activeTaskId, null, null, 'sent', threadId, {
-			taskId
-		});
-		logTaskEvent(taskId, 'gate_evaluated', {
-			action: 'RoutingAsk',
-			reason: 'running-task work-intent — held, not injected',
-			activeTaskId
-		});
-		return { spokenSuffix: ask };
-	}
+		case 'CONVERSATIONAL_ONLY': {
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Talk',
+				reason: 'conversational-only during running task',
+				dispatched: false
+			});
+			markSelfHandled(taskId);
+			return {};
+		}
 
-	if (gateClass === 'CONVERSATIONAL_ONLY') {
-		// Pure conversation while a task is running — close the turn, never dispatch.
-		logTaskEvent(taskId, 'gate_evaluated', {
-			action: 'Talk',
-			reason: 'conversational-only during running task',
-			dispatched: false
-		});
-		markSelfHandled(taskId);
-		return {};
-	}
-
-	// gateClass === 'NO_ACTIVE_TASK' (or gate not passed) → fall through to the
-	// existing ask-before-dispatch and routing-decision flow unchanged.
-
-	// ── Ask-before-dispatch (Phase 2): a pending proposal on this thread is
-	//    consumed (operator said yes) or expired (operator moved on) EVERY turn,
-	//    so it lives only for the operator's immediate next reply — no stale-yes
-	//    hazard. dispatchToWorker upserts the 'gated' row to 'decided'. ──
-	const pending = getPendingProposal(threadId);
-	if (pending) {
-		if (isAffirmation(userText)) {
+		case 'CONFIRM_PROPOSAL': {
+			const { proposal: pending } = decision;
 			const res = await dispatchToWorker({
 				traceId: pending.taskId,
 				worker: pending.worker,
@@ -230,81 +208,113 @@ export async function maybeAutonomousDispatch(
 			addChatMessage('system', msg, res.ok ? pending.taskId : null, null, null, 'sent', threadId, {
 				taskId: pending.taskId
 			});
-			if (!res.ok) markSelfHandled(pending.taskId); // held → close the proposal
-			markSelfHandled(taskId); // the 'yes' turn itself is self-handled
+			if (!res.ok) markSelfHandled(pending.taskId);
+			markSelfHandled(taskId);
 			return { spokenSuffix: msg };
 		}
-		// Operator moved on without confirming — expire the stale proposal, then
-		// process this turn normally below.
-		markAborted(pending.taskId);
+
+		case 'DISPATCH': {
+			const { worker, category, brief } = decision;
+			const res = await dispatchToWorker({
+				traceId: taskId,
+				worker,
+				category,
+				brief,
+				targetRepo,
+				task: userText,
+				threadId
+			});
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Dispatch',
+				reason: 'rule:mention',
+				worker,
+				category,
+				dispatched: res.ok,
+				held_reason: res.ok ? null : res.reason
+			});
+			const msg = res.ok
+				? `On it — this one needs some real digging, so give me a few minutes. I'll drop the answer right here the moment it's ready.`
+				: `⚠️ Dispatch held: ${res.reason}.`;
+			addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, {
+				taskId
+			});
+			if (!res.ok) markSelfHandled(taskId);
+			return { spokenSuffix: msg };
+		}
+
+		case 'PROPOSE': {
+			const { worker, category, brief } = decision;
+			markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
+			const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
+			addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, { taskId });
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Ask',
+				reason: 'work-intent',
+				worker,
+				dispatched: false
+			});
+			return { spokenSuffix: ask };
+		}
+
+		case 'ANSWER_NOW': {
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Talk',
+				reason: 'answer-now',
+				dispatched: false
+			});
+			markSelfHandled(taskId);
+			return {};
+		}
 	}
+}
 
-	// ── Normal routing decision — the single source of truth the scorecard
-	//    grades, so test and production can't drift. ──
-	const d = decide({ userText, fromTool: false, recentTier: args.tier, gateBlock: args.gateBlock });
+/**
+ * Evaluate the autonomous-dispatch gates and, if they fire, hand the request
+ * to a background worker + write the system "sent to worker" chat message.
+ *
+ * No-op when companion dispatch is disabled — matches both paths' top-level
+ * `runMode.companionDispatchEnabled` guard. The CLI path additionally gates on
+ * `!errored` BEFORE calling this (a half/failed gen should never dispatch).
+ */
+export async function maybeAutonomousDispatch(
+	args: AutonomousDispatchArgs
+): Promise<{ spokenSuffix?: string }> {
+	if (!runMode.companionDispatchEnabled) return {};
 
-	// Preserve the teacher's brief/category/worker when a valid gate block is
-	// present; otherwise fall back to a userText slice + 'code' + claude-code.
-	const gate = args.gateBlock !== undefined ? validateGate(args.gateBlock ?? null) : null;
-	const category = gate && gate.ok ? gate.gate.category : 'code';
-	const brief = gate && gate.ok ? gate.gate.brief : userText.slice(0, 200);
-	const worker: 'claude-code' | 'gemini' =
-		d.worker ?? (gate && gate.ok ? gate.gate.worker : 'claude-code');
+	const { userText, targetRepo, threadId } = args;
+	// Reuse the turn's Task id so the dispatch promotes the existing 'proposed'
+	// row rather than creating an orphan. Fall back to a minted id for legacy
+	// callers that don't pass one.
+	const taskId = args.taskId ?? mintTaskId();
 
-	// Capture the teacher's model-vote block (CLI path) for later OFFLINE scoring
+	// Capture the teacher's model-vote block (CLI path) for OFFLINE scoring
 	// of the SULLY_GATE layer. Free, env-gated, best-effort — off by default.
+	// Done before resolveTurnDecision so it's always captured regardless of branch.
 	if (args.gateBlock !== undefined && env.ROUTING_CAPTURE_GATES === '1') {
 		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
 	}
 
-	if (d.action === 'Dispatch') {
-		// Explicit @cc/@agy — the operator already commanded it, so fire now.
-		const res = await dispatchToWorker({
-			traceId: taskId,
-			worker,
-			category,
-			brief,
-			targetRepo,
-			task: userText,
-			threadId
-		});
-		logTaskEvent(taskId, 'gate_evaluated', {
-			action: d.action,
-			reason: d.reason,
-			worker,
-			category,
-			dispatched: res.ok,
-			held_reason: res.ok ? null : res.reason
-		});
-		const msg = res.ok
-			? `On it — this one needs some real digging, so give me a few minutes. I'll drop the answer right here the moment it's ready.`
-			: `⚠️ Dispatch held: ${res.reason}.`;
-		addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, { taskId });
-		if (!res.ok) markSelfHandled(taskId);
-		return { spokenSuffix: msg };
+	// Defensive stale-proposal expiry: if there is a non-routing pending proposal
+	// AND this turn is NOT an affirmation, expire it now. This must happen BEFORE
+	// resolveTurnDecision reads the proposal so that a stale non-affirmed proposal
+	// cannot be seen as a CONFIRM_PROPOSAL by the pure classifier.
+	// (The routing_ask case is handled inside applyTurnDecision — its proposal is
+	// consumed via markAborted in the ROUTING_ANSWER arms, not here.)
+	const pending = getPendingProposal(threadId);
+	if (pending && pending.proposalType !== 'routing_ask') {
+		const { isAffirmation } = await import('$lib/server/routing/confirm');
+		if (!isAffirmation(userText)) {
+			markAborted(pending.taskId);
+		}
 	}
 
-	if (d.action === 'Ask') {
-		// Work intent WITHOUT an explicit @mention — propose and wait for the
-		// operator's confirmation rather than firing. Stored as a 'gated' proposal;
-		// the next turn's affirmation consumes it (handled at the top of this fn).
-		markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
-		const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
-		// status='pending_approval' surfaces the tap-to-confirm Run/Not-now buttons
-		// in the UI; the operator can still confirm by typing "yes" (handled at the
-		// top of this fn). The buttons POST /api/chat/dispatch/confirm.
-		addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, { taskId });
-		logTaskEvent(taskId, 'gate_evaluated', {
-			action: 'Ask',
-			reason: d.reason,
-			worker,
-			dispatched: false
-		});
-		return { spokenSuffix: ask };
-	}
+	const decision = resolveTurnDecision({
+		userText,
+		threadId,
+		mutationGate: args.mutationGate,
+		tier: args.tier,
+		gateBlock: args.gateBlock
+	});
 
-	// Talk — pure conversation; close the self-handled arc (Phase 0 fix 0.3).
-	logTaskEvent(taskId, 'gate_evaluated', { action: d.action, reason: d.reason, dispatched: false });
-	markSelfHandled(taskId);
-	return {};
+	return applyTurnDecision(decision, { taskId, threadId, targetRepo, userText });
 }
