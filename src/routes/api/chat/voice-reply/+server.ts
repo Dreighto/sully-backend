@@ -16,7 +16,8 @@ import { VOICE_KEEP_ALIVE } from '$lib/server/voice_runtime';
 import { buildVoiceSystemPrompt } from '$lib/server/chat_prompt';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { prepareTurnLifecycle } from '$lib/server/chat/stream_prepare';
-import { maybeAutonomousDispatch } from '$lib/server/chat/autonomous_dispatch';
+import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
+import { needsFullReply } from '$lib/server/routing/turn_decision';
 import { runVoiceToolLoop } from '$lib/server/chat/voice_tools';
 
 // Voice model id resolved via the shared catalog so a "change the default voice
@@ -46,11 +47,35 @@ export const POST: RequestHandler = async ({ request }) => {
 	// lifecycle — mint Task id, persistUserTurn (mints 'proposed' row + journals
 	// task_proposed + writes operator chat row), classifyAndTouchThread, and
 	// detectTargetRepo. The Mutation Gate (R2) will hook in here.
-	const { taskId, currentTier, targetRepo, mutationGate } = await prepareTurnLifecycle({
-		text,
-		threadId,
-		source: 'voice'
-	});
+	const { taskId, currentTier, targetRepo, mutationGate, shadowDecision } =
+		await prepareTurnLifecycle({
+			text,
+			threadId,
+			source: 'voice'
+		});
+
+	// D2.2: Classify-before-answer gate. A work turn speaks ONLY the short status
+	// returned by applyTurnDecision — never a full spoken answer first.
+	const decision = shadowDecision;
+	if (!needsFullReply(decision)) {
+		const { spokenSuffix } = await applyTurnDecision(decision, {
+			taskId,
+			threadId,
+			targetRepo,
+			userText: text
+		});
+		const enc = new TextEncoder();
+		const stream = new ReadableStream({
+			start(controller) {
+				if (spokenSuffix) controller.enqueue(enc.encode(spokenSuffix));
+				controller.close();
+			}
+		});
+		return new Response(stream, {
+			headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+		});
+	}
+
 	// Latency stamp for the reply's forensics.
 	const turnStartedAt = Date.now();
 
@@ -135,20 +160,17 @@ export const POST: RequestHandler = async ({ request }) => {
 						provider: 'local',
 						latencyMs: Date.now() - turnStartedAt
 					});
-					// Voice can dispatch workers too — same gates as text. AWAITED here
-					// (unlike the old fire-and-forget) so an ask-before-dispatch PROPOSAL
-					// (or an "on it" / "held" notice) gets SPOKEN as a trailing sentence
-					// before the audio stream closes — otherwise the operator would never
-					// hear "Want me to run it?" in voice mode. A propose is a cheap DB
-					// write; a confirm/@cc is a fast local-tailnet listener POST.
+					// D2.2: Replace maybeAutonomousDispatch with applyTurnDecision.
+					// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+					// short-circuited above). For a Talk decision applyTurnDecision returns
+					// {} (no spokenSuffix) — fine. AWAITED so any spokenSuffix (edge cases)
+					// is spoken before the stream closes.
 					try {
-						const r = await maybeAutonomousDispatch({
-							userText: text,
-							targetRepo,
-							threadId,
+						const r = await applyTurnDecision(decision, {
 							taskId,
-							tier: currentTier,
-							mutationGate
+							threadId,
+							targetRepo,
+							userText: text
 						});
 						if (r?.spokenSuffix) controller.enqueue(enc.encode(' ' + r.spokenSuffix));
 					} catch (e) {
