@@ -80,6 +80,12 @@ type JobLike = { trace_id: string; status: string; started_at: string | null };
 
 const PER_CHANNEL_TIMEOUT_MS = 5000;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
+// Workers run in git WORKTREES (~/dev/worktrees/<repo>/wN), so a worker's reported
+// fs_paths legitimately live under the worktrees tree, not the repo's main checkout.
+// The artifact channel accepts a path under EITHER the repo root OR this worktrees
+// base (env-overridable for tests). The git channel still binds the commit to the
+// specific repo, so verification stays frame-bound.
+const WORKTREES_BASE = process.env.LOGUEOS_WORKTREES_BASE || '/home/dreighto/dev/worktrees';
 // Allow-list of repos Sully may verify against (frame-binding; never worker-arbitrary).
 // Keyed by the targetRepo strings dispatch ACTUALLY emits (config.ts defaultWorkspace
 // = 'companion'; chat routing emits 'project-miru' / 'NASDOOM' / 'LogueOS-*'), each
@@ -146,8 +152,11 @@ export async function runPoll(
 		await safe('artifact', true, env.fs_paths, async () => {
 			const paths = env.fs_paths!;
 			for (const p of paths) {
-				if (repoRoot && !path.resolve(p).startsWith(path.resolve(repoRoot) + path.sep)) {
-					return no('artifact', true, p, `path escapes repo root`);
+				const rp = path.resolve(p);
+				const underRepo = !!repoRoot && rp.startsWith(path.resolve(repoRoot) + path.sep);
+				const underWorktree = rp.startsWith(path.resolve(WORKTREES_BASE) + path.sep);
+				if (repoRoot && !underRepo && !underWorktree) {
+					return no('artifact', true, p, `path escapes repo + worktree roots`);
 				}
 				if (!fs.existsSync(p)) return no('artifact', true, p, `missing: ${p}`);
 				if (startMs && fs.statSync(p).mtimeMs < startMs)
