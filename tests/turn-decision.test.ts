@@ -242,6 +242,35 @@ describe('resolveTurnDecision — affirmation branch (C)', () => {
 		expect(d.kind).toBe('CONFIRM_PROPOSAL');
 		if (d.kind === 'CONFIRM_PROPOSAL') expect(d.proposal.taskId).toBe('sully-conf1');
 	});
+
+	it('routing_ask pending + off-script "yes" → CONFIRM_PROPOSAL (held work not silently dropped)', async () => {
+		// Behavior parity with pre-D1: the original treated "yes" to ANY pending
+		// proposal as a confirm. A routing_ask reaches here only after its task
+		// finished; "yes" must run the held work, not leave it to be silently aborted.
+		const { jobs, resolveTurnDecision } = await setup();
+		jobs.proposeTask({
+			taskId: 'sully-ra-yes',
+			threadId: 'tCRA',
+			source: 'chat',
+			category: 'code',
+			brief: 'fix the console build'
+		});
+		jobs.markClassified('sully-ra-yes', 'code', null);
+		jobs.markGatedProposal(
+			'sully-ra-yes',
+			{
+				worker: 'claude-code',
+				category: 'code',
+				brief: 'fix the console build',
+				targetRepo: 'companion',
+				task: 'fix the console build'
+			},
+			'routing_ask'
+		);
+		const d = resolveTurnDecision({ userText: 'yes', threadId: 'tCRA' });
+		expect(d.kind).toBe('CONFIRM_PROPOSAL');
+		if (d.kind === 'CONFIRM_PROPOSAL') expect(d.proposal.taskId).toBe('sully-ra-yes');
+	});
 });
 
 describe('resolveTurnDecision — intent gate branch (D)', () => {
@@ -266,5 +295,57 @@ describe('resolveTurnDecision — intent gate branch (D)', () => {
 			tier: 'chat'
 		});
 		expect(d.kind).toBe('ANSWER_NOW');
+	});
+});
+
+// Journal-reason parity: the gate_evaluated payload must carry decide()'s exact
+// reason (the pre-D1 flow logged `d.reason`), NOT a hardcoded string. A review
+// caught PROPOSE hardcoding 'work-intent' (wrong on the CLI 'work-intent+model-vote'
+// path) and ANSWER_NOW hardcoding 'answer-now' (wrong on every Talk turn).
+describe('resolveTurnDecision — preserves decide() reason (journal parity)', () => {
+	it('PROPOSE (deterministic, no gateBlock) reason matches decide() — "work-intent"', async () => {
+		const { resolveTurnDecision } = await setup();
+		const { decide } = await import('$lib/server/routing/decide');
+		const userText = 'audit the console repo and fix the build';
+		const d = resolveTurnDecision({ userText, threadId: 'tRP1' });
+		const direct = decide({ userText, fromTool: false });
+		expect(d.kind).toBe('PROPOSE');
+		if (d.kind === 'PROPOSE') {
+			expect(d.reason).toBe(direct.reason);
+			expect(d.reason).toBe('work-intent');
+		}
+	});
+
+	it('PROPOSE (CLI path, escalating gateBlock) reason is "work-intent+model-vote"', async () => {
+		const { resolveTurnDecision } = await setup();
+		const gateBlock =
+			'{"escalate":true,"worker":"claude-code","confidence":0.8,"category":"code","brief":"fix","est_scope":"small"}';
+		const d = resolveTurnDecision({
+			userText: 'audit the console repo and fix the build',
+			threadId: 'tRP2',
+			gateBlock
+		});
+		expect(d.kind).toBe('PROPOSE');
+		if (d.kind === 'PROPOSE') expect(d.reason).toBe('work-intent+model-vote');
+	});
+
+	it('ANSWER_NOW reason matches decide() (NOT a hardcoded "answer-now")', async () => {
+		const { resolveTurnDecision } = await setup();
+		const { decide } = await import('$lib/server/routing/decide');
+		const userText = 'just kicking an idea around, no action needed';
+		const d = resolveTurnDecision({ userText, threadId: 'tRP3', tier: 'chat' });
+		const direct = decide({ userText, fromTool: false, recentTier: 'chat' });
+		expect(d.kind).toBe('ANSWER_NOW');
+		if (d.kind === 'ANSWER_NOW') {
+			expect(d.reason).toBe(direct.reason);
+			expect(d.reason).not.toBe('answer-now');
+		}
+	});
+
+	it('DISPATCH reason is decide()\'s "rule:mention"', async () => {
+		const { resolveTurnDecision } = await setup();
+		const d = resolveTurnDecision({ userText: '@cc fix the build', threadId: 'tRP4' });
+		expect(d.kind).toBe('DISPATCH');
+		if (d.kind === 'DISPATCH') expect(d.reason).toBe('rule:mention');
 	});
 });

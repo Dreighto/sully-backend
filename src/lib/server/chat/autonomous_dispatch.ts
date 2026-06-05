@@ -25,7 +25,6 @@
 
 import { addChatMessage } from '$lib/server/chat';
 import { runMode } from '$lib/server/config';
-import { validateGate } from '$lib/server/decisionGate';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { mintTaskId } from '$lib/server/chat_turn';
@@ -36,6 +35,7 @@ import {
 	markAborted
 } from '$lib/server/dispatchJobs';
 import { captureGateBlock } from '$lib/server/routing/captureGate';
+import { isAffirmation } from '$lib/server/routing/confirm';
 import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
 import type { MutationGateResult } from '$lib/server/routing/mutation_gate';
@@ -226,7 +226,7 @@ export async function applyTurnDecision(
 			});
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Dispatch',
-				reason: 'rule:mention',
+				reason: decision.reason,
 				worker,
 				category,
 				dispatched: res.ok,
@@ -249,7 +249,7 @@ export async function applyTurnDecision(
 			addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, { taskId });
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Ask',
-				reason: 'work-intent',
+				reason: decision.reason,
 				worker,
 				dispatched: false
 			});
@@ -259,7 +259,7 @@ export async function applyTurnDecision(
 		case 'ANSWER_NOW': {
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Talk',
-				reason: 'answer-now',
+				reason: decision.reason,
 				dispatched: false
 			});
 			markSelfHandled(taskId);
@@ -287,13 +287,6 @@ export async function maybeAutonomousDispatch(
 	// callers that don't pass one.
 	const taskId = args.taskId ?? mintTaskId();
 
-	// Capture the teacher's model-vote block (CLI path) for OFFLINE scoring
-	// of the SULLY_GATE layer. Free, env-gated, best-effort — off by default.
-	// Done before resolveTurnDecision so it's always captured regardless of branch.
-	if (args.gateBlock !== undefined && env.ROUTING_CAPTURE_GATES === '1') {
-		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
-	}
-
 	// Defensive stale-proposal expiry: if there is a non-routing pending proposal
 	// AND this turn is NOT an affirmation, expire it now. This must happen BEFORE
 	// resolveTurnDecision reads the proposal so that a stale non-affirmed proposal
@@ -301,11 +294,8 @@ export async function maybeAutonomousDispatch(
 	// (The routing_ask case is handled inside applyTurnDecision — its proposal is
 	// consumed via markAborted in the ROUTING_ANSWER arms, not here.)
 	const pending = getPendingProposal(threadId);
-	if (pending && pending.proposalType !== 'routing_ask') {
-		const { isAffirmation } = await import('$lib/server/routing/confirm');
-		if (!isAffirmation(userText)) {
-			markAborted(pending.taskId);
-		}
+	if (pending && pending.proposalType !== 'routing_ask' && !isAffirmation(userText)) {
+		markAborted(pending.taskId);
 	}
 
 	const decision = resolveTurnDecision({
@@ -315,6 +305,20 @@ export async function maybeAutonomousDispatch(
 		tier: args.tier,
 		gateBlock: args.gateBlock
 	});
+
+	// Capture the teacher's model-vote block (CLI path) for OFFLINE scoring of the
+	// SULLY_GATE layer — ONLY on decide()-reaching outcomes, matching the pre-D1
+	// placement (after the routing-ask / mutation-gate / confirm early returns) so
+	// the capture dataset is unchanged. Free, env-gated, best-effort — off by default.
+	if (
+		(decision.kind === 'DISPATCH' ||
+			decision.kind === 'PROPOSE' ||
+			decision.kind === 'ANSWER_NOW') &&
+		args.gateBlock !== undefined &&
+		env.ROUTING_CAPTURE_GATES === '1'
+	) {
+		captureGateBlock({ userText, gateBlock: args.gateBlock ?? null, tier: args.tier });
+	}
 
 	return applyTurnDecision(decision, { taskId, threadId, targetRepo, userText });
 }
