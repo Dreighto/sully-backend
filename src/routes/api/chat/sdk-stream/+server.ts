@@ -211,7 +211,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		allowSensitive,
 		systemPrompt,
 		modelMessages,
-		userText: userMessageText
+		userText: userMessageText,
+		mutationGate
 	} = ctx;
 
 	// ─── CLI bridge path (Sonnet/Opus over OAuth) ────────────────────────
@@ -317,7 +318,8 @@ export const POST: RequestHandler = async ({ request }) => {
 						threadId,
 						gateBlock: block,
 						taskId,
-						tier: currentTier
+						tier: currentTier,
+						mutationGate
 					});
 				}
 			},
@@ -505,7 +507,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				targetRepo,
 				threadId,
 				taskId,
-				tier: currentTier
+				tier: currentTier,
+				mutationGate
 			}).catch((e) => {
 				console.error('[sdk-stream] autonomous-dispatch failed', e);
 			});

@@ -24,6 +24,7 @@ import { persistUserTurn, classifyAndTouchThread, mintTaskId } from '$lib/server
 import { buildSystemPrompt } from '$lib/server/chat_prompt';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { providerPrefToApi } from '$lib/chat/model-registry';
+import { runMutationGate, type MutationGateResult } from '$lib/server/routing/mutation_gate';
 
 export type Provider = 'anthropic' | 'google' | 'local';
 
@@ -65,6 +66,8 @@ export interface TurnLifecycleResult {
 	threadState: ThreadState;
 	targetRepo: string;
 	userMessageText: string;
+	/** Result of the Mutation Gate (R2). Required — compile-enforced so the turn can't proceed without it. */
+	mutationGate: MutationGateResult;
 }
 
 /**
@@ -84,8 +87,11 @@ export async function prepareTurnLifecycle(
 	persistUserTurn({ text, threadId, taskId, source, sender: args.sender });
 	const { currentTier, threadState } = classifyAndTouchThread({ threadId, userText: text, taskId });
 	const targetRepo = detectTargetRepo(text, args.targetRepoHint);
+	// R2: run the Mutation Gate after classify (so the active-task query is
+	// post-classify, not pre). One chokepoint — impossible to bypass.
+	const mutationGate = runMutationGate(threadId, text);
 
-	return { taskId, currentTier, threadState, targetRepo, userMessageText: text };
+	return { taskId, currentTier, threadState, targetRepo, userMessageText: text, mutationGate };
 }
 
 export interface PrepareArgs {
@@ -139,6 +145,8 @@ export interface PreparedStreamContext {
 	allowSensitive: boolean;
 	systemPrompt: string;
 	modelMessages: UIMessage[];
+	/** Result of the Mutation Gate (R2). Required — compile-enforced. */
+	mutationGate: MutationGateResult;
 }
 
 /**
@@ -157,7 +165,8 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		taskId,
 		currentTier,
 		threadState,
-		targetRepo: lifecycleTargetRepo
+		targetRepo: lifecycleTargetRepo,
+		mutationGate
 	} = await prepareTurnLifecycle({
 		text: userText,
 		threadId,
@@ -278,6 +287,7 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		useClaudeCLI,
 		allowSensitive,
 		systemPrompt,
-		modelMessages
+		modelMessages,
+		mutationGate
 	};
 }

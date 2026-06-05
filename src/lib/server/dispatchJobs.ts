@@ -117,6 +117,29 @@ export function getActiveTaskForThread(threadId: string): PendingJob | null {
 	}
 }
 
+/**
+ * The most-recent RUNNING task on a thread (status in RUNNING_STATES), or null.
+ * Used by the Mutation Gate (R2) instead of getActiveTaskForThread so the gate
+ * never matches the current turn's own 'classified' row (which is pre-dispatch and
+ * will always be the highest id after classifyAndTouchThread runs). A running task
+ * can NEVER be the just-created current-turn row, so this excludes it cleanly.
+ */
+export function getRunningTaskForThread(threadId: string): PendingJob | null {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
+	const db = getDb();
+	try {
+		const inList = [...RUNNING_STATES].map(() => '?').join(',');
+		const row = db
+			.prepare(
+				`SELECT * FROM pending_jobs WHERE thread_id = ? AND status IN (${inList}) ORDER BY id DESC LIMIT 1`
+			)
+			.get(threadId, ...[...RUNNING_STATES]) as PendingJob | undefined;
+		return row ?? null;
+	} finally {
+		db.close();
+	}
+}
+
 // The Task-lifecycle columns added in Phase 1. Kept here (not only in
 // bootstrap.ts) so dispatchJobs is self-sufficient — a test or a code path that
 // touches jobs before bootstrap runs still gets the full schema.
@@ -413,6 +436,8 @@ export interface ProposalPayload {
 export interface PendingProposal extends ProposalPayload {
 	taskId: string;
 	threadId: string;
+	/** Discriminator: 'dispatch' (ask-before-dispatch) | 'routing_ask' (running-task gate). Defaults to 'dispatch' for legacy rows missing the field. */
+	proposalType: 'dispatch' | 'routing_ask';
 }
 
 /**
@@ -421,8 +446,16 @@ export interface PendingProposal extends ProposalPayload {
  * payload is stashed in result_ref (unused until a worker completes) so the
  * confirm turn can fire it verbatim. Status-guarded so it can't clobber a turn
  * that already dispatched.
+ *
+ * proposalType discriminates between a normal ask-before-dispatch proposal
+ * ('dispatch', default) and a running-task routing-ask ('routing_ask'). Stamped
+ * into the result_ref JSON so no schema change is needed.
  */
-export function markGatedProposal(traceId: string, proposal: ProposalPayload): void {
+export function markGatedProposal(
+	traceId: string,
+	proposal: ProposalPayload,
+	proposalType: 'dispatch' | 'routing_ask' = 'dispatch'
+): void {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return;
 	const db = getDb();
 	try {
@@ -430,9 +463,10 @@ export function markGatedProposal(traceId: string, proposal: ProposalPayload): v
 			| { status: JobStatus }
 			| undefined;
 		if (!row || (row.status !== 'proposed' && row.status !== 'classified')) return;
+		const stored = { ...proposal, proposal_type: proposalType };
 		db.prepare(
 			"UPDATE pending_jobs SET status = 'gated', worker = ?, category = ?, brief = ?, result_ref = ?, current_activity = 'awaiting operator confirmation' WHERE trace_id = ?"
-		).run(proposal.worker, proposal.category, proposal.brief, JSON.stringify(proposal), traceId);
+		).run(proposal.worker, proposal.category, proposal.brief, JSON.stringify(stored), traceId);
 	} finally {
 		db.close();
 	}
@@ -485,8 +519,12 @@ export function getPendingProposal(threadId: string, maxAgeMinutes = 10): Pendin
 			| undefined;
 		if (!row || !row.result_ref) return null;
 		try {
-			const p = JSON.parse(row.result_ref) as ProposalPayload;
-			return { taskId: row.trace_id, threadId: row.thread_id, ...p };
+			const parsed = JSON.parse(row.result_ref) as ProposalPayload & { proposal_type?: string };
+			const proposalType: 'dispatch' | 'routing_ask' =
+				parsed.proposal_type === 'routing_ask' ? 'routing_ask' : 'dispatch';
+			const { proposal_type: _pt, ...p } = parsed as typeof parsed & { proposal_type?: string };
+			void _pt;
+			return { taskId: row.trace_id, threadId: row.thread_id, proposalType, ...p };
 		} catch {
 			return null;
 		}
@@ -515,8 +553,12 @@ export function getProposalByTaskId(taskId: string): PendingProposal | null {
 			| undefined;
 		if (!row || !row.result_ref) return null;
 		try {
-			const p = JSON.parse(row.result_ref) as ProposalPayload;
-			return { taskId: row.trace_id, threadId: row.thread_id, ...p };
+			const parsed = JSON.parse(row.result_ref) as ProposalPayload & { proposal_type?: string };
+			const proposalType: 'dispatch' | 'routing_ask' =
+				parsed.proposal_type === 'routing_ask' ? 'routing_ask' : 'dispatch';
+			const { proposal_type: _pt, ...p } = parsed as typeof parsed & { proposal_type?: string };
+			void _pt;
+			return { taskId: row.trace_id, threadId: row.thread_id, proposalType, ...p };
 		} catch {
 			return null;
 		}

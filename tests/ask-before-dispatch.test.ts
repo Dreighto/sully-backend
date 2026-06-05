@@ -208,4 +208,69 @@ describe('ask-before-dispatch', () => {
 		expect(fetchCalls).toBe(1); // fired without a proposal
 		expect(m.getPendingProposal('tD')).toBeNull();
 	});
+	it('IMPORTANT 2 - a routing-answer turn preserves a routing_ask proposal (classifyAndTouchThread guard)', async () => {
+		const m = await setup();
+		const { classifyAndTouchThread } = await import('$lib/server/chat_turn');
+		// Seed a routing_ask gated proposal on thread tRA
+		m.proposeTask({
+			taskId: 'sully-ra1',
+			threadId: 'tRA',
+			source: 'chat',
+			category: 'code',
+			brief: 'fix the console build'
+		});
+		m.markClassified('sully-ra1', 'code', null);
+		m.markGatedProposal(
+			'sully-ra1',
+			{
+				worker: 'claude-code',
+				category: 'code',
+				brief: 'fix the console build',
+				targetRepo: 'companion',
+				task: 'fix the console build'
+			},
+			'routing_ask'
+		);
+		expect(m.getJob('sully-ra1')?.status).toBe('gated');
+		// A routing-answer turn MUST NOT expire the routing_ask proposal.
+		// Before the fix this called expireProposalsForThread and aborted it.
+		classifyAndTouchThread({
+			threadId: 'tRA',
+			userText: 'hold it',
+			taskId: 'sully-ra1-reply'
+		});
+		expect(m.getJob('sully-ra1')?.status).toBe('gated'); // still gated, NOT aborted
+		expect(m.getPendingProposal('tRA')?.taskId).toBe('sully-ra1');
+	});
+
+	it('IMPORTANT 2 - a non-answer, non-affirmation turn still expires a routing_ask proposal', async () => {
+		const m = await setup();
+		const { classifyAndTouchThread } = await import('$lib/server/chat_turn');
+		m.proposeTask({
+			taskId: 'sully-ra2',
+			threadId: 'tRB',
+			source: 'chat',
+			category: 'code',
+			brief: 'x'
+		});
+		m.markClassified('sully-ra2', 'code', null);
+		m.markGatedProposal(
+			'sully-ra2',
+			{
+				worker: 'claude-code',
+				category: 'code',
+				brief: 'x',
+				targetRepo: 'companion',
+				task: 'x'
+			},
+			'routing_ask'
+		);
+		// An unrelated turn (operator moved on) must still expire the proposal.
+		classifyAndTouchThread({
+			threadId: 'tRB',
+			userText: 'what is the weather like today',
+			taskId: 'sully-ra2-reply'
+		});
+		expect(m.getJob('sully-ra2')?.status).toBe('aborted');
+	});
 });
