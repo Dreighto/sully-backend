@@ -91,6 +91,14 @@ export const MODEL_REGISTRY: ModelChoice[] = [
 		tier: 'local',
 		provider: 'local',
 		model: 'qwen3-coder:480b-cloud'
+	},
+	{
+		id: 'cloud-kimi-k2',
+		label: 'Kimi K2 1T',
+		sublabel: 'cloud · frontier · tools',
+		tier: 'local',
+		provider: 'local',
+		model: 'kimi-k2:1t-cloud'
 	}
 ];
 
