@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// lifecycle — mint Task id, persistUserTurn (mints 'proposed' row + journals
 	// task_proposed + writes operator chat row), classifyAndTouchThread, and
 	// detectTargetRepo. The Mutation Gate (R2) will hook in here.
-	const { taskId, currentTier, targetRepo } = await prepareTurnLifecycle({
+	const { taskId, currentTier, targetRepo, mutationGate } = await prepareTurnLifecycle({
 		text,
 		threadId,
 		source: 'voice'
@@ -147,7 +147,8 @@ export const POST: RequestHandler = async ({ request }) => {
 							targetRepo,
 							threadId,
 							taskId,
-							tier: currentTier
+							tier: currentTier,
+							mutationGate
 						});
 						if (r?.spokenSuffix) controller.enqueue(enc.encode(' ' + r.spokenSuffix));
 					} catch (e) {

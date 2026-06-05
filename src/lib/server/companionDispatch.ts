@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from './config';
 import * as jobs from './dispatchJobs';
+import { RUNNING_STATES } from './dispatchJobs';
 import {
 	fingerprintFor,
 	checkDailyCap,
@@ -63,6 +64,17 @@ export async function dispatchToWorker(input: DispatchInput): Promise<DispatchRe
 	const fp = fingerprintFor(input.brief, input.category, input.targetRepo);
 	if (!checkFingerprint(fp).allowed) return { ok: false, reason: 'duplicate dispatch fingerprint' };
 	if (!dispatchBucket.take()) return { ok: false, reason: 'rate limited' };
+
+	// ── Dispatch-rejection backstop (R2.2 §3): hard structural guard against
+	//    mid-flight mutation. If the job row for this traceId already exists in a
+	//    RUNNING state (dispatched/working/retry/decided), reject rather than
+	//    mutating it. Complements the Mutation Gate — the gate prevents the turn
+	//    from reaching this path; this backstop catches any residual code path
+	//    that might slip through. ────────────────────────────────────────────────
+	const existingJob = jobs.getJob(input.traceId);
+	if (existingJob && RUNNING_STATES.has(existingJob.status)) {
+		return { ok: false, reason: 'task already in flight — cannot mutate' };
+	}
 
 	// Promotes the turn's 'proposed' Task row to 'decided' (upsert on trace_id),
 	// or inserts a fresh decided row for a legacy caller with no proposed row.

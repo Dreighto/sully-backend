@@ -36,10 +36,11 @@ import {
 	getPendingProposal,
 	markAborted
 } from '$lib/server/dispatchJobs';
-import { isAffirmation } from '$lib/server/routing/confirm';
+import { isAffirmation, isRoutingAnswer } from '$lib/server/routing/confirm';
 import { captureGateBlock } from '$lib/server/routing/captureGate';
 import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
+import type { MutationGateResult } from '$lib/server/routing/mutation_gate';
 
 /** Operator-facing worker label. */
 const workerLabel = (w: 'claude-code' | 'gemini'): string => (w === 'gemini' ? 'AGY' : 'CC');
@@ -67,6 +68,13 @@ export interface AutonomousDispatchArgs {
 	taskId?: string;
 	/** The thread's classified tier this turn — gates brainstorm suppression. */
 	tier?: Tier;
+	/**
+	 * Result of the Mutation Gate (R2). Passed from prepareTurnLifecycle via
+	 * PreparedStreamContext. When present and classification is RUNNING_WORK_INTENT
+	 * or CONVERSATIONAL_ONLY, the gate short-circuits before the normal flow.
+	 * Optional for backwards-compat with callers that predate R2 (tests, etc.).
+	 */
+	mutationGate?: MutationGateResult;
 }
 
 /**
@@ -87,6 +95,111 @@ export async function maybeAutonomousDispatch(
 	// row rather than creating an orphan. Fall back to a minted id for legacy
 	// callers that don't pass one.
 	const taskId = args.taskId ?? mintTaskId();
+
+	// ── Mutation Gate (R2): honor the gate result FIRST — before the existing
+	//    ask-before-dispatch flow. This ensures a running task is never silently
+	//    injected into or dropped from a new turn. ──────────────────────────────
+
+	// Step A: if there's a pending routing_ask proposal on this thread AND the
+	// operator just answered it, consume it now.
+	const pendingRoutingAsk = (() => {
+		const p = getPendingProposal(threadId);
+		return p?.proposalType === 'routing_ask' ? p : null;
+	})();
+	if (pendingRoutingAsk) {
+		const routingAnswer = isRoutingAnswer(userText);
+		if (routingAnswer === 'sibling') {
+			// Dispatch the held content as a NEW task from the routing-ask proposal.
+			const siblingTraceId = mintTaskId();
+			const res = await dispatchToWorker({
+				traceId: siblingTraceId,
+				worker: pendingRoutingAsk.worker,
+				category: pendingRoutingAsk.category,
+				brief: pendingRoutingAsk.brief,
+				targetRepo: pendingRoutingAsk.targetRepo,
+				task: pendingRoutingAsk.task,
+				threadId
+			});
+			logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
+				action: 'Dispatch',
+				reason: 'routing-ask: sibling',
+				worker: pendingRoutingAsk.worker,
+				dispatched: res.ok,
+				held_reason: res.ok ? null : res.reason
+			});
+			const msg = res.ok
+				? `On it — running that as a separate task. I'll drop the result right here when it's ready.`
+				: `Could not start a new task: ${res.reason}.`;
+			addChatMessage('system', msg, res.ok ? siblingTraceId : null, null, null, 'sent', threadId, {
+				taskId: pendingRoutingAsk.taskId
+			});
+			// Consume the routing_ask proposal (mark the asking-turn self-handled).
+			markAborted(pendingRoutingAsk.taskId);
+			markSelfHandled(taskId);
+			return { spokenSuffix: msg };
+		}
+		if (routingAnswer === 'defer') {
+			// Persist a deferral note and let the operator know nothing is lost.
+			markAborted(pendingRoutingAsk.taskId);
+			const msg = `Okay — I'll hold that until the current task finishes.`;
+			addChatMessage('local', msg, null, null, null, 'sent', threadId, {
+				taskId: pendingRoutingAsk.taskId
+			});
+			logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
+				action: 'Defer',
+				reason: 'routing-ask: defer',
+				deferred_content: pendingRoutingAsk.task
+			});
+			markSelfHandled(taskId);
+			return { spokenSuffix: msg };
+		}
+		// Not a routing answer — fall through; the routing_ask will be expired by
+		// the normal pending-proposal logic below.
+	}
+
+	// Step B: branch on the Mutation Gate classification for the CURRENT turn.
+	const gateClass = args.mutationGate?.classification;
+
+	if (gateClass === 'RUNNING_WORK_INTENT') {
+		// Work intent while a task is running → post a routing-ask, store held
+		// content, NEVER dispatch or touch the running task.
+		const activeTaskId = args.mutationGate?.activeTaskId ?? null;
+		markGatedProposal(
+			taskId,
+			{
+				worker: 'claude-code',
+				category: 'code',
+				brief: userText.slice(0, 200),
+				targetRepo,
+				task: userText
+			},
+			'routing_ask'
+		);
+		const ask = `I've got a task running — want me to hold this until it finishes, or run it as a separate task?`;
+		addChatMessage('local', ask, activeTaskId, null, null, 'pending_approval', threadId, {
+			taskId
+		});
+		logTaskEvent(taskId, 'gate_evaluated', {
+			action: 'RoutingAsk',
+			reason: 'running-task work-intent — held, not injected',
+			activeTaskId
+		});
+		return { spokenSuffix: ask };
+	}
+
+	if (gateClass === 'CONVERSATIONAL_ONLY') {
+		// Pure conversation while a task is running — close the turn, never dispatch.
+		logTaskEvent(taskId, 'gate_evaluated', {
+			action: 'Talk',
+			reason: 'conversational-only during running task',
+			dispatched: false
+		});
+		markSelfHandled(taskId);
+		return {};
+	}
+
+	// gateClass === 'NO_ACTIVE_TASK' (or gate not passed) → fall through to the
+	// existing ask-before-dispatch and routing-decision flow unchanged.
 
 	// ── Ask-before-dispatch (Phase 2): a pending proposal on this thread is
 	//    consumed (operator said yes) or expired (operator moved on) EVERY turn,
