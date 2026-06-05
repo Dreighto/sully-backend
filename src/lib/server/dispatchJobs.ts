@@ -74,6 +74,49 @@ const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
 	aborted: []
 };
 
+// ── R1.0 — per-thread active-task primitive ────────────────────────────────
+// These sets partition JobStatus into three buckets the Mutation Gate (R2)
+// reads. Co-located with TRANSITIONS so the FSM definition and its consumers
+// stay in sync.
+export const PRE_DISPATCH_STATES: ReadonlySet<JobStatus> = new Set([
+	'proposed',
+	'classified',
+	'gated',
+	'held'
+]);
+export const RUNNING_STATES: ReadonlySet<JobStatus> = new Set([
+	'decided',
+	'dispatched',
+	'working',
+	'retry'
+]);
+const TERMINAL_STATES: ReadonlySet<JobStatus> = new Set([
+	'done',
+	'verified',
+	'synthesized',
+	'failed',
+	'aborted'
+]);
+
+/** The single most-recent NON-terminal task on a thread, or null. The primitive
+ *  the Mutation Gate reads to answer "is a task active on this thread + what
+ *  state?". Covered by idx_pending_jobs_thread — no schema change. */
+export function getActiveTaskForThread(threadId: string): PendingJob | null {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
+	const db = getDb();
+	try {
+		const terminal = [...TERMINAL_STATES].map(() => '?').join(',');
+		const row = db
+			.prepare(
+				`SELECT * FROM pending_jobs WHERE thread_id = ? AND status NOT IN (${terminal}) ORDER BY id DESC LIMIT 1`
+			)
+			.get(threadId, ...[...TERMINAL_STATES]) as PendingJob | undefined;
+		return row ?? null;
+	} finally {
+		db.close();
+	}
+}
+
 // The Task-lifecycle columns added in Phase 1. Kept here (not only in
 // bootstrap.ts) so dispatchJobs is self-sufficient — a test or a code path that
 // touches jobs before bootstrap runs still gets the full schema.
