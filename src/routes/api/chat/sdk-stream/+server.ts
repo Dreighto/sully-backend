@@ -45,14 +45,13 @@ import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { type Tier } from '$lib/server/phase_classifier';
 import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
-import { runMode } from '$lib/server/config';
 import { getSensitiveTools } from '$lib/server/companion_tools';
-import { extractGateBlock, GATE_INSTRUCTION } from '$lib/server/decisionGate';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
-import { maybeAutonomousDispatch } from '$lib/server/chat/autonomous_dispatch';
+import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
+import { needsFullReply } from '$lib/server/routing/turn_decision';
 
 // Local Ollama endpoint — OpenAI-compatible interface at
 // http://localhost:11434/v1. Task #11: brings the operator's eGPU into
@@ -212,17 +211,33 @@ export const POST: RequestHandler = async ({ request }) => {
 		systemPrompt,
 		modelMessages,
 		userText: userMessageText,
-		mutationGate
+		mutationGate,
+		shadowDecision
 	} = ctx;
+
+	// D2.1: Classify-before-answer gate. A work turn produces NO conversational
+	// reply — applyTurnDecision writes the proposal/dispatch/routing-ask and the
+	// operator sees it via the 3s poll. Return a valid-but-empty UIMessage stream
+	// so the SDK client closes cleanly (frontend deletes the empty placeholder).
+	const decision = shadowDecision;
+	if (!needsFullReply(decision)) {
+		await applyTurnDecision(decision, { taskId, threadId, targetRepo, userText: userMessageText });
+		const stream = createUIMessageStream({
+			execute: ({ writer }) => {
+				const messageId = generateId();
+				writer.write({ type: 'start', messageId });
+				writer.write({ type: 'finish', finishReason: 'stop' });
+			}
+		});
+		return createUIMessageStreamResponse({ stream });
+	}
 
 	// ─── CLI bridge path (Sonnet/Opus over OAuth) ────────────────────────
 	if (useClaudeCLI) {
 		const senderLabel = 'cc' as const;
-		// Autonomous dispatch gate (spec §4.2): when the companion dispatcher is
-		// on, the teacher (Opus) appends a hidden self-assessment block to its
-		// reply; we strip it and act on it. Sully decides — no @cc command needed.
-		const gateOn = runMode.companionDispatchEnabled;
-		const cliSystemPrompt = gateOn ? `${systemPrompt}\n\n${GATE_INSTRUCTION}` : systemPrompt;
+		// D2.1: decision is now ctx.shadowDecision (deterministic). No GATE_INSTRUCTION
+		// injected — the model emits a plain reply; stream + persist it directly.
+		const cliSystemPrompt = systemPrompt;
 		const stream = createUIMessageStream({
 			execute: async ({ writer }) => {
 				const messageId = generateId();
@@ -246,9 +261,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					.join('\n\n');
 
 				let collected = '';
-				let written = 0;
 				let errored = false;
-				const SENT = '<<<SULLY_GATE';
 				for await (const chunk of streamViaClaudeCLI({
 					model: resolvedModelId,
 					systemPrompt: cliSystemPrompt,
@@ -259,20 +272,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				})) {
 					if (chunk.type === 'text-delta') {
 						collected += chunk.delta;
-						// Suppress the hidden <<<SULLY_GATE ...>>> self-assessment from
-						// the operator's view: emit up to the sentinel, or hold back a
-						// sentinel-length tail so a partial marker never flashes.
-						const sentIdx = collected.indexOf(SENT);
-						const safeEnd =
-							sentIdx >= 0 ? sentIdx : Math.max(written, collected.length - SENT.length);
-						if (safeEnd > written) {
-							writer.write({
-								type: 'text-delta',
-								id: textId,
-								delta: collected.slice(written, safeEnd)
-							});
-							written = safeEnd;
-						}
+						// Stream each delta directly — no gate suppression needed.
+						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
 					} else if (chunk.type === 'error') {
 						errored = true;
 						writer.write({ type: 'error', errorText: chunk.message });
@@ -280,21 +281,14 @@ export const POST: RequestHandler = async ({ request }) => {
 					// 'finish' falls through to the writer.write below
 				}
 
-				// Split the operator-visible reply from the hidden self-assessment.
-				const { visible, block } = extractGateBlock(collected);
-				// No gate block → flush the held-back tail (it was plain text).
-				if (block === null && collected.length > written) {
-					writer.write({ type: 'text-delta', id: textId, delta: collected.slice(written) });
-				}
-
 				writer.write({ type: 'text-end', id: textId });
 				writer.write({ type: 'finish-step' });
 				writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
 
-				// Persist the gate-stripped visible reply — never a half/failed gen.
-				if (visible && !errored) {
+				// Persist the full reply — never a half/failed gen.
+				if (collected && !errored) {
 					persistAssistantTurn({
-						text: visible,
+						text: collected,
 						sender: senderLabel,
 						threadId,
 						model: resolvedModelId,
@@ -307,19 +301,15 @@ export const POST: RequestHandler = async ({ request }) => {
 					touchLastActivity(threadId);
 				}
 
-				// ── Autonomous dispatch (spec §4.2). Sully decides; Full-auto fires
-				// it in the background. @cc/@agy stays as an explicit override. The
-				// CLI path passes the extracted gate block so the teacher's
-				// self-assessment steers the decision. ────
+				// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
+				// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+				// short-circuited above) → journals Talk + markSelfHandled.
 				if (!errored) {
-					await maybeAutonomousDispatch({
-						userText: userMessageText,
-						targetRepo,
-						threadId,
-						gateBlock: block,
+					await applyTurnDecision(decision, {
 						taskId,
-						tier: currentTier,
-						mutationGate
+						threadId,
+						targetRepo,
+						userText: userMessageText
 					});
 				}
 			},
@@ -487,28 +477,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				touchLastActivity(threadId);
 			}
 
-			// ── Autonomous dispatch on the DIRECT/LOCAL path (spec §4.2) ──────────
-			// The CLI-bridge branch gates via the teacher's hidden self-assessment
-			// block, but the companion's DEFAULT reply model is the local one, which
-			// runs HERE. Without this, Sully never dispatches in normal use. No gate
-			// block on this path (it can't be cleanly stripped from streamText's
-			// output); the deterministic gates decide: ruleGate (@cc/@agy override) +
-			// valueGate (file/code/repo/long-imperative signals).
-			//
-			// FIRE-AND-FORGET: the AI SDK keeps the SSE stream open until this
-			// onFinish resolves (its TransformStream flush awaits callOnFinish).
-			// Awaiting maybeAutonomousDispatch coupled stream close to the dispatch
-			// listener's roundtrip, which made the composer pulse-fade linger for
-			// seconds after the last token rendered. Same fire-and-forget pattern
-			// as maybeUpdateThreadSummary in chat_turn.ts:95. Dispatch results are
-			// observable via the next pollMessages tick.
-			void maybeAutonomousDispatch({
-				userText: userMessageText,
-				targetRepo,
-				threadId,
+			// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
+			// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+			// short-circuited above) → journals Talk + markSelfHandled.
+			// FIRE-AND-FORGET: same pattern as before — avoids coupling stream close
+			// to the dispatch listener's roundtrip. Observable via next pollMessages.
+			void applyTurnDecision(decision, {
 				taskId,
-				tier: currentTier,
-				mutationGate
+				threadId,
+				targetRepo,
+				userText: userMessageText
 			}).catch((e) => {
 				console.error('[sdk-stream] autonomous-dispatch failed', e);
 			});

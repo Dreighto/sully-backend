@@ -395,12 +395,13 @@ describe('needsFullReply — D2.0', () => {
 				kind: 'CONFIRM_PROPOSAL',
 				proposal: {
 					taskId: 'sully-t',
+					threadId: 'tNFR',
 					worker: 'claude-code',
 					category: 'code',
 					brief: 'b',
 					targetRepo: 'companion',
 					task: 't',
-					proposalType: 'gated'
+					proposalType: 'dispatch'
 				}
 			})
 		).toBe(false);
@@ -414,6 +415,7 @@ describe('needsFullReply — D2.0', () => {
 				answer: 'sibling',
 				proposal: {
 					taskId: 'sully-t',
+					threadId: 'tNFR2',
 					worker: 'claude-code',
 					category: 'code',
 					brief: 'b',
