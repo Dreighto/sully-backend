@@ -25,6 +25,8 @@ import { buildSystemPrompt } from '$lib/server/chat_prompt';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { providerPrefToApi } from '$lib/chat/model-registry';
 import { runMutationGate, type MutationGateResult } from '$lib/server/routing/mutation_gate';
+import { resolveTurnDecision, type TurnDecision } from '$lib/server/routing/turn_decision';
+import { logTaskEvent } from '$lib/server/chatActivity';
 
 export type Provider = 'anthropic' | 'google' | 'local';
 
@@ -68,6 +70,8 @@ export interface TurnLifecycleResult {
 	userMessageText: string;
 	/** Result of the Mutation Gate (R2). Required — compile-enforced so the turn can't proceed without it. */
 	mutationGate: MutationGateResult;
+	/** Pre-stream shadow decision (D1). Journaled only — does not alter reply or dispatch. */
+	shadowDecision: TurnDecision;
 }
 
 /**
@@ -91,7 +95,25 @@ export async function prepareTurnLifecycle(
 	// post-classify, not pre). One chokepoint — impossible to bypass.
 	const mutationGate = runMutationGate(threadId, text);
 
-	return { taskId, currentTier, threadState, targetRepo, userMessageText: text, mutationGate };
+	// D1.2: shadow-compute the turn decision pre-stream (deterministic — no gateBlock).
+	// Read-only + one journal write. Does NOT alter the reply or dispatch path.
+	const shadowDecision = resolveTurnDecision({
+		userText: text,
+		threadId,
+		mutationGate,
+		tier: currentTier
+	});
+	logTaskEvent(taskId, 'turn_decision_shadow', { kind: shadowDecision.kind });
+
+	return {
+		taskId,
+		currentTier,
+		threadState,
+		targetRepo,
+		userMessageText: text,
+		mutationGate,
+		shadowDecision
+	};
 }
 
 export interface PrepareArgs {
@@ -147,6 +169,8 @@ export interface PreparedStreamContext {
 	modelMessages: UIMessage[];
 	/** Result of the Mutation Gate (R2). Required — compile-enforced. */
 	mutationGate: MutationGateResult;
+	/** Pre-stream shadow decision (D1). Journaled only — does not alter reply or dispatch. */
+	shadowDecision: TurnDecision;
 }
 
 /**
@@ -166,7 +190,8 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		currentTier,
 		threadState,
 		targetRepo: lifecycleTargetRepo,
-		mutationGate
+		mutationGate,
+		shadowDecision
 	} = await prepareTurnLifecycle({
 		text: userText,
 		threadId,
@@ -288,6 +313,7 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		allowSensitive,
 		systemPrompt,
 		modelMessages,
-		mutationGate
+		mutationGate,
+		shadowDecision
 	};
 }

@@ -46,7 +46,8 @@ export const TASK_EVENT_ACTIONS = [
 	'synthesis_started',
 	'synthesis_completed',
 	'verification_poll',
-	'adversary_reviewed'
+	'adversary_reviewed',
+	'turn_decision_shadow'
 ] as const;
 
 /**
