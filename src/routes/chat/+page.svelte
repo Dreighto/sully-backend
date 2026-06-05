@@ -33,6 +33,7 @@
 	import { createMessageActionsController } from '$lib/chat/message-actions.svelte';
 	import { replaceState } from '$app/navigation';
 	import { toasts } from '$lib/utils/toasts';
+	import { saveScrollPos, restoreScrollPos, clearScrollPos } from '$lib/utils/scroll-restore';
 	import Canvas from '$lib/components/Canvas.svelte';
 	import WorkspaceContextModal from '$lib/components/WorkspaceContextModal.svelte';
 	import ThreadsSidebar from '$lib/components/ThreadsSidebar.svelte';
@@ -58,6 +59,12 @@
 		getInitialThreads: () => data.threads || [],
 		getInitialActiveThread: () => data.activeThread || 'default',
 		setMessages: (next) => {
+			// Save scroll pos when clearing messages (thread switch). An empty
+			// `next` is the switchThread signal — save the current position so
+			// we can restore it when the operator comes back to this thread.
+			if (next.length === 0 && feedContainer && messages.length > 0) {
+				saveScrollPos(threadsCtrl.activeThread, feedContainer.scrollTop);
+			}
 			messages = next;
 		},
 		setSidebarOpen: (v) => {
@@ -540,7 +547,16 @@
 					if (added > 0) unseenCount += added;
 				}
 				messages = newMessages;
-				if (userAtBottom) {
+				// When switching threads, try to restore a saved scroll position
+				// first. If none is stored (new or fully-read thread), fall through
+				// to scroll-to-bottom as usual.
+				if (forThread) {
+					queueMicrotask(() => {
+						if (!feedContainer) return;
+						const restored = restoreScrollPos(forThread, feedContainer);
+						if (restored === null) scrollFeedToBottom('auto');
+					});
+				} else if (userAtBottom) {
 					queueMicrotask(() => scrollFeedToBottom('smooth'));
 				}
 			}
@@ -828,6 +844,9 @@
 					if (ent?.isIntersecting) {
 						userAtBottom = true;
 						unseenCount = 0;
+						// Operator reached the bottom — clear the saved scroll pos for
+						// this thread so next open starts fresh at the bottom.
+						clearScrollPos(threadsCtrl.activeThread);
 					} else {
 						userAtBottom = false;
 					}

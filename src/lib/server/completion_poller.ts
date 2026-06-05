@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import { serverConfig, runMode, appIdentity } from './config';
 import { sendPushToAll } from './web_push';
+import { incrementBadge } from './push_badge';
 
 let lastKnownSize = 0;
 let started = false;
@@ -56,10 +57,13 @@ export function poll() {
 
 			const ticketLabel = entry.ticket_id ? `${entry.ticket_id} — ` : '';
 			const statusLabel = entry.status ?? 'done';
+			const badge = incrementBadge();
 			sendPushToAll({
 				title: 'LogueOS: Worker complete',
 				body: `${ticketLabel}${statusLabel}`,
-				url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(entry.thread_id)}`
+				url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(entry.thread_id)}`,
+				badge,
+				threadGroupId: entry.thread_id
 			}).catch(() => {});
 		}
 	} catch {

@@ -60,13 +60,15 @@ export function upsertSubscription(deviceId: string, subscriptionJson: string): 
 	const db = getDb();
 	try {
 		ensureTables(db);
-		db.prepare(`
+		db.prepare(
+			`
 			INSERT INTO chat_web_push_subscriptions (device_id, subscription_json, last_seen_at)
 			VALUES (?, ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(device_id) DO UPDATE SET
 				subscription_json = excluded.subscription_json,
 				last_seen_at = CURRENT_TIMESTAMP
-		`).run(deviceId, subscriptionJson);
+		`
+		).run(deviceId, subscriptionJson);
 	} finally {
 		db.close();
 	}
@@ -101,9 +103,10 @@ export function removeDeadSubscription(endpoint: string): void {
 					db.prepare('DELETE FROM chat_web_push_subscriptions WHERE device_id = ?').run(
 						row.device_id
 					);
-					db.prepare(
-						'INSERT INTO chat_dead_subscriptions (device_id, endpoint) VALUES (?, ?)'
-					).run(row.device_id, endpoint);
+					db.prepare('INSERT INTO chat_dead_subscriptions (device_id, endpoint) VALUES (?, ?)').run(
+						row.device_id,
+						endpoint
+					);
 				}
 			} catch {
 				// skip rows with malformed subscription JSON
@@ -118,6 +121,15 @@ export interface PushPayload {
 	title: string;
 	body: string;
 	url?: string;
+	/** Badge count for APNs (forwarded by sendApnsToAll; ignored by web push). */
+	badge?: number;
+	/**
+	 * Notification grouping key. For APNs this becomes aps.thread-id (forwarded
+	 * by sendApnsToAll). For web push this becomes the `tag` field, which
+	 * collapses multiple notifications from the same thread into one entry in
+	 * the notification tray.
+	 */
+	threadGroupId?: string;
 }
 
 // Send a push to a single subscription.
@@ -133,12 +145,16 @@ export async function sendPush(
 
 	// Root-level title/body/icon satisfies both declarative iOS display and the
 	// SW event.data.json() read path. data.url is for the notificationclick handler.
-	const body = JSON.stringify({
+	// tag: collapses multiple notifications from the same thread into one entry
+	// in the notification tray (web push equivalent of APNs thread-id).
+	const bodyObj: Record<string, unknown> = {
 		title: payload.title,
 		body: payload.body,
 		icon: appIdentity.pushIconUrl,
 		data: { url: payload.url ?? appIdentity.basePath }
-	});
+	};
+	if (payload.threadGroupId) bodyObj.tag = payload.threadGroupId;
+	const body = JSON.stringify(bodyObj);
 
 	try {
 		await webpush.sendNotification(subscription, body);
@@ -152,7 +168,9 @@ export async function sendPush(
 }
 
 // Send to all stored subscriptions. Returns counts for logging.
-export async function sendPushToAll(payload: PushPayload): Promise<{ sent: number; failed: number }> {
+export async function sendPushToAll(
+	payload: PushPayload
+): Promise<{ sent: number; failed: number }> {
 	if (!serverConfig.enableWebPush) return { sent: 0, failed: 0 };
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return { sent: 0, failed: 0 };
 
@@ -222,9 +240,9 @@ export function getSubscriptionCount(): number {
 	const db = getDb();
 	try {
 		ensureTables(db);
-		const row = db
-			.prepare('SELECT COUNT(*) as count FROM chat_web_push_subscriptions')
-			.get() as { count: number };
+		const row = db.prepare('SELECT COUNT(*) as count FROM chat_web_push_subscriptions').get() as {
+			count: number;
+		};
 		return row.count;
 	} finally {
 		db.close();

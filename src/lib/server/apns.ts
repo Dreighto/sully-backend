@@ -23,8 +23,20 @@ import { serverConfig } from './config';
 export interface ApnsPayload {
 	title: string;
 	body: string;
-	/** Deep-link path opened on tap (e.g. /companion/chat). */
+	/** Deep-link path opened on tap (e.g. /companion/chat?thread=<id>). */
 	url?: string;
+	/**
+	 * APNs badge count to display on the app icon. Set to the number of
+	 * unseen finished tasks; pass 0 to clear the badge. Omit to leave
+	 * the current badge unchanged.
+	 */
+	badge?: number;
+	/**
+	 * APNs thread-id (aps.thread-id). Groups notifications from the same
+	 * conversation into a single stack on the lock screen. Set to the
+	 * chat thread_id so all pings for one task collapse together.
+	 */
+	threadGroupId?: string;
 }
 
 function getDb(): Database.Database {
@@ -135,8 +147,14 @@ export async function sendApns(token: string, payload: ApnsPayload): Promise<Apn
 		? 'https://api.push.apple.com'
 		: 'https://api.sandbox.push.apple.com';
 	const jwt = buildProviderJwt();
+	const aps: Record<string, unknown> = {
+		alert: { title: payload.title, body: payload.body },
+		sound: 'default'
+	};
+	if (payload.badge !== undefined) aps.badge = payload.badge;
+	if (payload.threadGroupId) aps['thread-id'] = payload.threadGroupId;
 	const body = JSON.stringify({
-		aps: { alert: { title: payload.title, body: payload.body }, sound: 'default' },
+		aps,
 		url: payload.url ?? null
 	});
 

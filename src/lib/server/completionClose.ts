@@ -13,6 +13,7 @@ import { sendApnsToAll } from './apns';
 import { synthesizeWorkerResult } from './routing/synthesize';
 import { shouldReview, runAdversaryReview } from './routing/adversary';
 import { runPoll } from './verifyPoll';
+import { incrementBadge } from './push_badge';
 import type { EvidenceEnvelope } from './verifyPoll';
 
 /** Empty string OR null/undefined thread_id → 'default'. (`??` alone misses ''.) */
@@ -128,11 +129,21 @@ export async function closeOutTask(
 		// Push ONLY after the message persisted — otherwise a failed post would
 		// still ping "task done" with nothing in the thread to show. Both legs are
 		// self-gated (no-op until creds + a device exist).
+		//
+		// badge: increment the unseen-tasks counter so the app icon shows how
+		// many completed tasks are waiting. The operator clears it by opening the
+		// app (PUT /api/chat/push/badge-clear) or viewing the task list.
+		//
+		// threadGroupId: APNs groups notifications by thread-id on the lock screen
+		// so five pings for the same task collapse into one stack rather than five.
+		const badge = incrementBadge();
 		const pushPayload = {
 			title: outcome === 'done' ? 'Sully — task done' : 'Sully — task needs you',
 			body:
 				outcome === 'done' ? 'Your task finished. Tap to see the result.' : 'A task hit a snag.',
-			url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(threadId)}`
+			url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(threadId)}`,
+			badge,
+			threadGroupId: threadId
 		};
 		void sendPushToAll(pushPayload).catch((e) =>
 			console.error('[completionClose] web push failed', e)

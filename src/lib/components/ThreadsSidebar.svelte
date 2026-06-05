@@ -12,7 +12,7 @@
 	// data-popover-trigger attributes are load-bearing — the chat e2e suite
 	// and the parent's global popover effect select on them. Do not change.
 
-	import { base } from '$app/paths';
+	import { base, resolve } from '$app/paths';
 	import {
 		X,
 		MessageSquarePlus,
@@ -24,7 +24,8 @@
 		Archive,
 		ArchiveRestore,
 		Trash2,
-		Eraser
+		Eraser,
+		Search
 	} from 'lucide-svelte';
 
 	type Thread = {
@@ -88,6 +89,43 @@
 			const el = document.getElementById(`thread-row-${CSS.escape(activeThread)}`);
 			if (el) el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 		});
+	});
+
+	// ── Full-history search ──────────────────────────────────────────────────
+	type SearchResult = {
+		message_id: number;
+		thread_id: string;
+		thread_title: string;
+		snippet: string;
+		timestamp: string;
+		sender: string;
+	};
+	let searchQuery = $state('');
+	let searchResults = $state<SearchResult[]>([]);
+	let searchLoading = $state(false);
+	let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		const q = searchQuery;
+		if (searchDebounce) clearTimeout(searchDebounce);
+		if (!q.trim()) {
+			searchResults = [];
+			searchLoading = false;
+			return;
+		}
+		searchLoading = true;
+		searchDebounce = setTimeout(async () => {
+			try {
+				const r = await fetch(resolve('/api/chat/search') + `?q=${encodeURIComponent(q)}&limit=20`);
+				if (!r.ok) return;
+				const b = (await r.json()) as { results?: SearchResult[] };
+				searchResults = b.results ?? [];
+			} catch {
+				searchResults = [];
+			} finally {
+				searchLoading = false;
+			}
+		}, 280);
 	});
 </script>
 
@@ -155,6 +193,52 @@
 
 	<!-- Threads Scroll Area -->
 	<div class="flex flex-1 flex-col overflow-y-auto p-2">
+		<!-- Search input -->
+		<div
+			class="mx-1 mb-2 flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2"
+		>
+			<Search size={12} class="shrink-0 text-zinc-500" />
+			<input
+				type="search"
+				placeholder="Search conversations…"
+				bind:value={searchQuery}
+				class="flex-1 bg-transparent font-sans text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none"
+				aria-label="Search all conversations"
+			/>
+			{#if searchLoading}
+				<span
+					class="h-3 w-3 shrink-0 animate-spin rounded-full border border-zinc-600 border-t-brand-soft"
+				></span>
+			{/if}
+		</div>
+
+		<!-- Search results overlay — shown when query is active -->
+		{#if searchQuery.trim()}
+			<div class="mb-2 space-y-0.5">
+				{#if searchResults.length === 0 && !searchLoading}
+					<div class="px-3 py-3 text-center font-sans text-[10px] text-zinc-600">No results</div>
+				{/if}
+				{#each searchResults as r (r.message_id)}
+					<button
+						type="button"
+						onclick={() => {
+							searchQuery = '';
+							onswitchThread(r.thread_id);
+						}}
+						class="w-full rounded-xl border border-transparent px-3 py-2 text-left transition-all hover:border-white/[0.05] hover:bg-white/[0.04] active:scale-[0.98]"
+					>
+						<div class="mb-0.5 flex items-center gap-1.5">
+							<Hash size={10} class="shrink-0 text-zinc-600" />
+							<span class="truncate font-sans text-[10px] font-medium text-brand-soft"
+								>{r.thread_title}</span
+							>
+						</div>
+						<p class="line-clamp-2 font-sans text-[11px] leading-snug text-zinc-400">{r.snippet}</p>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
 		<!-- Toolbar — Show archived toggle + Clear All -->
 		<div
 			class="mt-1 mb-2 flex items-center justify-between border-b border-white/[0.04] px-2 pt-1 pb-2"
