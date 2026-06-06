@@ -138,3 +138,30 @@ export async function commitWorkspace(message: string): Promise<{ sha: string | 
 	).stdout.trim();
 	return { sha: sha || null };
 }
+
+// ── 5b: confined read access for the artifact preview/download endpoint ──────────
+//
+// The preview endpoint serves files a worker built inside the workspace. The
+// security-critical piece is the SAME two-layer confinement the write side uses:
+// string-confine to <root>/<project> (rejects traversal/absolute/UNC/null —
+// works for the not-yet-realpath'd request), then realpath-confine the existing
+// target (defeats a worker-created symlink that points outside the sandbox).
+
+/**
+ * Resolve a request for `<project>/<relPath>` to a confined absolute path under
+ * `<WORKSPACE_ROOT>/<project>`, WITHOUT requiring the file to exist (string
+ * confinement only). Throws on a bad project slug, traversal, absolute/UNC
+ * paths, or null bytes. The caller MUST still `stat()` for existence and call
+ * `assertWorkspaceReal()` before serving the bytes (symlink defense).
+ */
+export function resolveWorkspaceFile(project: string, relPath: string): string {
+	const slug = slugify(project); // validates: lowercase [a-z0-9-], non-empty
+	const projectDir = confineResolve(WORKSPACE_ROOT, slug);
+	if (!relPath || !relPath.trim()) throw new Error('empty file path');
+	return confineResolve(projectDir, relPath);
+}
+
+/** Realpath-confine an EXISTING resolved path to WORKSPACE_ROOT (defeats symlinks). */
+export async function assertWorkspaceReal(target: string): Promise<string> {
+	return assertRealWithin(WORKSPACE_ROOT, target);
+}
