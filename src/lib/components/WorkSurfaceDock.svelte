@@ -304,7 +304,7 @@
 					<!-- Routing Phases -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg border border-border bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
+						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
 						aria-expanded={openSections.has('phases')}
 						onclick={() => toggleSection('phases')}
 					>
@@ -323,7 +323,7 @@
 					<!-- Worker Registry -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg border border-border bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
+						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
 						aria-expanded={openSections.has('workers')}
 						onclick={() => toggleSection('workers')}
 					>
@@ -347,7 +347,7 @@
 					<!-- Proof -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg border border-border bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
+						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
 						aria-expanded={openSections.has('proof')}
 						onclick={() => toggleSection('proof')}
 					>

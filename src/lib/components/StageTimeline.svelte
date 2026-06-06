@@ -1,27 +1,31 @@
 <script lang="ts">
-	import type { WorkSurfaceTask, PipelineStage } from '$lib/types/workSurface';
+	import type { WorkSurfaceTask } from '$lib/types/workSurface';
 
 	let { task }: { task: WorkSurfaceTask } = $props();
 
-	// The mock CSS uses `var(--color-complete)` for the done tick, which maps to `--color-status-green` in app.css.
-	const tickColor = 'var(--color-status-green)';
+	const allowedStages = ['READ', 'RESEARCH', 'BUILD', 'CHECK', 'APPROVE'];
+
+	const filteredProgress = $derived.by(() => {
+		return task.stageProgress.filter((step) => allowedStages.includes(step.stage.toUpperCase()));
+	});
 </script>
 
 <div class="stage-timeline">
-	{#each task.stageProgress as step (step.stage)}
-		<div
-			class="stage-pill
-            flex items-center justify-center font-bold uppercase whitespace-nowrap flex-shrink-0
-            transition-colors"
-			class:done={step.status === 'done'}
-			class:active={step.status === 'active'}
-			class:pending={step.status === 'pending'}
-			class:skipped={step.status === 'skipped'}
-		>
-			{#if step.status === 'done'}
-				<span class="tick">✓</span>
+	{#each filteredProgress as step, index (step.stage)}
+		<div class="segment" class:active={step.status === 'active'} class:done={step.status === 'done'}>
+			<div class="station">
+				<div class="dot">
+					{#if step.status === 'done'}
+						<svg class="tick" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="2.5,5 4.5,7 7.5,3"></polyline>
+						</svg>
+					{/if}
+				</div>
+				<div class="label">{step.stage}</div>
+			</div>
+			{#if index < filteredProgress.length - 1}
+				<div class="connector"></div>
 			{/if}
-			{step.stage}
 		</div>
 	{/each}
 </div>
@@ -29,52 +33,94 @@
 <style lang="postcss">
 	.stage-timeline {
 		display: flex;
-		gap: 4px;
-		margin-bottom: 1rem; /* 16px */
-		overflow: hidden;
-		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		margin-bottom: 1rem;
+		width: 100%;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.stage-timeline::-webkit-scrollbar {
+		display: none;
 	}
 
-	.stage-pill {
-		height: 18px;
-		border-radius: 9px;
-		padding: 0 8px;
-		font-size: 9px;
-		font-weight: 700;
-		text-transform: uppercase;
-		white-space: nowrap;
-		flex-shrink: 0;
+	.segment {
+		display: flex;
+		align-items: flex-start;
+		flex: 1;
+	}
+	.segment:last-child {
+		flex: 0;
+	}
+
+	.station {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		position: relative;
+		z-index: 2;
+	}
+
+	.dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		border: 1px solid var(--color-border);
+		background-color: transparent;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition:
-			background-color 0.3s ease,
-			opacity 0.3s ease,
-			border-color 0.3s ease;
+		margin-bottom: 4px;
+		transition: all 0.2s ease;
+	}
+	
+	.segment.done .dot {
+		background-color: color-mix(in srgb, var(--color-st-done) 70%, transparent);
+		border-color: transparent;
 	}
 
-	.stage-pill.done {
-		background-color: rgb(255 255 255 / 0.1);
+	.segment.done .tick {
+		width: 6px;
+		height: 6px;
+		color: var(--color-background, #111);
+	}
+
+	.segment.active .dot {
+		width: 12px;
+		height: 12px;
+		background-color: var(--color-st-run);
+		border-color: var(--color-st-run);
+		margin-bottom: 3px; /* compensate for larger size */
+	}
+	
+	/* Future stations: 30% opacity done color */
+	.segment:not(.active):not(.done) .dot {
+		border-color: color-mix(in srgb, var(--color-st-done) 30%, transparent);
+	}
+
+	.label {
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 		color: var(--color-muted-foreground);
+		white-space: nowrap;
 	}
-	.stage-pill.done .tick {
-		margin-right: 3px;
-		color: var(--color-status-green);
-	}
-
-	.stage-pill.active {
-		background-color: var(--color-brand);
-		color: #fff;
+	.segment.active .label {
+		color: var(--color-foreground, #fff);
 	}
 
-	.stage-pill.pending {
-		border: 1px solid rgb(255 255 255 / 0.15);
-		color: rgb(255 255 255 / 0.3);
+	.connector {
+		flex: 1;
+		height: 1px;
+		background-color: var(--color-border);
+		margin-top: 5px; /* align with dots */
+		margin-left: 4px;
+		margin-right: 4px;
+		opacity: 0.5;
 	}
-
-	.stage-pill.skipped {
-		border: 1px dashed rgb(255 255 255 / 0.1);
-		color: rgb(255 255 255 / 0.2);
-		opacity: 0.6;
+	.segment.done .connector {
+		background-color: var(--color-st-done);
+		opacity: 0.5;
 	}
 </style>

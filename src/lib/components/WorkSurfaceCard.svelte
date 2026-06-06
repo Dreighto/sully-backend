@@ -68,7 +68,7 @@
 	<div class="sully-collapsed-view" class:active={footprint === 'collapsed'}>
 		<div class="collapsed-content">
 			<span class="pulse-indicator status-{task.state.toLowerCase()}"></span>
-			<span class="collapsed-title">Sully: {task.state}</span>
+			<span class="collapsed-title">{task.state}</span>
 			{#if task.workers.length > 0}
 				<span class="collapsed-meta">{task.workers[0].shortCode}</span>
 			{/if}
@@ -79,9 +79,7 @@
 	<div class="sully-compact-card" class:active={footprint === 'compact'}>
 		<div class="card-header">
 			<div class="header-left">
-				<span class="system-badge-icon"><Send size="18" /></span>
 				<div class="header-text">
-					<span class="card-label">Sully Work Surface</span>
 					<h1 class="task-title">{task.title}</h1>
 				</div>
 			</div>
@@ -97,9 +95,9 @@
 
 		<!-- Active Ownership Banner -->
 		{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
-			<div class="active-ownership-banner">
+			<div class="active-ownership-banner bg-surface/50 p-3 rounded-md flex items-center gap-2 text-sm text-foreground">
 				<span class="ownership-pulse"></span>
-				<span class="ownership-text">Now: {firstWorkerStep}</span>
+				<span class="ownership-text">Next: {firstWorkerStep}</span>
 			</div>
 		{/if}
 
@@ -132,9 +130,7 @@
 		<div class="sully-expanded-card">
 			<div class="expanded-header">
 				<div class="header-left">
-					<span class="system-badge-icon"><Send size="18" /></span>
 					<div class="header-text">
-						<span class="card-label">Detailed Telemetry</span>
 						<h2 class="task-title">{task.title}</h2>
 					</div>
 				</div>
@@ -175,9 +171,9 @@
 				</div>
 
 				{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
-					<div class="active-ownership-banner">
+					<div class="active-ownership-banner bg-surface/50 p-3 rounded-md flex items-center gap-2 text-sm text-foreground">
 						<span class="ownership-pulse"></span>
-						<span class="ownership-text">Now: {firstWorkerStep}</span>
+						<span class="ownership-text">Next: {firstWorkerStep}</span>
 					</div>
 				{/if}
 			{/if}
@@ -278,7 +274,7 @@
 	.pulse-indicator.status-working,
 	.pulse-indicator.status-reviewing,
 	.pulse-indicator.status-delivering {
-		background-color: var(--color-brand);
+		background-color: var(--color-st-run);
 	}
 	.pulse-indicator.status-waiting,
 	.pulse-indicator.status-stopped {
@@ -345,8 +341,8 @@
 	.status-pill.status-working,
 	.status-pill.status-reviewing,
 	.status-pill.status-delivering {
-		background-color: var(--color-brand);
-		color: var(--color-on-brand);
+		background-color: var(--color-st-run);
+		color: var(--color-foreground, #fff);
 	}
 	.status-pill.status-waiting,
 	.status-pill.status-stopped {
@@ -368,10 +364,11 @@
 	}
 
 	.active-ownership-banner {
-		@apply flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs font-medium text-muted-foreground;
+		@apply flex items-center gap-2 rounded-md bg-surface/50 px-3 py-2 text-xs font-medium text-foreground;
 	}
 	.ownership-pulse {
-		@apply h-2 w-2 rounded-full bg-brand;
+		@apply h-2 w-2 rounded-full;
+		background-color: var(--color-st-run);
 		animation: pulse 1.5s infinite ease-in-out;
 	}
 
@@ -380,9 +377,9 @@
 	}
 
 	.action-btn {
-		@apply flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors;
+		@apply flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors min-h-[44px];
 		color: white;
-		background-color: var(--color-brand); /* Default for all actions */
+		background-color: var(--color-st-needs); /* Default for approve */
 	}
 	.action-btn:hover {
 		@apply opacity-90;
@@ -430,7 +427,7 @@
 	}
 
 	.proof-card {
-		@apply rounded-md border border-border bg-surface p-3;
+		@apply rounded-md bg-surface/50 p-3;
 		grid-column: span 1; /* Default to one column */
 	}
 	.expanded-details-layout > .proof-card {

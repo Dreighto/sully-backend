@@ -207,42 +207,15 @@
 			.filter((r): r is NonNullable<typeof r> => r !== null); // Filter out nulls from missing nodes
 	});
 
-	// Handle the special input edge from mock (from {340,105} to system-memory)
-	const specialSystemInputEdge = $derived.by(() => {
-		if (
-			task.workers.length === 1 &&
-			task.stage === 'Research' &&
-			systemNodes.some((n) => n.id === 'system-memory')
-		) {
-			const systemMemoryPos = systemNodes.find((n) => n.id === 'system-memory')?.pos || {
-				x: 280,
-				y: 65
-			};
-			return {
-				id: 'system-input-edge',
-				pathD: pathD(340, 105, systemMemoryPos.x, systemMemoryPos.y), // Hardcoded from mock
-				isInputEdge: true,
-				active: true
-			};
-		}
-		return null;
-	});
-</script>
+	</script>
 
-<svg class="work-graph" viewBox={WORK_GRAPH_VIEWBOX}>
+<svg class="work-graph" class:idle={task.state === 'Waiting' || task.state === 'Stopped' || task.state === 'Failed' || task.state === 'Complete'} viewBox={WORK_GRAPH_VIEWBOX}>
 	<!-- 1. Core field rings -->
 	{#each CORE_FIELD_RADII as r}
 		<circle class="core-field" {r} cx={TASK_CORE_POS.x} cy={TASK_CORE_POS.y} />
 	{/each}
 
 	<!-- 2. Routes (backing, base, sweep, packets) -->
-	{#if specialSystemInputEdge}
-		<path
-			class="edge-line edge-input {specialSystemInputEdge.active ? 'active' : ''}"
-			d={specialSystemInputEdge.pathD}
-		/>
-	{/if}
-
 	{#each allRoutes as route (route.id)}
 		{#if route.isPrimary && route.active}
 			<path class="edge-line-backing" d={route.pathD} />
@@ -275,7 +248,7 @@
 			<circle class="node-ring" r="23" />
 			<circle class="node-circle" r="17" />
 			<!-- Placeholder for icon, will use <use href="#{worker.icon}" /> -->
-			<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-brand)" />
+			<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-st-run)" />
 			<text
 				class="node-label"
 				x="0"
@@ -319,7 +292,7 @@
 		<circle class="central-task-ripple-anim" r="20" />
 		<circle class="central-task-node" r="20" />
 		<!-- Placeholder for icon, will use <use href="#icon-task" /> -->
-		<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-brand)" />
+		<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-st-run)" />
 		<text
 			class="node-label"
 			x="0"
@@ -347,7 +320,6 @@
 		stroke: var(--color-border);
 		stroke-width: 1;
 		opacity: 0.3;
-		animation: rotateOrbital 12s linear infinite;
 	}
 
 	.node-circle {
@@ -370,7 +342,6 @@
 		stroke: var(--color-border);
 		stroke-width: 1;
 		opacity: 0.1;
-		animation: coreFieldBreath 3s ease-in-out infinite alternate;
 	}
 
 	/* Edges and Paths */
@@ -432,7 +403,7 @@
 	}
 
 	.node-icon-wrapper .packet-shape {
-		fill: var(--color-brand); /* Default packet color */
+		fill: var(--color-st-run); /* Default packet color */
 		transform: translate(-50%, -50%); /* Center the packet on the path */
 		width: var(--packet-size, 12px);
 		height: var(--packet-size, 12px);
@@ -452,8 +423,8 @@
 
 	/* Central Task Node */
 	.central-task-node {
-		fill: var(--color-brand);
-		stroke: var(--color-brand-bright);
+		fill: var(--color-st-run);
+		stroke: var(--color-st-run);
 		stroke-width: 1;
 		transform-box: fill-box; /* Crucial for transform-origin: center center; */
 	}
@@ -465,14 +436,14 @@
 	}
 
 	.central-task-core-pulse {
-		fill: var(--color-brand);
+		fill: var(--color-st-run);
 		opacity: 0.4;
 		transform-box: fill-box;
 		animation: coreBreath 1.5s ease-in-out infinite alternate;
 	}
 
 	.central-task-ripple-anim {
-		fill: var(--color-brand);
+		fill: var(--color-st-run);
 		opacity: 0.1;
 		transform-box: fill-box;
 		animation: rippleAnim 1.5s cubic-bezier(0.2, 0.8, 0.5, 1) infinite;
@@ -530,25 +501,7 @@
 	}
 
 	/* Keyframes */
-	@keyframes coreFieldBreath {
-		0% {
-			transform: scale(0.9);
-			opacity: 0.1;
-		}
-		100% {
-			transform: scale(1.1);
-			opacity: 0.2;
-		}
-	}
 
-	@keyframes rotateOrbital {
-		0% {
-			transform: rotate(0deg);
-		}
-		100% {
-			transform: rotate(360deg);
-		}
-	}
 
 	@keyframes sweepMotion {
 		0% {
@@ -600,4 +553,12 @@
 			transition-duration: 0.01ms !important;
 		}
 	}
+
+	.work-graph.idle {
+		opacity: 0.4;
+	}
+	.work-graph.idle * {
+		animation: none !important;
+	}
+
 </style>
