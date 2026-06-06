@@ -1,0 +1,1092 @@
+/* ==========================================================================
+   SULLY MOBILE WORK SURFACE - CORE COMPONENT STYLES (APP-READY)
+   ========================================================================== */
+
+:root {
+  /* Design Tokens (Softer, clean developer-tool aesthetic) */
+  --sully-bg: #13161f;
+  --sully-bg-hover: #171b26;
+  --sully-border: #222633;
+  --sully-border-hover: #2f3447;
+  
+  --sully-text-primary: #f1f3f9;
+  --sully-text-secondary: #a0a5b5;
+  --sully-text-muted: #5f6475;
+  
+  /* Worker Status & Accents */
+  --sully-cyan: #00e5ff;
+  --sully-cyan-dim: rgba(0, 229, 255, 0.08);
+  
+  --sully-magenta: #ff007f;
+  --sully-magenta-dim: rgba(255, 0, 127, 0.08);
+  
+  --sully-amber: #ffb300;
+  --sully-amber-dim: rgba(255, 179, 0, 0.08);
+  
+  --sully-green: #00e676;
+  --sully-green-dim: rgba(0, 230, 118, 0.08);
+  
+  --sully-coral-blocked: #ff7654;
+  --sully-coral-blocked-dim: rgba(255, 118, 84, 0.08);
+  
+  --sully-stopped: #78909c;
+  --sully-stopped-dim: rgba(120, 144, 156, 0.08);
+  
+  --sully-slate-assigned: #5c6475;
+  
+  --sully-transition: all 0.2s ease-in-out;
+}
+
+/* Base Component Reset & Container */
+.sully-card-container {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--sully-text-primary);
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.sully-card-container * {
+  box-sizing: border-box;
+}
+
+/* Card Body - Softened, premium utility card */
+.sully-card {
+  background-color: var(--sully-bg);
+  border: 1px solid var(--sully-border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: var(--sully-transition);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.sully-card:hover {
+  background-color: var(--sully-bg-hover);
+  border-color: var(--sully-border-hover);
+}
+
+/* Subtle border color shifts according to status */
+.sully-card.status-active { border-color: rgba(255, 0, 127, 0.2); }
+.sully-card.status-verifying { border-color: rgba(0, 229, 255, 0.2); }
+.sully-card.status-blocked { border-color: rgba(255, 118, 84, 0.25); }
+.sully-card.status-complete { border-color: rgba(0, 230, 118, 0.2); }
+.sully-card.status-stopped { border-color: rgba(120, 144, 156, 0.2); }
+
+/* --------------------------------------------------------------------------
+   STATE 1: COLLAPSED (Pill State)
+   -------------------------------------------------------------------------- */
+.sully-card.state-collapsed {
+  border-radius: 20px;
+  background-color: var(--sully-bg);
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sully-pill-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+.sully-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--sully-magenta);
+  box-shadow: 0 0 5px rgba(255, 0, 127, 0.4);
+  animation: pulse-glow-magenta 2.2s infinite ease-in-out;
+}
+
+.sully-card.status-blocked .sully-indicator-dot {
+  background-color: var(--sully-coral-blocked);
+  box-shadow: 0 0 5px rgba(255, 118, 84, 0.4);
+  animation: pulse-glow-blocked 2.2s infinite ease-in-out;
+}
+
+.sully-card.status-verifying .sully-indicator-dot {
+  background-color: var(--sully-cyan);
+  box-shadow: 0 0 5px rgba(0, 229, 255, 0.4);
+  animation: pulse-glow-cyan 2.2s infinite ease-in-out;
+}
+
+.sully-card.status-complete .sully-indicator-dot {
+  background-color: var(--sully-green);
+  box-shadow: 0 0 5px rgba(0, 230, 118, 0.4);
+  animation: none;
+}
+
+.sully-card.status-stopped .sully-indicator-dot {
+  background-color: var(--sully-stopped);
+  box-shadow: 0 0 5px rgba(120, 144, 156, 0.4);
+  animation: none;
+}
+
+.sully-pill-text {
+  color: var(--sully-text-primary);
+}
+
+.sully-pill-dot-separator {
+  color: var(--sully-text-muted);
+}
+
+.sully-pill-subtext {
+  color: var(--sully-text-secondary);
+}
+
+/* Hide/Show logic based on states */
+.sully-card.state-collapsed .sully-compact-view,
+.sully-card.state-collapsed .sully-expanded-view {
+  display: none;
+}
+
+.sully-card.state-compact .sully-collapsed-view,
+.sully-card.state-compact .sully-expanded-view {
+  display: none;
+}
+
+.sully-card.state-expanded .sully-collapsed-view,
+.sully-card.state-expanded .sully-compact-view {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   STATE 2: COMPACT CARD
+   -------------------------------------------------------------------------- */
+.sully-compact-view {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Card Header */
+.sully-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sully-task-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sully-card-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sully-text-muted);
+}
+
+.sully-task-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--sully-text-primary);
+  line-height: 1.35;
+}
+
+.sully-state-badge {
+  font-size: 10.5px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background-color: var(--sully-border);
+  color: var(--sully-text-secondary);
+}
+
+/* State badge colors */
+.sully-card.status-active .sully-state-badge {
+  background-color: var(--sully-magenta-dim);
+  color: var(--sully-magenta);
+}
+
+.sully-card.status-verifying .sully-state-badge {
+  background-color: var(--sully-cyan-dim);
+  color: var(--sully-cyan);
+}
+
+.sully-card.status-blocked .sully-state-badge {
+  background-color: var(--sully-coral-blocked-dim);
+  color: var(--sully-coral-blocked);
+}
+
+.sully-card.status-complete .sully-state-badge {
+  background-color: var(--sully-green-dim);
+  color: var(--sully-green);
+}
+
+.sully-card.status-stopped .sully-state-badge {
+  background-color: var(--sully-stopped-dim);
+  color: var(--sully-stopped);
+}
+
+/* Horizontal Pipeline Route (Operator) */
+.sully-pipeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.sully-step {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sully-text-muted);
+  transition: var(--sully-transition);
+}
+
+.sully-step.complete {
+  color: var(--sully-green);
+}
+
+.sully-step.active {
+  color: var(--sully-magenta);
+  font-weight: 600;
+}
+
+.sully-card.status-verifying .sully-step.active {
+  color: var(--sully-cyan);
+}
+
+.sully-card.status-blocked .sully-step.active {
+  color: var(--sully-coral-blocked);
+}
+
+.sully-step-arrow {
+  color: var(--sully-text-muted);
+  opacity: 0.25;
+  font-size: 9px;
+}
+
+/* Human-readable metadata banner */
+.sully-operator-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: #171b26;
+  border-radius: 6px;
+  border-left: 2.5px solid var(--sully-slate-assigned);
+}
+
+.sully-card.status-active .sully-operator-banner { border-left-color: var(--sully-magenta); }
+.sully-card.status-verifying .sully-operator-banner { border-left-color: var(--sully-cyan); }
+.sully-card.status-blocked .sully-operator-banner { 
+  background-color: var(--sully-coral-blocked-dim);
+  border-left-color: var(--sully-coral-blocked); 
+}
+.sully-card.status-complete .sully-operator-banner { border-left-color: var(--sully-green); }
+.sully-card.status-stopped .sully-operator-banner { border-left-color: var(--sully-stopped); }
+
+.sully-banner-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sully-banner-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sully-text-secondary);
+}
+
+.sully-card.status-blocked .sully-banner-text {
+  color: var(--sully-text-primary);
+  font-weight: 550;
+}
+
+.sully-banner-highlight {
+  color: var(--sully-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* --------------------------------------------------------------------------
+   CONTEXTUAL OPERATOR ACTION BUTTONS (V4 FEATURE)
+   -------------------------------------------------------------------------- */
+.sully-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.sully-btn {
+  flex: 1;
+  height: 42px; /* Touch target minimum (42px) */
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--sully-transition);
+  padding: 0 16px;
+  text-decoration: none;
+  outline: none;
+}
+
+/* Secondary Button (Standard outline) */
+.sully-btn.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.02);
+  border-color: var(--sully-border);
+  color: var(--sully-text-secondary);
+}
+
+.sully-btn.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--sully-border-hover);
+  color: var(--sully-text-primary);
+}
+
+/* Primary / Approve Button */
+.sully-btn.btn-approve {
+  background-color: var(--sully-coral-blocked);
+  color: #0d0e12;
+}
+
+.sully-btn.btn-approve:hover {
+  background-color: #ff8b6d;
+}
+
+/* Dangerous Double-Confirmation State */
+.sully-btn.btn-confirm-danger {
+  background-color: #ef5350;
+  color: #ffffff;
+  animation: pulse-danger-btn 1.5s infinite ease-in-out;
+}
+
+.sully-btn.btn-confirm-danger:hover {
+  background-color: #f44336;
+}
+
+/* Complete View Result Button */
+.sully-btn.btn-complete {
+  background-color: var(--sully-green-dim);
+  border-color: rgba(0, 230, 118, 0.2);
+  color: var(--sully-green);
+}
+
+.sully-btn.btn-complete:hover {
+  background-color: rgba(0, 230, 118, 0.15);
+}
+
+/* Start Over / Restart Button (Demo helper) */
+.sully-btn.btn-restart {
+  background-color: var(--sully-stopped-dim);
+  border-color: rgba(120, 144, 156, 0.2);
+  color: var(--sully-stopped);
+}
+
+.sully-btn.btn-restart:hover {
+  background-color: rgba(120, 144, 156, 0.15);
+}
+
+/* Active State Inline warning inside stop task confirmation */
+.sully-btn.btn-confirm-stop {
+  background-color: #ffb300;
+  color: #0d0e12;
+}
+.sully-btn.btn-confirm-stop:hover {
+  background-color: #ffc107;
+}
+
+/* --------------------------------------------------------------------------
+   STATE 3: EXPANDED CARD
+   -------------------------------------------------------------------------- */
+.sully-expanded-view {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Expanded Header */
+.sully-expanded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sully-expanded-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sully-close-btn {
+  background: none;
+  border: none;
+  color: var(--sully-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--sully-transition);
+}
+
+.sully-close-btn:hover {
+  color: var(--sully-text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Phase Checklist (Vertical Route) */
+.sully-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background-color: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.sully-phase-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sully-phase-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sully-phase-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: bold;
+}
+
+/* Phase item states */
+.sully-phase-item.complete .sully-phase-icon {
+  background-color: var(--sully-green-dim);
+  color: var(--sully-green);
+  border: 1px solid rgba(0, 230, 118, 0.12);
+}
+
+.sully-phase-item.complete .sully-phase-name {
+  color: var(--sully-text-muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(142, 148, 165, 0.15);
+}
+
+.sully-phase-item.active .sully-phase-icon {
+  background-color: var(--sully-magenta-dim);
+  color: var(--sully-magenta);
+  border: 1px solid rgba(255, 0, 127, 0.12);
+  position: relative;
+}
+
+.sully-phase-item.active .sully-phase-icon::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  border: 1px solid var(--sully-magenta);
+  animation: pulse-ring 2s infinite ease-out;
+}
+
+.sully-card.status-verifying .sully-phase-item.active .sully-phase-icon {
+  background-color: var(--sully-cyan-dim);
+  color: var(--sully-cyan);
+  border-color: rgba(0, 229, 255, 0.12);
+}
+.sully-card.status-verifying .sully-phase-item.active .sully-phase-icon::after {
+  border-color: var(--sully-cyan);
+}
+
+.sully-card.status-blocked .sully-phase-item.active .sully-phase-icon {
+  background-color: var(--sully-coral-blocked-dim);
+  color: var(--sully-coral-blocked);
+  border-color: rgba(255, 118, 84, 0.15);
+}
+.sully-card.status-blocked .sully-phase-item.active .sully-phase-icon::after {
+  border-color: var(--sully-coral-blocked);
+}
+
+.sully-card.status-stopped .sully-phase-item.active .sully-phase-icon {
+  background-color: var(--sully-stopped-dim);
+  color: var(--sully-stopped);
+  border-color: rgba(120, 144, 156, 0.15);
+}
+.sully-card.status-stopped .sully-phase-item.active .sully-phase-icon::after {
+  border-color: var(--sully-stopped);
+}
+
+.sully-phase-item.active .sully-phase-name {
+  color: var(--sully-text-primary);
+  font-weight: 550;
+}
+
+.sully-phase-item.pending .sully-phase-icon {
+  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--sully-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.sully-phase-item.pending .sully-phase-name {
+  color: var(--sully-text-muted);
+}
+
+.sully-phase-name {
+  font-size: 12px;
+}
+
+.sully-phase-time {
+  font-size: 10.5px;
+  color: var(--sully-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+/* Worker Status Details (Expanded only) */
+.sully-worker-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.sully-worker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sully-worker-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sully-worker-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+}
+
+.sully-worker-dot.dot-active { background-color: var(--sully-magenta); }
+.sully-worker-dot.dot-idle { background-color: var(--sully-slate-assigned); }
+.sully-worker-dot.dot-queued { background-color: var(--sully-amber); }
+.sully-worker-dot.dot-verifying { background-color: var(--sully-cyan); }
+.sully-worker-dot.dot-complete { background-color: var(--sully-green); }
+.sully-worker-dot.dot-blocked { background-color: var(--sully-coral-blocked); }
+.sully-worker-dot.dot-stopped { background-color: var(--sully-stopped); }
+
+.sully-worker-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sully-text-primary);
+}
+
+.sully-worker-role {
+  font-size: 11px;
+  color: var(--sully-text-muted);
+}
+
+.sully-worker-status {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sully-text-secondary);
+}
+
+.sully-worker-status.active { color: var(--sully-magenta); }
+.sully-worker-status.verifying { color: var(--sully-cyan); }
+.sully-worker-status.blocked { color: var(--sully-coral-blocked); }
+.sully-worker-status.complete { color: var(--sully-green); }
+.sully-worker-status.stopped { color: var(--sully-stopped); }
+
+/* Proof/Check Summaries */
+.sully-proof-card {
+  background: rgba(255, 255, 255, 0.005);
+  border: 1px dashed var(--sully-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sully-proof-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sully-proof-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sully-text-muted);
+}
+
+.sully-proof-score {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--sully-green);
+  background-color: var(--sully-green-dim);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.sully-card.status-blocked .sully-proof-score {
+  color: var(--sully-coral-blocked);
+  background-color: var(--sully-coral-blocked-dim);
+}
+
+.sully-card.status-stopped .sully-proof-score {
+  color: var(--sully-stopped);
+  background-color: var(--sully-stopped-dim);
+}
+
+.sully-proof-detail {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--sully-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   SHARED ANIMATED GRAPH (SVG STYLING)
+   -------------------------------------------------------------------------- */
+.sully-graph-container {
+  width: 100%;
+  background-color: #0c0e14;
+  border: 1px solid rgba(255, 255, 255, 0.01);
+  border-radius: 8px;
+  padding: 5px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: var(--sully-transition);
+}
+
+.sully-svg-graph {
+  width: 100%;
+  height: auto;
+  max-height: 110px;
+}
+
+/* Node Elements */
+.graph-node {
+  fill: #141721;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1.5px;
+  transition: var(--sully-transition);
+}
+
+.graph-node.active-node {
+  stroke: var(--sully-magenta);
+  fill: rgba(255, 0, 127, 0.02);
+}
+
+.sully-card.status-verifying .graph-node.active-node {
+  stroke: var(--sully-cyan);
+  fill: rgba(0, 229, 255, 0.02);
+}
+
+.sully-card.status-blocked .graph-node.active-node {
+  stroke: var(--sully-coral-blocked);
+  fill: rgba(255, 118, 84, 0.02);
+}
+
+.graph-node.complete-node {
+  stroke: var(--sully-green);
+  fill: rgba(0, 230, 118, 0.01);
+}
+
+.graph-node.blocked-node {
+  stroke: var(--sully-coral-blocked);
+  fill: rgba(255, 118, 84, 0.01);
+}
+
+.graph-node.stopped-node {
+  stroke: var(--sully-stopped);
+  fill: rgba(120, 144, 156, 0.01);
+}
+
+.graph-node.core-node {
+  stroke: var(--sully-text-muted);
+  fill: #191d29;
+}
+
+/* Node Text Labels */
+.graph-label {
+  font-size: 9px;
+  font-weight: 500;
+  fill: var(--sully-text-muted);
+  opacity: 0.6;
+  font-family: -apple-system, sans-serif;
+  text-anchor: middle;
+}
+
+.graph-label.active-label {
+  fill: var(--sully-text-secondary);
+  opacity: 0.95;
+}
+
+.graph-label.blocked-label {
+  fill: var(--sully-coral-blocked);
+  opacity: 0.95;
+}
+
+.graph-label.core-label {
+  fill: var(--sully-text-secondary);
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+/* Connection Paths */
+.graph-edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.03);
+  stroke-width: 1.5px;
+  transition: var(--sully-transition);
+}
+
+.graph-edge.active-edge {
+  stroke: rgba(255, 0, 127, 0.08);
+}
+
+.sully-card.status-verifying .graph-edge.active-edge {
+  stroke: rgba(0, 229, 255, 0.08);
+}
+
+.sully-card.status-blocked .graph-edge.active-edge {
+  stroke: rgba(255, 118, 84, 0.08);
+}
+
+.graph-edge.complete-edge {
+  stroke: rgba(0, 230, 118, 0.06);
+}
+
+.graph-edge.blocked-edge {
+  stroke: rgba(255, 118, 84, 0.06);
+}
+
+.graph-edge.stopped-edge {
+  stroke: rgba(120, 144, 156, 0.06);
+}
+
+/* Packet (glowing traveling dot along dynamic path) */
+.graph-packet {
+  fill: var(--sully-magenta);
+  filter: drop-shadow(0 0 1px var(--sully-magenta));
+  animation: travel-packet 3s infinite linear;
+}
+
+.sully-card.status-verifying .graph-packet {
+  fill: var(--sully-cyan);
+  filter: drop-shadow(0 0 1px var(--sully-cyan));
+}
+
+.sully-card.status-blocked .graph-packet {
+  fill: var(--sully-coral-blocked);
+  filter: drop-shadow(0 0 1px var(--sully-coral-blocked));
+}
+
+/* --------------------------------------------------------------------------
+   ANIMATIONS & KEYFRAMES
+   -------------------------------------------------------------------------- */
+@keyframes pulse-glow-magenta {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 4px rgba(255, 0, 127, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 7px rgba(255, 0, 127, 0.5);
+  }
+}
+
+@keyframes pulse-glow-cyan {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 4px rgba(0, 229, 255, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 7px rgba(0, 229, 255, 0.5);
+  }
+}
+
+@keyframes pulse-glow-blocked {
+  0%, 100% {
+    opacity: 0.8;
+    box-shadow: 0 0 4px rgba(255, 118, 84, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 7px rgba(255, 118, 84, 0.5);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  75%, 100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes travel-packet {
+  0% {
+    motion-offset: 0%;
+    offset-distance: 0%;
+  }
+  100% {
+    motion-offset: 100%;
+    offset-distance: 100%;
+  }
+}
+
+@keyframes pulse-danger-btn {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(239, 83, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(239, 83, 80, 0.7);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   REDUCED MOTION SUPPORT
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .sully-indicator-dot,
+  .sully-phase-item.active .sully-phase-icon::after,
+  .graph-packet,
+  .graph-node.active-node,
+  .sully-btn.btn-confirm-danger {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+  
+  .graph-packet {
+    opacity: 0.25;
+    offset-distance: 50%;
+  }
+  
+  .sully-card {
+    transition: none !important;
+  }
+}
+
+
+/* ==========================================================================
+   DEMO AND WRAPPER STYLING (DISCARD FOR APP DEPLOYMENT)
+   ========================================================================== */
+
+.demo-viewport-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #08090c;
+  padding: 15px;
+}
+
+/* iPhone Device Mockup Frame */
+.demo-phone-frame {
+  width: 390px;
+  height: 760px;
+  background-color: #0b0c10;
+  border: 10px solid #1f222d;
+  border-radius: 44px;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 
+              0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Speaker Notch */
+.demo-phone-notch {
+  width: 110px;
+  height: 25px;
+  background-color: #1f222d;
+  border-radius: 0 0 16px 16px;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+/* Screen Content Area */
+.demo-phone-screen {
+  flex: 1;
+  padding: 38px 14px 14px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: none;
+}
+
+.demo-phone-screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* Demo Header Info */
+.demo-screen-header {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #5c6273;
+}
+
+.demo-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.demo-status-icons {
+  display: flex;
+  gap: 5px;
+  font-size: 12px;
+  color: #fff;
+}
+
+/* Mock chat UI bubble structure */
+.demo-chat-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.demo-message {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.demo-message.system {
+  align-self: center;
+  background-color: rgba(255, 255, 255, 0.02);
+  color: #8e94a5;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.demo-message.user {
+  align-self: flex-end;
+  background-color: #1c2535;
+  color: #f1f3f9;
+  border-bottom-right-radius: 3px;
+}
+
+.demo-message.assistant {
+  align-self: flex-start;
+  background-color: #13151c;
+  color: #f1f3f9;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom-left-radius: 3px;
+}
+
+/* Controller / State Selector Bar */
+.demo-controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 390px;
+  margin-bottom: 15px;
+}
+
+.demo-controller {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  background-color: #12141c;
+  padding: 4px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.demo-btn {
+  background: none;
+  border: none;
+  color: #7f8596;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--sully-transition);
+}
+
+.demo-btn:hover {
+  color: #f1f3f9;
+}
+
+.demo-btn.active {
+  background-color: #ff007f;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(255, 0, 127, 0.2);
+}
+
+.demo-controller.presets-controller .demo-btn.active {
+  background-color: #00e5ff;
+  color: #0b0c10;
+  box-shadow: 0 2px 6px rgba(0, 229, 255, 0.2);
+}
+
+.demo-instructions {
+  margin-top: 10px;
+  max-width: 390px;
+  font-size: 11px;
+  color: #5c6273;
+  text-align: center;
+  line-height: 1.4;
+}
