@@ -205,3 +205,18 @@ export interface WorkSurfaceTask {
 	endedAt: string | null;
 	ticketId: string | null;
 }
+
+export type SurfaceStatus = 'idle' | 'running' | 'needs-you' | 'done' | 'failed';
+
+export type EdgeStatus = 'pending' | 'active' | 'solid';
+
+export interface Surface {
+	surfaceId: string; // STABLE id
+	spawnedFromMessageId: string;
+	title: string;
+	status: SurfaceStatus;
+	task: WorkSurfaceTask; // the existing per-card data
+	needs?: { kind: 'approval' | 'input'; prompt: string };
+	createdAt: string;
+	updatedAt: string;
+}
