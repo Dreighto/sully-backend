@@ -154,8 +154,19 @@ export function createSlashCommandsController(deps: SlashDeps): SlashCommandsCon
 			usage: '/codex',
 			description: 'Show comprehensive guide to all available commands and features',
 			run: () => {
+				// Get current provider to show context-aware information
+				const provider = deps.getProviderOverride();
+				const providerInfo = provider === 'anthropic' ? 'Claude (Anthropic)' :
+								  provider === 'gemini' ? 'Gemini' :
+								  provider === 'local' ? 'Local Ollama' : 'Auto-select';
+				
 				const codexContent = `
 # Codex — Command Reference
+
+## Current Session
+• **Provider**: ${providerInfo}
+• **Thread**: ${deps.getActiveThread()}
+• **Tools**: ${deps.getToolsKey() ? '🔓 Unlocked' : '🔒 Locked'}
 
 ## Chat Commands
 • **@cc** — Engage Claude Code for complex programming tasks
@@ -187,6 +198,11 @@ ${commands.map((c) => `• **\`${c.usage}\`** — ${c.description}`).join('\n')}
 ## Tools Access
 • Use **/unlock** with a code to enable file reading and web search
 • **/lock** disables these tools for security
+
+## Quick Tips
+• Type \`/help\` for just slash commands
+• Use \`/clear\` to reset conversation context
+• Press \`/\` in the composer to see available commands
 `;
 				deps.appendSystemMessage(codexContent);
 			}
