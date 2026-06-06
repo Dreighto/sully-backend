@@ -152,28 +152,41 @@ export function createSlashCommandsController(deps: SlashDeps): SlashCommandsCon
 		{
 			key: 'codex',
 			usage: '/codex',
-			description: 'Show the codex of available commands and their usage',
+			description: 'Show comprehensive guide to all available commands and features',
 			run: () => {
 				const codexContent = `
-**Codex — Available Commands**
+# Codex — Command Reference
 
-**Chat Commands:**
-• @cc — Engage Claude Code for complex programming tasks
-• @agy — Engage Antigravity/Gemini for general assistance
-• @gemini — Alias for @agy
+## Chat Commands
+• **@cc** — Engage Claude Code for complex programming tasks
+• **@agy** — Engage Antigravity/Gemini for general assistance
+• **@gemini** — Alias for @agy
 
-**Slash Commands:**
-${commands.map((c) => `• \`${c.usage}\` — ${c.description}`).join('\n')}
+## Slash Commands
+${commands.map((c) => `• **\`${c.usage}\`** — ${c.description}`).join('\n')}
 
-**Workflow Buttons:**
-• Build — Execute the proposed changes
-• Critique — Request a review of the plan
-• Verify — Run tests and checks
-• Retry — Attempt the task again
+## Workflow Buttons
+• **Build** — Execute the proposed changes
+• **Critique** — Request a review of the plan
+• **Verify** — Run tests and checks
+• **Retry** — Attempt the task again
 
-**Navigation:**
+## Navigation Features
 • Use thread tabs to organize different conversations
 • Archive threads to clean up your workspace
+• Pin important threads for quick access
+
+## Provider Selection
+• Use the provider pill to choose between Claude, Gemini, or local models
+• Set model preferences for different types of tasks
+
+## Image Generation
+• Toggle image mode to generate images with Gemini
+• Works with general prompts and creative requests
+
+## Tools Access
+• Use **/unlock** with a code to enable file reading and web search
+• **/lock** disables these tools for security
 `;
 				deps.appendSystemMessage(codexContent);
 			}
