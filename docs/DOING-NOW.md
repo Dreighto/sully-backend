@@ -44,7 +44,7 @@
 ## Decisions waiting on you
 
 - **Legacy Talkback** — retire the old in-composer Talkback now that realtime voice is primary?
-- ~~**Kernel hardening ([LOS-148], High)**~~ — ✅ DONE 2026-06-06 (Orchestrator PR #110, deployed). Listener now fails one dispatch gracefully instead of crashing. Follow-ups LOS-149 (/kill race) + LOS-150 (test isolation) in Triage.
+- ~~**Kernel hardening ([LOS-148], High)**~~ — ✅ DONE 2026-06-06 (Orchestrator PR #110, deployed). Listener now fails one dispatch gracefully instead of crashing. Follow-ups LOS-149 (cancel in-flight spawn, PR #113) + LOS-150 (test isolation, PR #112) + LOS-151 (worktree_pools allowlist, PR #111) — all ✅ DONE 2026-06-06. Kernel dispatch backend is fully hardened.
 - ~~**5b vs 5c order**~~ — ✅ RESOLVED 2026-06-06: 5b backend merged to `main`; the 5b panel is shelved (branch `phase-5b-artifact-preview`) to fold into the Work Surface (5c), the now-active frontend. No separate preview panel ships.
 
 > _Resolved this session:_ **gate authority** — settled as **propose-then-confirm** (ask-before-dispatch + tap buttons), not silent auto-dispatch: Sully's judgment now drives a _proposal_, the operator confirms. **Dispatch Task-card surface**: shipped. **Next-milestone order**: settled — Task-first v1 verification (Plans A–D) shipped + proven live first; **workspace + write-tool (Phase 5) is next**, unlocking "Today's Ops".
