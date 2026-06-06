@@ -1,0 +1,602 @@
+<script lang="ts">
+	import type { WorkSurfaceTask, GraphNode, GraphEdge, WorkerRole } from '$lib/types/workSurface';
+
+	let { task }: { task: WorkSurfaceTask } = $props();
+
+	const WORK_GRAPH_VIEWBOX = '0 0 340 130';
+	const TASK_CORE_POS = { x: 170, y: 65 };
+	const CORE_FIELD_RADII = [17, 20, 23, 26, 29, 32];
+	const NODE_ICON_SIZE = 22; // For worker icons inside circles
+	const PACKET_SIZE = 12;
+
+	// §3a. Layout (EASY — port the lookup table verbatim)
+	function getWorkerPositions(count: number) {
+		if (count === 1) return [{ x: 60, y: 65 }];
+		if (count === 2)
+			return [
+				{ x: 60, y: 35 },
+				{ x: 60, y: 95 }
+			];
+		if (count === 3)
+			return [
+				{ x: 60, y: 35 },
+				{ x: 60, y: 95 },
+				{ x: 280, y: 65 }
+			];
+		if (count === 4)
+			return [
+				{ x: 60, y: 35 },
+				{ x: 60, y: 95 },
+				{ x: 280, y: 35 },
+				{ x: 280, y: 95 }
+			];
+		// > 4 workers: 3 on left, 2 on right (total 5 positions shown)
+		// This matches the JS mock's behavior for 5+ workers
+		return [
+			{ x: 60, y: 25 },
+			{ x: 60, y: 65 },
+			{ x: 60, y: 105 },
+			{ x: 280, y: 45 },
+			{ x: 280, y: 85 }
+		];
+	}
+
+	// §3b. Edge paths (EASY — pure function)
+	function pathD(sx: number, sy: number, ex: number, ey: number): string {
+		if (sy === ey) {
+			// Straight line for horizontal paths
+			return `M ${sx} ${sy} L ${ex} ${ey}`;
+		} else {
+			// Quadratic bezier for curved paths, bowing away from the task core (y=65) by 10px
+			const midX = (sx + ex) / 2;
+			const ctrlY = sy < TASK_CORE_POS.y ? sy - 10 : sy + 10;
+			return `M ${sx} ${sy} Q ${midX} ${ctrlY} ${ex} ${ey}`;
+		}
+	}
+
+	const workerPositions = $derived(getWorkerPositions(task.workers.length));
+
+	const enrichedWorkers = $derived(
+		task.workers.map((worker, i) => ({
+			...worker,
+			pos: workerPositions[i] || { x: 0, y: 0 }, // Fallback for more workers than positions
+			motionType: ((): 'researching' | 'building' | 'verifying' | 'idle' => {
+				switch (worker.role) {
+					case 'Research':
+						return 'researching';
+					case 'Build':
+						return 'building';
+					case 'Review':
+						return 'verifying';
+					default:
+						return 'idle';
+				}
+			})()
+		}))
+	);
+
+	const activeMotionType = $derived((): 'researching' | 'building' | 'verifying' | undefined => {
+		switch (task.stage) {
+			case 'Research':
+				return 'researching';
+			case 'Build':
+				return 'building';
+			case 'Check':
+				return 'verifying';
+			default:
+				return undefined;
+		}
+	});
+
+	const coreNode: GraphNode & { pos: { x: number; y: number } } = {
+		id: 'core',
+		kind: 'core',
+		status: 'active',
+		pos: TASK_CORE_POS
+	};
+
+	const systemNodes = $derived(() => {
+		const nodes: (GraphNode & { pos: { x: number; y: number } })[] = [];
+		if (task.workers.length === 1) {
+			if (task.stage === 'Research') {
+				nodes.push({
+					id: 'system-memory',
+					kind: 'worker', // Mock uses 'system', but WorkSurfaceTask has 'core' | 'worker'
+					role: 'Memory',
+					status: 'idle',
+					pos: { x: 280, y: 65 }
+				});
+			} else if (task.stage === 'Check') {
+				nodes.push({
+					id: 'system-verify',
+					kind: 'worker', // Mock uses 'system', but WorkSurfaceTask has 'core' | 'worker'
+					role: 'Review',
+					status: 'idle',
+					pos: { x: 280, y: 65 }
+				});
+			}
+		}
+		return nodes;
+	});
+
+	const allGraphNodes = $derived([...enrichedWorkers, ...systemNodes, coreNode]);
+
+	const getNodePos = $derived((id: string) => {
+		const node = allGraphNodes.find((n) => n.id === id);
+		return node ? node.pos : { x: 0, y: 0 };
+	});
+
+	const allRoutes = $derived(() => {
+		if (task.state === 'Complete' || task.state === 'Stopped' || task.state === 'Failed') {
+			return []; // No active routes or packets when settled
+		}
+
+		return task.routing.edges
+			.map((edge) => {
+				const fromNode = allGraphNodes.find((n) => n.id === edge.from);
+				const toNode = allGraphNodes.find((n) => n.id === edge.to);
+
+				if (!fromNode || !toNode) {
+					console.warn(`Missing node for edge: ${edge.from} -> ${edge.to}`);
+					return null;
+				}
+
+				const sx = fromNode.pos.x;
+				const sy = fromNode.pos.y;
+				const ex = toNode.pos.x;
+				const ey = toNode.pos.y;
+
+				const currentPathD = pathD(sx, sy, ex, ey);
+
+				const isCoreToWorker = fromNode.kind === 'core' && toNode.kind === 'worker';
+				const isWorkerToCore = fromNode.kind === 'worker' && toNode.kind === 'core';
+
+				// A route is primary if it's the only worker, or if the worker's role matches the active task stage
+				const workerInRoute = enrichedWorkers.find(
+					(w) => w.id === fromNode.id || w.id === toNode.id
+				);
+				const isPrimary = $derived(
+					task.workers.length === 1 ||
+						(workerInRoute && workerInRoute.motionType === activeMotionType)
+				);
+
+				let packets: { delay: string; motionType: string }[] = [];
+				let packetDelay: number;
+				let numPackets: number;
+
+				switch (activeMotionType) {
+					case 'researching':
+						packetDelay = 2.5;
+						numPackets = 3;
+						break;
+					case 'building':
+						packetDelay = 0.4;
+						numPackets = 5;
+						break;
+					case 'verifying':
+						packetDelay = 1.0;
+						numPackets = 1;
+						break;
+					default:
+						packetDelay = 0;
+						numPackets = 0;
+						break;
+				}
+
+				if (isPrimary && packetDelay > 0 && edge.active) {
+					for (let i = 0; i < numPackets; i++) {
+						packets.push({ delay: `${i * packetDelay}s`, motionType: activeMotionType! });
+					}
+				}
+
+				return {
+					id: `${edge.from}-${edge.to}`,
+					from: edge.from,
+					to: edge.to,
+					pathD: currentPathD,
+					active: edge.active,
+					isPrimary: isPrimary,
+					hasSweep: isPrimary && edge.active && activeMotionType !== undefined, // Sweep only for active primary routes
+					motionType: workerInRoute?.motionType,
+					packets: packets,
+					isInputEdge: false, // Default, handled below
+					isSpecialSystemEdge: false // Default
+				};
+			})
+			.filter(Boolean); // Filter out nulls from missing nodes
+	});
+
+	// Handle the special input edge from mock (from {340,105} to system-memory)
+	const specialSystemInputEdge = $derived(() => {
+		if (
+			task.workers.length === 1 &&
+			task.stage === 'Research' &&
+			systemNodes.some((n) => n.id === 'system-memory')
+		) {
+			const systemMemoryPos = systemNodes.find((n) => n.id === 'system-memory')?.pos || {
+				x: 280,
+				y: 65
+			};
+			return {
+				id: 'system-input-edge',
+				pathD: pathD(340, 105, systemMemoryPos.x, systemMemoryPos.y), // Hardcoded from mock
+				isInputEdge: true,
+				active: true
+			};
+		}
+		return null;
+	});
+</script>
+
+<svg class="work-graph" viewBox={WORK_GRAPH_VIEWBOX}>
+	<!-- 1. Core field rings -->
+	{#each CORE_FIELD_RADII as r}
+		<circle class="core-field" {r} cx={TASK_CORE_POS.x} cy={TASK_CORE_POS.y} />
+	{/each}
+
+	<!-- 2. Routes (backing, base, sweep, packets) -->
+	{#if specialSystemInputEdge}
+		<path
+			class="edge-line edge-input {specialSystemInputEdge.active ? 'active' : ''}"
+			d={specialSystemInputEdge.pathD}
+		/>
+	{/if}
+
+	{#each allRoutes as route (route.id)}
+		{#if route.isPrimary && route.active}
+			<path class="edge-line-backing" d={route.pathD} />
+		{/if}
+		<path
+			class="edge-line {route.isPrimary ? '' : 'secondary-active'} {route.active ? 'active' : ''}"
+			d={route.pathD}
+		/>
+		{#if route.hasSweep && route.motionType}
+			<path class="edge-sweep-line {route.motionType}" d={route.pathD} />
+		{/if}
+		{#each route.packets as p, i (i)}
+			<g
+				class="node-icon-wrapper {p.motionType}"
+				style:offset-path={`path("${route.pathD}")`}
+				style:animation-delay={p.delay}
+			>
+				<!-- Will use <use href="#payload-{p.motionType}" /> when WorkSurfaceSprite is available -->
+				<rect width={PACKET_SIZE} height={PACKET_SIZE} rx="2" class="packet-shape" />
+			</g>
+		{/each}
+	{/each}
+
+	<!-- 3. Worker Nodes -->
+	{#each enrichedWorkers as worker (worker.id)}
+		<g
+			class="worker-node node-group status-{worker.status.toLowerCase()}"
+			style:transform="translate({worker.pos.x}px, {worker.pos.y}px)"
+		>
+			<circle class="node-ring" r="23" />
+			<circle class="node-circle" r="17" />
+			<!-- Placeholder for icon, will use <use href="#{worker.icon}" /> -->
+			<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-brand)" />
+			<text
+				class="node-label"
+				x="0"
+				y={NODE_ICON_SIZE / 2 + 8}
+				text-anchor="middle"
+				dominant-baseline="hanging">{worker.shortCode}</text
+			>
+		</g>
+	{/each}
+
+	<!-- 4. System Nodes -->
+	{#each systemNodes as node (node.id)}
+		<g
+			class="system-node node-group status-{node.status.toLowerCase()}"
+			style:transform="translate({node.pos.x}px, {node.pos.y}px)"
+		>
+			<circle class="node-ring" r="23" />
+			<circle class="node-circle" r="17" />
+			<!-- Placeholder for icon -->
+			<circle
+				class="node-icon-placeholder"
+				r={NODE_ICON_SIZE / 2}
+				fill="var(--color-muted-foreground)"
+			/>
+			<text
+				class="node-label"
+				x="0"
+				y={NODE_ICON_SIZE / 2 + 8}
+				text-anchor="middle"
+				dominant-baseline="hanging">{node.role === 'Memory' ? 'Memory' : node.role}</text
+			>
+		</g>
+	{/each}
+
+	<!-- 5. Central TASK group -->
+	<g
+		class="central-task node-group status-{task.state.toLowerCase()}"
+		style:transform="translate({TASK_CORE_POS.x}px, {TASK_CORE_POS.y}px)"
+	>
+		<circle class="central-task-core-pulse" r="14" />
+		<circle class="central-task-ripple-anim" r="20" />
+		<circle class="central-task-node" r="20" />
+		<!-- Placeholder for icon, will use <use href="#icon-task" /> -->
+		<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-brand)" />
+		<text
+			class="node-label"
+			x="0"
+			y={NODE_ICON_SIZE / 2 + 8}
+			text-anchor="middle"
+			dominant-baseline="hanging">TASK</text
+		>
+	</g>
+</svg>
+
+<style lang="postcss">
+	@reference "../../app.css";
+
+	.work-graph {
+		@apply h-full w-full;
+		overflow: visible; /* Allow pulse/ripple/packet animations to escape viewBox */
+	}
+
+	.node-group {
+		transform-origin: center center;
+	}
+
+	.node-ring {
+		fill: none;
+		stroke: var(--color-border);
+		stroke-width: 1;
+		opacity: 0.3;
+		animation: rotateOrbital 12s linear infinite;
+	}
+
+	.node-circle {
+		fill: var(--color-surface);
+		stroke: var(--color-border);
+		stroke-width: 1;
+	}
+	.node-icon-placeholder {
+		transform-origin: center center;
+	}
+	.node-label {
+		@apply text-xs font-semibold text-white; /* Adjust as needed for specific nodes */
+		fill: var(--color-muted-foreground);
+		font-size: 8px; /* Matching mock's label size */
+	}
+
+	/* Core Fields */
+	.core-field {
+		fill: none;
+		stroke: var(--color-border);
+		stroke-width: 1;
+		opacity: 0.1;
+		animation: coreFieldBreath 3s ease-in-out infinite alternate;
+	}
+
+	/* Edges and Paths */
+	.edge-line {
+		fill: none;
+		stroke: var(--color-border);
+		stroke-width: 1px;
+		opacity: 0.3;
+		transition: opacity 0.3s ease;
+	}
+	.edge-line.active {
+		opacity: 0.7;
+		stroke: var(--color-muted-foreground);
+	}
+	.edge-line.secondary-active {
+		opacity: 0.1;
+	}
+	.edge-line.edge-input {
+		stroke-dasharray: 4 4;
+		opacity: 0.5;
+	}
+
+	.edge-line-backing {
+		fill: none;
+		stroke: var(--color-surface); /* Similar to background for a subtle effect */
+		stroke-width: 4px;
+		opacity: 0.7;
+		transition: opacity 0.3s ease;
+	}
+
+	.edge-sweep-line {
+		fill: none;
+		stroke-width: 2px;
+		stroke-linecap: round;
+		stroke-dasharray: 0 100%;
+		animation: sweepMotion 3s linear infinite;
+	}
+	.edge-sweep-line.researching {
+		stroke: #0ea5e9; /* #0ea5e9 */
+		animation-duration: 3s;
+	}
+	.edge-sweep-line.building {
+		stroke: var(--color-status-blue); /* #3b82f6 */
+		animation-duration: 2s;
+	}
+	.edge-sweep-line.verifying {
+		stroke: var(--color-status-purple); /* #8b5cf6 */
+		animation-duration: 2.5s;
+	}
+
+	/* Packets */
+	.node-icon-wrapper {
+		offset-path: path('M 0 0'); /* Will be overridden inline */
+		offset-distance: 0%;
+		animation: glidePacket 3s linear infinite; /* Base animation */
+		position: absolute; /* Important for offset-path to work */
+		left: 0;
+		top: 0;
+	}
+
+	.node-icon-wrapper .packet-shape {
+		fill: var(--color-brand); /* Default packet color */
+		transform: translate(-50%, -50%); /* Center the packet on the path */
+		width: var(--packet-size, 12px);
+		height: var(--packet-size, 12px);
+	}
+	.node-icon-wrapper.researching .packet-shape {
+		fill: #0ea5e9;
+		animation-duration: 7.5s; /* 3 packets * 2.5s delay */
+	}
+	.node-icon-wrapper.building .packet-shape {
+		fill: var(--color-status-blue);
+		animation-duration: 2s; /* 5 packets * 0.4s delay */
+	}
+	.node-icon-wrapper.verifying .packet-shape {
+		fill: var(--color-status-purple);
+		animation-duration: 1s; /* 1 packet * 1.0s delay */
+	}
+
+	/* Central Task Node */
+	.central-task-node {
+		fill: var(--color-brand);
+		stroke: var(--color-brand-bright);
+		stroke-width: 1;
+		transform-box: fill-box; /* Crucial for transform-origin: center center; */
+	}
+	.central-task-node + .node-icon-placeholder {
+		fill: var(--color-on-brand);
+	}
+	.central-task-node + .node-icon-placeholder + .node-label {
+		fill: var(--color-on-brand);
+	}
+
+	.central-task-core-pulse {
+		fill: var(--color-brand);
+		opacity: 0.4;
+		transform-box: fill-box;
+		animation: coreBreath 1.5s ease-in-out infinite alternate;
+	}
+
+	.central-task-ripple-anim {
+		fill: var(--color-brand);
+		opacity: 0.1;
+		transform-box: fill-box;
+		animation: rippleAnim 1.5s cubic-bezier(0.2, 0.8, 0.5, 1) infinite;
+	}
+
+	/* Settle States for Graph Elements */
+	.work-graph .central-task.status-complete .central-task-node,
+	.work-graph .worker-node.status-done .node-icon-placeholder {
+		fill: var(--color-status-green);
+	}
+	.work-graph .central-task.status-complete .central-task-core-pulse,
+	.work-graph .central-task.status-complete .central-task-ripple-anim {
+		fill: var(--color-status-green);
+	}
+	.work-graph .central-task.status-complete .central-task-node {
+		stroke: var(--color-status-green);
+	}
+
+	.work-graph .central-task.status-waiting .central-task-node,
+	.work-graph .worker-node.status-idle .node-icon-placeholder,
+	.work-graph .central-task.status-stopped .central-task-node {
+		fill: var(--color-status-amber);
+	}
+	.work-graph .central-task.status-waiting .central-task-core-pulse,
+	.work-graph .central-task.status-waiting .central-task-ripple-anim,
+	.work-graph .central-task.status-stopped .central-task-core-pulse,
+	.work-graph .central-task.status-stopped .central-task-ripple-anim {
+		fill: var(--color-status-amber);
+	}
+	.work-graph .central-task.status-waiting .central-task-node,
+	.work-graph .central-task.status-stopped .central-task-node {
+		stroke: var(--color-status-amber);
+	}
+
+	.work-graph .central-task.status-failed .central-task-node,
+	.work-graph .worker-node.status-failed .node-icon-placeholder {
+		fill: var(--color-status-red);
+	}
+	.work-graph .central-task.status-failed .central-task-core-pulse,
+	.work-graph .central-task.status-failed .central-task-ripple-anim {
+		fill: var(--color-status-red);
+	}
+	.work-graph .central-task.status-failed .central-task-node {
+		stroke: var(--color-status-red);
+	}
+
+	/* Hide animated elements for settled states */
+	.work-graph .central-task.status-complete .central-task-core-pulse,
+	.work-graph .central-task.status-complete .central-task-ripple-anim,
+	.work-graph .central-task.status-stopped .central-task-core-pulse,
+	.work-graph .central-task.status-stopped .central-task-ripple-anim,
+	.work-graph .central-task.status-failed .central-task-core-pulse,
+	.work-graph .central-task.status-failed .central-task-ripple-anim {
+		display: none !important;
+	}
+
+	/* Keyframes */
+	@keyframes coreFieldBreath {
+		0% {
+			transform: scale(0.9);
+			opacity: 0.1;
+		}
+		100% {
+			transform: scale(1.1);
+			opacity: 0.2;
+		}
+	}
+
+	@keyframes rotateOrbital {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
+	}
+
+	@keyframes sweepMotion {
+		0% {
+			stroke-dasharray: 0 100%;
+			stroke-dashoffset: 0;
+		}
+		100% {
+			stroke-dasharray: 100% 0;
+			stroke-dashoffset: 0;
+		}
+	}
+
+	@keyframes glidePacket {
+		0% {
+			offset-distance: 0%;
+		}
+		100% {
+			offset-distance: 100%;
+		}
+	}
+
+	@keyframes coreBreath {
+		0% {
+			transform: scale(0.9);
+			opacity: 0.4;
+		}
+		100% {
+			transform: scale(1.1);
+			opacity: 0.6;
+		}
+	}
+
+	@keyframes rippleAnim {
+		0% {
+			transform: scale(0.5);
+			opacity: 0.1;
+		}
+		100% {
+			transform: scale(1.2);
+			opacity: 0;
+		}
+	}
+
+	/* Reduced motion */
+	@media (prefers-reduced-motion: reduce) {
+		.work-graph * {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
+	}
+</style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WorkSurfaceTask, PipelineStage, TaskState } from '$lib/types/workSurface';
 	import StageTimeline from '$lib/components/StageTimeline.svelte';
+	import WorkGraph from '$lib/components/WorkGraph.svelte';
 	import { Send, Check, X, Repeat } from 'lucide-svelte';
 
 	let {
@@ -85,7 +86,9 @@
 		<StageTimeline {task} />
 
 		<!-- Central SVG Graph (Dynamic Worker-Task Layout) -->
-		<div class="work-graph-slot"></div>
+		<div class="work-graph-slot">
+			<WorkGraph {task} />
+		</div>
 
 		<!-- Active Ownership Banner -->
 		{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
@@ -136,7 +139,9 @@
 			<StageTimeline {task} />
 
 			<div class="expanded-details-layout">
-				<div class="work-graph-slot expanded-viewport"></div>
+				<div class="work-graph-slot expanded-viewport">
+					<WorkGraph {task} />
+				</div>
 
 				{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
 					<div class="active-ownership-banner">
@@ -360,12 +365,8 @@
 	}
 
 	.work-graph-slot {
-		@apply border-border w-full rounded-md border border-dashed bg-transparent;
-		min-height: 130px; /* Placeholder fixed height */
-		@apply flex items-center justify-center text-sm text-muted-foreground; /* Placeholder content */
-	}
-	.work-graph-slot::before {
-		content: '[WorkGraph placeholder]';
+		@apply w-full bg-transparent;
+		min-height: 130px;
 	}
 
 	.active-ownership-banner {
