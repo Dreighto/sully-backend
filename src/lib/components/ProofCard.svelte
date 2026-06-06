@@ -1,0 +1,101 @@
+<script lang="ts">
+	import type { WorkSurfaceTask } from '$lib/types/workSurface';
+
+	let { task }: { task: WorkSurfaceTask } = $props();
+
+	// Map proof verdicts to Tailwind text classes
+	const getVerdictClass = (verdict: string) => {
+		switch (verdict) {
+			case 'go':
+				return 'text-status-green';
+			case 'no-go':
+				return 'text-status-red';
+			case 'pending':
+				return 'text-status-amber';
+			case 'skipped':
+				return 'text-muted-foreground';
+			default:
+				return 'text-white';
+		}
+	};
+
+	// Map check statuses to Tailwind background classes for the dot
+	const getCheckStatusDotClass = (status: string) => {
+		switch (status) {
+			case 'pass':
+				return 'bg-status-green';
+			case 'fail':
+				return 'bg-status-red';
+			case 'pending':
+				return 'bg-status-amber';
+			case 'skip':
+				return 'bg-muted-foreground/50';
+			default:
+				return 'bg-muted-foreground/50';
+		}
+	};
+</script>
+
+{#if task.proof}
+	<div class="proof-card">
+		<div class="proof-header">
+			<h4 class="proof-verdict">
+				Proof: <span class={getVerdictClass(task.proof.verdict)}>{task.proof.verdict}</span>
+			</h4>
+			{#if task.proof.score !== undefined && task.proof.score !== null}
+				<span class="proof-conf">Score: {task.proof.score}%</span>
+			{/if}
+		</div>
+		{#if task.proof.evidenceRef}
+			<p class="proof-log">Evidence ref: {task.proof.evidenceRef}</p>
+		{/if}
+		{#if task.proof.checks.length > 0}
+			<h5 class="proof-checks-title">Checks:</h5>
+			<ul class="proof-checks-list">
+				{#each task.proof.checks as check}
+					<li>
+						<span class="check-dot {getCheckStatusDotClass(check.status)}"></span>
+						<span class="text-white">{check.name}:</span> <span class="text-muted-foreground"
+							>{check.status} {check.detail ? `(${check.detail})` : ''}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+{/if}
+
+<style lang="postcss">
+	@reference "../../app.css";
+	.proof-card {
+		@apply bg-transparent border border-dashed border-border rounded-md p-3 flex flex-col gap-1.5;
+		@apply md:col-span-2; /* Make proof card span two columns on md screens */
+	}
+
+	.proof-header {
+		@apply flex justify-between text-xs font-semibold text-white;
+	}
+
+	.proof-conf {
+		@apply text-status-green; /* Mock had a green for score, even for pending/no-go verdicts. Sticking to the mock. */
+	}
+
+	.proof-log {
+		@apply text-xs text-muted-foreground leading-tight font-mono;
+	}
+
+	.proof-checks-title {
+		@apply mt-2 text-sm font-semibold text-white;
+	}
+
+	.proof-checks-list {
+		@apply list-none pl-0 space-y-1; /* Removed list-disc to use custom dot, added space-y-1 */
+	}
+	.proof-checks-list li {
+		@apply flex items-center gap-1.5;
+	}
+
+	.check-dot {
+		@apply w-1.5 h-1.5 rounded-full flex-shrink-0;
+	}
+</style>

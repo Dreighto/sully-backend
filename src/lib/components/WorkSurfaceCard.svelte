@@ -2,6 +2,9 @@
 	import type { WorkSurfaceTask, PipelineStage, TaskState } from '$lib/types/workSurface';
 	import StageTimeline from '$lib/components/StageTimeline.svelte';
 	import WorkGraph from '$lib/components/WorkGraph.svelte';
+	import PhaseChecklist from '$lib/components/PhaseChecklist.svelte';
+	import WorkerRegistry from '$lib/components/WorkerRegistry.svelte';
+	import ProofCard from '$lib/components/ProofCard.svelte';
 	import { Send, Check, X, Repeat } from 'lucide-svelte';
 
 	let {
@@ -152,36 +155,15 @@
 
 				<div class="details-section">
 					<h4>Routing Phases</h4>
-					<div class="phases-checklist">
-						<!-- Checklist items -->
-						<p class="text-sm text-muted-foreground">Routing phases will be shown here.</p>
-					</div>
+					<PhaseChecklist {task} />
 				</div>
 
 				<div class="details-section">
 					<h4>Worker Registry</h4>
-					<div class="workers-grid">
-						<!-- Full list of workers in the workflow -->
-						<p class="text-sm text-muted-foreground">Worker registry will be shown here.</p>
-					</div>
+					<WorkerRegistry {task} />
 				</div>
 
-				{#if task.proof}
-					<div class="proof-card">
-						<h4 class="font-semibold text-white">Proof: {task.proof.verdict}</h4>
-						{#if task.proof.score !== null}
-							<p class="text-muted-foreground">Score: {task.proof.score}%</p>
-						{/if}
-						{#if task.proof.checks.length > 0}
-							<h5 class="mt-2 text-sm font-medium">Checks:</h5>
-							<ul class="list-inside list-disc text-xs text-muted-foreground">
-								{#each task.proof.checks as check}
-									<li>{check.name}: {check.status} {check.detail ? `(${check.detail})` : ''}</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
-				{/if}
+				<ProofCard {task} />
 			</div>
 
 			<div class="actions-container">
