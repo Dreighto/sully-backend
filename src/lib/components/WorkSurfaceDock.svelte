@@ -162,7 +162,7 @@
 								{surface.task.stage}
 							</span>
 						</div>
-					</div>
+					</button>
 				{/each}
 			{/if}
 
@@ -188,7 +188,7 @@
 								{surface.needs?.prompt || 'Action required'}
 							</span>
 						</div>
-					</div>
+					</button>
 				{/each}
 			{/if}
 
@@ -214,7 +214,7 @@
 								{new Date(surface.updatedAt).toLocaleTimeString()}
 							</span>
 						</div>
-					</div>
+					</button>
 				{/each}
 			{/if}
 		</div>
