@@ -9,17 +9,21 @@
 
 	--color-background: #050505;
 	--color-surface: #111111;
-	--color-cta: #ec2d78;
+	--color-cta: #cf6f93;
 
 	/* ── Sully brand: the magenta "thought-drop" identity (companion-brand-sheet.png).
 	   This is the resting/identity accent. Functional MODE colors (amber=recording,
 	   emerald=talkback, cyan=image) are intentionally left alone so modes stay
 	   distinguishable — magenta is reserved for "this is Sully". */
-	--color-brand: #ec2d78;
-	--color-brand-bright: #ff4d94;
-	--color-brand-deep: #c4186a;
-	--color-brand-soft: #ff7eb3;
-	--color-brand-glow: #ff8fc0;
+	/* Muted-rose identity ramp (operator pick 2026-06-06, swatch B). Magenta was
+	   too loud for the operator-cockpit reframe — rose reads as Sully without
+	   shouting. Identity ONLY (mark, focus ring, the one hero action); never a
+	   status colour. */
+	--color-brand: #cf6f93;
+	--color-brand-bright: #dd8aaa;
+	--color-brand-deep: #a8536f;
+	--color-brand-soft: #e6b3c4;
+	--color-brand-glow: #d995b1;
 
 	--color-status-green: #22c55e;
 	--color-status-amber: #f59e0b;
@@ -28,6 +32,15 @@
 	--color-status-purple: #a855f7;
 	--color-status-grey: #6b7280;
 
+	/* Cockpit semantic status palette — muted, dark-tuned (Work Surface dock).
+	   Pair colour with icon + label; never colour alone. Magenta is NOT here. */
+	--color-st-run: #5b8db8; /* running / active — calm blue (green reserved for done) */
+	--color-st-needs: #c9a34e; /* needs-you — muted amber (not bright yellow) */
+	--color-st-done: #6b7280; /* complete / idle — gray */
+	--color-st-fail: #c25b5b; /* failure — desaturated rose */
+	--color-edge: #2a2f3a; /* idle connector edge */
+	--color-edge-active: #3d4a63; /* active data-flow edge */
+
 	--color-worker-claude: #8b5cf6;
 	--color-worker-gemini: #3b82f6;
 	--color-worker-operator: #ef4444;
@@ -35,7 +48,7 @@
 	/* shadcn-svelte compatibility */
 	--radius: 0.5rem;
 
-	--color-primary: #ec2d78;
+	--color-primary: #cf6f93;
 	--color-primary-foreground: #ffffff;
 
 	--color-secondary: #18181b;
@@ -52,7 +65,7 @@
 
 	--color-border: #27272a;
 	--color-input: #27272a;
-	--color-ring: #ec2d78;
+	--color-ring: #cf6f93;
 
 	/* Tailwind 4 utility-class tokens — these must live in @theme (not just
      :root) for text-foreground / bg-card / bg-popover etc. to compile.
@@ -74,7 +87,7 @@
 		--card-foreground: #ffffff;
 		--popover: #111111;
 		--popover-foreground: #ffffff;
-		--primary: #ec2d78;
+		--primary: #cf6f93;
 		--primary-foreground: #ffffff;
 		--secondary: #18181b;
 		--secondary-foreground: #ffffff;
@@ -86,7 +99,7 @@
 		--destructive-foreground: #ffffff;
 		--border: #27272a;
 		--input: #27272a;
-		--ring: #ec2d78;
+		--ring: #cf6f93;
 		--radius: 0.5rem;
 	}
 }
@@ -181,8 +194,8 @@
 	:root {
 		/* D7 brand extensions — softer/glow magenta steps for the Sully name-tag
 		   dot, hovers, and ambient accents. */
-		--color-brand-soft: #ff7eb3;
-		--color-brand-glow: #ff8fc0;
+		--color-brand-soft: #e6b3c4;
+		--color-brand-glow: #d995b1;
 	}
 
 	/* Keyboard-only focus ring (mouse/touch stay clean). */
