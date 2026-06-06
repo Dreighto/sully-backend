@@ -1,7 +1,7 @@
 <script lang="ts">
 	import WorkSurfaceDock from '$lib/components/WorkSurfaceDock.svelte';
 	import { spawnSurface, attachToSurface, setStatus } from '$lib/data/surfaces.svelte';
-	import { workSurfaceSeed, type WorkSurfaceTask } from '$lib/data/workSurfaceSeed';
+	import { workSurfaceSeed } from '$lib/data/workSurfaceSeed';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
@@ -27,11 +27,12 @@
 	});
 </script>
 
-<div class="h-screen w-full bg-[--color-neutral-90]">
-	<h1 class="text-3xl font-bold text-[--color-neutral-10] p-4">Work Surface Dock Preview</h1>
-	<p class="text-[--color-neutral-40] p-4">
-		This is a preview page for the Work Surface Dock component.
-		It shows seed data for Running, Needs You, and Done tasks.
-	</p>
+<div class="flex min-h-screen w-full flex-col overflow-y-auto bg-background text-foreground">
+	<div class="px-4 pt-6 pb-2">
+		<h1 class="text-2xl font-bold">Work Surface Dock — Preview</h1>
+		<p class="mt-1 text-sm text-muted-foreground">
+			Seed: one Running (multi-worker), one Needs-you (approval), one Done. Tap a row to expand.
+		</p>
+	</div>
 	<WorkSurfaceDock />
 </div>

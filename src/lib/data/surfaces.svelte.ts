@@ -38,6 +38,15 @@ export function removeSurface(id: string) {
 	surfaces = surfaces.filter((s) => s.surfaceId !== id);
 }
 
-export const running = $derived.by(() => surfaces.filter((s) => s.status === 'running'));
-export const needsYou = $derived.by(() => surfaces.filter((s) => s.status === 'needs-you'));
-export const done = $derived.by(() => surfaces.filter((s) => s.status === 'done'));
+// Svelte 5: $derived cannot be exported directly from a module — export a
+// getter function that re-reads `surfaces` on every call (still reactive at
+// the consumer when called inside $derived/effect).
+export function running(): Surface[] {
+	return surfaces.filter((s) => s.status === 'running');
+}
+export function needsYou(): Surface[] {
+	return surfaces.filter((s) => s.status === 'needs-you');
+}
+export function done(): Surface[] {
+	return surfaces.filter((s) => s.status === 'done');
+}

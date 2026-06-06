@@ -1,6 +1,13 @@
 <script lang="ts">
-	import { running, needsYou, done, type Surface } from '$lib/data/surfaces.svelte';
+	import { running, needsYou, done } from '$lib/data/surfaces.svelte';
+	import type { Surface } from '$lib/types/workSurface';
 	import WorkSurfaceCard from './WorkSurfaceCard.svelte';
+
+	// Re-read the module getters reactively (they were exported as functions
+	// because Svelte 5 forbids exporting $derived from a module).
+	const runningList = $derived(running());
+	const needsYouList = $derived(needsYou());
+	const doneList = $derived(done());
 
 	let expandedSurfaceId: string | null = $state(null);
 	let isDockCollapsed: boolean = $state(true); // Start collapsed by default
@@ -28,85 +35,95 @@
 			case 'failed':
 				return 'bg-[--color-st-fail]';
 			case 'idle':
-				return 'bg-[--color-neutral-30]'; // Default neutral for idle, though not a dock status
+				return 'bg-[--color-st-done]'; // Default neutral for idle, though not a dock status
 			default:
-				return 'bg-[--color-neutral-30]';
+				return 'bg-[--color-st-done]';
 		}
 	}
 </script>
 
 <div
 	class="
-		fixed right-0 bottom-0 top-0 z-50
-		w-64 md:w-80 lg:w-96 p-2
-		bg-[--color-neutral-80]/80 backdrop-blur-sm
-		text-[--color-neutral-10]
-		flex flex-col
-		transition-all duration-300 ease-in-out
+		fixed top-0 right-0 bottom-0 z-50
+		flex w-64 flex-col bg-card/80
+		p-2 text-foreground
+		backdrop-blur-sm
+		transition-all duration-300
+		ease-in-out md:w-80 lg:w-96
 		{isDockCollapsed ? 'translate-x-full' : ''}
 	"
 >
 	<button
 		class="
-			absolute -left-12 top-1/2 -translate-y-1/2
-			w-12 h-16
-			rounded-l-lg
-			bg-[--color-neutral-80]/80 backdrop-blur-sm
-			flex flex-col items-center justify-center text-center
-			text-[--color-neutral-10] text-sm font-bold
+			absolute top-1/2 -left-12 flex
+			h-16 w-12
+			-translate-y-1/2
+			flex-col items-center
+			justify-center rounded-l-lg bg-card/80 text-center text-sm
+			font-bold text-foreground backdrop-blur-sm
 		"
 		onclick={toggleDock}
 	>
 		<span class="text-lg">{isDockCollapsed ? '‹' : '›'}</span>
 		{#if isDockCollapsed}
-			<span class="text-xs font-semibold leading-none">R:{running.length} N:{needsYou.length}</span>
+			<span class="text-xs leading-none font-semibold"
+				>R:{runningList.length} N:{needsYouList.length}</span
+			>
 		{/if}
 	</button>
 
 	{#if !isDockCollapsed}
-		<div class="flex-none pb-2 border-b border-[--color-neutral-60]">
+		<div class="flex-none border-b border-border pb-2">
 			<h2 class="text-lg font-semibold">Work Surface Dock</h2>
-			<div class="flex gap-4 text-sm mt-1">
+			<div class="mt-1 flex gap-4 text-sm">
 				<div class="flex items-center gap-1">
-					<span class="w-2 h-2 rounded-full bg-[--color-st-run]"></span>
-					<span>Running {running.length}</span>
+					<span class="h-2 w-2 rounded-full bg-[--color-st-run]"></span>
+					<span>Running {runningList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="w-2 h-2 rounded-full bg-[--color-st-needs]"></span>
-					<span>Needs You {needsYou.length}</span>
+					<span class="h-2 w-2 rounded-full bg-[--color-st-needs]"></span>
+					<span>Needs You {needsYouList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="w-2 h-2 rounded-full bg-[--color-st-done]"></span>
-					<span>Done {done.length}</span>
+					<span class="h-2 w-2 rounded-full bg-[--color-st-done]"></span>
+					<span>Done {doneList.length}</span>
 				</div>
 			</div>
 		</div>
 
-		<div class="flex-auto overflow-y-auto pr-2 -mr-2">
+		<div class="-mr-2 flex-auto overflow-y-auto pr-2">
 			<!-- Running Tasks -->
-			{#if running.length > 0}
-				<h3 class="text-sm font-semibold mt-4 mb-2 text-[--color-st-run]">Running</h3>
-				{#each running as surface (surface.surfaceId)}
+			{#if runningList.length > 0}
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-run]">Running</h3>
+				{#each runningList as surface (surface.surfaceId)}
 					<div
 						class="
-							bg-[--color-neutral-90]/50 rounded-lg border border-[--color-neutral-70]
-							mb-2 p-2 cursor-pointer
+							mb-2 cursor-pointer rounded-lg border
+							border-border bg-surface/50 p-2
 							{expandedSurfaceId === surface.surfaceId ? 'border-[--color-brand]' : ''}
 						"
+						role="button"
+						tabindex={0}
 						onclick={() => toggleExpand(surface.surfaceId)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleExpand(surface.surfaceId);
+							}
+						}}
 					>
 						<div class="flex items-center gap-2 text-sm font-medium">
-							<span class="w-2 h-2 rounded-full {getStatusDotColor(surface.status)}"></span>
-							<span class="flex-none text-[--color-brand] font-mono text-xs">
+							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)}"></span>
+							<span class="flex-none font-mono text-xs text-[--color-brand]">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
-							<span class="flex-none text-xs text-[--color-neutral-40]">
+							<span class="flex-none text-xs text-muted-foreground">
 								{surface.task.stage}
 							</span>
 						</div>
 						{#if expandedSurfaceId === surface.surfaceId}
-							<div class="mt-2 -mx-2 -mb-2">
+							<div class="-mx-2 mt-2 -mb-2">
 								<WorkSurfaceCard footprint="expanded" task={surface.task} />
 							</div>
 						{/if}
@@ -115,29 +132,37 @@
 			{/if}
 
 			<!-- Needs You Tasks -->
-			{#if needsYou.length > 0}
-				<h3 class="text-sm font-semibold mt-4 mb-2 text-[--color-st-needs]">Needs You</h3>
-				{#each needsYou as surface (surface.surfaceId)}
+			{#if needsYouList.length > 0}
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-needs]">Needs You</h3>
+				{#each needsYouList as surface (surface.surfaceId)}
 					<div
 						class="
-							bg-[--color-neutral-90]/50 rounded-lg border border-[--color-neutral-70]
-							mb-2 p-2 cursor-pointer
+							mb-2 cursor-pointer rounded-lg border
+							border-border bg-surface/50 p-2
 							{expandedSurfaceId === surface.surfaceId ? 'border-[--color-brand]' : ''}
 						"
+						role="button"
+						tabindex={0}
 						onclick={() => toggleExpand(surface.surfaceId)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleExpand(surface.surfaceId);
+							}
+						}}
 					>
 						<div class="flex items-center gap-2 text-sm font-medium">
-							<span class="w-2 h-2 rounded-full {getStatusDotColor(surface.status)}"></span>
-							<span class="flex-none text-[--color-brand] font-mono text-xs">
+							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)}"></span>
+							<span class="flex-none font-mono text-xs text-[--color-brand]">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
-							<span class="flex-none text-xs text-[--color-neutral-40]">
+							<span class="flex-none text-xs text-muted-foreground">
 								{surface.needs?.prompt || 'Action required'}
 							</span>
 						</div>
 						{#if expandedSurfaceId === surface.surfaceId}
-							<div class="mt-2 -mx-2 -mb-2">
+							<div class="-mx-2 mt-2 -mb-2">
 								<WorkSurfaceCard footprint="expanded" task={surface.task} />
 							</div>
 						{/if}
@@ -146,29 +171,37 @@
 			{/if}
 
 			<!-- Done Tasks -->
-			{#if done.length > 0}
-				<h3 class="text-sm font-semibold mt-4 mb-2 text-[--color-st-done]">Done</h3>
-				{#each done as surface (surface.surfaceId)}
+			{#if doneList.length > 0}
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-done]">Done</h3>
+				{#each doneList as surface (surface.surfaceId)}
 					<div
 						class="
-							bg-[--color-neutral-90]/50 rounded-lg border border-[--color-neutral-70]
-							mb-2 p-2 cursor-pointer
+							mb-2 cursor-pointer rounded-lg border
+							border-border bg-surface/50 p-2
 							{expandedSurfaceId === surface.surfaceId ? 'border-[--color-brand]' : ''}
 						"
+						role="button"
+						tabindex={0}
 						onclick={() => toggleExpand(surface.surfaceId)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleExpand(surface.surfaceId);
+							}
+						}}
 					>
 						<div class="flex items-center gap-2 text-sm font-medium">
-							<span class="w-2 h-2 rounded-full {getStatusDotColor(surface.status)}"></span>
-							<span class="flex-none text-[--color-brand] font-mono text-xs">
+							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)}"></span>
+							<span class="flex-none font-mono text-xs text-[--color-brand]">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
-							<span class="flex-none text-xs text-[--color-neutral-40]">
+							<span class="flex-none text-xs text-muted-foreground">
 								{new Date(surface.updatedAt).toLocaleTimeString()}
 							</span>
 						</div>
 						{#if expandedSurfaceId === surface.surfaceId}
-							<div class="mt-2 -mx-2 -mb-2">
+							<div class="-mx-2 mt-2 -mb-2">
 								<WorkSurfaceCard footprint="expanded" task={surface.task} />
 							</div>
 						{/if}
