@@ -148,6 +148,35 @@ export function createSlashCommandsController(deps: SlashDeps): SlashCommandsCon
 				const body = commands.map((c) => `- \`${c.usage}\` — ${c.description}`).join('\n');
 				deps.appendSystemMessage(`**Slash commands**\n\n${body}`);
 			}
+		},
+		{
+			key: 'codex',
+			usage: '/codex',
+			description: 'Show the codex of available commands and their usage',
+			run: () => {
+				const codexContent = `
+**Codex — Available Commands**
+
+**Chat Commands:**
+• @cc — Engage Claude Code for complex programming tasks
+• @agy — Engage Antigravity/Gemini for general assistance
+• @gemini — Alias for @agy
+
+**Slash Commands:**
+${commands.map((c) => `• \`${c.usage}\` — ${c.description}`).join('\n')}
+
+**Workflow Buttons:**
+• Build — Execute the proposed changes
+• Critique — Request a review of the plan
+• Verify — Run tests and checks
+• Retry — Attempt the task again
+
+**Navigation:**
+• Use thread tabs to organize different conversations
+• Archive threads to clean up your workspace
+`;
+				deps.appendSystemMessage(codexContent);
+			}
 		}
 	];
 
