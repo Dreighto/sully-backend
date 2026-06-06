@@ -85,7 +85,7 @@
 
   <!-- Reduced Motion Warning (Accessibility fallback diagnostic) -->
   <div class="reduced-motion-warning" id="rmWarning">
-    ⚠️ <strong>Reduced Motion Active:</strong> Using static visual indicators in place of fluid motion pathing.
+    <svg class="status-icon" aria-hidden="true"><use href="#icon-waiting"></use></svg> <strong>Reduced Motion Active:</strong> Using static visual indicators in place of fluid motion pathing.
   </div>
 
   <div class="mockup-dashboard">
@@ -270,7 +270,6 @@
 
                   <!-- Mini Operator Banner -->
                   <div class="operator-banner" id="compactBanner">
-                    <span class="banner-icon">⚡</span>
                     <span class="banner-text">Coordinator dispatching sub-agents.</span>
                   </div>
 
