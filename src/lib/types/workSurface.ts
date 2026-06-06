@@ -102,6 +102,8 @@ export interface GraphEdge {
 	from: string;
 	to: string;
 	active: boolean;
+	dispatchActive?: boolean;
+	dispatch_active?: boolean;
 }
 
 /**

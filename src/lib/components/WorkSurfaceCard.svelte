@@ -5,7 +5,7 @@
 	import PhaseChecklist from '$lib/components/PhaseChecklist.svelte';
 	import WorkerRegistry from '$lib/components/WorkerRegistry.svelte';
 	import ProofCard from '$lib/components/ProofCard.svelte';
-	import { Send, Check, X, Repeat } from 'lucide-svelte';
+	import { Check, X, Repeat } from 'lucide-svelte';
 
 	let {
 		task,
@@ -226,12 +226,12 @@
 	.work-surface-card.status-waiting,
 	.work-surface-card.status-stopped {
 		background-color: var(--color-status-amber-10); /* Light amber background */
-		border-color: var(--color-status-amber);
+		border-color: var(--color-st-needs);
 	}
 
 	.work-surface-card.status-failed {
 		background-color: var(--color-status-red-10); /* Light red background */
-		border-color: var(--color-status-red);
+		border-color: var(--color-st-fail);
 	}
 
 	.work-surface-card.status-complete {
@@ -278,10 +278,10 @@
 	}
 	.pulse-indicator.status-waiting,
 	.pulse-indicator.status-stopped {
-		background-color: var(--color-status-amber);
+		background-color: var(--color-st-needs);
 	}
 	.pulse-indicator.status-failed {
-		background-color: var(--color-status-red);
+		background-color: var(--color-st-fail);
 	}
 	.pulse-indicator.status-complete {
 		background-color: var(--color-status-green);
@@ -346,11 +346,11 @@
 	}
 	.status-pill.status-waiting,
 	.status-pill.status-stopped {
-		background-color: var(--color-status-amber);
+		background-color: var(--color-st-needs);
 		color: var(--color-on-brand);
 	}
 	.status-pill.status-failed {
-		background-color: var(--color-status-red);
+		background-color: var(--color-st-fail);
 		color: var(--color-on-brand);
 	}
 	.status-pill.status-complete {
@@ -385,10 +385,10 @@
 		@apply opacity-90;
 	}
 	.action-btn.action-stop {
-		background-color: var(--color-status-red);
+		background-color: var(--color-st-fail);
 	}
 	.action-btn.action-retry {
-		background-color: var(--color-status-amber);
+		background-color: var(--color-st-needs);
 	}
 
 	/* 3. EXPANDED DETAIL VIEW */

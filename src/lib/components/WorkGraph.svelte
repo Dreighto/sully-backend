@@ -190,12 +190,15 @@
 					}
 				}
 
+				const isDispatchActive = edge.dispatchActive ?? edge.dispatch_active ?? false;
 				return {
 					id: `${edge.from}-${edge.to}`,
 					from: edge.from,
 					to: edge.to,
 					pathD: currentPathD,
 					active: edge.active,
+					dispatchActive: isDispatchActive,
+					dispatch_active: isDispatchActive,
 					isPrimary: isPrimary,
 					hasSweep: isPrimary && edge.active && activeMotionType !== undefined, // Sweep only for active primary routes
 					motionType: workerInRoute?.motionType,
@@ -209,7 +212,7 @@
 
 	</script>
 
-<svg class="work-graph" class:idle={task.state === 'Waiting' || task.state === 'Stopped' || task.state === 'Failed' || task.state === 'Complete'} viewBox={WORK_GRAPH_VIEWBOX}>
+<svg class="work-graph" class:idle={task.state === 'Waiting' || task.state === 'Stopped' || task.state === 'Failed' || task.state === 'Complete' || (task.state as string) === 'Idle'} viewBox={WORK_GRAPH_VIEWBOX}>
 	<!-- 1. Core field rings -->
 	{#each CORE_FIELD_RADII as r}
 		<circle class="core-field" {r} cx={TASK_CORE_POS.x} cy={TASK_CORE_POS.y} />
@@ -224,19 +227,21 @@
 			class="edge-line {route.isPrimary ? '' : 'secondary-active'} {route.active ? 'active' : ''}"
 			d={route.pathD}
 		/>
-		{#if route.hasSweep && route.motionType}
+		{#if route.hasSweep && route.motionType && route.dispatch_active}
 			<path class="edge-sweep-line {route.motionType}" d={route.pathD} />
 		{/if}
-		{#each route.packets as p, i (i)}
-			<g
-				class="node-icon-wrapper {p.motionType}"
-				style:offset-path={`path("${route.pathD}")`}
-				style:animation-delay={p.delay}
-			>
-				<!-- Will use <use href="#payload-{p.motionType}" /> when WorkSurfaceSprite is available -->
-				<rect width={PACKET_SIZE} height={PACKET_SIZE} rx="2" class="packet-shape" />
-			</g>
-		{/each}
+		{#if route.dispatch_active}
+			{#each route.packets as p, i (i)}
+				<g
+					class="node-icon-wrapper {p.motionType}"
+					style:offset-path={`path("${route.pathD}")`}
+					style:animation-delay={p.delay}
+				>
+					<!-- Will use <use href="#payload-{p.motionType}" /> when WorkSurfaceSprite is available -->
+					<rect width={PACKET_SIZE} height={PACKET_SIZE} rx="2" class="packet-shape" />
+				</g>
+			{/each}
+		{/if}
 	{/each}
 
 	<!-- 3. Worker Nodes -->
@@ -288,8 +293,6 @@
 		class="central-task node-group status-{task.state.toLowerCase()}"
 		style:transform="translate({TASK_CORE_POS.x}px, {TASK_CORE_POS.y}px)"
 	>
-		<circle class="central-task-core-pulse" r="14" />
-		<circle class="central-task-ripple-anim" r="20" />
 		<circle class="central-task-node" r="20" />
 		<!-- Placeholder for icon, will use <use href="#icon-task" /> -->
 		<circle class="node-icon-placeholder" r={NODE_ICON_SIZE / 2} fill="var(--color-st-run)" />
@@ -435,27 +438,9 @@
 		fill: var(--color-on-brand);
 	}
 
-	.central-task-core-pulse {
-		fill: var(--color-st-run);
-		opacity: 0.4;
-		transform-box: fill-box;
-		animation: coreBreath 1.5s ease-in-out infinite alternate;
-	}
-
-	.central-task-ripple-anim {
-		fill: var(--color-st-run);
-		opacity: 0.1;
-		transform-box: fill-box;
-		animation: rippleAnim 1.5s cubic-bezier(0.2, 0.8, 0.5, 1) infinite;
-	}
-
 	/* Settle States for Graph Elements */
 	.work-graph .central-task.status-complete .central-task-node,
 	.work-graph .worker-node.status-done .node-icon-placeholder {
-		fill: var(--color-status-green);
-	}
-	.work-graph .central-task.status-complete .central-task-core-pulse,
-	.work-graph .central-task.status-complete .central-task-ripple-anim {
 		fill: var(--color-status-green);
 	}
 	.work-graph .central-task.status-complete .central-task-node {
@@ -467,42 +452,22 @@
 	.work-graph .central-task.status-stopped .central-task-node {
 		fill: var(--color-status-amber);
 	}
-	.work-graph .central-task.status-waiting .central-task-core-pulse,
-	.work-graph .central-task.status-waiting .central-task-ripple-anim,
-	.work-graph .central-task.status-stopped .central-task-core-pulse,
-	.work-graph .central-task.status-stopped .central-task-ripple-anim {
-		fill: var(--color-status-amber);
-	}
 	.work-graph .central-task.status-waiting .central-task-node,
 	.work-graph .central-task.status-stopped .central-task-node {
-		stroke: var(--color-status-amber);
+		stroke: #fcd34d;
+		stroke-width: 1px;
 	}
 
 	.work-graph .central-task.status-failed .central-task-node,
 	.work-graph .worker-node.status-failed .node-icon-placeholder {
 		fill: var(--color-status-red);
 	}
-	.work-graph .central-task.status-failed .central-task-core-pulse,
-	.work-graph .central-task.status-failed .central-task-ripple-anim {
-		fill: var(--color-status-red);
-	}
 	.work-graph .central-task.status-failed .central-task-node {
-		stroke: var(--color-status-red);
-	}
-
-	/* Hide animated elements for settled states */
-	.work-graph .central-task.status-complete .central-task-core-pulse,
-	.work-graph .central-task.status-complete .central-task-ripple-anim,
-	.work-graph .central-task.status-stopped .central-task-core-pulse,
-	.work-graph .central-task.status-stopped .central-task-ripple-anim,
-	.work-graph .central-task.status-failed .central-task-core-pulse,
-	.work-graph .central-task.status-failed .central-task-ripple-anim {
-		display: none !important;
+		stroke: #fca5a5;
+		stroke-width: 1px;
 	}
 
 	/* Keyframes */
-
-
 	@keyframes sweepMotion {
 		0% {
 			stroke-dasharray: 0 100%;
@@ -520,28 +485,6 @@
 		}
 		100% {
 			offset-distance: 100%;
-		}
-	}
-
-	@keyframes coreBreath {
-		0% {
-			transform: scale(0.9);
-			opacity: 0.4;
-		}
-		100% {
-			transform: scale(1.1);
-			opacity: 0.6;
-		}
-	}
-
-	@keyframes rippleAnim {
-		0% {
-			transform: scale(0.5);
-			opacity: 0.1;
-		}
-		100% {
-			transform: scale(1.2);
-			opacity: 0;
 		}
 	}
 

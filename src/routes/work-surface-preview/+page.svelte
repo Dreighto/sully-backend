@@ -4,7 +4,21 @@
 	import WorkSurfaceCard from '$lib/components/WorkSurfaceCard.svelte'; // New import
 
 	let presetKey = $state(seedKeys[0]);
-	const task = $derived(workSurfaceSeed[presetKey]);
+	let previewDispatchActive = $state(false);
+	const task = $derived.by(() => {
+		const baseTask = workSurfaceSeed[presetKey];
+		return {
+			...baseTask,
+			routing: {
+				...baseTask.routing,
+				edges: baseTask.routing.edges.map((edge) => ({
+					...edge,
+					dispatchActive: previewDispatchActive,
+					dispatch_active: previewDispatchActive
+				}))
+			}
+		};
+	});
 
 	let footprint = $state<'collapsed' | 'compact' | 'expanded'>('compact');
 
@@ -45,6 +59,23 @@
 						{foot.charAt(0).toUpperCase() + foot.slice(1)}
 					</button>
 				{/each}
+			</div>
+		</div>
+
+		<div class="control-group">
+			<h3 class="mb-2 text-lg font-semibold text-white">Event Simulation</h3>
+			<div class="flex flex-wrap justify-center gap-2">
+				<button
+					type="button"
+					class="rounded-md px-4 py-2 text-sm font-medium transition-colors"
+					class:bg-brand={previewDispatchActive}
+					class:text-white={previewDispatchActive}
+					class:bg-surface={!previewDispatchActive}
+					class:text-muted-foreground={!previewDispatchActive}
+					onclick={() => (previewDispatchActive = !previewDispatchActive)}
+				>
+					{previewDispatchActive ? 'Stop Data Flow' : 'Trigger dispatch_started'}
+				</button>
 			</div>
 		</div>
 
