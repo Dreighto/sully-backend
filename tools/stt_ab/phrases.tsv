@@ -1,0 +1,25 @@
+# STT A/B phrase set — RECORD each line as the named .wav, reading the text EXACTLY.
+# Format:  <wav-filename>\t<exact words you will say (the ground truth)>
+# Save the clips into your --clips dir (e.g. ~/voice_capture). 16 kHz mono is ideal
+# but the harness resamples/downmixes anything. Speak naturally, normal companion
+# distance + volume. Re-record any clip you flub — the reference must match what you said.
+#
+# Coverage: domain proper nouns (the hard part), short commands, numbers, and
+# natural conversation. Edit freely — add the phrases you actually say to Sully.
+
+clip01.wav	Hey Sully, what's on my plate today
+clip02.wav	Dispatch a worker to the LogueOS companion repo
+clip03.wav	Set up the Jetson Orin Nano Super for voice
+clip04.wav	Switch the text to speech from Kokoro to a lighter model
+clip05.wav	What's the word error rate on the whisper model
+clip06.wav	Create a new workspace and build a simple button webpage
+clip07.wav	Restart the dispatch listener service
+clip08.wav	Remind me to reboot the room machine at nine fifteen tonight
+clip09.wav	How much memory does the companion app have free
+clip10.wav	Read that back to me one more time
+clip11.wav	Cancel the running task and hold the new request
+clip12.wav	Show me today's ops dashboard
+clip13.wav	The Tailscale link to the Jetson dropped again
+clip14.wav	Open the verification log for the last commit
+clip15.wav	Yes, go ahead and run it
+clip16.wav	No, not now, let's talk through it first
