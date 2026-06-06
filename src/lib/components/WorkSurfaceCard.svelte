@@ -10,12 +10,14 @@
 	let {
 		task,
 		footprint = 'compact',
+		suppressInlinePanels = false, // New prop to control inline panel rendering
 		onapprove,
 		onstop,
 		onretry
 	}: {
 		task: WorkSurfaceTask;
 		footprint?: 'collapsed' | 'compact' | 'expanded';
+		suppressInlinePanels?: boolean; // New prop type definition
 		onapprove?: () => void;
 		onstop?: () => void;
 		onretry?: () => void;
@@ -141,7 +143,33 @@
 
 			<StageTimeline {task} />
 
-			<div class="expanded-details-layout">
+			{#if !suppressInlinePanels}
+				<div class="expanded-details-layout">
+					<div class="work-graph-slot expanded-viewport">
+						<WorkGraph {task} />
+					</div>
+
+					{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
+						<div class="active-ownership-banner">
+							<span class="ownership-pulse"></span>
+							<span class="ownership-text">Now: {firstWorkerStep}</span>
+						</div>
+					{/if}
+
+					<div class="details-section">
+						<h4>Routing Phases</h4>
+						<PhaseChecklist {task} />
+					</div>
+
+					<div class="details-section">
+						<h4>Worker Registry</h4>
+						<WorkerRegistry {task} />
+					</div>
+
+					<ProofCard {task} />
+				</div>
+			{:else}
+				<!-- If inline panels are suppressed, just show the graph and ownership banner directly -->
 				<div class="work-graph-slot expanded-viewport">
 					<WorkGraph {task} />
 				</div>
@@ -152,19 +180,7 @@
 						<span class="ownership-text">Now: {firstWorkerStep}</span>
 					</div>
 				{/if}
-
-				<div class="details-section">
-					<h4>Routing Phases</h4>
-					<PhaseChecklist {task} />
-				</div>
-
-				<div class="details-section">
-					<h4>Worker Registry</h4>
-					<WorkerRegistry {task} />
-				</div>
-
-				<ProofCard {task} />
-			</div>
+			{/if}
 
 			<div class="actions-container">
 				{#if displayApproveButton}

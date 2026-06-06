@@ -1,5 +1,6 @@
 <script lang="ts">
 	import WorkSurfaceDock from '$lib/components/WorkSurfaceDock.svelte';
+	import WorkSurfaceIndicator from '$lib/components/WorkSurfaceIndicator.svelte';
 	import { spawnSurface, attachToSurface, setStatus } from '$lib/data/surfaces.svelte';
 	import { workSurfaceSeed } from '$lib/data/workSurfaceSeed';
 	import { onMount } from 'svelte';
@@ -47,28 +48,19 @@
 	<div class="px-4 pt-6 pb-2">
 		<h1 class="text-2xl font-bold">Work Surface Dock — Preview</h1>
 		<p class="mt-1 text-sm text-muted-foreground">
-			Seed: one Running (multi-worker), one Needs-you (approval), one Done. Tap a row to expand.
+			Seed: one Running (multi-worker), one Needs-you (approval), one Done.
 		</p>
 
-		<!-- Mode switching buttons (preview-only — chat-integration wires the real
-		     transitions). Brand-token styling, no invented utilities. -->
+		<p class="mt-4 text-sm text-muted-foreground">
+			↓ This is the composer indicator. It shows work-state. Tap it to jump to the
+			most-important surface.
+		</p>
+		<div class="mt-2 flex flex-wrap gap-2">
+			<WorkSurfaceIndicator bind:mode={dockMode} bind:openSurfaceId={dockOpenSurfaceId} />
+		</div>
+
+		<!-- Direct Sheet buttons (for manual demo) -->
 		<div class="mt-4 flex flex-wrap gap-2">
-			<button
-				type="button"
-				class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
-				onclick={() => {
-					dockMode = 'badge';
-					dockOpenSurfaceId = null;
-				}}>Badge</button
-			>
-			<button
-				type="button"
-				class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
-				onclick={() => {
-					dockMode = 'rail';
-					dockOpenSurfaceId = null;
-				}}>Rail</button
-			>
 			<button
 				type="button"
 				class="rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-xs text-foreground hover:bg-brand/20"
@@ -86,6 +78,6 @@
 			>
 		</div>
 	</div>
-	<!-- Two-way bind: dock's internal transitions write back to us. -->
+	<!-- The dock component for rendering rail/sheet views -->
 	<WorkSurfaceDock bind:mode={dockMode} bind:openSurfaceId={dockOpenSurfaceId} />
 </div>
