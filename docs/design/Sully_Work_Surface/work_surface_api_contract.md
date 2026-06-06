@@ -1,6 +1,6 @@
 # Work Surface ↔ Backend API Contract (v1)
 
-**Status:** DRAFT for review · 2026-06-06
+**Status:** v1 FINAL — operator-approved 2026-06-06 (decisions locked, §11)
 **Purpose:** the seam between the Work Surface frontend and the Companion backend.
 The frontend agent builds the UI against the **types + endpoints** here; the backend
 agent implements the **projection + new routes** here. Neither side should invent a
@@ -94,7 +94,7 @@ export type TaskState =
 > The model doc lists 8 states (no explicit "Failed"). We add **Failed** because the
 > FSM has a real `failed` sink and the UI must not show a failure as "Complete." It
 > renders like Complete (Expanded card, `View Result`/diagnostics) but with a red
-> banner + the failure reason from `proof`. **Confirm with operator** (§11 Q1).
+> banner + the failure reason from `proof`. **Locked 2026-06-06: distinct `Failed` state** (§11).
 
 ---
 
@@ -352,13 +352,17 @@ plumbing · `/api/workspace/.../files/[...path]` (merged) · kernel `/kill` rout
 
 ---
 
-## 11. Open questions for the operator
+## 11. Decisions (locked 2026-06-06, operator-approved)
 
-1. **"Failed" as a distinct state?** (§3) — show failures as a red Complete, or a
-   separate `Stopped`-like Failed card? (Recommend: distinct `Failed`, red banner.)
-2. **Multi-worker now or later?** Ship v1 single-`Build`-worker, add team-assembly +
-   the multi-node graph in v2? (Recommend: v1 single + the `Review`/DeepSeek worker,
-   since that's the next real worker on a task.)
-3. **Approve scope** — is the destructive double-confirm needed for v1, or do current
-   tasks never hit a destructive gate yet? (Wire the field now; the flow can land with
-   the first destructive-capable task.)
+1. **`Failed` is a distinct state.** Failures render as their own card (Expanded,
+   `View Result`/diagnostics) with a **red banner** + the failure reason from `proof`
+   — never shown as "Complete." `TaskState` keeps `'Failed'` (§3).
+2. **v1 = single `Build` worker + the `Review` (DeepSeek) worker.** No full
+   team-assembly / multi-node graph in v1 — that's v2. The `workers[]` array, roles,
+   and `RoutingGraph` are still defined now so v2 is additive (the graph just renders
+   1–2 nodes in v1). The DeepSeek auto-verify worker (bucket B #9) is the second node
+   when wired.
+3. **Wire `isDestructive` + the two-step Approve field now; land the live flow with
+   the first destructive-capable task.** The frontend builds the double-confirm
+   binding (§9) against the field immediately; the backend sets `isDestructive=false`
+   until a task type can actually do something destructive, then flips it on.
