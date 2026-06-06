@@ -9,6 +9,7 @@ const PRESETS = {
     title: "CC Schema Analysis",
     prompt: "Assess database migrations index layout.",
     systemStatus: "Sully has dispatched Claude Code to analyze database indexes.",
+    state: "Working",
     status: "working",
     statusText: "Researching",
     bannerText: "Next: <span class='banner-highlight'>Optimizing database lookup speed</span>",
@@ -17,20 +18,25 @@ const PRESETS = {
     activeOwnershipLabel: "Claude researching database indexes",
     activeMotionType: "researching",
     workers: [
-      { key: "CC", icon: "icon-claude", role: "Claude Code", motionType: "researching", desc: "Researching index tables" }
+      { key: "CC", icon: "icon-claude", identity: "Claude Code", role: "Research", motionType: "researching", desc: "Researching index tables" }
     ],
     phases: [
       { name: "Reading user payload", state: "done", time: "0.2s" },
       { name: "Mapping tables & indexing schemas", state: "active", time: "Running" },
       { name: "Compiling optimization queries", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "active" }, { stage: "Build", status: "pending" }, { stage: "Check", status: "pending" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Active",
-    proofDetail: "Claude scanning database model mappings. Edge routing active."
+    proofDetail: "Claude scanning database model mappings. Edge routing active.",
+    proof: { verdict: "pending", score: null, checks: [] }
   },
   'agy-building': {
     title: "Deck Handler Refinements",
     prompt: "Apply mobile-first drag handling routines.",
     systemStatus: "Antigravity writing gesture code; QA suite checks queued.",
+    state: "Working",
     status: "working",
     statusText: "Building",
     bannerText: "Next: <span class='banner-highlight'>Running gesture telemetry scripts</span>",
@@ -39,20 +45,25 @@ const PRESETS = {
     activeOwnershipLabel: "Antigravity building touch gesture handlers",
     activeMotionType: "building",
     workers: [
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "building", desc: "Writing drag handlers" }
+      { key: "AGY", icon: "icon-antigravity", identity: "Antigravity Agent", role: "Build", motionType: "building", desc: "Writing drag handlers" }
     ],
     phases: [
       { name: "Ingesting touch specifications", state: "done", time: "0.1s" },
       { name: "Injecting drag logic modules", state: "active", time: "Writing" },
       { name: "Verifying coordinate boundary limits", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "active" }, { stage: "Check", status: "pending" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Queued",
-    proofDetail: "Gesture test blocks built. Awaiting Touch Handlers compilation."
+    proofDetail: "Gesture test blocks built. Awaiting Touch Handlers compilation.",
+    proof: { verdict: "pending", score: null, checks: [] }
   },
   'dpsk-verifying': {
     title: "Sully is checking schema logic",
     prompt: "Verify database constraints and triggers.",
     systemStatus: "DeepSeek active verifying constraints logic; QA queued.",
+    state: "Reviewing",
     status: "checking",
     statusText: "Checking",
     bannerText: "Next: <span class='banner-highlight'>Reviewing logic constraint rules</span>",
@@ -61,20 +72,25 @@ const PRESETS = {
     activeOwnershipLabel: "DeepSeek verifying schema constraints logic",
     activeMotionType: "verifying",
     workers: [
-      { key: "DPSK", icon: "icon-deepseek", role: "DeepSeek", motionType: "verifying", desc: "Verifying trigger constraints" }
+      { key: "DPSK", icon: "icon-deepseek", identity: "DeepSeek", role: "Review", motionType: "verifying", desc: "Verifying trigger constraints" }
     ],
     phases: [
       { name: "Mapping model keys", state: "done", time: "0.3s" },
       { name: "Evaluating check triggers", state: "active", time: "Verifying" },
       { name: "Running integration validation", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "done" }, { stage: "Check", status: "active" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Active",
-    proofDetail: "DeepSeek scanning database model mappings. 12 triggers validated."
+    proofDetail: "DeepSeek scanning database model mappings. 12 triggers validated.",
+    proof: { verdict: "pending", score: null, checks: [ { name: "Schema check", status: "pending", detail: "" } ] }
   },
-  'gemini-brainstorming': {
+  'gmi-brainstorming': {
     title: "Context Log Synthesis",
     prompt: "Gather historical error logs and synthesize search context.",
     systemStatus: "Gemini brainstorming context mappings in memory logs.",
+    state: "Working",
     status: "working",
     statusText: "Brainstorming",
     bannerText: "Next: <span class='banner-highlight'>Compiling vector search space</span>",
@@ -83,20 +99,25 @@ const PRESETS = {
     activeOwnershipLabel: "Gemini brainstorming context log vectors",
     activeMotionType: "researching",
     workers: [
-      { key: "GEM", icon: "icon-gemini", role: "Gemini", motionType: "researching", desc: "Synthesizing log similarities" }
+      { key: "GMI", icon: "icon-gmi", identity: "Gemini", role: "Research", motionType: "researching", desc: "Synthesizing log similarities" }
     ],
     phases: [
       { name: "Reading log history archive", state: "done", time: "0.4s" },
       { name: "Clustering semantic error groups", state: "active", time: "Mapping" },
       { name: "Exporting search vector indices", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "active" }, { stage: "Build", status: "pending" }, { stage: "Check", status: "pending" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Active",
-    proofDetail: "Gemini scanning memory buffers. Mapping cluster nodes."
+    proofDetail: "Gemini scanning memory buffers. Mapping cluster nodes.",
+    proof: { verdict: "pending", score: null, checks: [] }
   },
-  'codex-reviewing': {
+  'cdx-reviewing': {
     title: "Codebase Restructuring Audit",
     prompt: "Review files hierarchy structure against best practices.",
     systemStatus: "Codex audit running in staging area; structural integrity scan.",
+    state: "Reviewing",
     status: "checking",
     statusText: "Reviewing",
     bannerText: "Next: <span class='banner-highlight'>Submitting file recommendations</span>",
@@ -105,44 +126,54 @@ const PRESETS = {
     activeOwnershipLabel: "Codex reviewing folder structures",
     activeMotionType: "verifying",
     workers: [
-      { key: "COD", icon: "icon-codex", role: "Codex", motionType: "verifying", desc: "Auditing folder pathways" }
+      { key: "CDX", icon: "icon-cdx", identity: "Codex", role: "Review", motionType: "verifying", desc: "Auditing folder pathways" }
     ],
     phases: [
       { name: "Verifying staging structures", state: "done", time: "0.2s" },
       { name: "Validating name mappings", state: "active", time: "Auditing" },
       { name: "Generating folder layout summary", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "done" }, { stage: "Check", status: "active" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "94% Confidence",
-    proofDetail: "Codex auditing relative routes. Layout syntax checked."
+    proofDetail: "Codex auditing relative routes. Layout syntax checked.",
+    proof: { verdict: "go", score: 94, checks: [ { name: "Structure audit", status: "pass", detail: "Routes checked" } ] }
   },
   'multi-worker': {
     title: "Coordinated Staging Build",
     prompt: "Assemble, scan, and verify touch gesture code suite.",
     systemStatus: "Antigravity compiling drag code, Claude researching schemas, Codex checking files.",
+    state: "Working",
     status: "working",
     statusText: "Coordinated",
     bannerText: "Next: <span class='banner-highlight'>Deploying QA test environment</span>",
     bannerIcon: "⚙️",
     headerIcon: "icon-packet",
-    activeOwnershipLabel: "CC, AGY & Codex concurrently executing",
+    activeOwnershipLabel: "CC, AGY & CDX concurrently executing",
     activeMotionType: "building",
     workers: [
-      { key: "CC", icon: "icon-claude", role: "Claude Code", motionType: "researching", desc: "Indexing schemas" },
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "building", desc: "Compiling code block" },
-      { key: "COD", icon: "icon-codex", role: "Codex", motionType: "verifying", desc: "Validating layout rules" }
+      { key: "CC", icon: "icon-claude", identity: "Claude Code", role: "Research", motionType: "researching", desc: "Indexing schemas" },
+      { key: "AGY", icon: "icon-antigravity", identity: "Antigravity Agent", role: "Build", motionType: "building", desc: "Compiling code block" },
+      { key: "CDX", icon: "icon-cdx", identity: "Codex", role: "Review", motionType: "verifying", desc: "Validating layout rules" }
     ],
     phases: [
       { name: "Staging database schemas", state: "done", time: "0.3s" },
       { name: "Synthesizing gesture assets", state: "active", time: "Compiling" },
       { name: "Auditing relative structures", state: "pending", time: "--" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "active" }, { stage: "Build", status: "active" }, { stage: "Check", status: "active" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Coordinated",
-    proofDetail: "Three active sub-agents running concurrently. Latency: 42ms."
+    proofDetail: "Three active sub-agents running concurrently. Latency: 42ms.",
+    proof: { verdict: "pending", score: null, checks: [] }
   },
   'waiting-approval': {
     title: "Safety Shield Intercepted",
     prompt: "Delete production database backup logs.",
     systemStatus: "Sully has paused work. Operator override signature required.",
+    state: "Waiting",
     status: "blocked",
     statusText: "Awaiting Action",
     bannerText: "Operator verification required to execute folder deletion.",
@@ -150,21 +181,27 @@ const PRESETS = {
     headerIcon: "icon-approval",
     activeOwnershipLabel: "Halted - waiting for operator signature",
     activeMotionType: "blocked",
+    isDestructive: true,
     workers: [
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "blocked", desc: "Halted at safe Gate" }
+      { key: "AGY", icon: "icon-antigravity", identity: "Antigravity Agent", role: "Build", motionType: "blocked", desc: "Halted at safe Gate" }
     ],
     phases: [
       { name: "Scanning backup indices", state: "done", time: "0.2s" },
       { name: "Checking folder access permissions", state: "done", time: "0.4s" },
       { name: "Awaiting manual operator signature", state: "active", time: "Halted" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "active" }, { stage: "Check", status: "skipped" }, { stage: "Approve", status: "active" }, { stage: "Reply", status: "pending" }
+    ],
     proofScore: "Override Req.",
-    proofDetail: "Action matches protected rule: DELETE PRODUCTION LOGS. Manual approval required."
+    proofDetail: "Action matches protected rule: DELETE PRODUCTION LOGS. Manual approval required.",
+    proof: { verdict: "pending", score: null, checks: [] }
   },
   'complete': {
     title: "Pipeline Executed Successfully",
     prompt: "Deploy sandbox gateway hotfix v1.4.3.",
     systemStatus: "Hotfix deployment complete. Verification runs successful.",
+    state: "Complete",
     status: "complete",
     statusText: "Complete",
     bannerText: "Execution successful. Staging workspace settled.",
@@ -173,8 +210,8 @@ const PRESETS = {
     activeOwnershipLabel: "Settled - execution successful",
     activeMotionType: "complete",
     workers: [
-      { key: "CC", icon: "icon-claude", role: "Claude Code", motionType: "complete", desc: "Successful" },
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "complete", desc: "Successful" }
+      { key: "CC", icon: "icon-claude", identity: "Claude Code", role: "Build", motionType: "complete", desc: "Successful" },
+      { key: "AGY", icon: "icon-antigravity", identity: "Antigravity Agent", role: "Build", motionType: "complete", desc: "Successful" }
     ],
     phases: [
       { name: "Reading deployment schema", state: "done", time: "0.1s" },
@@ -182,8 +219,60 @@ const PRESETS = {
       { name: "Running socket handshake QA checks", state: "done", time: "1.2s" },
       { name: "Compiling response package", state: "done", time: "0.2s" }
     ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "done" }, { stage: "Check", status: "done" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "done" }
+    ],
     proofScore: "100% Success",
-    proofDetail: "All testing suites compiled and executed successfully. Clean exit."
+    proofDetail: "All testing suites compiled and executed successfully. Clean exit.",
+    proof: { verdict: "go", score: 100, checks: [ { name: "Deployment checks", status: "pass", detail: "All tests pass" } ] }
+  },
+  'stopped': {
+    title: "Pipeline Halted",
+    prompt: "Operator triggered stop command.",
+    systemStatus: "Task halted by operator.",
+    state: "Stopped",
+    status: "stopped",
+    statusText: "Stopped",
+    bannerText: "Task was stopped by the operator.",
+    bannerIcon: "🛑",
+    headerIcon: "icon-blocked",
+    activeOwnershipLabel: "Stopped",
+    activeMotionType: "complete",
+    workers: [],
+    phases: [
+      { name: "Reading user payload", state: "done", time: "0.2s" },
+      { name: "Operator halt", state: "active", time: "Halted" }
+    ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "active" }, { stage: "Check", status: "skipped" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "skipped" }
+    ],
+    proofScore: "Stopped",
+    proofDetail: "Pipeline was halted by operator command.",
+    proof: { verdict: "skipped", score: null, checks: [] }
+  },
+  'failed': {
+    title: "Pipeline Failed",
+    prompt: "Deploy sandbox gateway hotfix v1.4.3.",
+    systemStatus: "Task failed during deployment.",
+    state: "Failed",
+    status: "failed",
+    statusText: "Failed",
+    bannerText: "Task Failed: Environment missing.",
+    bannerIcon: "❌",
+    headerIcon: "icon-blocked",
+    activeOwnershipLabel: "Failed",
+    activeMotionType: "complete",
+    workers: [],
+    phases: [
+      { name: "Reading deployment schema", state: "done", time: "0.1s" },
+      { name: "Spawning gateway containers", state: "active", time: "Failed" }
+    ],
+    stageProgress: [
+      { stage: "Read", status: "done" }, { stage: "Research", status: "skipped" }, { stage: "Build", status: "active" }, { stage: "Check", status: "skipped" }, { stage: "Approve", status: "skipped" }, { stage: "Reply", status: "skipped" }
+    ],
+    proofScore: "Failed",
+    proofDetail: "Action failed. Execution aborted.",
+    proof: { verdict: "no-go", score: 0, checks: [ { name: "Deployment checks", status: "fail", detail: "Container failed to start" } ] }
   }
 };
 
@@ -295,7 +384,7 @@ function renderGraph(svgId, preset) {
       isWorker: true,
       icon: w.icon,
       key: w.key,
-      role: w.role,
+      role: w.identity,
       desc: w.desc
     });
   });
@@ -693,7 +782,7 @@ function updateUI() {
       <div class="${rowClass}">
         <div class="worker-left">
           <span class="worker-dot"></span>
-          <span class="worker-identity">${w.key} <span class="worker-role">(${w.role})</span></span>
+          <span class="worker-identity">${w.key} <span class="worker-role">(${w.identity})</span></span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="worker-status">${w.desc}</span>
@@ -705,12 +794,17 @@ function updateUI() {
 
   // QA proof scores (Expanded view)
   const proofContainer = document.getElementById('proofContainer');
+  let checksHtml = '';
+  if (data.proof && data.proof.checks && data.proof.checks.length > 0) {
+    checksHtml = '<ul class="proof-checks-list">' + data.proof.checks.map(c => `<li><span class="proof-check-status ${c.status}">${c.status}</span> ${c.name} <span class="proof-check-detail">${c.detail || ''}</span></li>`).join('') + '</ul>';
+  }
   proofContainer.innerHTML = `
     <div class="proof-header">
       <span>QA Cryptographic Verification</span>
       <span class="proof-conf">${data.proofScore}</span>
     </div>
     <p class="proof-log">${data.proofDetail}</p>
+    ${checksHtml}
   `;
 
   renderActionButtons(data);
@@ -723,7 +817,7 @@ function renderActionButtons(data) {
 
   let buttonHtml = '';
 
-  if (data.activeMotionType === 'blocked') {
+  if (data.state === 'Waiting') {
     buttonHtml = `
       <button class="sully-btn btn-secondary" id="btnStop">
         ${confirmStop ? "Confirm stopping?" : "Stop Task"}
@@ -733,17 +827,24 @@ function renderActionButtons(data) {
       </button>
     `;
     compactActions.style.display = 'flex';
-  } else if (data.status === 'working' || data.status === 'checking') {
+  } else if (data.state === 'Working' || data.state === 'Reviewing' || data.state === 'Planning') {
     buttonHtml = `
       <button class="sully-btn ${confirmStop ? 'btn-stop-confirm' : 'btn-secondary'}" id="btnStop" style="width: 100%;">
         ${confirmStop ? "Confirm stopping active task?" : "Stop Pipeline"}
       </button>
     `;
     compactActions.style.display = 'none';
-  } else if (data.status === 'complete') {
+  } else if (data.state === 'Complete' || data.state === 'Failed') {
     buttonHtml = `
       <button class="sully-btn btn-complete-view" id="btnComplete" style="width: 100%;">
-        View Sandbox Deployment Logs
+        View Result
+      </button>
+    `;
+    compactActions.style.display = 'none';
+  } else if (data.state === 'Stopped') {
+    buttonHtml = `
+      <button class="sully-btn btn-complete-view" id="btnStartOver" style="width: 100%;">
+        Start Over
       </button>
     `;
     compactActions.style.display = 'none';
