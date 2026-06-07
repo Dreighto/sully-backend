@@ -124,7 +124,10 @@
 
 	const allGraphNodes = $derived([...enrichedWorkers, ...systemNodes, coreNode]);
 
-	function defaultIconForRole(role?: WorkerRole): string {
+	function defaultIconForRole(role?: WorkerRole, identity?: string, shortCode?: string): string {
+		const id = (identity || '').toLowerCase();
+		const code = (shortCode || '').toUpperCase();
+		if (id === 'cursor' || code === 'CUR') return 'icon-cursor';
 		if (!role) return 'icon-system';
 		switch (role) {
 			case 'Research':
@@ -132,7 +135,7 @@
 			case 'Build':
 				return 'icon-antigravity';
 			case 'Review':
-				return 'icon-codex';
+				return 'icon-cdx';
 			case 'Memory':
 			case 'Vision':
 			case 'Voice':
@@ -142,7 +145,7 @@
 	}
 
 	// Per-identity brand colour (operator-locked 2026-06-06):
-	//   CC=orange · AGY=purple · CDX=gray · DPSK=blue · GMI=light blue
+	//   CC=orange · AGY=purple · CDX=gray · DPSK=blue · GMI=light blue · CUR=warm gray
 	// The active worker glow on the graph node uses THIS, set inline as
 	// the --worker-color custom property. Mirrors WorkerRow's mapping.
 	function workerBrandColor(identity?: string, shortCode?: string): string {
@@ -153,6 +156,7 @@
 		if (id === 'codex' || code === 'CDX') return '#9ca3af';
 		if (id === 'deepseek' || code === 'DPSK') return '#3b82f6';
 		if (id === 'gemini' || code === 'GMI') return '#60a5fa';
+		if (id === 'cursor' || code === 'CUR') return '#a8a29e';
 		return 'var(--color-status-blue)';
 	}
 
@@ -221,7 +225,8 @@
 				const sourceWorker = enrichedWorkers.find((w) => w.id === edge.from);
 				const sourceSystemNode = systemNodes.find((n) => n.id === edge.from);
 				const fromIcon = sourceWorker
-					? (sourceWorker.icon ?? defaultIconForRole(sourceWorker.role))
+					? (sourceWorker.icon ??
+						defaultIconForRole(sourceWorker.role, sourceWorker.identity, sourceWorker.shortCode))
 					: sourceSystemNode
 						? defaultIconForRole(sourceSystemNode.role)
 						: 'icon-system';
@@ -305,7 +310,7 @@
 			<circle class="node-ring" r="23" />
 			<circle class="node-circle" r="17" />
 			<use
-				href="#{worker.icon ?? defaultIconForRole(worker.role)}"
+				href="#{worker.icon ?? defaultIconForRole(worker.role, worker.identity, worker.shortCode)}"
 				x={-NODE_ICON_SIZE / 2}
 				y={-NODE_ICON_SIZE / 2}
 				width={NODE_ICON_SIZE}

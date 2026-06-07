@@ -386,6 +386,46 @@ export const workSurfaceSeed: Record<string, WorkSurfaceTask> = {
 		endedAt: null,
 		ticketId: null
 	},
+	'cur-implementing': {
+		traceId: 'seed-cur-implementing',
+		threadId: null,
+		title: 'Work Surface brand icon wire-in',
+		state: 'Working',
+		stage: 'Build',
+		stageProgress: [
+			{ stage: 'Read', status: 'done' },
+			{ stage: 'Research', status: 'skipped' },
+			{ stage: 'Build', status: 'active' },
+			{ stage: 'Check', status: 'pending' },
+			{ stage: 'Approve', status: 'skipped' },
+			{ stage: 'Reply', status: 'pending' }
+		],
+		workers: [
+			{
+				identity: 'cursor',
+				shortCode: 'CUR',
+				display: 'Cursor',
+				role: 'Build',
+				status: 'active',
+				step: 'Inlining worker brand SVGs',
+				icon: 'icon-cursor'
+			}
+		],
+		routing: {
+			nodes: [
+				{ id: 'core', kind: 'core', status: 'active' as WorkerStatus },
+				{ id: 'cursor', kind: 'worker', role: 'Build', status: 'active' as WorkerStatus }
+			],
+			edges: [{ from: 'cursor', to: 'core', active: true }]
+		},
+		block: null,
+		proof: { verdict: 'pending', score: null, checks: [] },
+		result: null,
+		isDestructive: false,
+		startedAt: null,
+		endedAt: null,
+		ticketId: null
+	},
 	'failed': {
 		traceId: 'seed-failed',
 		threadId: null,

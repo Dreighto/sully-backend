@@ -17,6 +17,7 @@
 	//   CDX (codex)        → gray    — OpenAI Codex neutral
 	//   DPSK (deepseek)    → blue    — DeepSeek brand blue
 	//   GMI (gemini)       → light   — Gemini lighter blue
+	//   CUR (cursor)       → warm gray — Cursor charcoal (visible on dark)
 	// Colour reflects the WORKER, not the role — each worker is a brand.
 	const workerBrandColor = $derived.by((): string => {
 		const id = (worker.identity || '').toLowerCase();
@@ -26,6 +27,7 @@
 		if (id === 'codex' || code === 'CDX') return '#9ca3af'; // gray
 		if (id === 'deepseek' || code === 'DPSK') return '#3b82f6'; // blue
 		if (id === 'gemini' || code === 'GMI') return '#60a5fa'; // light blue
+		if (id === 'cursor' || code === 'CUR') return '#a8a29e'; // warm gray
 		// Unknown identity — fall back to status-blue for active workers
 		return 'var(--color-status-blue)';
 	});
