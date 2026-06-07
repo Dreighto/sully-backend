@@ -7,6 +7,7 @@
 	import WorkSurfaceCard from '$lib/components/WorkSurfaceCard.svelte';
 	import { Collapsible, Dialog } from 'bits-ui';
 	import { ChevronDown } from 'lucide-svelte';
+	import { useSwipe, type SwipeCustomEvent } from 'svelte-gestures';
 
 	let {
 		surface,
@@ -21,6 +22,35 @@
 
 	// State B <-> C (Detail sheet)
 	let detailOpen = $state(false);
+
+	// Stage 3 — swipe-down to dismiss the State C sheet. svelte-gestures v5
+	// uses the useSwipe() hook pattern (props spread on the target element),
+	// not the older `use:swipe` action — bits-ui components don't accept
+	// Svelte actions anyway, so we apply this to the swipe-handle wrapper div.
+	const sheetSwipeProps = useSwipe(
+		(e: SwipeCustomEvent) => {
+			if (e.detail.direction === 'bottom') detailOpen = false;
+		},
+		() => ({ timeframe: 300, minSwipeDistance: 60, touchAction: 'pan-y' })
+	);
+
+	// Stage 3 — View Transitions wrap on the row→surface morph. Progressive
+	// enhancement: Safari 18+ / iOS 18+ gets a browser-native shared-element
+	// transition; older WebKit falls back to the bits-ui Collapsible default.
+	// See [[ssr-hydration-cached-factory-trap]] for the SSR guard pattern.
+	function toggleExpanded() {
+		const next = !expanded;
+		const doc = typeof document !== 'undefined' ? document : null;
+		if (doc && 'startViewTransition' in doc) {
+			(doc as Document & { startViewTransition: (cb: () => void) => unknown }).startViewTransition(
+				() => {
+					expanded = next;
+				}
+			);
+		} else {
+			expanded = next;
+		}
+	}
 
 	const activeWorker = $derived(
 		surface?.task?.workers?.find((w) => w.status === 'active') ||
@@ -102,7 +132,13 @@
 <Collapsible.Root bind:open={expanded} class="w-full font-sans select-none">
 	<!-- State A: Compact Pill -->
 	<Collapsible.Trigger
-		class="flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-left transition-all duration-200 hover:bg-zinc-800/40 focus:ring-2 focus:ring-brand/40 focus:outline-none"
+		onclick={(e: MouseEvent) => {
+			// View Transitions wrap. Stop bits-ui's own click-toggle so we don't
+			// double-flip; toggleExpanded() drives the bound state.
+			e.preventDefault();
+			toggleExpanded();
+		}}
+		class="dispatch-card-trigger flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-left transition-all duration-200 hover:bg-zinc-800/40 focus:ring-2 focus:ring-brand/40 focus:outline-none"
 		style="--worker-color: {brandColor}; border-color: color-mix(in srgb, var(--worker-color) 20%, var(--color-border))"
 	>
 		<div class="flex min-w-0 items-center gap-2.5">
@@ -140,7 +176,7 @@
 	</Collapsible.Trigger>
 
 	<!-- State B: Expanded Content -->
-	<Collapsible.Content class="mt-2 w-full">
+	<Collapsible.Content class="dispatch-card-content mt-2 w-full">
 		<div
 			class="rounded-xl border bg-zinc-900/50 p-4 shadow-lg backdrop-blur-md"
 			style="border-color: color-mix(in srgb, var(--worker-color) 20%, var(--color-border))"
@@ -171,10 +207,15 @@
 			class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-200"
 		/>
 		<Dialog.Content
-			class="fixed right-0 bottom-0 left-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-zinc-800 bg-zinc-950 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-all duration-300 focus:outline-none"
+			class="dispatch-card-sheet fixed right-0 bottom-0 left-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-zinc-800 bg-zinc-950 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-all duration-300 focus:outline-none"
 		>
-			<!-- Dialog Header / Drag Handle -->
-			<div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-800"></div>
+			<!-- Swipe-detection wrapper. svelte-gestures actions can't attach to
+			     bits-ui components (no addAction on Svelte components), so the
+			     drag handle's surrounding area is the gesture surface. -->
+			<div class="-mx-6 -mt-6 px-6 pt-6" {...sheetSwipeProps}>
+				<!-- Dialog Header / Drag Handle -->
+				<div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-800"></div>
+			</div>
 
 			<Dialog.Title class="text-lg font-bold text-zinc-100">Detail View</Dialog.Title>
 			<Dialog.Description class="mt-1 text-sm text-zinc-400">
@@ -198,3 +239,60 @@
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
+
+<style>
+	/* Stage 3 — content-area animation hooks. bits-ui sets data-state on
+	   Collapsible.Content + Dialog.Content; the animation is driven by that.
+	   View Transitions API (Safari 18+/iOS 18+) wraps the toggle for a
+	   shared-element morph; this is the fallback / overlay for older WebKit. */
+	:global(.dispatch-card-content[data-state='open']) {
+		animation: dispatch-card-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+	}
+	:global(.dispatch-card-content[data-state='closed']) {
+		animation: dispatch-card-slide-out 200ms ease;
+	}
+	@keyframes dispatch-card-slide-in {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	@keyframes dispatch-card-slide-out {
+		from {
+			opacity: 1;
+			transform: translateY(0);
+		}
+		to {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+	}
+
+	/* iOS bottom-sheet slide-up. transition-behavior + @starting-style let us
+	   animate from display:none without JS (Safari 17.5+). */
+	:global(.dispatch-card-sheet) {
+		transition:
+			opacity 280ms ease,
+			transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+		transition-behavior: allow-discrete;
+	}
+	@starting-style {
+		:global(.dispatch-card-sheet) {
+			opacity: 0;
+			transform: translateY(100%);
+		}
+	}
+
+	/* Reduced-motion: short-circuit all animations to instant. */
+	@media (prefers-reduced-motion: reduce) {
+		:global(.dispatch-card-content),
+		:global(.dispatch-card-sheet) {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+</style>
