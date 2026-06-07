@@ -5,7 +5,10 @@
 
 	// TODO Phase 2: bind amplitude to event count
 
-	const wState = $derived(worker.status || 'idle');
+	// Widen to string so the 'waiting' branch (used for surface-blocked
+	// visualisations) is reachable per typecheck. The runtime value is still
+	// a WorkerStatus; the union is just expanded for comparison purposes.
+	const wState = $derived<string>(worker.status || 'idle');
 
 	const strokeColor = $derived.by(() => {
 		if (wState === 'active') {

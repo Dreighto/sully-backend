@@ -77,8 +77,11 @@
 	}
 </script>
 
-<!-- Badge Mode -->
-{#if mode === 'badge'}
+<!-- Badge Mode — per doctrine ("presence by absence"), the badge is also
+     absent when there's no work to surface. Otherwise the eye trains to ignore
+     a permanent "▶ 0" pill — exactly the anti-pattern the doctrine forbids.
+     The dock reappears the instant a surface is spawned. -->
+{#if mode === 'badge' && (runningList.length > 0 || needsYouList.length > 0)}
 	<div
 		class="fixed right-0 bottom-0 z-50 p-4 pr-[max(env(safe-area-inset-right),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)]"
 	>
@@ -148,7 +151,7 @@
 				{#each runningList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -174,7 +177,7 @@
 				{#each needsYouList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -200,7 +203,7 @@
 				{#each doneList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -285,7 +288,7 @@
 					<!-- Accordion 1: Timeline -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
+						class="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
 						aria-expanded={openSections.has('timeline')}
 						onclick={() => toggleSection('timeline')}
 					>
@@ -303,7 +306,7 @@
 					<!-- Accordion 2: Activity -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
+						class="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
 						aria-expanded={openSections.has('activity')}
 						onclick={() => toggleSection('activity')}
 					>
@@ -321,7 +324,7 @@
 					<!-- Accordion 3: Routing Phases -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
+						class="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
 						aria-expanded={openSections.has('phases')}
 						onclick={() => toggleSection('phases')}
 					>
@@ -340,7 +343,7 @@
 					<!-- Accordion 4: Worker Registry -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
+						class="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
 						aria-expanded={openSections.has('workers')}
 						onclick={() => toggleSection('workers')}
 					>
@@ -364,7 +367,7 @@
 					<!-- Accordion 5: Proof -->
 					<button
 						type="button"
-						class="flex w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface min-h-[44px]"
+						class="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-surface/50 px-4 py-3 text-left text-sm hover:bg-surface"
 						aria-expanded={openSections.has('proof')}
 						onclick={() => toggleSection('proof')}
 					>

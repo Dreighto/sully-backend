@@ -39,6 +39,8 @@
 	import ThreadsSidebar from '$lib/components/ThreadsSidebar.svelte';
 	import ChatHeader from '$lib/components/ChatHeader.svelte';
 	import Composer from '$lib/components/Composer.svelte';
+	import WorkSurfaceIndicator from '$lib/components/WorkSurfaceIndicator.svelte';
+	import WorkSurfaceDock from '$lib/components/WorkSurfaceDock.svelte';
 	import VoiceMode from '$lib/components/VoiceMode.svelte';
 	import MessageFeed from '$lib/components/MessageFeed.svelte';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
@@ -144,6 +146,14 @@
 
 	// Composer states
 	let composerMode = $state<ComposerMode>('idle');
+
+	// Work Surface dock state. The indicator is the SOLE entry point per doctrine
+	// (absent when idle). dockMode flips to 'sheet' when the indicator is tapped
+	// or a row in the rail is opened; openSurfaceId points to whichever surface
+	// the operator is viewing. Both stay 'badge' / null until a surface is
+	// spawned by a future decide() → spawnSurface() wiring (separate work).
+	let dockMode = $state<'badge' | 'rail' | 'sheet'>('badge');
+	let dockOpenSurfaceId = $state<string | null>(null);
 
 	// threadMenuOpenFor (and renamingFor / renameDraft / showArchived) live on
 	// threadsCtrl now (PR E1) — the global popover handler reads
@@ -1044,6 +1054,19 @@
 				{unseenCount} new messages ↓
 			</button>
 		{/if}
+
+		<!-- ═════════════════════════════════════════════════════════════════
+		     WORK SURFACE INDICATOR — the doctrine entry point. Lives directly
+		     above the Composer. Returns zero DOM nodes when no work is running
+		     (absent when idle); appears as a pill when there's running/needs-you
+		     work. Tap → opens the most-important surface in the sheet. The dock
+		     component handles rail/sheet rendering; both share dockMode +
+		     dockOpenSurfaceId so the indicator's tap → opens the sheet directly.
+		     ═════════════════════════════════════════════════════════════════ -->
+		<div class="mb-2 flex justify-end px-4">
+			<WorkSurfaceIndicator bind:mode={dockMode} bind:openSurfaceId={dockOpenSurfaceId} />
+		</div>
+		<WorkSurfaceDock bind:mode={dockMode} bind:openSurfaceId={dockOpenSurfaceId} />
 
 		<!-- ═════════════════════════════════════════════════════════════════
 		     HERO COMPOSER PILL — extracted to <Composer /> (Task #7 PR 4).
