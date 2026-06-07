@@ -143,14 +143,43 @@
 	const dispatchStreams: Record<string, ReturnType<typeof createDispatchStream>> = {};
 
 	// Work-surface spawn registry: trace_id → surface_id. Phase 2 wire-up so the
-	// pill appears on dispatch Run and settles on stream terminal. Map outlives
-	// individual dispatch streams; the value is the surfaceId returned by
-	// spawnSurface() at confirmProposal('run').
+	// pill appears on dispatch Run / @cc direct, and settles on stream terminal.
+	// Map outlives individual dispatch streams.
 	const traceToSurface: Record<string, string> = {};
+
+	/** Spawn a work-surface for `traceId` if one doesn't exist yet. Looks up the
+	 *  dispatch row in `messages` and the operator request that preceded it to
+	 *  build the initial task title. Idempotent.
+	 *  @param msgOverride pre-known dispatch row (avoids the lookup in confirmProposal). */
+	function ensureSurfaceForTrace(traceId: string, msgOverride?: ChatMessage): string | null {
+		if (traceToSurface[traceId]) return traceToSurface[traceId];
+		const dispatchRow = msgOverride ?? messages.find((x) => x.trace_id === traceId);
+		if (!dispatchRow) return null;
+		const i = messages.findIndex((x) => x.id === dispatchRow.id);
+		const prior =
+			i > 0 ? [...messages.slice(0, i)].reverse().find((x) => x.sender === 'operator') : null;
+		const surfaceId = spawnSurface(
+			String(dispatchRow.id),
+			buildInitialTaskFromProposal({
+				traceId,
+				threadId: threadsCtrl.activeThread,
+				requestText: prior?.message,
+				proposalText: dispatchRow.message
+			})
+		);
+		traceToSurface[traceId] = surfaceId;
+		return surfaceId;
+	}
 
 	function ensureDispatchStream(traceId: string) {
 		if (dispatchStreams[traceId]) return dispatchStreams[traceId];
 		const ctrl = createDispatchStream(traceId, {
+			onActive: () => {
+				// Auto-spawn the pill for direct dispatches (@cc/@agy/@gemini) that
+				// don't go through confirmProposal. Skipped for historic terminal
+				// jobs (onActive only fires when the stream confirms live state).
+				ensureSurfaceForTrace(traceId);
+			},
 			onTerminal: (streamStatus) => {
 				const surfaceId = traceToSurface[traceId];
 				if (!surfaceId) return;
@@ -528,29 +557,11 @@
 		);
 
 		// Spawn the work surface BEFORE the network round-trip so the pill
-		// appears instantly on Run (Dynamic Island feel). Guard against double-
-		// spawn on double-tap. Title prefers the previous operator request when
-		// available; falls back to the proposal text itself.
-		if (decision === 'run' && !traceToSurface[taskId]) {
-			const i = messages.findIndex((x) => x.id === m.id);
-			const prior =
-				i > 0
-					? messages
-							.slice(0, i)
-							.reverse()
-							.find((x) => x.sender === 'operator')
-					: null;
-			const surfaceId = spawnSurface(
-				String(m.id),
-				buildInitialTaskFromProposal({
-					traceId: taskId,
-					threadId: threadsCtrl.activeThread,
-					requestText: prior?.message,
-					proposalText: m.message
-				})
-			);
-			traceToSurface[taskId] = surfaceId;
-			// Ensure the SSE stream is open so onTerminal fires when the worker lands.
+		// appears instantly on Run (Dynamic Island feel). Idempotent — safe on
+		// double-tap.
+		if (decision === 'run') {
+			ensureSurfaceForTrace(taskId, m);
+			// Open the SSE stream so onTerminal fires when the worker lands.
 			ensureDispatchStream(taskId);
 		}
 

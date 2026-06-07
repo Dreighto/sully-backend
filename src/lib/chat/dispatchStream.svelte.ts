@@ -40,6 +40,11 @@ export interface DispatchStreamOpts {
 	 *  Fires from both SSE __terminal__ frames AND reconcile() seeing a finished
 	 *  job. Idempotent: guarded so it only fires once per controller. */
 	onTerminal?: (status: string) => void;
+	/** Called once when the stream confirms the job is LIVE (non-terminal after
+	 *  initial reconcile, so we're opening the SSE). Lets callers spawn UI like
+	 *  a work-surface pill only for in-flight dispatches — historic terminal
+	 *  ones skip this hook and don't spawn ghost surfaces on chat re-open. */
+	onActive?: () => void;
 }
 
 // Factory: expose $state via GETTERS (codebase convention for runes modules).
@@ -54,11 +59,18 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 	let removeAppResume: (() => void) | null = null;
 	let listening = false;
 	let terminalFired = false;
+	let activeFired = false;
 
 	function fireTerminal() {
 		if (terminalFired) return;
 		terminalFired = true;
 		opts?.onTerminal?.(status);
+	}
+
+	function fireActive() {
+		if (activeFired || terminalFired) return;
+		activeFired = true;
+		opts?.onActive?.();
 	}
 
 	function ingest(
@@ -155,6 +167,9 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 		// EventSources for historical cards).
 		void reconcile().then(() => {
 			if (isTerminalStatus(status)) return;
+			// Job is LIVE — emit onActive so callers (work-surface pill) can spawn
+			// UI for it. Historic terminal jobs already short-circuited above.
+			fireActive();
 			open();
 			if (!listening) {
 				listening = true;
