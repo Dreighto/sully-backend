@@ -165,8 +165,17 @@
 	const allGraphNodes = $derived([...enrichedWorkers, ...systemNodes, coreNode]);
 
 	function defaultIconForRole(role?: WorkerRole, identity?: string, shortCode?: string): string {
+		// Identity-first: a known worker identity ALWAYS gets its brand mark
+		// regardless of role. Role-based mapping is only the fallback for
+		// unknown identities. Without this, a CC worker with role='Build'
+		// would render the AGY mark — caught live 2026-06-07.
 		const id = (identity || '').toLowerCase();
 		const code = (shortCode || '').toUpperCase();
+		if (id === 'claude-code' || code === 'CC') return 'icon-claude';
+		if (id === 'antigravity' || code === 'AGY') return 'icon-antigravity';
+		if (id === 'codex' || code === 'CDX') return 'icon-cdx';
+		if (id === 'gemini' || code === 'GMI') return 'icon-gmi';
+		if (id === 'deepseek' || code === 'DPSK') return 'icon-deepseek';
 		if (id === 'cursor' || code === 'CUR') return 'icon-cursor';
 		if (!role) return 'icon-system';
 		switch (role) {
@@ -289,9 +298,7 @@
 		allRoutes.find((route) => route.isPrimary && route.dispatch_active && route.isWorkerToCore)
 	);
 	const taskLandDuration = $derived(packetGlideDuration(activeDispatchRoute?.motionType));
-	const taskReceiverColor = $derived(
-		activeDispatchRoute?.workerColor ?? 'var(--color-st-run)'
-	);
+	const taskReceiverColor = $derived(activeDispatchRoute?.workerColor ?? 'var(--color-st-run)');
 </script>
 
 <div
@@ -400,10 +407,7 @@
 			style:--worker-color={workerBrandColor(worker.identity, worker.shortCode)}
 			style:--breath-delay={worker.breathDelay}
 		>
-			<circle
-				class="node-ring {worker.isBreathing ? 'worker-surface-ring-breath' : ''}"
-				r="23"
-			/>
+			<circle class="node-ring {worker.isBreathing ? 'worker-surface-ring-breath' : ''}" r="23" />
 			<circle class="node-circle" r="17" />
 			<use
 				href="#{worker.icon ?? defaultIconForRole(worker.role, worker.identity, worker.shortCode)}"
@@ -585,7 +589,9 @@
 	.node-icon-wrapper .packet-shape {
 		color: var(--packet-color, var(--color-st-run));
 		fill: var(--packet-color, var(--color-st-run));
-		filter: drop-shadow(0 0 4px color-mix(in srgb, var(--packet-color, var(--color-st-run)) 55%, transparent));
+		filter: drop-shadow(
+			0 0 4px color-mix(in srgb, var(--packet-color, var(--color-st-run)) 55%, transparent)
+		);
 		width: 10px;
 		height: 10px;
 	}

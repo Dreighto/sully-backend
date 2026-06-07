@@ -18,22 +18,47 @@ import { compactGlanceTitle } from '$lib/utils/glanceText';
 
 const PIPELINE_STAGES: PipelineStage[] = ['Read', 'Research', 'Build', 'Check', 'Approve', 'Reply'];
 
+// Explicit per-identity sprite ids. Without these, WorkGraph falls back to
+// defaultIconForRole(role) which maps Build→icon-antigravity — so CC was
+// rendering as the AGY mark (operator caught 2026-06-07 in his "build me a
+// mockup" surface). Identity always wins over role; role-fallback is only
+// for unknown identities.
 const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'>> = {
 	'claude-code': {
 		identity: 'claude-code',
 		shortCode: 'CC',
 		display: 'Claude Code',
-		role: 'Build'
+		role: 'Build',
+		icon: 'icon-claude'
 	},
 	antigravity: {
 		identity: 'antigravity',
 		shortCode: 'AGY',
 		display: 'Antigravity',
-		role: 'Build'
+		role: 'Build',
+		icon: 'icon-antigravity'
 	},
-	gemini: { identity: 'gemini', shortCode: 'GMI', display: 'Gemini', role: 'Build' },
-	codex: { identity: 'codex', shortCode: 'CDX', display: 'Codex', role: 'Review' },
-	deepseek: { identity: 'deepseek', shortCode: 'DPSK', display: 'DeepSeek', role: 'Build' }
+	gemini: {
+		identity: 'gemini',
+		shortCode: 'GMI',
+		display: 'Gemini',
+		role: 'Build',
+		icon: 'icon-gmi'
+	},
+	codex: {
+		identity: 'codex',
+		shortCode: 'CDX',
+		display: 'Codex',
+		role: 'Review',
+		icon: 'icon-cdx'
+	},
+	deepseek: {
+		identity: 'deepseek',
+		shortCode: 'DPSK',
+		display: 'DeepSeek',
+		role: 'Build',
+		icon: 'icon-deepseek'
+	}
 };
 
 /** Read `@cc / @agy / @gemini` mentions from the proposal text. Default to CC. */
