@@ -145,8 +145,11 @@
 
 	// Work-surface spawn registry: trace_id → surface_id. Phase 2 wire-up so the
 	// pill appears on dispatch Run / @cc direct, and settles on stream terminal.
-	// Map outlives individual dispatch streams.
-	const traceToSurface: Record<string, string> = {};
+	// $state so mutations from ensureSurfaceForTrace (called via
+	// ensureDispatchStream's onActive async callback) propagate to
+	// MessageFeed's flag-on conditional. Caught during Phase 3 iOS verify —
+	// plain-object mutation didn't re-evaluate the @const block.
+	const traceToSurface = $state<Record<string, string>>({});
 
 	/** Spawn a work-surface for `traceId` if one doesn't exist yet. Looks up the
 	 *  dispatch row in `messages` and the operator request that preceded it to

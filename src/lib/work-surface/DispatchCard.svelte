@@ -202,7 +202,11 @@
 
 <!-- State C: Detail sheet -->
 <Dialog.Root bind:open={detailOpen}>
-	<Dialog.Portal to="#app-root">
+	<!-- Dialog.Portal defaults to body — there's no #app-root in the actual DOM
+	     (the prior `to="#app-root"` was a stale assumption from the brief). The
+	     sheet uses position:fixed + safe-area insets so it sits above any
+	     parent's overflow:hidden traps regardless of where it portals. -->
+	<Dialog.Portal>
 		<Dialog.Overlay
 			class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-200"
 		/>
