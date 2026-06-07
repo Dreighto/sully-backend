@@ -5,7 +5,7 @@
 
 	// TODO Phase 2: bind amplitude to event count
 
-	const wState = $derived((worker.status as string) || (worker as any).state || 'idle');
+	const wState = $derived(worker.status || 'idle');
 
 	const strokeColor = $derived.by(() => {
 		if (wState === 'active') {
@@ -133,7 +133,7 @@
 			opacity: 1;
 		}
 		100% {
-			opacity: 0;
+			opacity: 0.3;
 		}
 	}
 </style>

@@ -62,17 +62,17 @@
 	function getStatusDotColor(status: Surface['status']): string {
 		switch (status) {
 			case 'running':
-				return 'bg-[--color-st-run]';
+				return 'bg-st-run';
 			case 'needs-you':
-				return 'bg-[--color-st-needs]';
+				return 'bg-st-needs';
 			case 'done':
-				return 'bg-[--color-st-done]';
+				return 'bg-st-done';
 			case 'failed':
-				return 'bg-[--color-st-fail]';
+				return 'bg-st-fail';
 			case 'idle':
-				return 'bg-[--color-st-done]'; // Default neutral for idle, though not a dock status
+				return 'bg-st-done'; // Default neutral for idle, though not a dock status
 			default:
-				return 'bg-[--color-st-done]';
+				return 'bg-st-done';
 		}
 	}
 </script>
@@ -83,14 +83,14 @@
 		class="fixed right-0 bottom-0 z-50 p-4 pr-[max(env(safe-area-inset-right),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)]"
 	>
 		<button
-			class="active-trigger flex h-9 w-max items-center gap-2 rounded-full bg-card/80 px-3 py-1 text-sm font-semibold text-foreground shadow-lg backdrop-blur-sm"
+			class="active-trigger flex h-11 w-max items-center gap-2 rounded-full bg-card/80 px-3.5 py-1 text-sm font-semibold text-foreground shadow-lg backdrop-blur-sm"
 			onclick={toggleDockState}
 			aria-label="Open Work Surface Dock"
 		>
-			<span class="h-2 w-2 rounded-full bg-[--color-st-run]"></span>
+			<span class="h-2 w-2 rounded-full bg-st-run"></span>
 			<span>▶ {runningList.length}</span>
 			{#if needsYouList.length > 0}
-				<span class="h-2 w-2 rounded-full bg-[--color-st-needs]"></span>
+				<span class="h-2 w-2 rounded-full bg-st-needs"></span>
 				<span>⏸ {needsYouList.length}</span>
 			{/if}
 		</button>
@@ -127,15 +127,15 @@
 			<h2 class="text-lg font-semibold">Work Surface Dock</h2>
 			<div class="mt-1 flex gap-4 text-sm">
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-[--color-st-run]"></span>
+					<span class="h-2 w-2 rounded-full bg-st-run"></span>
 					<span>Running {runningList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-[--color-st-needs]"></span>
+					<span class="h-2 w-2 rounded-full bg-st-needs"></span>
 					<span>Needs You {needsYouList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-[--color-st-done]"></span>
+					<span class="h-2 w-2 rounded-full bg-st-done"></span>
 					<span>Done {doneList.length}</span>
 				</div>
 			</div>
@@ -148,7 +148,7 @@
 				{#each runningList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 cursor-pointer rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -174,7 +174,7 @@
 				{#each needsYouList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 cursor-pointer rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -200,7 +200,7 @@
 				{#each doneList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 cursor-pointer rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
+						class="active-trigger mb-2 flex min-h-[44px] cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 w-full text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
@@ -253,7 +253,7 @@
 			aria-modal="true"
 		>
 			<button
-				class="active-trigger absolute top-4 right-4 z-10 rounded-full bg-card/80 p-2 text-foreground"
+				class="active-trigger absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/80 text-foreground"
 				onclick={closeSurfaceSheet}
 				aria-label="Back to Work Surface Dock"
 			>

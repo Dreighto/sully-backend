@@ -30,7 +30,7 @@
 
 	// Detect a fresh completion (done-count just went up) → flash a green dot
 	// for 6s, then it fades. Tracks the previous count and a timestamp.
-	let lastDoneCount = $state(0);
+	let lastDoneCount = 0;
 	let recentCompleteUntil = $state(0); // ms timestamp; 0 = no recent completion
 	let tick = $state(0); // bump to force isRecentComplete to re-derive
 
@@ -103,14 +103,14 @@
 	<button
 		type="button"
 		class="inline-flex h-11 items-center gap-2 rounded-full border bg-card px-3 text-xs font-medium text-foreground transition-colors {hasNeedsYou
-			? 'border-[--color-st-needs]'
+			? 'border-st-needs'
 			: 'border-border'}"
 		onclick={openMostImportant}
 		aria-label={ariaLabel}
 	>
 		{#if hasRunning}
 			<span
-				class="dot-pulse-soft h-2 w-2 rounded-full bg-[--color-st-run]"
+				class="dot-pulse-soft h-2 w-2 rounded-full bg-st-run"
 				style="animation-duration: {pulseDuration}s"
 				aria-hidden="true"
 			></span>
@@ -119,7 +119,7 @@
 
 		{#if hasNeedsYou}
 			<span
-				class="dot-pulse-urgent h-2 w-2 rounded-full bg-[--color-st-needs]"
+				class="dot-pulse-urgent h-2 w-2 rounded-full bg-st-needs"
 				style="animation-duration: {pulseDuration}s"
 				aria-hidden="true"
 			></span>
@@ -127,7 +127,7 @@
 		{/if}
 
 		{#if isRecentComplete}
-			<span class="dot-pulse-once h-2 w-2 rounded-full bg-[--color-status-green]" aria-hidden="true"
+			<span class="dot-pulse-once h-2 w-2 rounded-full bg-status-green" aria-hidden="true"
 			></span>
 		{/if}
 	</button>
