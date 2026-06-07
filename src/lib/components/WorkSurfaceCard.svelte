@@ -33,12 +33,14 @@
 			(task.state === 'Waiting' ? 'Awaiting operator action' : 'Awaiting instructions')
 	);
 
+	const isInMotion = $derived(
+		task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'
+	);
+
 	const displayApproveButton = $derived(
 		task.state === 'Waiting' && task.block?.kind === 'approval'
 	);
-	const displayStopButton = $derived(
-		task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'
-	);
+	const displayStopButton = $derived(isInMotion);
 	const displayRetryButton = $derived(task.state === 'Failed' || task.state === 'Stopped');
 
 	function handleApprove() {
@@ -95,7 +97,7 @@
 	<!-- 1. COLLAPSED VIEW -->
 	<div class="sully-collapsed-view" class:active={footprint === 'collapsed'}>
 		<div class="collapsed-content">
-			<span class="pulse-indicator status-{task.state.toLowerCase()}"></span>
+			<span class="pulse-indicator status-{task.state.toLowerCase()}" class:in-motion={isInMotion}></span>
 			<span class="collapsed-title">{task.state}</span>
 			{#if task.workers.length > 0}
 				<span class="collapsed-meta">{task.workers[0].shortCode}</span>
@@ -122,9 +124,9 @@
 		</div>
 
 		<!-- Active Ownership Banner -->
-		{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
+		{#if isInMotion}
 			<div class="active-ownership-banner bg-surface/50 p-3 rounded-md flex items-center gap-2 text-sm text-foreground">
-				<span class="ownership-pulse"></span>
+				<span class="ownership-pulse" class:in-motion={isInMotion}></span>
 				<span class="ownership-text">Next: {firstWorkerStep}</span>
 			</div>
 		{/if}
@@ -171,16 +173,16 @@
 			</div>
 
 			<!-- 4. Worker rows -->
-			<div class="flex flex-col divide-y divide-border/40 my-4">
+			<ul role="list" aria-label="Active workers" class="list-none p-0 m-0 flex flex-col divide-y divide-border/40 my-4">
 				{#each task.workers as w (w.identity)}
 					<WorkerRow worker={w} />
 				{/each}
-			</div>
+			</ul>
 
 			<!-- 5. Next banner -->
-			{#if task.state !== 'Complete' && task.state !== 'Stopped' && task.state !== 'Failed'}
+			{#if isInMotion}
 				<div class="active-ownership-banner bg-surface/50 p-3 rounded-md flex items-center gap-2 text-sm text-foreground">
-					<span class="ownership-pulse"></span>
+					<span class="ownership-pulse" class:in-motion={isInMotion}></span>
 					<span class="ownership-text">Next: {firstWorkerStep}</span>
 				</div>
 			{/if}
@@ -271,7 +273,12 @@
 
 	.pulse-indicator {
 		@apply h-2 w-2 rounded-full;
+	}
+	.pulse-indicator.in-motion {
 		animation: pulse 1.5s infinite ease-in-out;
+	}
+	.pulse-indicator:not(.in-motion) {
+		animation: none;
 	}
 
 	.pulse-indicator.status-reading,
@@ -374,7 +381,12 @@
 	.ownership-pulse {
 		@apply h-2 w-2 rounded-full;
 		background-color: var(--color-st-run);
+	}
+	.ownership-pulse.in-motion {
 		animation: pulse 1.5s infinite ease-in-out;
+	}
+	.ownership-pulse:not(.in-motion) {
+		animation: none;
 	}
 
 	.actions-container {
