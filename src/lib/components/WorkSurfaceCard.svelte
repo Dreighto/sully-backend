@@ -2,9 +2,9 @@
 	import type { WorkSurfaceTask, PipelineStage, TaskState } from '$lib/types/workSurface';
 	import StageTimeline from '$lib/components/StageTimeline.svelte';
 	import WorkGraph from '$lib/components/WorkGraph.svelte';
-	import PhaseChecklist from '$lib/components/PhaseChecklist.svelte';
-	import WorkerRegistry from '$lib/components/WorkerRegistry.svelte';
-	import ProofCard from '$lib/components/ProofCard.svelte';
+	// Cursor audit 2026-06-06: PhaseChecklist / WorkerRegistry / ProofCard imports
+	// removed (dead — these now render only inside the dock's accordions, never
+	// inline in the card). suppressInlinePanels prop also removed in this pass.
 	import { Check, X, Repeat } from 'lucide-svelte';
 	import SurfaceProgressRing from './SurfaceProgressRing.svelte';
 	import WorkerRow from './WorkerRow.svelte';
@@ -12,14 +12,12 @@
 	let {
 		task,
 		footprint = 'compact',
-		suppressInlinePanels = false, // New prop to control inline panel rendering
 		onapprove,
 		onstop,
 		onretry
 	}: {
 		task: WorkSurfaceTask;
 		footprint?: 'collapsed' | 'compact' | 'expanded';
-		suppressInlinePanels?: boolean; // New prop type definition
 		onapprove?: () => void;
 		onstop?: () => void;
 		onretry?: () => void;
@@ -27,6 +25,14 @@
 
 	let confirmApprove = $state(false);
 	let approveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Cursor audit 2026-06-06: clear the approve-confirm timeout if the card is
+	// destroyed mid-confirm so the timer doesn't leak.
+	$effect(() => {
+		return () => {
+			if (approveTimeout) clearTimeout(approveTimeout);
+		};
+	});
 
 	const firstWorkerStep = $derived(
 		task.workers[0]?.step ||
@@ -206,10 +212,14 @@
 				</div>
 			{/if}
 
-			<!-- 6. Actions -->
-			{#if task.state === 'Waiting' || task.state === 'Working'}
+			<!-- 6. Actions — aligned with compact footprint (Cursor audit 2026-06-06):
+			     gate on the derived display flags directly. Previously a hardcoded
+			     state list dropped Stop in Reading/Reviewing/Delivering — all
+			     in-motion states where Stop is meaningful. Now matches compact's
+			     isInMotion logic. -->
+			{#if displayApproveButton || displayStopButton || displayRetryButton}
 				<div class="actions-container">
-					{#if task.state === 'Waiting' && displayApproveButton}
+					{#if displayApproveButton}
 						<button class="action-btn action-approve" onclick={handleApprove}>
 							{#if confirmApprove && task.isDestructive}
 								Confirm?
@@ -218,9 +228,14 @@
 							{/if}
 						</button>
 					{/if}
-					{#if task.state === 'Working' && displayStopButton}
+					{#if displayStopButton}
 						<button class="action-btn action-stop" onclick={handleStop}>
 							<X size="16" /> Stop
+						</button>
+					{/if}
+					{#if displayRetryButton}
+						<button class="action-btn action-stop" onclick={handleStop}>
+							<Repeat size="16" /> Retry
 						</button>
 					{/if}
 				</div>
@@ -251,17 +266,29 @@
 
 	.work-surface-card.status-waiting,
 	.work-surface-card.status-stopped {
-		background-color: color-mix(in srgb, var(--color-st-needs) 10%, transparent); /* Light amber background */
+		background-color: color-mix(
+			in srgb,
+			var(--color-st-needs) 10%,
+			transparent
+		); /* Light amber background */
 		border-color: var(--color-st-needs);
 	}
 
 	.work-surface-card.status-failed {
-		background-color: color-mix(in srgb, var(--color-st-fail) 10%, transparent); /* Light red background */
+		background-color: color-mix(
+			in srgb,
+			var(--color-st-fail) 10%,
+			transparent
+		); /* Light red background */
 		border-color: var(--color-st-fail);
 	}
 
 	.work-surface-card.status-complete {
-		background-color: color-mix(in srgb, var(--color-status-green) 10%, transparent); /* Light green background */
+		background-color: color-mix(
+			in srgb,
+			var(--color-status-green) 10%,
+			transparent
+		); /* Light green background */
 		border-color: var(--color-status-green);
 		/* Earned-rest ambient glow — bound to the Complete state (not a timer).
 		   Soft, slow, doesn't compete with content. Decoration would be wrong;

@@ -9,7 +9,7 @@
 			case 'Research':
 				return 'bg-status-blue/10 text-status-blue border-status-blue/20';
 			case 'Build':
-				return 'bg-brand/10 text-brand border-brand/20';
+				return 'bg-status-purple/10 text-status-purple border-status-purple/20';
 			case 'Review':
 				return 'bg-status-purple/10 text-status-purple border-status-purple/20';
 			case 'Vision': // Assuming Vision maps to Research for visual
@@ -77,20 +77,20 @@
 	}
 
 	.worker-row {
-		@apply flex justify-between items-center px-3 py-2 rounded-md border border-border bg-surface text-sm transition-colors;
+		@apply flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm transition-colors;
 	}
 
 	.worker-row.row-active-highlight-researching {
-		@apply bg-status-blue/10 border-l-2 border-status-blue pl-2.5; /* padding-left adjusted for border */
+		@apply border-l-2 border-status-blue bg-status-blue/10 pl-2.5; /* padding-left adjusted for border */
 	}
 	.worker-row.row-active-highlight-building {
-		@apply bg-brand/10 border-l-2 border-brand pl-2.5;
+		@apply border-l-2 border-status-purple bg-status-purple/10 pl-2.5;
 	}
 	.worker-row.row-active-highlight-verifying {
-		@apply bg-status-purple/10 border-l-2 border-status-purple pl-2.5;
+		@apply border-l-2 border-status-purple bg-status-purple/10 pl-2.5;
 	}
 	.worker-row.row-active-highlight-blocked {
-		@apply bg-status-red/10 border-l-2 border-status-red pl-2.5;
+		@apply border-l-2 border-status-red bg-status-red/10 pl-2.5;
 	}
 
 	.worker-left {
@@ -98,14 +98,14 @@
 	}
 
 	.worker-dot {
-		@apply w-1.5 h-1.5 rounded-full flex-shrink-0;
+		@apply h-1.5 w-1.5 flex-shrink-0 rounded-full;
 		background-color: rgb(255 255 255 / 0.2); /* Muted-foreground/50 equivalent */
 	}
 	.worker-row.row-active-highlight-researching .worker-dot {
 		@apply bg-status-blue shadow-status-blue;
 	}
 	.worker-row.row-active-highlight-building .worker-dot {
-		@apply bg-brand shadow-brand;
+		@apply bg-status-purple shadow-status-purple;
 	}
 	.worker-row.row-active-highlight-verifying .worker-dot {
 		@apply bg-status-purple shadow-status-purple;
@@ -122,14 +122,14 @@
 	}
 
 	.worker-role {
-		@apply text-muted-foreground font-normal text-xs;
+		@apply text-xs font-normal text-muted-foreground;
 	}
 
 	.worker-status {
-		@apply text-muted-foreground text-xs;
+		@apply text-xs text-muted-foreground;
 	}
 
 	.worker-badge-pill {
-		@apply text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase;
+		@apply rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase;
 	}
 </style>

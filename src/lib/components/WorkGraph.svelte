@@ -156,11 +156,6 @@
 		return 'var(--color-status-blue)';
 	}
 
-	const getNodePos = $derived((id: string) => {
-		const node = allGraphNodes.find((n) => n.id === id);
-		return node ? node.pos : { x: 0, y: 0 };
-	});
-
 	const allRoutes = $derived.by(() => {
 		if (task.state === 'Complete' || task.state === 'Stopped' || task.state === 'Failed') {
 			return []; // No active routes or packets when settled

@@ -4,7 +4,7 @@
 	//
 	// Reads the surfaces store; renders one of four visual states:
 	//   - idle           → quiet, 0.5 opacity neutral dot, no animation
-	//   - working        → muted-rose dot pulses + "▶ N"
+	//   - working        → st-run blue dot pulses + "▶ N"
 	//   - needs-you      → amber border + faster-pulse amber dot + "⏸ N needs you"
 	//                      (the ONLY state that reaches for attention)
 	//   - recent-complete → a green dot fades over 6s alongside whatever state we're in
@@ -127,8 +127,7 @@
 		{/if}
 
 		{#if isRecentComplete}
-			<span class="dot-pulse-once h-2 w-2 rounded-full bg-status-green" aria-hidden="true"
-			></span>
+			<span class="dot-pulse-once h-2 w-2 rounded-full bg-status-green" aria-hidden="true"></span>
 		{/if}
 	</button>
 {/if}

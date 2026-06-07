@@ -464,11 +464,7 @@
 			</div>
 			{#if currentSurface}
 				<div class="rounded-xl border border-border bg-card p-4">
-					<WorkSurfaceCard
-						task={currentSurface.task}
-						footprint="expanded"
-						suppressInlinePanels={true}
-					/>
+					<WorkSurfaceCard task={currentSurface.task} footprint="expanded" />
 				</div>
 
 				<!-- Detail accordions — same shape the chat sheet will use. Activity

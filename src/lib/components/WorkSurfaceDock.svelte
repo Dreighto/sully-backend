@@ -147,7 +147,7 @@
 		<div class="-mr-2 flex-auto overflow-y-auto px-4 pr-2">
 			<!-- Running Tasks -->
 			{#if runningList.length > 0}
-				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-run]">Running</h3>
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-st-run">Running</h3>
 				{#each runningList as surface (surface.surfaceId)}
 					<button
 						type="button"
@@ -159,7 +159,7 @@
 						>
 							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
 							></span>
-							<span class="flex-none font-mono text-xs text-[--color-brand]">
+							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
@@ -173,7 +173,7 @@
 
 			<!-- Needs You Tasks -->
 			{#if needsYouList.length > 0}
-				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-needs]">Needs You</h3>
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-st-needs">Needs You</h3>
 				{#each needsYouList as surface (surface.surfaceId)}
 					<button
 						type="button"
@@ -185,7 +185,7 @@
 						>
 							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
 							></span>
-							<span class="flex-none font-mono text-xs text-[--color-brand]">
+							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
@@ -199,7 +199,7 @@
 
 			<!-- Done Tasks -->
 			{#if doneList.length > 0}
-				<h3 class="mt-4 mb-2 text-sm font-semibold text-[--color-st-done]">Done</h3>
+				<h3 class="mt-4 mb-2 text-sm font-semibold text-st-done">Done</h3>
 				{#each doneList as surface (surface.surfaceId)}
 					<button
 						type="button"
@@ -211,7 +211,7 @@
 						>
 							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
 							></span>
-							<span class="flex-none font-mono text-xs text-[--color-brand]">
+							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
 							</span>
 							<span class="flex-grow truncate">{surface.title}</span>
@@ -277,11 +277,7 @@
 				<!-- Glance layer: card top + status + graph + timeline only. The
 				     inline detail panels (phases/workers/proof) are suppressed and
 				     surface below as collapsed accordions. -->
-				<WorkSurfaceCard
-					footprint="expanded"
-					task={currentSurface.task}
-					suppressInlinePanels={true}
-				/>
+				<WorkSurfaceCard footprint="expanded" task={currentSurface.task} />
 
 				<!-- Detail accordions — default collapsed, expand on tap. -->
 				<div class="mt-6 space-y-2">

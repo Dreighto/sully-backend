@@ -5,10 +5,11 @@
 
 	// TODO Phase 2: bind amplitude to event count
 
-	// Widen to string so the 'waiting' branch (used for surface-blocked
-	// visualisations) is reachable per typecheck. The runtime value is still
-	// a WorkerStatus; the union is just expanded for comparison purposes.
-	const wState = $derived<string>(worker.status || 'idle');
+	// Per the WorkerStatus contract: queued | active | done | failed | idle.
+	// (Cursor audit 2026-06-06 finding: previous 'string' widening let an
+	// unreachable 'waiting' branch slip through. Workers don't wait — the
+	// SURFACE does.)
+	const wState = $derived(worker.status || 'idle');
 
 	// Per-identity brand colour (operator-locked 2026-06-06):
 	//   CC (claude-code)   → orange  — Anthropic / Claude orange
@@ -31,9 +32,9 @@
 
 	const strokeColor = $derived.by(() => {
 		if (wState === 'active') return workerBrandColor;
-		if (wState === 'waiting') return 'var(--color-st-needs)'; // amber
-		if (wState === 'idle') return 'var(--color-st-done)'; // gray
+		if (wState === 'idle' || wState === 'queued') return 'var(--color-st-done)'; // gray
 		if (wState === 'done') return 'var(--color-status-green)'; // green
+		if (wState === 'failed') return 'var(--color-st-fail)'; // muted rose
 		return 'var(--color-st-done)';
 	});
 
@@ -58,13 +59,7 @@
 			<rect x="30" y="12" width="4" height="4" rx="2" class="bar-active bar-active-3" />
 			<rect x="40" y="12" width="4" height="4" rx="2" class="bar-active bar-active-4" />
 			<rect x="50" y="12" width="4" height="4" rx="2" class="bar-active bar-active-5" />
-		{:else if wState === 'waiting'}
-			<rect x="10" y="12" width="4" height="4" rx="2" />
-			<rect x="20" y="12" width="4" height="4" rx="2" />
-			<rect x="30" y="12" width="4" height="4" rx="2" />
-			<rect x="40" y="12" width="4" height="4" rx="2" />
-			<rect x="50" y="12" width="4" height="4" rx="2" />
-		{:else if wState === 'idle'}
+		{:else if wState === 'idle' || wState === 'queued'}
 			<rect x="10" y="13" width="4" height="3" rx="1.5" />
 			<rect x="20" y="13" width="4" height="3" rx="1.5" />
 			<rect x="30" y="13" width="4" height="3" rx="1.5" />
