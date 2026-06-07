@@ -2,6 +2,45 @@
 
 **Status:** Approved direction (operator, 2026-06-06). The build blueprint AND the
 labeling scheme for the local-Sully training corpus.
+
+---
+
+## DOCTRINE (locked 2026-06-06 — operator + GPT + CC consensus)
+
+> **Sully is Dynamic Island + Cursor, wrapped in Vision Pro materials.**
+> **Glance first.** Motion is reality. Everything else is follow-up.
+> **The next pass is subtraction.**
+
+**The two glance questions** (the surface answers ONLY these two without scanning):
+
+1. **What is going on?** → status pill + ring + Next banner
+2. **Who is doing what now?** → one worker row per active worker, no nesting
+
+Everything else (Timeline, Proof, Registry, Memory, Logs, Activity stream) lives
+in collapsed accordions below. Never on glance.
+
+**Operating rules (each resolves a class of future micro-decisions):**
+
+- **GLANCE FIRST.** Before adding any element, ask: does this help the two glance
+  questions, or does it serve completeness? If completeness — collapse it.
+- **Motion is reality or it isn't there.** Every loop, pulse, waveform, fill must
+  bind to a real system signal (event count, completion %, elapsed wait, tool
+  type). Decoration-without-binding is forbidden — it's the trap that bit every
+  previous pass. The phrase to engrave: _Motion is reality._
+- **Presence by absence.** Signal earned by what isn't there: the Sully pill is
+  absent when idle (not a dot, not "0 workers" — gone). The Approve/Stop row
+  is absent when no action is available. **The appearance of an element is the
+  event.**
+- **One row each, no nesting.** Worker rows are flat: `[shortcode] [waveform] [action]`.
+  No tree, no collapse, no sub-rows. Drill-down lives below the card.
+- **Subtraction over addition.** The next pass removes; it does not add. New
+  widgets are weighed against what they would replace.
+
+This doctrine ranks above the rest of this spec. If anything below conflicts
+with it, the doctrine wins.
+
+---
+
 **Backed by two convergent investigations** (read for full detail):
 `data/peer_reviews/2026-06-06_frontend-audit-cdx.md` (code) +
 `data/peer_reviews/2026-06-06_motion-concurrency-research.md` (field).
