@@ -11,6 +11,7 @@
 	//   - 100% wired controls (Paperclip uploads, Sparkles image mode, Talkback loop).
 
 	import { onMount, onDestroy, untrack } from 'svelte';
+	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import { createDispatchStream } from '$lib/chat/dispatchStream.svelte';
 	import { parseDbTimestamp } from '$lib/utils/format';
@@ -188,8 +189,17 @@
 				setStatus(surfaceId, next);
 			}
 		});
-		ctrl.start();
-		dispatchStreams[traceId] = ctrl;
+		// SSR runs MessageFeed's template {@const ctrl = ensureDispatchStream(...)},
+		// but ctrl.start() bails on !browser. If we cached that SSR controller,
+		// hydration would short-circuit on the cache hit and never call start()
+		// on the client → SSE never opens, onActive never fires, no pill. Only
+		// cache + start on the browser side so hydration creates a fresh, started
+		// controller. (Diagnosed live 2026-06-07: prod showed dispatch chip but
+		// no pill while dev :5180 worked.)
+		if (browser) {
+			ctrl.start();
+			dispatchStreams[traceId] = ctrl;
+		}
 		return ctrl;
 	}
 
