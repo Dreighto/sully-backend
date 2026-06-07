@@ -86,15 +86,15 @@
 			task.state === 'Reviewing' ||
 			task.state === 'Delivering'
 		) {
-			return 'bg-[--color-st-run]';
+			return 'bg-st-run';
 		} else if (task.state === 'Waiting') {
-			return 'bg-[--color-st-needs]';
+			return 'bg-st-needs';
 		} else if (task.state === 'Complete') {
-			return 'bg-[--color-st-done]';
+			return 'bg-st-done';
 		} else if (task.state === 'Failed') {
-			return 'bg-[--color-st-fail]';
+			return 'bg-st-fail';
 		} else {
-			return 'bg-[--color-st-done]';
+			return 'bg-st-done';
 		}
 	});
 </script>
@@ -251,17 +251,17 @@
 
 	.work-surface-card.status-waiting,
 	.work-surface-card.status-stopped {
-		background-color: var(--color-status-amber-10); /* Light amber background */
+		background-color: color-mix(in srgb, var(--color-st-needs) 10%, transparent); /* Light amber background */
 		border-color: var(--color-st-needs);
 	}
 
 	.work-surface-card.status-failed {
-		background-color: var(--color-status-red-10); /* Light red background */
+		background-color: color-mix(in srgb, var(--color-st-fail) 10%, transparent); /* Light red background */
 		border-color: var(--color-st-fail);
 	}
 
 	.work-surface-card.status-complete {
-		background-color: var(--color-status-green-10); /* Light green background */
+		background-color: color-mix(in srgb, var(--color-status-green) 10%, transparent); /* Light green background */
 		border-color: var(--color-status-green);
 		/* Earned-rest ambient glow — bound to the Complete state (not a timer).
 		   Soft, slow, doesn't compete with content. Decoration would be wrong;

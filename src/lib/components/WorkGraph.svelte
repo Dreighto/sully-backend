@@ -480,20 +480,23 @@
 		width: 10px;
 		height: 10px;
 	}
-	.node-icon-wrapper.researching .packet-shape {
-		color: #0ea5e9;
-		fill: #0ea5e9;
+	.node-icon-wrapper.researching {
 		animation-duration: 7.5s; /* 3 packets * 2.5s delay */
 	}
-	.node-icon-wrapper.building .packet-shape {
-		color: var(--color-status-blue);
-		fill: var(--color-status-blue);
+	.node-icon-wrapper.researching .packet-shape {
+		fill: #0ea5e9;
+	}
+	.node-icon-wrapper.building {
 		animation-duration: 2s; /* 5 packets * 0.4s delay */
 	}
-	.node-icon-wrapper.verifying .packet-shape {
-		color: var(--color-status-purple);
-		fill: var(--color-status-purple);
+	.node-icon-wrapper.building .packet-shape {
+		fill: var(--color-status-blue);
+	}
+	.node-icon-wrapper.verifying {
 		animation-duration: 1s; /* 1 packet * 1.0s delay */
+	}
+	.node-icon-wrapper.verifying .packet-shape {
+		fill: var(--color-status-purple);
 	}
 
 	/* Central Task Node */

@@ -69,7 +69,7 @@
 		@apply bg-status-green;
 	}
 	.phase-row.active .phase-dot {
-		@apply bg-brand; /* Use brand for active, consistent with existing WorkSurfaceCard */
+		@apply bg-st-run;
 		animation: dotBreath 1.5s infinite;
 	}
 	.phase-row.pending .phase-dot {

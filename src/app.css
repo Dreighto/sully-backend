@@ -45,6 +45,8 @@
 	--color-worker-gemini: #3b82f6;
 	--color-worker-operator: #ef4444;
 
+	--color-on-brand: #050505;
+
 	/* shadcn-svelte compatibility */
 	--radius: 0.5rem;
 
