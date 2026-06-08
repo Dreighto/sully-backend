@@ -23,7 +23,7 @@ const PIPELINE_STAGES: PipelineStage[] = ['Read', 'Research', 'Build', 'Check', 
 // rendering as the AGY mark (operator caught 2026-06-07 in his "build me a
 // mockup" surface). Identity always wins over role; role-fallback is only
 // for unknown identities.
-const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'>> = {
+export const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'>> = {
 	'claude-code': {
 		identity: 'claude-code',
 		shortCode: 'CC',

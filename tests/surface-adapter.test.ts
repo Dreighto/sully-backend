@@ -1,9 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Database from 'better-sqlite3';
-import { liveSurfaceFromTrace } from '$lib/server/surfaceAdapter';
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// Set environment variable before importing
+const tmpDb = join(tmpdir(), `surface-adapter-test-${Date.now()}.db`);
+process.env.LOGUEOS_MEMORY_DB_PATH = tmpDb;
+
+// Dynamic import after setting env
+const { liveSurfaceFromTrace } = await import('$lib/server/surfaceAdapter');
 
 describe('liveSurfaceFromTrace', () => {
     let dbPath: string;
@@ -136,23 +142,23 @@ describe('liveSurfaceFromTrace', () => {
     
     it('should handle running task correctly', async () => {
         const result = await liveSurfaceFromTrace('test-running');
-        expect(result).toBeDefined();
+        expect(result).not.toBeNull();
         expect(result?.aggr).toBe('running');
         expect(result?.workers[0].currentStep).toBe('Writing file');
-        expect(result?.phases.some(p => p.status === 'active')).toBe(true);
+        expect(result?.phases.some((p: any) => p.status === 'active')).toBe(true);
     });
     
     it('should handle done task correctly', async () => {
         const result = await liveSurfaceFromTrace('test-done');
-        expect(result).toBeDefined();
+        expect(result).not.toBeNull();
         expect(result?.aggr).toBe('done');
         expect(result?.workers[0].status).toBe('done');
-        expect(result?.phases.every(p => p.status === 'done' || p.status === 'skipped')).toBe(true);
+        expect(result?.phases.every((p: any) => p.status === 'done' || p.status === 'skipped')).toBe(true);
     });
     
     it('should handle failed task correctly', async () => {
         const result = await liveSurfaceFromTrace('test-failed');
-        expect(result).toBeDefined();
+        expect(result).not.toBeNull();
         expect(result?.aggr).toBe('failed');
         expect(result?.workers[0].status).toBe('failed');
         expect(result?.needs).toBeDefined();
@@ -168,7 +174,7 @@ describe('liveSurfaceFromTrace', () => {
         db.close();
         
         const result = await liveSurfaceFromTrace('test-no-activity');
-        expect(result).toBeDefined();
+        expect(result).not.toBeNull();
         expect(result?.workers[0].currentStep).toBe('starting');
         expect(result?.phases[0].status).toBe('active'); // Read phase should be active
     });

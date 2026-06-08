@@ -2,7 +2,15 @@ import Database from 'better-sqlite3';
 import { serverConfig } from './config';
 import { WORKER_TEMPLATES, inferStageFromAction } from '$lib/work-surface/chatBridge.svelte';
 import { workerBrandColor } from '$lib/utils/workerVisual';
-import type { SeedSurface, SeedWorker, SeedPhase, SeedFile } from '$lib/work-surface/cc-track/sandbox-types';
+import type {
+  AggrStatus,
+  PhaseKey,
+  PhaseStatus,
+  SeedPhase,
+  SeedWorker,
+  SeedFile,
+  SeedSurface,
+} from "$lib/work-surface/hybrid/hybrid-types";
 import fs from 'node:fs';
 
 export async function liveSurfaceFromTrace(traceId: string): Promise<SeedSurface | null> {
@@ -128,6 +136,11 @@ function formatActionText(action: string): string {
     return map[action] || action;
 }
 
+function stageToKey(stage: string | null): PhaseKey | null {
+    if (!stage) return null;
+    return stage.toLowerCase() as PhaseKey;
+}
+
 function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
     const pipelineStages = ['Read', 'Research', 'Build', 'Check', 'Approve', 'Reply'];
     const phaseMap: Record<string, SeedPhase> = {};
@@ -156,12 +169,12 @@ function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
     }
     
     // Build phases
-    return pipelineStages.map(stage => {
+    const phases = pipelineStages.map(stage => {
         const index = pipelineStages.indexOf(stage);
         const highestIndex = highestStage ? pipelineStages.indexOf(highestStage) : -1;
         
-        let status: 'pending' | 'active' | 'done' | 'failed' | 'skipped';
-        let skipReason: string | undefined;
+        let status: PhaseStatus;
+        let reason: string | undefined;
         
         if (index < highestIndex) {
             status = 'done';
@@ -170,17 +183,24 @@ function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
                      aggrStatus === 'done' ? 'done' : 'failed';
         } else {
             status = aggrStatus === 'running' ? 'pending' : 'skipped';
-            skipReason = 'Not reached by worker';
+            reason = 'Not reached by worker';
         }
         
         return {
-            name: stage,
+            key: stageToKey(stage)!,
             status,
-            skipReason,
             startedAt: stageTimestamps[stage].first,
-            endedAt: stageTimestamps[stage].last
+            endedAt: stageTimestamps[stage].last,
+            reason: status === 'skipped' ? reason : undefined
         };
     });
+    
+    // Handle zero activity rows case
+    if (activityRows.length === 0 && aggrStatus === 'running') {
+        phases[0].status = 'active';
+    }
+    
+    return phases;
 }
 
 async function buildFiles(activityRows: any[]): Promise<SeedFile[]> {
