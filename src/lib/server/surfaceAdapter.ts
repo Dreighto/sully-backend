@@ -84,6 +84,7 @@ function mapJobStatusToAggrStatus(status: string): 'running' | 'done' | 'failed'
 
 function buildWorkers(workerId: string, aggrStatus: string, activityRows: any[]): SeedWorker[] {
     const template = WORKER_TEMPLATES[workerId] || WORKER_TEMPLATES['claude-code'];
+    const fallbackTemplate = WORKER_TEMPLATES['claude-code'];
     const color = workerBrandColor(workerId, template.shortCode);
     
     // Get latest action
@@ -112,7 +113,7 @@ function buildWorkers(workerId: string, aggrStatus: string, activityRows: any[])
     return [{
         id: workerId,
         shortcode: template.shortCode,
-        iconId: template.icon,
+        iconId: template.icon ?? fallbackTemplate.icon ?? 'icon-claude',
         color,
         status: workerStatus,
         currentStep,

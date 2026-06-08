@@ -1,4 +1,4 @@
-import { inferStageFromAction, type PipelineStage } from '../src/lib/work-surface/chatBridge.svelte';
+import { inferStageFromAction } from '../src/lib/work-surface/chatBridge.svelte';
 import { describe, it, expect } from 'vitest'; // Assuming Vitest is used based on SvelteKit
 
 describe('inferStageFromAction', () => {

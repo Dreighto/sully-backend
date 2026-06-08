@@ -2,7 +2,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import WorkerIconSprite from '$lib/components/WorkerIconSprite.svelte';
-	import { ALL_SEEDS, SEED_RUNNING, SEED_NEEDS_YOU, SEED_DONE } from '$lib/work-surface/cc-track/sandbox-seed';
+	import {
+		ALL_SEEDS,
+		SEED_RUNNING,
+		SEED_NEEDS_YOU,
+		SEED_DONE
+	} from '$lib/work-surface/hybrid/sandbox-seed';
 	import type { SeedSurface, SeedPhase } from '$lib/work-surface/hybrid/hybrid-types';
 	import HybridDispatchPill from '$lib/work-surface/hybrid/HybridDispatchPill.svelte';
 	import HybridDispatchCard from '$lib/work-surface/hybrid/HybridDispatchCard.svelte';

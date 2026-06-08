@@ -1,24 +1,23 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-// Set environment variable before importing
 const tmpDb = join(tmpdir(), `surface-adapter-test-${Date.now()}.db`);
-process.env.LOGUEOS_MEMORY_DB_PATH = tmpDb;
+vi.mock('$env/dynamic/private', () => ({
+	env: {
+		LOGUEOS_MEMORY_DB_PATH: tmpDb
+	}
+}));
 
 // Dynamic import after setting env
 const { liveSurfaceFromTrace } = await import('$lib/server/surfaceAdapter');
 
 describe('liveSurfaceFromTrace', () => {
-    let dbPath: string;
-    
     beforeAll(() => {
         // Create a temporary database for testing
-        dbPath = join(tmpdir(), `test-surface-adapter-${Date.now()}.db`);
-        
-        const db = new Database(dbPath);
+        const db = new Database(tmpDb);
         
         // Create tables
         db.exec(`
@@ -130,8 +129,8 @@ describe('liveSurfaceFromTrace', () => {
     });
     
     afterAll(() => {
-        if (fs.existsSync(dbPath)) {
-            fs.unlinkSync(dbPath);
+        if (fs.existsSync(tmpDb)) {
+            fs.unlinkSync(tmpDb);
         }
     });
     
@@ -166,7 +165,7 @@ describe('liveSurfaceFromTrace', () => {
     
     it('should handle task with zero activity rows', async () => {
         // Insert a task with no activity
-        const db = new Database(dbPath);
+        const db = new Database(tmpDb);
         db.prepare(`
             INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at)
             VALUES ('test-no-activity', 'claude-code', 'working', 'No activity task', ?)
