@@ -56,6 +56,20 @@
 		return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 	}
 
+	/** Render activity timestamps as relative time when fresh, absolute clock when older. */
+	function formatActivityTime(ts: string): string {
+		if (!ts) return '';
+		const t = Date.parse(ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z');
+		if (Number.isNaN(t)) return ts;
+		const ageMs = Date.now() - t;
+		const ageSec = Math.floor(ageMs / 1000);
+		if (ageSec < 60) return `${Math.max(ageSec, 0)}s ago`;
+		const ageMin = Math.floor(ageSec / 60);
+		if (ageMin < 60) return `${ageMin}m ago`;
+		const d = new Date(t);
+		return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+	}
+
 	const traceId = $derived(surface.surfaceId);
 	const availableFiles = $derived(surface.files.filter((f) => f.status === 'available'));
 
@@ -139,6 +153,21 @@
 			</div>
 
 			<div class="sheet-body">
+				<!-- Activity log — what the worker actually did, plain English -->
+				{#if (surface.activity ?? []).length > 0}
+					<section class="sheet-section">
+						<h2 class="sheet-section-label">Activity</h2>
+						<div class="activity-log">
+							{#each surface.activity as entry, i (`${entry.timestamp}_${i}_${entry.action}`)}
+								<div class="activity-row" data-testid="activity-row" data-action={entry.action}>
+									<span class="activity-time">{formatActivityTime(entry.timestamp)}</span>
+									<span class="activity-text">{entry.description}</span>
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/if}
+
 				<!-- Stage timeline -->
 				<section class="sheet-section">
 					<h2 class="sheet-section-label">Stage timeline</h2>
@@ -158,7 +187,9 @@
 									{PHASE_LABELS[phase.key]}
 								</span>
 								<span class="timeline-time">
-									{phase.status === 'skipped' ? 'skipped' : (phase.endedAt ?? phase.startedAt ?? '—')}
+									{phase.status === 'skipped'
+										? 'skipped'
+										: (phase.endedAt ?? phase.startedAt ?? '—')}
 								</span>
 							</div>
 							{#if phase.status === 'skipped' && phase.reason}
@@ -654,5 +685,48 @@
 		50% {
 			opacity: 0.35;
 		}
+	}
+
+	/* ── Activity log ── */
+	.activity-log {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		max-height: 280px;
+		overflow-y: auto;
+		padding-right: 4px;
+	}
+	.activity-row {
+		display: flex;
+		gap: 10px;
+		font-size: 13px;
+		line-height: 1.45;
+		padding: 6px 8px;
+		border-radius: 6px;
+		background: var(--color-surface-raised, rgba(255, 255, 255, 0.02));
+		border: 1px solid var(--color-edge, rgba(255, 255, 255, 0.06));
+		align-items: baseline;
+	}
+	.activity-row[data-action='completed'],
+	.activity-row[data-action='synthesis_completed'],
+	.activity-row[data-action='reply_persisted'] {
+		border-color: color-mix(in srgb, var(--color-st-done) 35%, var(--color-edge));
+	}
+	.activity-row[data-action='verification_poll'],
+	.activity-row[data-action='adversary_reviewed'] {
+		border-color: color-mix(in srgb, var(--color-st-needs) 25%, var(--color-edge));
+	}
+	.activity-time {
+		flex: none;
+		font-size: 11px;
+		color: var(--color-st-done);
+		font-variant-numeric: tabular-nums;
+		min-width: 56px;
+	}
+	.activity-text {
+		flex: 1 1 0;
+		min-width: 0;
+		color: var(--color-text, #e8eaf0);
+		word-break: break-word;
 	}
 </style>

@@ -79,10 +79,16 @@
 	);
 
 	const phaseLines = $derived.by(() => {
+		// Prefer the humanized activity log from the adapter when present: those
+		// descriptions are plain English with file paths / tool names baked in
+		// ("CC is reading src/app.css") instead of raw enum names ("reading").
+		const fromActivity = (surface.activity ?? [])
+			.map((a) => a.description)
+			.filter((s, i, arr) => i === 0 || s !== arr[i - 1]); // dedupe consecutive
+		if (fromActivity.length > 0) return fromActivity.slice(-5);
+
+		// Fallback to the worker's raw stepHistory (older adapter payloads).
 		if (!activeWorker) return [];
-		// Avoid duplicate-key crash when currentStep is already the last stepHistory
-		// entry (common — adapter emits the live event as both). De-dup with stable
-		// chronological order preserved.
 		const last = activeWorker.stepHistory[activeWorker.stepHistory.length - 1];
 		const lines =
 			activeWorker.currentStep && activeWorker.currentStep !== last

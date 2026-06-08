@@ -39,6 +39,25 @@ export interface SeedFile {
 	modifiedAt: string | null;
 }
 
+/**
+ * One row in the surface's chronological activity log. Each row is a
+ * humanized re-projection of a chat_activity event — the raw action +
+ * target turned into a plain-English description the operator can read
+ * at a glance. The `target` is retained for the rare case the UI wants
+ * to render the raw payload (e.g. linkifying file paths).
+ */
+export interface SeedActivity {
+	timestamp: string;
+	/** Raw chat_activity.action — kept for filtering, debugging, color coding. */
+	action: string;
+	/** Plain-English description: "Sully picked CC", "CC is reading src/app.css". */
+	description: string;
+	/** Raw chat_activity.target verbatim (may be JSON, may be plain text, may be null). */
+	target: string | null;
+	/** PipelineStage this activity advanced (or null if it doesn't map to a stage). */
+	phase: PhaseKey | null;
+}
+
 export interface SeedSurface {
 	surfaceId: string;
 	title: string;
@@ -46,6 +65,12 @@ export interface SeedSurface {
 	workers: SeedWorker[];
 	phases: SeedPhase[];
 	files: SeedFile[];
+	/**
+	 * Full chronological activity log, humanized. Used by State C detail sheet
+	 * and (last N entries) by State B's phase-lines display. Optional so
+	 * older seeds / fixtures without activity still satisfy the type.
+	 */
+	activity?: SeedActivity[];
 	/** Present only when aggr === 'needs-you'. */
 	needs?: { action: string; target: string };
 	/** Present only when aggr === 'blocked'. */
