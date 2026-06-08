@@ -55,3 +55,12 @@ mcp.json
 data/dispatch-prompts/
 data/peer_reviews/routing-scorecard-latest.md
 data/routing-gate-blocks.jsonl
+
+# Local SQLite DBs (operator chat data — never commit)
+companion.db
+companion.db-shm
+companion.db-wal
+
+# Python bytecode
+*.pyc
+**/__pycache__/

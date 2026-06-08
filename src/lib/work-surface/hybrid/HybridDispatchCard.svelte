@@ -8,6 +8,7 @@
 	import { Collapsible } from 'bits-ui';
 	import { crossfade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import { base } from '$app/paths';
 	import type { SeedSurface } from './hybrid-types';
 	import { deriveAggr } from './aggregate';
 	import HybridDispatchPill from './HybridDispatchPill.svelte';
@@ -25,6 +26,23 @@
 
 	let expanded = $state(false);
 	let cardEl = $state<HTMLElement | null>(null);
+
+	// Stop — abort the running worker. surface.surfaceId IS the trace_id.
+	let stopping = $state(false);
+	async function stopTask(e: MouseEvent) {
+		e.stopPropagation(); // don't toggle the collapsible
+		if (stopping) return;
+		stopping = true;
+		try {
+			await fetch(`${base}/api/chat/dispatch/stop`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ trace_id: surface.surfaceId })
+			});
+		} catch {
+			stopping = false;
+		}
+	}
 
 	const aggr = $derived(deriveAggr(surface.workers));
 	const effectiveExpanded = $derived(forceExpanded || expanded);
@@ -201,7 +219,15 @@
 					<HybridWorkerCluster workers={surface.workers} />
 					<span class="card-title">{surface.title}</span>
 					{#if isActive}
-						<button class="stop-btn" type="button" disabled title="Coming soon">Stop</button>
+						<button
+							class="stop-btn"
+							type="button"
+							onclick={stopTask}
+							disabled={stopping}
+							data-testid="card-stop"
+						>
+							{stopping ? 'Stopping…' : 'Stop'}
+						</button>
 					{/if}
 				</div>
 

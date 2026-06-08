@@ -52,6 +52,17 @@
 	import { cubicOut } from 'svelte/easing';
 	import type { TransitionConfig } from 'svelte/transition';
 	import type { ActionReturn } from 'svelte/action';
+	import { createSheetDrag } from '$lib/utils/sheetDrag.svelte';
+
+	// Swipe-down-to-dismiss for the mobile model-picker sheet, via the shared
+	// vaul-faithful factory (replaces the old passive-listener swipeToDismiss
+	// which didn't engage on iOS). Mobile-only (desktop is a dropdown), and
+	// externalExit so the sheet's own transition:sheetTransition animates close.
+	const modelDrag = createSheetDrag({
+		onDismiss: () => (showModelOverrideModal = false),
+		isEnabled: () => typeof window !== 'undefined' && window.innerWidth < 1024,
+		externalExit: true
+	});
 
 	// Portal action — moves the node to <body> on mount, removes it on
 	// destroy. Used ONLY on mobile (< lg) so the model-picker sheet + its
@@ -108,84 +119,10 @@
 		};
 	}
 
-	// Swipe-to-dismiss gesture for the mobile bottom sheet. iOS-canonical
-	// behavior: while the sheet's internal scroll is at the top (scrollTop
-	// === 0), a downward drag follows the finger; releasing past a 100px
-	// threshold dismisses the sheet, otherwise it springs back. When the
-	// list is scrolled, normal scroll wins — the gesture only takes over
-	// once the user is at the top trying to "pull down past the edge".
-	// Mobile-only: registers no listeners at lg+.
-	function swipeToDismiss(
-		node: HTMLElement,
-		params: { onDismiss: () => void }
-	): ActionReturn | void {
-		if (typeof window === 'undefined') return;
-		if (window.innerWidth >= 1024) return;
-
-		const THRESHOLD_PX = 100;
-		let startY = 0;
-		let delta = 0;
-		let dragging = false;
-		let armed = false; // true once we've decided this gesture is a dismiss-drag (vs a scroll)
-
-		function onStart(e: TouchEvent) {
-			if (e.touches.length !== 1) return;
-			startY = e.touches[0].clientY;
-			delta = 0;
-			dragging = true;
-			armed = node.scrollTop <= 0;
-			node.style.transition = 'none';
-		}
-
-		function onMove(e: TouchEvent) {
-			if (!dragging || e.touches.length !== 1) return;
-			const y = e.touches[0].clientY;
-			const d = y - startY;
-			// If user starts dragging at scrollTop=0 and pulls down, take over.
-			if (!armed && node.scrollTop <= 0 && d > 0) armed = true;
-			if (!armed) return;
-			if (d < 0) {
-				// Upward drag: snap to 0, don't go negative.
-				delta = 0;
-				node.style.transform = 'translateY(0)';
-				return;
-			}
-			delta = d;
-			node.style.transform = `translateY(${d}px)`;
-		}
-
-		function onEnd() {
-			if (!dragging) return;
-			dragging = false;
-			node.style.transition = 'transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1)';
-			if (delta > THRESHOLD_PX) {
-				// Dismiss — let the parent flip showModelOverrideModal=false; the
-				// transition:sheetTransition's `out` phase will animate the rest.
-				// Reset the inline transform so the next mount starts clean.
-				node.style.transform = '';
-				params.onDismiss();
-			} else {
-				node.style.transform = 'translateY(0)';
-			}
-		}
-
-		// passive: true on start/move because we never preventDefault — we let
-		// the OS keep its scroll affordance for the rows inside the sheet, and
-		// only take over when the operator pulls down at the top edge.
-		node.addEventListener('touchstart', onStart, { passive: true });
-		node.addEventListener('touchmove', onMove, { passive: true });
-		node.addEventListener('touchend', onEnd, { passive: true });
-		node.addEventListener('touchcancel', onEnd, { passive: true });
-
-		return {
-			destroy() {
-				node.removeEventListener('touchstart', onStart);
-				node.removeEventListener('touchmove', onMove);
-				node.removeEventListener('touchend', onEnd);
-				node.removeEventListener('touchcancel', onEnd);
-			}
-		};
-	}
+	// (Old passive-listener swipeToDismiss removed — replaced by the shared
+	// createSheetDrag factory, see modelDrag above. The old version never
+	// engaged on iOS because passive listeners + default touch-action let
+	// WebKit consume the downward drag as a scroll before it could arm.)
 
 	const TALKBACK_PHASE_LABELS: Record<TalkbackPhase, string> = {
 		capture: '🔴 Capture',
@@ -501,61 +438,74 @@
 						aria-hidden="true"
 					></div>
 
-					<!-- Below lg: bottom-anchored sheet. lg+: dropdown opens UPWARD. -->
+					<!-- Below lg: bottom-anchored sheet (swipe-down to dismiss). lg+: dropdown opens UPWARD. -->
 					<div
 						use:mobilePortal
-						use:swipeToDismiss={{ onDismiss: () => (showModelOverrideModal = false) }}
+						data-sheet
 						data-popover
 						role="dialog"
 						aria-modal="true"
 						aria-label="Choose a model"
 						transition:sheetTransition
-						class="fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-y-auto overscroll-contain rounded-t-2xl border border-b-0 border-white/[0.08] bg-[#0e0e11]/85 pt-2 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] shadow-2xl backdrop-blur-2xl lg:absolute lg:inset-x-auto lg:top-auto lg:bottom-full lg:left-0 lg:mb-2 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:max-w-[calc(100vw-1rem)] lg:rounded-2xl lg:border-b lg:pt-1 lg:pb-1"
+						class="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.08] bg-[#0e0e11]/85 pt-2 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] shadow-2xl backdrop-blur-2xl lg:absolute lg:inset-x-auto lg:top-auto lg:bottom-full lg:left-0 lg:mb-2 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:max-w-[calc(100vw-1rem)] lg:rounded-2xl lg:border-b lg:pt-1 lg:pb-1"
 					>
-						<div
-							class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-full bg-white/20 lg:hidden"
-							aria-hidden="true"
-						></div>
-						<div class="flex items-center justify-between px-3 pt-1.5 pb-0.5 font-sans select-none">
-							<span class="text-[9px] tracking-wider text-zinc-600 uppercase">Model</span>
-							<button
-								type="button"
-								onclick={() => (showModelOverrideModal = false)}
-								class="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90"
-								aria-label="Close model picker"
-								title="Close"
+						<!-- Drag zone: grabber + header. Swipe down here to dismiss (mobile). -->
+						<div class="shrink-0" style="touch-action: none;" {...modelDrag.handleProps}>
+							<div
+								class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-full bg-white/20 lg:hidden"
+								aria-hidden="true"
+							></div>
+							<div
+								class="flex items-center justify-between px-3 pt-1.5 pb-0.5 font-sans select-none"
 							>
-								<X size={14} />
-							</button>
+								<span class="text-[9px] tracking-wider text-zinc-600 uppercase">Model</span>
+								<button
+									type="button"
+									onclick={() => (showModelOverrideModal = false)}
+									class="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90"
+									aria-label="Close model picker"
+									title="Close"
+								>
+									<X size={14} />
+								</button>
+							</div>
 						</div>
-						{#each MODEL_CHOICES as choice (choice.id)}
-							<button
-								type="button"
-								onclick={() => onsetModelChoice(choice)}
-								class="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-1.5 text-left transition-all hover:bg-white/[0.04] active:scale-[0.985] active:bg-white/[0.07]
-									{selectedModelChoice.id === choice.id ? 'font-medium text-[#ff7eb3]' : 'text-zinc-200'}"
-							>
-								<span class="flex min-w-0 items-center gap-2.5">
-									<span
-										class="flex h-6 w-6 shrink-0 items-center justify-center {selectedModelChoice.id ===
-										choice.id
-											? 'text-[#ff7eb3]'
-											: 'text-zinc-400'}"
-									>
-										<PickerIcon provider={choice.provider} size={16} />
-									</span>
-									<span class="flex min-w-0 flex-col leading-[1.15]">
-										<span class="truncate text-[13px]">{choice.label}</span>
-										<span class="truncate font-sans text-[10px] text-zinc-500"
-											>{choice.sublabel}</span
+						<!-- Scrollable model list (drags the sheet only when at scrollTop 0). -->
+						<div
+							class="overflow-y-auto overscroll-contain"
+							style="touch-action: pan-y;"
+							use:modelDrag.bodyAction
+							{...modelDrag.bodyProps}
+						>
+							{#each MODEL_CHOICES as choice (choice.id)}
+								<button
+									type="button"
+									onclick={() => onsetModelChoice(choice)}
+									class="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-1.5 text-left transition-all hover:bg-white/[0.04] active:scale-[0.985] active:bg-white/[0.07]
+										{selectedModelChoice.id === choice.id ? 'font-medium text-[#ff7eb3]' : 'text-zinc-200'}"
+								>
+									<span class="flex min-w-0 items-center gap-2.5">
+										<span
+											class="flex h-6 w-6 shrink-0 items-center justify-center {selectedModelChoice.id ===
+											choice.id
+												? 'text-[#ff7eb3]'
+												: 'text-zinc-400'}"
 										>
+											<PickerIcon provider={choice.provider} size={16} />
+										</span>
+										<span class="flex min-w-0 flex-col leading-[1.15]">
+											<span class="truncate text-[13px]">{choice.label}</span>
+											<span class="truncate font-sans text-[10px] text-zinc-500"
+												>{choice.sublabel}</span
+											>
+										</span>
 									</span>
-								</span>
-								{#if selectedModelChoice.id === choice.id}
-									<Check size={12} class="shrink-0" />
-								{/if}
-							</button>
-						{/each}
+									{#if selectedModelChoice.id === choice.id}
+										<Check size={12} class="shrink-0" />
+									{/if}
+								</button>
+							{/each}
+						</div>
 					</div>
 				{/if}
 			</div>

@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import { Dialog } from 'bits-ui';
 	import type { SeedSurface } from './hybrid-types';
+	import { createSheetDrag } from '$lib/utils/sheetDrag.svelte';
 
 	let {
 		surface,
@@ -19,11 +20,29 @@
 		onclose();
 	}
 
-	// Swipe-down dismiss removed 2026-06-07: operator feedback that the swipe
-	// gesture conflicted with normal touch-scroll inside the sheet body, and
-	// that this surface reads better as a MODAL than a bottom-sheet (X + tap-
-	// outside are the canonical dismissals). The swipe-zone wrapper + handle
-	// pip were removed at the same time.
+	// Swipe-down-to-dismiss via the shared vaul-faithful drag factory. The
+	// gesture follows the finger (visual transform), dismisses past a distance
+	// OR velocity threshold, and snaps back otherwise. It does NOT fight inner
+	// scroll: the handle zone always drags; the body drags only when scrolled
+	// to the top, otherwise scrolls natively. See $lib/utils/sheetDrag.svelte.ts.
+	const drag = createSheetDrag({ onDismiss: close });
+
+	// Stop — abort the running worker. surface.surfaceId IS the trace_id.
+	let stopping = $state(false);
+	async function stopTask() {
+		if (stopping) return;
+		stopping = true;
+		try {
+			await fetch(`${base}/api/chat/dispatch/stop`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ trace_id: surface.surfaceId })
+			});
+			// The surface poller flips aggr → failed/aborted on the next tick.
+		} catch {
+			stopping = false; // let the operator retry if the request itself failed
+		}
+	}
 
 	const PHASE_LABELS: Record<string, string> = {
 		read: 'Read',
@@ -114,15 +133,28 @@
 		<Dialog.Overlay class="sheet-overlay" onclick={close} />
 		<Dialog.Content
 			class="sheet-content"
+			data-sheet
 			data-testid="detail-sheet"
 			aria-label="Task detail — {surface.title}"
 		>
+			<!-- Drag handle — always-draggable grabber (touch-action:none). Swipe
+				 down anywhere on this zone to dismiss; follows the finger. -->
+			<div
+				class="sheet-handle-zone"
+				{...drag.handleProps}
+				role="button"
+				tabindex="-1"
+				aria-label="Drag down to close"
+			>
+				<div class="sheet-handle" aria-hidden="true"></div>
+			</div>
+
 			<!-- bits-ui v2 requires a Title + Description or it logs a console error. Screen-reader-only. -->
 			<Dialog.Title class="sr-only">{surface.title}</Dialog.Title>
 			<Dialog.Description class="sr-only">Task detail for {surface.title}</Dialog.Description>
 
-			<!-- Modal-style header (no swipe pip — X + tap-outside are the only dismissals). -->
-			<div class="sheet-header">
+			<!-- Header (also draggable so a swipe starting on the title still dismisses) -->
+			<div class="sheet-header" {...drag.handleProps}>
 				<span class="sheet-title">{surface.title}</span>
 				<Dialog.Close class="sheet-close" aria-label="Close" onclick={close}>
 					<svg
@@ -140,7 +172,7 @@
 				</Dialog.Close>
 			</div>
 
-			<div class="sheet-body">
+			<div class="sheet-body" use:drag.bodyAction {...drag.bodyProps}>
 				<!-- Activity log — what the worker actually did, plain English -->
 				{#if (surface.activity ?? []).length > 0}
 					<section class="sheet-section">
@@ -295,9 +327,15 @@
 					>
 				{/if}
 				{#if surface.aggr === 'running' || surface.aggr === 'needs-you'}
-					<button class="sheet-btn sheet-btn--stop" type="button" disabled title="Coming soon"
-						>Stop task</button
+					<button
+						class="sheet-btn sheet-btn--stop"
+						type="button"
+						onclick={stopTask}
+						disabled={stopping}
+						data-testid="sheet-stop"
 					>
+						{stopping ? 'Stopping…' : 'Stop task'}
+					</button>
 				{/if}
 			</div>
 		</Dialog.Content>
@@ -317,15 +355,20 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		max-height: 70dvh;
+		max-height: 78dvh;
 		max-width: 480px;
 		margin: 0 auto;
+		display: flex;
+		flex-direction: column;
 		background: var(--color-surface);
 		border-radius: 20px 20px 0 0;
 		border-top: 1px solid var(--color-edge);
-		overflow-y: auto;
+		/* container never scrolls — it is the transform target for the drag.
+		   The .sheet-body inside is the scroller. */
+		overflow: hidden;
+		touch-action: none;
+		will-change: transform;
 		z-index: 50;
-		padding-bottom: env(safe-area-inset-bottom, 16px);
 		animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 	@media (prefers-reduced-motion: reduce) {
@@ -341,27 +384,43 @@
 	.sheet-handle-zone {
 		display: flex;
 		justify-content: center;
-		padding: 12px;
+		align-items: center;
+		padding: 10px 12px 6px;
 		cursor: grab;
+		touch-action: none;
+		flex: none;
+	}
+	.sheet-handle-zone:active {
+		cursor: grabbing;
 	}
 	.sheet-handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 2px;
+		width: 40px;
+		height: 5px;
+		border-radius: 3px;
 		background: var(--color-edge-active);
 	}
 	.sheet-header {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		padding: 12px 16px 10px;
+		padding: 2px 12px 10px 16px;
 		border-bottom: 1px solid var(--color-edge);
+		flex: none;
+		touch-action: none;
+		cursor: grab;
+	}
+	.sheet-header:active {
+		cursor: grabbing;
 	}
 	.sheet-title {
 		flex: 1;
+		min-width: 0;
 		font-size: 14px;
 		font-weight: 600;
 		color: var(--color-text, #e8eaf0);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	:global(.sheet-close) {
 		width: 44px;
@@ -625,10 +684,21 @@
 	}
 
 	/* ── Actions ── */
+	.sheet-body {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		touch-action: pan-y;
+		overscroll-behavior: contain;
+	}
 	.sheet-actions {
 		display: flex;
 		gap: 8px;
 		padding: 12px 16px;
+		flex: none;
+		padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+		border-top: 1px solid var(--color-edge);
 	}
 	.sheet-btn {
 		flex: 1;
