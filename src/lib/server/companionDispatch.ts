@@ -64,8 +64,9 @@ PROGRESS CALLBACK — POST each step to ${cbUrl} as JSON (no auth header needed;
 
 CLOSING — POST a terminal row, then your result-marker telemetry AND an evidence envelope of POINTERS (include only what you actually did; omit the rest — a missing pointer just means Sully can't independently confirm that part):
   { "trace_id": "${input.traceId}", "action": "completed", "result_ref": "<final message or artifact ref>",
-    "evidence": { "fs_paths": ["<files you created/edited>"], "git_ref": "<commit SHA>", "repo": "${input.targetRepo}", "pr_number": <PR number or null>, "health_url": "<service URL you can claim is up, or null>" },
+    "evidence": { "fs_paths": ["<files you created/edited>"], "artifacts": [{"path": "<ABSOLUTE path>", "label": "<name>", "importance": "primary|secondary|supporting"}], "git_ref": "<commit SHA>", "repo": "${input.targetRepo}", "pr_number": <PR number or null>, "health_url": "<service URL you can claim is up, or null>" },
     "marker": { "worker": "claude-code", "model": "<model>", "usage": { "prompt": 0, "completion": 0, "cache_read": 0, "cache_creation": 0, "total": 0 } } }
+Declare high-value artifacts (e.g. built .ipa, .apk, .zip, or final report) in "artifacts" with absolute paths.
 On failure POST action "failed" with target set to a one-line reason.`;
 }
 

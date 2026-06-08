@@ -5,8 +5,15 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
 
+export interface DeclaredArtifact {
+	path: string;
+	label?: string;
+	importance?: 'primary' | 'secondary' | 'supporting';
+}
+
 export interface EvidenceEnvelope {
 	fs_paths?: string[] | null;
+	artifacts?: DeclaredArtifact[] | null;
 	git_ref?: string | null; // SHA or branch
 	repo?: string | null; // target repo name, e.g. 'LogueOS-Companion'
 	pr_number?: number | null;
