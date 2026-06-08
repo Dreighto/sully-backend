@@ -15,12 +15,12 @@ vi.mock('$env/dynamic/private', () => ({
 const { liveSurfaceFromTrace } = await import('$lib/server/surfaceAdapter');
 
 describe('liveSurfaceFromTrace', () => {
-    beforeAll(() => {
-        // Create a temporary database for testing
-        const db = new Database(tmpDb);
-        
-        // Create tables
-        db.exec(`
+	beforeAll(() => {
+		// Create a temporary database for testing
+		const db = new Database(tmpDb);
+
+		// Create tables
+		db.exec(`
             CREATE TABLE pending_jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 trace_id TEXT UNIQUE NOT NULL,
@@ -60,121 +60,128 @@ describe('liveSurfaceFromTrace', () => {
                 timestamp TEXT DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        
-        // Insert test data
-        const now = new Date().toISOString();
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        
-        // Running task
-        db.prepare(`
+
+		// Insert test data
+		const now = new Date().toISOString();
+		const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+		// Running task
+		db.prepare(
+			`
             INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at)
             VALUES ('test-running', 'claude-code', 'working', 'Test running task', ?)
-        `).run(fiveMinutesAgo);
-        
-        db.prepare(`
+        `
+		).run(fiveMinutesAgo);
+
+		db.prepare(
+			`
             INSERT INTO chat_activity (trace_id, action, target, timestamp)
             VALUES 
             ('test-running', 'thinking', NULL, ?),
             ('test-running', 'tool_invoked', 'tool1', ?),
             ('test-running', 'tool_result', 'result1', ?),
             ('test-running', 'write_file', '/tmp/test.txt', ?)
-        `).run(
-            new Date(Date.now() - 300000).toISOString(),
-            new Date(Date.now() - 240000).toISOString(),
-            new Date(Date.now() - 180000).toISOString(),
-            new Date(Date.now() - 120000).toISOString()
-        );
-        
-        // Done task
-        db.prepare(`
+        `
+		).run(
+			new Date(Date.now() - 300000).toISOString(),
+			new Date(Date.now() - 240000).toISOString(),
+			new Date(Date.now() - 180000).toISOString(),
+			new Date(Date.now() - 120000).toISOString()
+		);
+
+		// Done task
+		db.prepare(
+			`
             INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at, ended_at)
             VALUES ('test-done', 'claude-code', 'synthesized', 'Test done task', ?, ?)
-        `).run(
-            new Date(Date.now() - 600000).toISOString(),
-            new Date(Date.now() - 30000).toISOString()
-        );
-        
-        db.prepare(`
+        `
+		).run(new Date(Date.now() - 600000).toISOString(), new Date(Date.now() - 30000).toISOString());
+
+		db.prepare(
+			`
             INSERT INTO chat_activity (trace_id, action, target, timestamp)
             VALUES 
             ('test-done', 'thinking', NULL, ?),
             ('test-done', 'write_file', '/tmp/done.txt', ?),
             ('test-done', 'complete', NULL, ?)
-        `).run(
-            new Date(Date.now() - 590000).toISOString(),
-            new Date(Date.now() - 550000).toISOString(),
-            new Date(Date.now() - 35000).toISOString()
-        );
-        
-        // Failed task
-        db.prepare(`
+        `
+		).run(
+			new Date(Date.now() - 590000).toISOString(),
+			new Date(Date.now() - 550000).toISOString(),
+			new Date(Date.now() - 35000).toISOString()
+		);
+
+		// Failed task
+		db.prepare(
+			`
             INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at, ended_at)
             VALUES ('test-failed', 'claude-code', 'failed', 'Test failed task', ?, ?)
-        `).run(
-            new Date(Date.now() - 300000).toISOString(),
-            new Date(Date.now() - 10000).toISOString()
-        );
-        
-        db.prepare(`
+        `
+		).run(new Date(Date.now() - 300000).toISOString(), new Date(Date.now() - 10000).toISOString());
+
+		db.prepare(
+			`
             INSERT INTO chat_activity (trace_id, action, target, payload, timestamp)
             VALUES 
             ('test-failed', 'thinking', NULL, NULL, ?),
             ('test-failed', 'gate_evaluated', NULL, '{"action":"operator-cancelled","target":"test"}', ?)
-        `).run(
-            new Date(Date.now() - 290000).toISOString(),
-            new Date(Date.now() - 15000).toISOString()
-        );
-        
-        db.close();
-    });
-    
-    afterAll(() => {
-        if (fs.existsSync(tmpDb)) {
-            fs.unlinkSync(tmpDb);
-        }
-    });
-    
-    it('should return null for non-existent trace', async () => {
-        const result = await liveSurfaceFromTrace('nonexistent');
-        expect(result).toBeNull();
-    });
-    
-    it('should handle running task correctly', async () => {
-        const result = await liveSurfaceFromTrace('test-running');
-        expect(result).not.toBeNull();
-        expect(result?.aggr).toBe('running');
-        expect(result?.workers[0].currentStep).toBe('Writing file');
-        expect(result?.phases.some((p: any) => p.status === 'active')).toBe(true);
-    });
-    
-    it('should handle done task correctly', async () => {
-        const result = await liveSurfaceFromTrace('test-done');
-        expect(result).not.toBeNull();
-        expect(result?.aggr).toBe('done');
-        expect(result?.workers[0].status).toBe('done');
-        expect(result?.phases.every((p: any) => p.status === 'done' || p.status === 'skipped')).toBe(true);
-    });
-    
-    it('should handle failed task correctly', async () => {
-        const result = await liveSurfaceFromTrace('test-failed');
-        expect(result).not.toBeNull();
-        expect(result?.aggr).toBe('failed');
-        expect(result?.workers[0].status).toBe('failed');
-        expect(result?.needs).toBeDefined();
-    });
-    
-    it('should handle task with zero activity rows', async () => {
-        // Insert a task with no activity
-        const db = new Database(tmpDb);
-        db.prepare(`
+        `
+		).run(new Date(Date.now() - 290000).toISOString(), new Date(Date.now() - 15000).toISOString());
+
+		db.close();
+	});
+
+	afterAll(() => {
+		if (fs.existsSync(tmpDb)) {
+			fs.unlinkSync(tmpDb);
+		}
+	});
+
+	it('should return null for non-existent trace', async () => {
+		const result = await liveSurfaceFromTrace('nonexistent');
+		expect(result).toBeNull();
+	});
+
+	it('should handle running task correctly', async () => {
+		const result = await liveSurfaceFromTrace('test-running');
+		expect(result).not.toBeNull();
+		expect(result?.aggr).toBe('running');
+		expect(result?.workers[0].currentStep).toBe('Writing a file');
+		expect(result?.phases.some((p: any) => p.status === 'active')).toBe(true);
+	});
+
+	it('should handle done task correctly', async () => {
+		const result = await liveSurfaceFromTrace('test-done');
+		expect(result).not.toBeNull();
+		expect(result?.aggr).toBe('done');
+		expect(result?.workers[0].status).toBe('done');
+		expect(result?.phases.every((p: any) => p.status === 'done' || p.status === 'skipped')).toBe(
+			true
+		);
+	});
+
+	it('should handle failed task correctly', async () => {
+		const result = await liveSurfaceFromTrace('test-failed');
+		expect(result).not.toBeNull();
+		expect(result?.aggr).toBe('failed');
+		expect(result?.workers[0].status).toBe('failed');
+		expect(result?.needs).toBeUndefined();
+	});
+
+	it('should handle task with zero activity rows', async () => {
+		// Insert a task with no activity
+		const db = new Database(tmpDb);
+		db.prepare(
+			`
             INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at)
             VALUES ('test-no-activity', 'claude-code', 'working', 'No activity task', ?)
-        `).run(new Date().toISOString());
-        db.close();
-        
-        const result = await liveSurfaceFromTrace('test-no-activity');
-        expect(result).not.toBeNull();
-        expect(result?.workers[0].currentStep).toBe('starting');
-        expect(result?.phases[0].status).toBe('active'); // Read phase should be active
-    });
+        `
+		).run(new Date().toISOString());
+		db.close();
+
+		const result = await liveSurfaceFromTrace('test-no-activity');
+		expect(result).not.toBeNull();
+		expect(result?.workers[0].currentStep).toBe('starting');
+		expect(result?.phases[0].status).toBe('active'); // Read phase should be active
+	});
 });
