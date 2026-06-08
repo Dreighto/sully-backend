@@ -16,7 +16,9 @@
 	let open = $state(true);
 
 	// Swipe-down to dismiss. useSwipe() returns props to spread on the touch target.
-	// Applied to the handle bar — bits-ui Dialog.Content doesn't accept Svelte actions.
+	// Applied to the WHOLE swipe-zone (handle + header) so a phone gesture doesn't
+	// need to hit the 28px handle precisely. minSwipeDistance lowered to 40px and
+	// timeframe widened to 360ms — easier to trigger on a real iPhone in flow.
 	const handleSwipeProps = useSwipe(
 		(e: SwipeCustomEvent) => {
 			if (e.detail.direction === 'bottom') {
@@ -24,7 +26,7 @@
 				onclose();
 			}
 		},
-		() => ({ timeframe: 300, minSwipeDistance: 60, touchAction: 'pan-y' })
+		() => ({ timeframe: 360, minSwipeDistance: 40, touchAction: 'pan-y' })
 	);
 
 	function close() {
@@ -124,33 +126,38 @@
 			data-testid="detail-sheet"
 			aria-label="Task detail — {surface.title}"
 		>
-			<!-- Swipe handle (touch target for swipe-down dismiss) -->
-			<div class="sheet-handle-zone" {...handleSwipeProps}>
-				<div class="sheet-handle" aria-hidden="true"></div>
-			</div>
+			<!-- Swipe-down dismiss wrapper covers BOTH the visible handle AND the
+				 header (title + X), so a downward swipe anywhere on the top of the
+				 sheet closes it, not just on the 28px handle pip. -->
+			<div class="sheet-swipe-zone" {...handleSwipeProps}>
+				<div class="sheet-handle-zone">
+					<div class="sheet-handle" aria-hidden="true"></div>
+				</div>
 
-			<!-- bits-ui v2 requires a Title + Description or it logs a console error. Screen-reader-only. -->
-			<Dialog.Title class="sr-only">{surface.title}</Dialog.Title>
-			<Dialog.Description class="sr-only">Task detail for {surface.title}</Dialog.Description>
+				<!-- bits-ui v2 requires a Title + Description or it logs a console error. Screen-reader-only. -->
+				<Dialog.Title class="sr-only">{surface.title}</Dialog.Title>
+				<Dialog.Description class="sr-only">Task detail for {surface.title}</Dialog.Description>
 
-			<!-- Header -->
-			<div class="sheet-header">
-				<span class="sheet-title">{surface.title}</span>
-				<Dialog.Close class="sheet-close" aria-label="Close" onclick={close}>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						aria-hidden="true"
-					>
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
-				</Dialog.Close>
+				<!-- Header -->
+				<div class="sheet-header">
+					<span class="sheet-title">{surface.title}</span>
+					<Dialog.Close class="sheet-close" aria-label="Close" onclick={close}>
+						<svg
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							aria-hidden="true"
+						>
+							<line x1="18" y1="6" x2="6" y2="18" />
+							<line x1="6" y1="6" x2="18" y2="18" />
+						</svg>
+					</Dialog.Close>
+				</div>
 			</div>
+			<!-- /sheet-swipe-zone -->
 
 			<div class="sheet-body">
 				<!-- Activity log — what the worker actually did, plain English -->
@@ -685,6 +692,10 @@
 		50% {
 			opacity: 0.35;
 		}
+	}
+
+	.sheet-swipe-zone {
+		touch-action: pan-y;
 	}
 
 	/* ── Activity log ── */
