@@ -19,6 +19,7 @@
 	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 	import { DispatchCard, surfaceStore } from '$lib/work-surface';
+	import HybridSurfaceMount from '$lib/work-surface/hybrid/HybridSurfaceMount.svelte';
 	import WorkingBubble from '$lib/components/WorkingBubble.svelte';
 	import SullyAvatar from '$lib/components/SullyAvatar.svelte';
 	import SullyNameTag from '$lib/components/SullyNameTag.svelte';
@@ -133,12 +134,18 @@
 				     spawns the surface in surfaceStore. Result `ctrl` is used by the
 				     fallback WorkingBubble path. -->
 				{@const ctrl = ensureDispatchStream(m.trace_id)}
+				{@const useHybrid = $page.url.searchParams.get('hybrid-surface') === '1'}
 				{@const useInline = $page.url.searchParams.get('inline-dispatch') === '1'}
 				{@const surfaceId = useInline ? traceToSurface[m.trace_id] : undefined}
 				{@const surface = surfaceId
 					? surfaceStore.items.find((s) => s.surfaceId === surfaceId)
 					: null}
-				{#if useInline && surface}
+				{#if useHybrid}
+					<!-- Flag-on path (Hybrid): C+B hybrid surface, fetched from /api/surface -->
+					<div class="w-full">
+						<HybridSurfaceMount traceId={m.trace_id} />
+					</div>
+				{:else if useInline && surface}
 					<!-- Flag-on path (Phase 1+2): DispatchCard inline in the message feed -->
 					<div class="w-full">
 						<DispatchCard {surface} message={m} />
