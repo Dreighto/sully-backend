@@ -221,6 +221,18 @@
 					</div>
 				</section>
 
+				<!-- Promotion warning -->
+				{#if surface.promotionWarning}
+					<section class="sheet-section">
+						<div class="promotion-warning" data-testid="promotion-warning">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+								<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+							</svg>
+							<span>{surface.promotionWarning}</span>
+						</div>
+					</section>
+				{/if}
+
 				<!-- Result files (only when files exist) -->
 				{#if surface.files.length > 0}
 					<section class="sheet-section">
@@ -242,14 +254,26 @@
 								<div class="file-entry" data-testid="file-entry" data-status={file.status}>
 									<div class="file-dot file-dot--{file.status}" aria-hidden="true"></div>
 									{#if file.status === 'available'}
-										<button
-											type="button"
-											class="file-name file-name--link"
-											data-testid="file-open"
-											onclick={() => openFile(file.path)}
-										>
-											{file.path}
-										</button>
+										<div class="file-info">
+											<div class="file-header">
+												<button
+													type="button"
+													class="file-name file-name--link"
+													data-testid="file-open"
+													onclick={() => openFile(file.path)}
+												>
+													{file.label ?? file.path}
+												</button>
+												{#if file.importance}
+													<span class="importance-chip importance-chip--{file.importance}" data-testid="importance-chip">
+														{file.importance}
+													</span>
+												{/if}
+											</div>
+											{#if file.label && file.label !== file.path}
+												<div class="file-path">{file.path}</div>
+											{/if}
+										</div>
 										<span class="file-meta">{fmtBytes(file.sizeBytes)}</span>
 										<div class="file-actions">
 											<button
@@ -280,17 +304,47 @@
 											</button>
 										</div>
 									{:else}
-										<span
-											class="file-name"
-											class:file-name--superseded={file.status === 'superseded'}
-										>
-											{file.path}
-										</span>
+										<div class="file-info">
+											<div class="file-header">
+												<span
+													class="file-name"
+													class:file-name--superseded={file.status === 'superseded'}
+												>
+													{file.label ?? file.path}
+												</span>
+												{#if file.importance}
+													<span class="importance-chip importance-chip--{file.importance}" data-testid="importance-chip">
+														{file.importance}
+													</span>
+												{/if}
+											</div>
+											{#if file.label && file.label !== file.path}
+												<div class="file-path">{file.path}</div>
+											{/if}
+										</div>
 										<span class="file-meta">{fmtBytes(file.sizeBytes)}</span>
 										<span class="file-label file-label--{file.status}">
 											{FILE_STATUS_LABELS[file.status] ?? file.status}
 										</span>
 									{/if}
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/if}
+
+				<!-- Evidence / work trace (only when evidence exists) -->
+				{#if surface.evidence?.length}
+					<section class="sheet-section">
+						<h2 class="sheet-section-label">Evidence / work trace</h2>
+						<div class="evidence-list">
+							{#each surface.evidence as evidence}
+								<div class="evidence-entry" data-testid="evidence-entry">
+									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+										<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+									</svg>
+									<span class="evidence-path">{evidence.path}</span>
+									<span class="evidence-label">Not downloadable</span>
 								</div>
 							{/each}
 						</div>
@@ -681,6 +735,97 @@
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
+	}
+
+	/* ── Promotion warning ── */
+	.promotion-warning {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 12px;
+		border-radius: 8px;
+		background: rgba(201, 163, 78, 0.12);
+		border: 1px solid var(--color-st-needs);
+		color: var(--color-st-needs);
+		font-size: 12px;
+		font-weight: 500;
+	}
+
+	/* ── File info layout ── */
+	.file-info {
+		flex: 1 1 100%;
+		min-width: 0;
+	}
+	.file-header {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 2px;
+	}
+	.file-path {
+		font-size: 11px;
+		color: var(--color-st-done);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* ── Importance chip ── */
+	.importance-chip {
+		font-size: 9px;
+		font-weight: 700;
+		padding: 2px 6px;
+		border-radius: 4px;
+		flex: none;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.importance-chip--primary {
+		background: rgba(74, 154, 106, 0.12);
+		color: #4a9a6a;
+	}
+	.importance-chip--secondary {
+		background: rgba(212, 212, 216, 0.12);
+		color: var(--color-st-done);
+	}
+	.importance-chip--supporting {
+		background: rgba(212, 212, 216, 0.08);
+		color: var(--color-st-done);
+		border: 1px solid var(--color-edge);
+	}
+
+	/* ── Evidence list ── */
+	.evidence-list {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.evidence-entry {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 0;
+		font-size: 12px;
+		color: var(--color-st-done);
+		border-bottom: 1px solid var(--color-edge);
+	}
+	.evidence-entry:last-child {
+		border-bottom: none;
+	}
+	.evidence-path {
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.evidence-label {
+		font-size: 10px;
+		font-weight: 600;
+		padding: 2px 6px;
+		border-radius: 4px;
+		background: var(--color-surface-raised);
+		color: var(--color-st-done);
+		flex: none;
 	}
 
 	/* ── Actions ── */
