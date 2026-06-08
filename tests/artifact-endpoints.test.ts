@@ -6,22 +6,46 @@ import path from 'node:path';
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'artifact-endpoints-'));
 const tmpDb = path.join(tmpRoot, 'companion.db');
-const workspacePath = path.join(tmpRoot, 'workspace');
 const traceId = 'sully-artifact-test';
 const unknownTrace = 'sully-unknown-trace';
 
-fs.mkdirSync(path.join(workspacePath, 'data', 'audits'), { recursive: true });
-fs.writeFileSync(path.join(workspacePath, 'data', 'audits', 'foo.md'), '# Foo\n');
-fs.writeFileSync(path.join(workspacePath, 'data', 'audits', 'bar.json'), '{"ok":true}\n');
+// Stage 4 contract: the read-side reads the DURABLE MANIFEST, not chat activity.
+// The store is resolved under LOGUEOS_ARTIFACT_REPO_ROOT (hermetic in tests).
+// Stage 3 flattens copies to basename, so original_path === basename.
+process.env.LOGUEOS_ARTIFACT_REPO_ROOT = tmpRoot;
+const storeDir = path.join(tmpRoot, 'data/sully/artifacts/2026-06-07', traceId);
 
 vi.mock('$env/dynamic/private', () => ({
 	env: {
 		LOGUEOS_MEMORY_DB_PATH: tmpDb,
-		LOGUEOS_ARTIFACT_WORKSPACE_DEFAULT: workspacePath
+		LOGUEOS_ARTIFACT_REPO_ROOT: tmpRoot
 	}
 }));
 
-process.env.LOGUEOS_ARTIFACT_WORKSPACE_DEFAULT = workspacePath;
+function seedStore() {
+	// Durable store: the copied deliverables (flat, by basename) + the manifest.
+	fs.mkdirSync(storeDir, { recursive: true });
+	fs.writeFileSync(path.join(storeDir, 'foo.md'), '# Foo\n');
+	fs.writeFileSync(path.join(storeDir, 'bar.json'), '{"ok":true}\n');
+	const mk = (original: string, type: string, importance: string) => ({
+		created_by: 'CC',
+		task_id: 'PRO-999',
+		trace_id: traceId,
+		timestamp: '2026-06-07T20:45:39Z',
+		source_worker: 'claude-code',
+		workspace_path: storeDir,
+		artifact_type: type,
+		original_path: original,
+		artifact_url: `/companion/api/artifacts/${traceId}/${original}`,
+		label: original,
+		importance
+	});
+	// Written in importance order (primary → secondary), matching writeManifestAtomic.
+	fs.writeFileSync(
+		path.join(storeDir, 'manifest.json'),
+		JSON.stringify([mk('foo.md', 'doc', 'primary'), mk('bar.json', 'data', 'secondary')], null, 2)
+	);
+}
 
 function seedDb() {
 	const db = new Database(tmpDb);
@@ -62,13 +86,7 @@ function seedDb() {
 	db.prepare(
 		`INSERT INTO pending_jobs (trace_id, worker, status, brief, ticket_id, workspace_path, started_at)
 		 VALUES (?, 'claude-code', 'working', 'Artifact test', 'PRO-999', ?, '2026-06-07T20:45:39Z')`
-	).run(traceId, workspacePath);
-
-	db.prepare(
-		`INSERT INTO chat_activity (trace_id, action, target, timestamp) VALUES
-		 (?, 'wrote_file', 'data/audits/foo.md', '2026-06-07T20:45:39Z'),
-		 (?, 'wrote_file', 'data/audits/bar.json', '2026-06-07T20:46:10Z')`
-	).run(traceId, traceId);
+	).run(traceId, storeDir);
 
 	db.close();
 }
@@ -115,14 +133,15 @@ const HEADER_KEYS = [
 
 beforeAll(() => {
 	seedDb();
+	seedStore();
 });
 
 afterAll(() => {
 	fs.rmSync(tmpRoot, { recursive: true, force: true });
 });
 
-describe('artifact endpoints', () => {
-	it('GET listing for existing trace with 2 wrote_file rows → 2 artifacts with full metadata', async () => {
+describe('artifact endpoints (durable manifest)', () => {
+	it('GET listing reads the durable manifest → 2 artifacts with full metadata', async () => {
 		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/+server');
 		const res = await (GET as (e: { params: { trace_id: string } }) => Promise<Response>)({
 			params: { trace_id: traceId }
@@ -140,8 +159,10 @@ describe('artifact endpoints', () => {
 			}
 			expect(artifact.created_by).toBe('CC');
 			expect(artifact.source_worker).toBe('claude-code');
-			expect(artifact.workspace_path).toBe(workspacePath);
+			expect(artifact.workspace_path).toBe(storeDir);
 		}
+		// manifest order is importance-sorted: primary (doc) then secondary (data)
+		expect(body.artifacts[0].original_path).toBe('foo.md');
 		expect(body.artifacts[0].artifact_type).toBe('doc');
 		expect(body.artifacts[1].artifact_type).toBe('data');
 	});
@@ -155,7 +176,7 @@ describe('artifact endpoints', () => {
 		expect(await res.json()).toEqual({ error: 'trace_not_found' });
 	});
 
-	it('GET single file → 200 + correct Content-Type + all 9 X-Artifact headers', async () => {
+	it('GET single file (by manifest original_path) → 200 + Content-Type + all 9 X-Artifact headers', async () => {
 		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/[...filepath]/+server');
 		const res = await (
 			GET as (e: {
@@ -164,8 +185,8 @@ describe('artifact endpoints', () => {
 				request: Request;
 			}) => Promise<Response>
 		)({
-			params: { trace_id: traceId, filepath: 'data/audits/foo.md' },
-			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/data/audits/foo.md`),
+			params: { trace_id: traceId, filepath: 'foo.md' },
+			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/foo.md`),
 			request: new Request('http://localhost/companion/api/artifacts/test')
 		});
 		expect(res.status).toBe(200);
@@ -174,27 +195,37 @@ describe('artifact endpoints', () => {
 			expect(res.headers.get(key)).toBeTruthy();
 		}
 		expect(res.headers.get('x-artifact-created-by')).toBe('CC');
-		expect(res.headers.get('x-artifact-original-path')).toBe('data/audits/foo.md');
+		expect(res.headers.get('x-artifact-original-path')).toBe('foo.md');
 		expect(await res.text()).toContain('# Foo');
+	});
+
+	it('GET single file not in the manifest → 404 (never falls back to a worker path)', async () => {
+		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/[...filepath]/+server');
+		const event = {
+			params: { trace_id: traceId, filepath: 'not-promoted.md' },
+			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/not-promoted.md`),
+			request: new Request('http://localhost/companion/api/artifacts/test')
+		};
+		try {
+			const res = await (GET as (e: typeof event) => Promise<Response>)(event);
+			expect([403, 404]).toContain(res.status);
+		} catch (err: unknown) {
+			expect([403, 404]).toContain((err as { status?: number }).status);
+		}
 	});
 
 	it('GET single file with .. in path → 403/404 (auth boundary holds)', async () => {
 		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/[...filepath]/+server');
 		const event = {
 			params: { trace_id: traceId, filepath: 'data/../../outside.txt' },
-			url: new URL(
-				`http://localhost/companion/api/artifacts/${traceId}/data/../../outside.txt`
-			),
+			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/data/../../outside.txt`),
 			request: new Request('http://localhost/companion/api/artifacts/test')
 		};
 		try {
-			const res = await (
-				GET as (e: typeof event) => Promise<Response>
-			)(event);
+			const res = await (GET as (e: typeof event) => Promise<Response>)(event);
 			expect([403, 404]).toContain(res.status);
 		} catch (err: unknown) {
-			const status = (err as { status?: number }).status;
-			expect([403, 404]).toContain(status);
+			expect([403, 404]).toContain((err as { status?: number }).status);
 		}
 	});
 
@@ -207,10 +238,8 @@ describe('artifact endpoints', () => {
 				request: Request;
 			}) => Promise<Response>
 		)({
-			params: { trace_id: traceId, filepath: 'data/audits/foo.md' },
-			url: new URL(
-				`http://localhost/companion/api/artifacts/${traceId}/data/audits/foo.md?meta=1`
-			),
+			params: { trace_id: traceId, filepath: 'foo.md' },
+			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/foo.md?meta=1`),
 			request: new Request('http://localhost/companion/api/artifacts/test')
 		});
 		expect(res.status).toBe(200);
@@ -222,7 +251,7 @@ describe('artifact endpoints', () => {
 		for (const key of META_KEYS) {
 			expect(meta[key]).toBeTruthy();
 		}
-		expect(meta.original_path).toBe('data/audits/foo.md');
+		expect(meta.original_path).toBe('foo.md');
 	});
 
 	it('GET single file with ?download=1 → Content-Disposition: attachment', async () => {
@@ -234,17 +263,15 @@ describe('artifact endpoints', () => {
 				request: Request;
 			}) => Promise<Response>
 		)({
-			params: { trace_id: traceId, filepath: 'data/audits/foo.md' },
-			url: new URL(
-				`http://localhost/companion/api/artifacts/${traceId}/data/audits/foo.md?download=1`
-			),
+			params: { trace_id: traceId, filepath: 'foo.md' },
+			url: new URL(`http://localhost/companion/api/artifacts/${traceId}/foo.md?download=1`),
 			request: new Request('http://localhost/companion/api/artifacts/test')
 		});
 		expect(res.status).toBe(200);
 		expect(res.headers.get('content-disposition')).toMatch(/^attachment;/);
 	});
 
-	it('GET bundle.zip → 200 + ZIP body + manifest.json present + correct files inside', async () => {
+	it('GET bundle.zip → 200 + ZIP body + manifest.json + the store files inside', async () => {
 		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/bundle.zip/+server');
 		const res = await (GET as (e: { params: { trace_id: string } }) => Promise<Response>)({
 			params: { trace_id: traceId }
@@ -257,12 +284,12 @@ describe('artifact endpoints', () => {
 		expect(buf.subarray(0, 2).toString('utf8')).toBe('PK');
 		const entries = readZipEntries(buf);
 		expect(entries.has('manifest.json')).toBe(true);
-		expect(entries.has('data/audits/foo.md')).toBe(true);
-		expect(entries.has('data/audits/bar.json')).toBe(true);
+		expect(entries.has('foo.md')).toBe(true);
+		expect(entries.has('bar.json')).toBe(true);
 
 		const manifest = JSON.parse(entries.get('manifest.json')!.toString('utf8'));
 		expect(manifest).toHaveLength(2);
-		expect(manifest[0].original_path).toBe('data/audits/foo.md');
-		expect(entries.get('data/audits/foo.md')!.toString('utf8')).toContain('# Foo');
+		expect(manifest[0].original_path).toBe('foo.md');
+		expect(entries.get('foo.md')!.toString('utf8')).toContain('# Foo');
 	});
 });

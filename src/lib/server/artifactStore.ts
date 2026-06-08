@@ -127,6 +127,15 @@ export function storeRoot(repoRoot: string): string {
 	return path.join(repoRoot, 'data/sully/artifacts');
 }
 
+/**
+ * Repo root for the durable artifact store. Defaults to the process cwd (the
+ * companion repo root in prod, matching the write side in closeOutTask). Tests
+ * override it via LOGUEOS_ARTIFACT_REPO_ROOT so the read path is hermetic.
+ */
+export function artifactRepoRoot(): string {
+	return process.env.LOGUEOS_ARTIFACT_REPO_ROOT || path.resolve(process.cwd());
+}
+
 export function storeDirFor(repoRoot: string, traceId: string, date: string): string {
 	return path.join(storeRoot(repoRoot), date, traceId);
 }

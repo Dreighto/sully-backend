@@ -37,6 +37,8 @@ export interface SeedFile {
 	status: FileStatus;
 	sizeBytes?: number;
 	modifiedAt: string | null;
+	label?: string;
+	importance?: 'primary' | 'secondary' | 'supporting';
 }
 
 /**
@@ -78,4 +80,8 @@ export interface SeedSurface {
 	createdAt: string;
 	/** Elapsed display string shown in pill and card footer. */
 	elapsedDisplay: string;
+	/** Evidence files (non-promoted) from wrote_file activity */
+	evidence?: { path: string }[];
+	/** Warning about failed promotions */
+	promotionWarning?: string;
 }

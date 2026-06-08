@@ -13,6 +13,7 @@ import type {
 	SeedActivity
 } from '$lib/work-surface/hybrid/hybrid-types';
 import fs from 'node:fs';
+import path from 'node:path';
 
 export async function liveSurfaceFromTrace(traceId: string): Promise<SeedSurface | null> {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
@@ -43,8 +44,23 @@ export async function liveSurfaceFromTrace(traceId: string): Promise<SeedSurface
 		// Build phases
 		const phases = buildPhases(activityRows, aggrStatus);
 
-		// Build files
+		// Build files from manifest
 		const files = await buildFiles(activityRows);
+
+		// Build evidence from wrote_file activity
+		const evidence = activityRows
+			.filter((row) => row.action === 'wrote_file' || row.action === 'write_file')
+			.map((row) => ({ path: row.target }))
+			.filter((ev) => ev.path);
+
+		// Check for promotion warnings
+		let promotionWarning: string | undefined;
+		const failedPromotionCount = activityRows.filter(
+			(row) => row.action === 'wrote_file' && row.target?.includes('promotion')
+		).length;
+		if (failedPromotionCount > 0) {
+			promotionWarning = `${failedPromotionCount} deliverable${failedPromotionCount === 1 ? '' : 's'} couldn't be saved`;
+		}
 
 		// Compute elapsed display (glyph derived from status, not endedAt)
 		const elapsedDisplay = computeElapsedDisplay(jobRow.started_at, jobRow.ended_at, aggrStatus);
@@ -66,7 +82,9 @@ export async function liveSurfaceFromTrace(traceId: string): Promise<SeedSurface
 			workers,
 			phases,
 			files,
-			activity
+			activity,
+			evidence: evidence.length > 0 ? evidence : undefined,
+			promotionWarning
 		};
 	} finally {
 		db.close();
@@ -283,30 +301,46 @@ function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
 	return phases;
 }
 
+import { findStoreDir, readManifest, artifactRepoRoot } from '$lib/server/artifactStore';
+
 async function buildFiles(activityRows: any[]): Promise<SeedFile[]> {
+	const repoRoot = artifactRepoRoot();
+	const traceId = activityRows[0]?.trace_id;
+	if (!traceId) return [];
+
+	const storeDir = findStoreDir(repoRoot, traceId);
+	if (!storeDir) return [];
+
+	const manifest = readManifest(storeDir);
 	const files: SeedFile[] = [];
 
-	for (const row of activityRows) {
-		if (row.action === 'wrote_file' || row.action === 'created_artifact') {
-			const path = row.target;
-			if (path && fs.existsSync(path)) {
-				const stat = fs.statSync(path);
-				files.push({
-					path,
-					status: 'available',
-					sizeBytes: stat.size,
-					modifiedAt: stat.mtime.toISOString()
-				});
-			} else {
-				files.push({
-					path: path || 'unknown',
-					status: 'failed',
-					sizeBytes: 0,
-					modifiedAt: null
-				});
-			}
+	for (const meta of manifest) {
+		try {
+			const absolutePath = path.resolve(storeDir, meta.original_path);
+			const stat = fs.statSync(absolutePath);
+			files.push({
+				path: meta.original_path,
+				status: 'available',
+				sizeBytes: stat.size,
+				modifiedAt: stat.mtime.toISOString(),
+				label: meta.label,
+				importance: meta.importance
+			});
+		} catch {
+			files.push({
+				path: meta.original_path,
+				status: 'failed',
+				sizeBytes: 0,
+				modifiedAt: null,
+				label: meta.label,
+				importance: meta.importance
+			});
 		}
 	}
+
+	// Sort by importance: primary → secondary → supporting
+	const order = { primary: 0, secondary: 1, supporting: 2 };
+	files.sort((a, b) => order[a.importance ?? 'secondary'] - order[b.importance ?? 'secondary']);
 
 	return files;
 }

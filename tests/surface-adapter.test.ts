@@ -5,9 +5,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const tmpDb = join(tmpdir(), `surface-adapter-test-${Date.now()}.db`);
+// Stage 4: buildFiles reads the durable manifest under artifactRepoRoot().
+const storeRootDir = fs.mkdtempSync(join(tmpdir(), 'sa-store-'));
+process.env.LOGUEOS_ARTIFACT_REPO_ROOT = storeRootDir;
+const artifactsTrace = 'test-artifacts';
+const artifactsStoreDir = join(storeRootDir, 'data/sully/artifacts/2026-06-07', artifactsTrace);
 vi.mock('$env/dynamic/private', () => ({
 	env: {
-		LOGUEOS_MEMORY_DB_PATH: tmpDb
+		LOGUEOS_MEMORY_DB_PATH: tmpDb,
+		LOGUEOS_ARTIFACT_REPO_ROOT: storeRootDir
 	}
 }));
 
@@ -128,6 +134,42 @@ describe('liveSurfaceFromTrace', () => {
         `
 		).run(new Date(Date.now() - 290000).toISOString(), new Date(Date.now() - 15000).toISOString());
 
+		// Artifacts task — done, with a durable manifest (Stage 4 read-side).
+		// buildFiles derives the traceId from activity rows, so seed one.
+		db.prepare(
+			`INSERT INTO pending_jobs (trace_id, worker, status, brief, started_at, ended_at)
+			 VALUES (?, 'claude-code', 'synthesized', 'Artifacts task', ?, ?)`
+		).run(
+			artifactsTrace,
+			new Date(Date.now() - 600000).toISOString(),
+			new Date(Date.now() - 30000).toISOString()
+		);
+		db.prepare(
+			`INSERT INTO chat_activity (trace_id, action, target, timestamp) VALUES (?, 'created_artifact', 'report.md', ?)`
+		).run(artifactsTrace, new Date(Date.now() - 40000).toISOString());
+
+		fs.mkdirSync(artifactsStoreDir, { recursive: true });
+		fs.writeFileSync(join(artifactsStoreDir, 'report.md'), '# Report\n');
+		fs.writeFileSync(join(artifactsStoreDir, 'notes.txt'), 'notes\n');
+		const mk = (original: string, type: string, importance: string) => ({
+			created_by: 'CC',
+			task_id: artifactsTrace,
+			trace_id: artifactsTrace,
+			timestamp: '2026-06-07T20:45:39Z',
+			source_worker: 'claude-code',
+			workspace_path: artifactsStoreDir,
+			artifact_type: type,
+			original_path: original,
+			artifact_url: `/companion/api/artifacts/${artifactsTrace}/${original}`,
+			label: original,
+			importance
+		});
+		// secondary first on disk to prove buildFiles RE-orders by importance
+		fs.writeFileSync(
+			join(artifactsStoreDir, 'manifest.json'),
+			JSON.stringify([mk('notes.txt', 'data', 'supporting'), mk('report.md', 'doc', 'primary')])
+		);
+
 		db.close();
 	});
 
@@ -135,6 +177,26 @@ describe('liveSurfaceFromTrace', () => {
 		if (fs.existsSync(tmpDb)) {
 			fs.unlinkSync(tmpDb);
 		}
+		fs.rmSync(storeRootDir, { recursive: true, force: true });
+	});
+
+	it('buildFiles reads the durable manifest → SeedFile[] with importance, ordered primary first', async () => {
+		const result = await liveSurfaceFromTrace(artifactsTrace);
+		expect(result).not.toBeNull();
+		expect(result?.files).toHaveLength(2);
+		// importance ordering: primary (report.md) before supporting (notes.txt)
+		expect(result?.files[0].path).toBe('report.md');
+		expect(result?.files[0].importance).toBe('primary');
+		expect(result?.files[0].label).toBe('report.md');
+		expect(result?.files[0].status).toBe('available');
+		expect(result?.files[1].path).toBe('notes.txt');
+		expect(result?.files[1].importance).toBe('supporting');
+	});
+
+	it('no manifest → files: [] (no Result Files row)', async () => {
+		const result = await liveSurfaceFromTrace('test-done');
+		expect(result).not.toBeNull();
+		expect(result?.files).toEqual([]);
 	});
 
 	it('should return null for non-existent trace', async () => {
