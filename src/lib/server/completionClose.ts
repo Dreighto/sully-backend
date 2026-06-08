@@ -15,6 +15,8 @@ import { shouldReview, runAdversaryReview } from './routing/adversary';
 import { runPoll } from './verifyPoll';
 import { incrementBadge } from './push_badge';
 import type { EvidenceEnvelope } from './verifyPoll';
+import { promoteArtifactsForTask } from './artifactStore';
+import path from 'node:path';
 
 /** Empty string OR null/undefined thread_id → 'default'. (`??` alone misses ''.) */
 export function resolveCompletionThread(threadId: string | null | undefined): string {
@@ -97,6 +99,29 @@ export async function closeOutTask(
 	// summarize it in plain English (Haiku) so the Captain can digest it without
 	// a follow-up. Best-effort — on any failure/timeout `summary` is null and we
 	// fall back to posting the raw result verbatim (nothing is lost).
+	
+	// ── Phase 6: artifact promotion (copy → manifest → breadcrumbs) ──
+	if (outcome === 'done' && job) {
+		try {
+			const repoRoot = path.resolve(process.cwd()); // companion repo root
+			const date = (job.started_at ?? new Date().toISOString()).slice(0, 10);
+			const { promoted, failed } = promoteArtifactsForTask({
+				repoRoot,
+				traceId,
+				date,
+				job: { trace_id: traceId, worker: job.worker, ticket_id: job.ticket_id },
+				evidence
+			});
+			// Emit breadcrumbs AFTER manifest write (§2.5.4)
+			for (const m of promoted) 
+				logTaskEvent(traceId, 'created_artifact', { target: m.original_path });
+			for (const f of failed) 
+				logTaskEvent(traceId, 'wrote_file', { target: f.path }); // stays evidence (§2.5.6)
+		} catch (e) {
+			console.warn('[artifacts] promotion skipped:', e); // never breaks close-out
+		}
+	}
+	
 	const summary = text
 		? await synthesizeWorkerResult({
 				brief: job?.brief ?? '',

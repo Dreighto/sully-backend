@@ -7,6 +7,7 @@ import {
 	storeDirFor,
 	writeManifestAtomic,
 	readManifest,
+	promoteArtifactsForTask,
 	type ArtifactMetadata
 } from '$lib/server/artifactStore';
 
@@ -69,5 +70,32 @@ describe('artifact store paths and atomic manifest', () => {
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	it('promotes declared file: copies to store, manifest has it; missing source is skipped not thrown', () => {
+		const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'repo-'));
+		const wt = fs.mkdtempSync(path.join(os.tmpdir(), 'wt-'));
+		fs.writeFileSync(path.join(wt, 'report.md'), '# hi');
+		const res = promoteArtifactsForTask({
+			repoRoot,
+			traceId: 'tr1',
+			date: '2026-06-08',
+			job: { trace_id: 'tr1', worker: 'claude-code', ticket_id: null },
+			evidence: {
+				artifacts: [
+					{ path: path.join(wt, 'report.md'), label: 'Report', importance: 'primary' },
+					{ path: path.join(wt, 'gone.md') }
+				],
+				fs_paths: []
+			}
+		});
+		const dir = path.join(repoRoot, 'data/sully/artifacts/2026-06-08/tr1');
+		expect(fs.existsSync(path.join(dir, 'report.md'))).toBe(true);
+		const man = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+		expect(man.map((m: any) => m.original_path)).toEqual(['report.md']);
+		expect(res.failed.map((f: any) => path.basename(f.path))).toEqual(['gone.md']);
+		// Cleanup
+		fs.rmSync(repoRoot, { recursive: true, force: true });
+		fs.rmSync(wt, { recursive: true, force: true });
 	});
 });

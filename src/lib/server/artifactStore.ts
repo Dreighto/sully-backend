@@ -158,3 +158,75 @@ export function readManifest(dir: string): ArtifactMetadata[] {
 		return [];
 	}
 }
+
+export interface PromoteInput {
+	repoRoot: string;
+	traceId: string;
+	date: string;
+	job: { trace_id: string; worker: string; ticket_id?: string | null };
+	evidence: { artifacts?: DeclaredArtifact[] | null; fs_paths?: string[] | null };
+}
+export interface PromoteResult {
+	promoted: ArtifactMetadata[];
+	failed: { path: string }[];
+}
+
+export function promoteArtifactsForTask(input: PromoteInput): PromoteResult {
+	const { repoRoot, traceId, date, job } = input;
+	const { promoted: candidates } = selectPromotions(
+		input.evidence.artifacts ?? [],
+		input.evidence.fs_paths ?? []
+	);
+	const dir = storeDirFor(repoRoot, traceId, date);
+	const meta: ArtifactMetadata[] = [];
+	const failed: { path: string }[] = [];
+	for (const c of candidates) {
+		try {
+			const src = path.resolve(c.path);
+			if (!fs.existsSync(src) || !fs.statSync(src).isFile()) throw new Error('missing');
+			const rel = basename(src); // flat copy; collisions get a numeric suffix below
+			let dest = path.join(dir, rel);
+			let n = 1;
+			while (meta.some((m) => m.original_path === path.basename(dest)))
+				dest = path.join(dir, `${n++}-${rel}`);
+			fs.mkdirSync(dir, { recursive: true });
+			fs.copyFileSync(src, dest);
+			if (!fs.existsSync(dest)) throw new Error('copy_failed'); // verify (§2.5.1)
+			const originalPath = path.basename(dest);
+			meta.push({
+				created_by: workerShort(job.worker),
+				task_id: job.ticket_id ?? job.trace_id,
+				trace_id: job.trace_id,
+				timestamp: new Date().toISOString(),
+				source_worker: job.worker,
+				workspace_path: dir,
+				artifact_type: classifyArtifactType(ext(originalPath)),
+				original_path: originalPath,
+				artifact_url: `/companion/api/artifacts/${encodeURIComponent(job.trace_id)}/${encodeURIComponent(originalPath)}`,
+				label: c.label?.trim() || originalPath,
+				importance: c.importance ?? 'secondary'
+			});
+		} catch {
+			failed.push({ path: c.path });
+		}
+	}
+	if (meta.length) writeManifestAtomic(dir, sortByImportance(meta)); // atomic AFTER all copies (§2.5.4)
+	return { promoted: meta, failed };
+}
+
+function workerShort(id: string): string {
+	const m: Record<string, string> = {
+		'claude-code': 'CC',
+		gemini: 'GMI',
+		agy: 'AGY',
+		cdx: 'CDX',
+		deepseek: 'DPSK',
+		cursor: 'CUR'
+	};
+	return m[id] ?? id.slice(0, 3).toUpperCase();
+}
+
+const ORDER = { primary: 0, secondary: 1, supporting: 2 } as const;
+function sortByImportance(m: ArtifactMetadata[]): ArtifactMetadata[] {
+	return [...m].sort((a, b) => ORDER[a.importance] - ORDER[b.importance]);
+}
