@@ -32,9 +32,27 @@
 		if (needs) return `${PHASE_LABELS[needs.key]} — ${surface.title}`;
 		return surface.title;
 	});
+
+	// CDX critical #4: the pill must NOT be a <button>. In the work-surface card
+	// it's wrapped by bits-ui Collapsible.Trigger (already a <button>), so a
+	// <button> here is a nested-interactive HTML violation that breaks tap /
+	// keyboard / screen-reader on iOS. Render a plain <div>; only when used
+	// stand-alone (an onclick is passed, e.g. the demo route) does it become an
+	// interactive role=button with keyboard support.
+	const interactive = $derived(typeof onclick === 'function');
+	function onKey(e: KeyboardEvent) {
+		if (!onclick) return;
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			onclick();
+		}
+	}
 </script>
 
-<button
+<!-- tabindex + role are co-set: both present only when interactive (onclick
+	 passed). Svelte's static check can't see the correlation. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
 	class="pill"
 	class:pill--needs={aggr === 'needs-you'}
 	class:pill--failed={aggr === 'failed'}
@@ -42,10 +60,13 @@
 	class:pill--stopped={aggr === 'stopped'}
 	class:pill--blocked={aggr === 'blocked'}
 	class:pill--running={aggr === 'running'}
+	class:pill--interactive={interactive}
 	data-testid="hybrid-pill"
 	data-aggr={aggr}
+	role={interactive ? 'button' : undefined}
+	tabindex={interactive ? 0 : undefined}
 	{onclick}
-	type="button"
+	onkeydown={interactive ? onKey : undefined}
 >
 	<HybridWorkerCluster workers={surface.workers} />
 
@@ -59,7 +80,7 @@
 			<ChevronDown size={16} />
 		</span>
 	</div>
-</button>
+</div>
 
 <style>
 	.pill {
@@ -75,14 +96,18 @@
 		background: var(--color-surface);
 		border: 1px solid var(--color-edge);
 		border-radius: 12px;
-		cursor: pointer;
 		text-align: left;
 		transition:
 			border-color 0.2s,
 			background 0.2s;
 		-webkit-tap-highlight-color: transparent;
 	}
-	.pill:hover {
+	/* Only the stand-alone (onclick-bearing) pill shows a pointer; inside the
+	   card the Collapsible.Trigger wrapper owns the cursor + click. */
+	.pill--interactive {
+		cursor: pointer;
+	}
+	.pill--interactive:hover {
 		background: var(--color-surface-raised);
 		border-color: var(--color-edge-active);
 	}

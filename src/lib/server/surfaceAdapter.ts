@@ -49,8 +49,8 @@ export async function liveSurfaceFromTrace(traceId: string): Promise<SeedSurface
 		// Compute elapsed display (glyph derived from status, not endedAt)
 		const elapsedDisplay = computeElapsedDisplay(jobRow.started_at, jobRow.ended_at, aggrStatus);
 
-		// Build needs from gate_evaluated activity
-		const needs = buildNeeds(activityRows);
+		// Build needs from the gated proposal stashed in pending_jobs.result_ref
+		const needs = buildNeeds(jobRow, aggrStatus);
 
 		// Build humanized chronological activity log
 		const activity = buildActivity(activityRows, workers[0]?.shortcode ?? 'CC');
@@ -157,20 +157,43 @@ function buildWorkers(workerId: string, aggrStatus: string, activityRows: any[])
 	];
 }
 
+// Short worker-step labels for worker.currentStep / stepHistory (the worker
+// lane + pill glance). Operator-facing, so the default Title-Cases instead of
+// leaking raw snake_case (CDX #9 sibling path — the activity LOG uses the
+// richer humanizeActivity()).
 function formatActionText(action: string): string {
-	// Simple transformation for human-readable text
 	const map: Record<string, string> = {
-		write_file: 'Writing file',
+		reading: 'Reading',
+		edited: 'Editing',
+		ran: 'Running',
+		running: 'Running',
+		shell: 'Running a command',
 		thinking: 'Thinking',
-		shell: 'Running shell command',
-		tool_invoked: 'Invoking tool',
-		tool_result: 'Processing tool result',
-		finalizing: 'Finalizing',
-		complete: 'Completing',
-		gate_evaluated: 'Evaluating gate'
-		// Add more mappings as needed
+		task_proposed: 'Starting',
+		classifier_ran: 'Routing',
+		tool_invoked: 'Using a tool',
+		tool_result: 'Tool returned',
+		write_file: 'Writing a file',
+		wrote_file: 'Wrote a file',
+		created_artifact: 'Creating artifact',
+		finalizing: 'Wrapping up',
+		synthesis_started: 'Writing the answer',
+		synthesis_completed: 'Synthesized',
+		verification_poll: 'Verifying',
+		adversary_reviewed: 'Reviewing',
+		guardrail_triggered: 'Guardrail fired',
+		reply_persisted: 'Replied',
+		complete: 'Done',
+		completed: 'Done',
+		failed: 'Hit an error'
 	};
-	return map[action] || action;
+	if (map[action]) return map[action];
+	// Unknown / internal: Title-Case, never raw snake_case.
+	return action
+		.replace(/_/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function stageToKey(stage: string | null): PhaseKey | null {
@@ -180,46 +203,67 @@ function stageToKey(stage: string | null): PhaseKey | null {
 
 function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
 	const pipelineStages = ['Read', 'Research', 'Build', 'Check', 'Approve', 'Reply'];
-	const phaseMap: Record<string, SeedPhase> = {};
-
-	// Track highest stage reached
-	let highestStage: string | null = null;
 	const stageTimestamps: Record<string, { first: string | null; last: string | null }> = {};
+	for (const stage of pipelineStages) stageTimestamps[stage] = { first: null, last: null };
 
-	for (const stage of pipelineStages) {
-		stageTimestamps[stage] = { first: null, last: null };
-	}
-
+	// Walk activity, recording which stages ACTUALLY occurred + the furthest reached.
+	let highestIndex = -1;
 	for (const row of activityRows) {
 		const stage = inferStageFromAction(row.action);
-		if (stage) {
-			if (!highestStage || pipelineStages.indexOf(stage) > pipelineStages.indexOf(highestStage)) {
-				highestStage = stage;
-			}
-
-			// Track timestamps
-			if (!stageTimestamps[stage].first) {
-				stageTimestamps[stage].first = row.timestamp;
-			}
-			stageTimestamps[stage].last = row.timestamp;
-		}
+		if (!stage) continue;
+		const idx = pipelineStages.indexOf(stage);
+		if (idx > highestIndex) highestIndex = idx;
+		if (!stageTimestamps[stage].first) stageTimestamps[stage].first = row.timestamp;
+		stageTimestamps[stage].last = row.timestamp;
 	}
 
-	// Build phases
-	const phases = pipelineStages.map((stage) => {
-		const index = pipelineStages.indexOf(stage);
-		const highestIndex = highestStage ? pipelineStages.indexOf(highestStage) : -1;
+	const terminal = aggrStatus === 'done' || aggrStatus === 'failed' || aggrStatus === 'stopped';
 
+	const phases: SeedPhase[] = pipelineStages.map((stage, index) => {
+		const hadActivity = stageTimestamps[stage].first !== null;
 		let status: PhaseStatus;
 		let reason: string | undefined;
 
 		if (index < highestIndex) {
-			status = 'done';
+			// Below the furthest-reached stage. A stage is 'done' ONLY if it
+			// actually had activity; a stage with no activity was bypassed this
+			// run → 'skipped' (NOT a fake green 'done'). This is what makes
+			// Research / Approve truthful — they had no action vocabulary to
+			// drive them, so on a Read→Build→Reply run they correctly read as
+			// skipped instead of falsely done. (CDX critical #8 + truth-guard #4.)
+			if (hadActivity) {
+				status = 'done';
+			} else {
+				status = 'skipped';
+				reason = `No ${stage} step this run`;
+			}
 		} else if (index === highestIndex) {
-			status = aggrStatus === 'running' ? 'active' : aggrStatus === 'done' ? 'done' : 'failed';
+			// The frontier stage the worker is on / ended on. Each terminal aggr
+			// must map honestly — a STOPPED task was interrupted mid-stage, so the
+			// frontier is NOT 'done' (that re-introduces the green-done truth bug);
+			// mark it skipped-with-reason. needs-you / blocked surface their own.
+			if (aggrStatus === 'running') {
+				status = 'active';
+			} else if (aggrStatus === 'failed') {
+				status = 'failed';
+			} else if (aggrStatus === 'needs-you') {
+				status = 'needs-you';
+			} else if (aggrStatus === 'blocked') {
+				status = 'blocked';
+			} else if (aggrStatus === 'stopped') {
+				status = 'skipped';
+				reason = 'Stopped here';
+			} else {
+				status = 'done';
+			}
 		} else {
-			status = aggrStatus === 'running' ? 'pending' : 'skipped';
-			reason = 'Not reached by worker';
+			// Above the frontier — not reached.
+			if (terminal) {
+				status = 'skipped';
+				reason = 'Not reached this run';
+			} else {
+				status = 'pending';
+			}
 		}
 
 		return {
@@ -231,8 +275,8 @@ function buildPhases(activityRows: any[], aggrStatus: string): SeedPhase[] {
 		};
 	});
 
-	// Handle zero activity rows case
-	if (activityRows.length === 0 && aggrStatus === 'running') {
+	// Zero activity yet but in-flight → Read is the implicit active stage.
+	if (highestIndex === -1 && aggrStatus === 'running') {
 		phases[0].status = 'active';
 	}
 
@@ -314,6 +358,9 @@ function buildActivity(activityRows: any[], workerShortcode: string): SeedActivi
 		const action = String(row.action || '');
 		const target = (row.target ?? null) as string | null;
 		const description = humanizeActivity(action, target, workerShortcode);
+		// null = internal plumbing the operator shouldn't see (routing shadows,
+		// provider failover, brakes, etc.) — filtered out of the log entirely.
+		if (description === null) continue;
 		const stage = inferStageFromAction(action);
 		out.push({
 			timestamp: row.timestamp,
@@ -332,7 +379,25 @@ function buildActivity(activityRows: any[], workerShortcode: string): SeedActivi
  * plain text (reading, edited, thinking). We branch on shape and pick the
  * description that gives the operator the most useful glance.
  */
-function humanizeActivity(action: string, target: string | null, who: string): string {
+// Internal plumbing actions the operator should NOT see in the activity log.
+// Returning null from humanizeActivity() drops the row entirely.
+const HIDDEN_ACTIONS = new Set<string>([
+	'turn_decision_shadow', // shadow routing prediction (Hermes)
+	'brakes_evaluated', // internal rate/safety brake check
+	'provider_attempted', // internal LLM provider selection
+	'provider_fell_through', // internal LLM failover
+	'gate_evaluated' // internal dispatch gate (its payload drives needs, not the log)
+]);
+
+/**
+ * Translate raw chat_activity (action, target) → plain English, or null to HIDE
+ * the row (internal plumbing). Every action in TASK_EVENT_ACTIONS is handled
+ * explicitly; unknown actions Title-Case readably (never raw snake_case in the
+ * operator-facing UI). CDX critical #9.
+ */
+function humanizeActivity(action: string, target: string | null, who: string): string | null {
+	if (HIDDEN_ACTIONS.has(action)) return null;
+
 	const parsed = parseMaybeJson(target);
 	const text = parsed.json ? null : parsed.text;
 	const json = parsed.json;
@@ -360,12 +425,14 @@ function humanizeActivity(action: string, target: string | null, who: string): s
 			return text ? `Ran: ${truncate(text, 120)}` : 'Running a command';
 		case 'finalizing':
 			return 'Wrapping up';
+		case 'synthesis_started':
+			return 'Writing the answer';
 		case 'verification_poll': {
 			const overall = json?.overall;
 			if (overall === 'GO') return 'Verified — looks good';
 			if (overall === 'NO_GO') return 'Verified — flagged issues';
-			if (overall === 'warn') return 'Verified — wants a closer look';
-			if (overall) return `Verifying — ${overall}`;
+			if (overall === 'warn' || overall === 'hedge') return 'Verified — wants a closer look';
+			if (overall) return 'Verified — wants a closer look';
 			return 'Verifying the work';
 		}
 		case 'adversary_reviewed': {
@@ -377,19 +444,29 @@ function humanizeActivity(action: string, target: string | null, who: string): s
 			}
 			return 'Adversarial review';
 		}
+		case 'guardrail_triggered':
+			return text
+				? `Guardrail stopped a step — ${truncate(text, 100)}`
+				: 'A safety guardrail fired';
 		case 'synthesis_completed':
 			return 'Synthesized the result';
 		case 'reply_persisted':
 			return 'Sent reply';
 		case 'completed':
+		case 'complete':
 			return 'Done';
-		case 'gate_evaluated':
-			return 'Evaluated a gate';
+		case 'failed':
+			return text ? `Hit an error — ${truncate(text, 120)}` : 'Hit an error';
 		case 'created_artifact':
 			return text ? `Created artifact ${text}` : 'Created an artifact';
 		default:
-			// Last-ditch readability: snake_case → "snake case".
-			return action.replace(/_/g, ' ');
+			// Unknown (e.g. a future worker action): readable Title Case, never
+			// raw snake_case. "some_new_action" → "Some New Action".
+			return action
+				.replace(/_/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim()
+				.replace(/\b\w/g, (c) => c.toUpperCase());
 	}
 }
 
@@ -411,17 +488,32 @@ function truncate(s: string, max: number): string {
 	return s.slice(0, max - 1).trimEnd() + '…';
 }
 
-function buildNeeds(activityRows: any[]): { action: string; target: string } | undefined {
-	const gateRow = [...activityRows].reverse().find((row) => row.action === 'gate_evaluated');
-	if (!gateRow) return undefined;
+/**
+ * What the operator needs to confirm, for a 'needs-you' surface. CDX critical
+ * #2: the old version read a non-existent `payload` column off a gate_evaluated
+ * activity row, so `needs` was always undefined and the needs-you banner showed
+ * no actual ask. The real source is pending_jobs.result_ref, where
+ * markGatedProposal() stashes the ProposalPayload (+ proposal_type). Only
+ * relevant when the job is gated/held (→ aggr 'needs-you').
+ */
+function buildNeeds(
+	jobRow: any,
+	aggrStatus: AggrStatus
+): { action: string; target: string } | undefined {
+	if (aggrStatus !== 'needs-you') return undefined;
 
-	try {
-		const payload = JSON.parse(gateRow.payload || '{}');
-		return {
-			action: payload.action || 'unknown',
-			target: payload.target || 'unknown'
-		};
-	} catch {
-		return undefined;
+	let proposalType: string | undefined;
+	let brief: string | undefined;
+	if (jobRow?.result_ref) {
+		try {
+			const p = JSON.parse(jobRow.result_ref);
+			proposalType = p.proposal_type;
+			brief = (p.brief || p.task || '').toString();
+		} catch {
+			/* malformed result_ref — fall back to the job's brief below */
+		}
 	}
+	const target = (brief || jobRow?.brief || 'this task').toString().slice(0, 200);
+	const action = proposalType === 'routing_ask' ? 'Run this work separately?' : 'Run this task?';
+	return { action, target };
 }
