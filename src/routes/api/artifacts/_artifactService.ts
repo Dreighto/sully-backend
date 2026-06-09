@@ -227,29 +227,33 @@ export function getTraceWorkspacePath(traceId: string): string | null {
 
 export function listArtifactsForTrace(traceId: string): ArtifactListResponse | null {
 	const job = getJob(traceId);
-	if (!job) return null;
 
-	// Read from the durable manifest instead of activity rows
+	// A promoted artifact lives in the DURABLE store and must stay reachable even
+	// after the (ephemeral) job row is reaped — that is the entire point of the
+	// durable store ("survives worktree deletion / job cleanup"). So gate on the
+	// store dir, NOT the job row. Only 404 when there is NEITHER a job NOR a
+	// promoted store dir. (Previously `if (!job) return null` made promoted
+	// artifacts 404 the moment reapStaleJobs deleted the job — see the live
+	// repro where a completed task's files vanished from the UI.)
 	const repoRoot = artifactRepoRoot();
 	const storeDir = findStoreDir(repoRoot, traceId);
+	if (!job && !storeDir) return null;
+
+	const taskId = (job?.ticket_id as string | null) ?? traceId;
+	const bundle_url = `${APP_BASE}/api/artifacts/${encodeURIComponent(traceId)}/bundle.zip`;
+
+	// Read from the durable manifest (sole source of truth), not activity rows.
 	if (!storeDir) {
-		return {
-			trace_id: traceId,
-			task_id: (job.ticket_id as string | null) ?? traceId,
-			artifacts: [],
-			count: 0,
-			bundle_url: `${APP_BASE}/api/artifacts/${encodeURIComponent(traceId)}/bundle.zip`
-		};
+		return { trace_id: traceId, task_id: taskId, artifacts: [], count: 0, bundle_url };
 	}
 
 	const manifest = readManifest(storeDir);
-
 	return {
 		trace_id: traceId,
-		task_id: (job.ticket_id as string | null) ?? traceId,
+		task_id: taskId,
 		artifacts: manifest,
 		count: manifest.length,
-		bundle_url: `${APP_BASE}/api/artifacts/${encodeURIComponent(traceId)}/bundle.zip`
+		bundle_url
 	};
 }
 

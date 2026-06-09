@@ -176,6 +176,48 @@ describe('artifact endpoints (durable manifest)', () => {
 		expect(await res.json()).toEqual({ error: 'trace_not_found' });
 	});
 
+	it('GET listing for a promoted trace whose job row was reaped → 200 from durable store', async () => {
+		// Durability guarantee: a promoted artifact must stay reachable after the
+		// ephemeral pending_jobs row is reaped/deleted (the whole point of the
+		// durable store). Store exists, NO job row. Pre-fix this 404'd because the
+		// read-side gated on getJob(); see the live repro that vanished a file.
+		const durableTrace = 'sully-durable-no-job';
+		const durableStore = path.join(tmpRoot, 'data/sully/artifacts/2026-06-07', durableTrace);
+		fs.mkdirSync(durableStore, { recursive: true });
+		fs.writeFileSync(path.join(durableStore, 'report.md'), '# Report\n');
+		fs.writeFileSync(
+			path.join(durableStore, 'manifest.json'),
+			JSON.stringify(
+				[
+					{
+						created_by: 'CC',
+						task_id: durableTrace,
+						trace_id: durableTrace,
+						timestamp: '2026-06-09T00:00:00Z',
+						source_worker: 'cc',
+						workspace_path: durableStore,
+						artifact_type: 'doc',
+						original_path: 'report.md',
+						artifact_url: `/companion/api/artifacts/${durableTrace}/report.md`,
+						label: 'report.md',
+						importance: 'primary'
+					}
+				],
+				null,
+				2
+			)
+		);
+		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/+server');
+		const res = await (GET as (e: { params: { trace_id: string } }) => Promise<Response>)({
+			params: { trace_id: durableTrace }
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.count).toBe(1);
+		expect(body.task_id).toBe(durableTrace); // no job → task_id falls back to traceId
+		expect(body.artifacts[0].original_path).toBe('report.md');
+	});
+
 	it('GET single file (by manifest original_path) → 200 + Content-Type + all 9 X-Artifact headers', async () => {
 		const { GET } = await import('../src/routes/api/artifacts/[trace_id]/[...filepath]/+server');
 		const res = await (
