@@ -27,8 +27,23 @@ describe('prepareTurnLifecycle', () => {
 		});
 		expect(r.taskId).toMatch(/^sully-/);
 		expect(typeof r.currentTier).toBe('string');
-		expect(r.userMessageText).toContain('audit the companion');
+		expect(r.userMessageText).toBe('Audit the companion repo.');
 		const j = await import('$lib/server/dispatchJobs');
 		expect(j.getJobsForThread('tL').length).toBeGreaterThan(0); // a task row exists
+	});
+
+	it('normalizes spoken input before the routing layer sees it', async () => {
+		const { prepareTurnLifecycle } = await import('$lib/server/chat/stream_prepare');
+		const { bootstrapCompanionDb } = await import('$lib/server/bootstrap');
+		bootstrapCompanionDb();
+		const r = await prepareTurnLifecycle({
+			text: 'um check logue os on the jet son and then i also need the walkie talkie file',
+			threadId: 'tNorm',
+			sender: 'operator',
+			source: 'voice'
+		});
+		expect(r.userMessageText).toBe(
+			'Check LogueOS on the Jetson and then I also need the walkie-talkie file.'
+		);
 	});
 });

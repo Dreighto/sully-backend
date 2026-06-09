@@ -47,11 +47,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	// lifecycle — mint Task id, persistUserTurn (mints 'proposed' row + journals
 	// task_proposed + writes operator chat row), classifyAndTouchThread, and
 	// detectTargetRepo. The Mutation Gate (R2) will hook in here.
-	const { taskId, currentTier, targetRepo, shadowDecision } = await prepareTurnLifecycle({
+	const { taskId, currentTier, targetRepo, shadowDecision, userMessageText } =
+		await prepareTurnLifecycle({
 		text,
 		threadId,
 		source: 'voice'
-	});
+		});
 
 	// D2.2: Classify-before-answer gate. A work turn speaks ONLY the short status
 	// returned by applyTurnDecision — never a full spoken answer first.
@@ -61,7 +62,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			taskId,
 			threadId,
 			targetRepo,
-			userText: text
+			userText: userMessageText
 		});
 		const enc = new TextEncoder();
 		const stream = new ReadableStream({
@@ -101,7 +102,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Prepend the voice system prompt (persona + live local time + memory layers).
 	// Overrides companion-v1-voice's stale baked-in Modelfile SYSTEM so voice
 	// matches the text Sully — warm, short, no spoken lists, time-aware.
-	const voiceSystem = await buildVoiceSystemPrompt(threadId, text);
+	const voiceSystem = await buildVoiceSystemPrompt(threadId, userMessageText);
 	const chatMessages = [{ role: 'system', content: voiceSystem }, ...turns];
 
 	let full = '';
@@ -169,7 +170,7 @@ export const POST: RequestHandler = async ({ request }) => {
 							taskId,
 							threadId,
 							targetRepo,
-							userText: text
+							userText: userMessageText
 						});
 						if (r?.spokenSuffix) controller.enqueue(enc.encode(' ' + r.spokenSuffix));
 					} catch (e) {

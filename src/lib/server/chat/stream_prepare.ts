@@ -27,6 +27,11 @@ import { providerPrefToApi } from '$lib/chat/model-registry';
 import { runMutationGate, type MutationGateResult } from '$lib/server/routing/mutation_gate';
 import { resolveTurnDecision, type TurnDecision } from '$lib/server/routing/turn_decision';
 import { logTaskEvent } from '$lib/server/chatActivity';
+import {
+	normalizeInputText,
+	normalizeLatestUserMessage,
+	sourceToNormalizationMode
+} from '$lib/server/input_normalizer';
 
 export type Provider = 'anthropic' | 'google' | 'local';
 
@@ -70,7 +75,7 @@ export interface PrepareTurnLifecycleArgs {
 	threadId: string;
 	/** Sender label — defaults to 'operator'. */
 	sender?: string;
-	/** Where this turn entered from — 'chat' | 'voice'. Defaults to 'chat'. */
+	/** Where this turn entered from — 'chat' | 'voice' | 'walkie'. Defaults to 'chat'. */
 	source?: string;
 	/** Optional explicit target repo hint (keyword-scan fallback if absent). */
 	targetRepoHint?: string;
@@ -100,19 +105,24 @@ export async function prepareTurnLifecycle(
 ): Promise<TurnLifecycleResult> {
 	const { text, threadId } = args;
 	const source = args.source ?? 'chat';
+	const normalizedText = normalizeInputText(text, sourceToNormalizationMode(source));
 
 	const taskId = mintTaskId();
-	persistUserTurn({ text, threadId, taskId, source, sender: args.sender });
-	const { currentTier, threadState } = classifyAndTouchThread({ threadId, userText: text, taskId });
-	const targetRepo = detectTargetRepo(text, args.targetRepoHint);
+	persistUserTurn({ text: normalizedText, threadId, taskId, source, sender: args.sender });
+	const { currentTier, threadState } = classifyAndTouchThread({
+		threadId,
+		userText: normalizedText,
+		taskId
+	});
+	const targetRepo = detectTargetRepo(normalizedText, args.targetRepoHint);
 	// R2: run the Mutation Gate after classify (so the active-task query is
 	// post-classify, not pre). One chokepoint — impossible to bypass.
-	const mutationGate = runMutationGate(threadId, text);
+	const mutationGate = runMutationGate(threadId, normalizedText);
 
 	// D1.2: shadow-compute the turn decision pre-stream (deterministic — no gateBlock).
 	// Read-only + one journal write. Does NOT alter the reply or dispatch path.
 	const shadowDecision = resolveTurnDecision({
-		userText: text,
+		userText: normalizedText,
 		threadId,
 		mutationGate,
 		tier: currentTier
@@ -124,7 +134,7 @@ export async function prepareTurnLifecycle(
 		currentTier,
 		threadState,
 		targetRepo,
-		userMessageText: text,
+		userMessageText: normalizedText,
 		mutationGate,
 		shadowDecision
 	};
@@ -187,6 +197,20 @@ export interface PreparedStreamContext {
 	shadowDecision: TurnDecision;
 }
 
+function latestUserText(messages: UIMessage[]): string {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const message = messages[i];
+		if (message.role !== 'user') continue;
+		const text = (message.parts || [])
+			.filter((part) => part.type === 'text')
+			.map((part) => (part as { type: 'text'; text: string }).text)
+			.join(' ')
+			.trim();
+		if (text) return text;
+	}
+	return '';
+}
+
 /**
  * Run the shared preamble both streaming paths depend on and return a context
  * object carrying every field they need. The route handler keeps the
@@ -194,7 +218,11 @@ export interface PreparedStreamContext {
  * `useClaudeCLI`.
  */
 export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamContext> {
-	const { messages, threadId, userText } = args;
+	const normalizationMode = sourceToNormalizationMode(args.source);
+	const messages = normalizeLatestUserMessage(args.messages, normalizationMode);
+	const { threadId } = args;
+	const userText =
+		args.userText || latestUserText(messages);
 
 	// Shared turn-lifecycle preamble: mint Task id, persist operator turn,
 	// classify + touch thread, resolve target repo. Both text + voice call this

@@ -18,6 +18,7 @@ import {
 } from '$lib/server/chat_turn';
 import { buildSystemPrompt } from '$lib/server/chat_prompt';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
+import { normalizeInputText } from '$lib/server/input_normalizer';
 
 const GATEWAY_TIMEOUT_MS = 10_000;
 
@@ -92,8 +93,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		// per §2D.3 Step C / §2F decision 7. Hard-locked on the server so clients
 		// cannot accidentally use a deep-tier model in the high-frequency loop.
 		const isTalkback: boolean = body && body.talkback === true;
+		const normalizedMessage = normalizeInputText(message || '', isTalkback ? 'walkie' : 'chat');
 
-		if (!message || !message.trim()) {
+		if (!normalizedMessage.trim()) {
 			return json({ error: 'Message content is required.' }, { status: 400 });
 		}
 
@@ -107,15 +109,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		// the shared chat_turn service (PR C). The legacy route alone needs the
 		// returned row + the recent-message count for downstream side-effects.
 		const chatMsg = persistUserTurn({
-			text: message,
+			text: normalizedMessage,
 			threadId,
 			sender: sender || 'operator',
 			ticketId: ticket_id || null,
-			taskId: turnTaskId
+			taskId: turnTaskId,
+			source: isTalkback ? 'walkie' : 'chat'
 		});
 		const { currentTier, threadState } = classifyAndTouchThread({
 			threadId,
-			userText: message,
+			userText: normalizedMessage,
 			taskId: turnTaskId
 		});
 		// PR 8: silently mark Deep-tier threads with 3+ exchanges as observation
@@ -126,7 +129,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// 2. Resolve worker selection. Operator's explicit pill wins if set;
 		//    otherwise fall back to @-mention heuristic; otherwise 'auto'.
-		const text = message.toLowerCase();
+		const text = normalizedMessage.toLowerCase();
 		let role = 'backend';
 		let worker = 'auto';
 		if (explicitAgent === 'claude-code' || explicitAgent === 'agy') {
@@ -222,9 +225,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				traceId,
 				worker: dispatchWorker,
 				category: 'code',
-				brief: message.trim().slice(0, 200),
+				brief: normalizedMessage.trim().slice(0, 200),
 				targetRepo,
-				task: message.trim(),
+				task: normalizedMessage.trim(),
 				threadId
 			});
 			if (res.ok) {
@@ -294,7 +297,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					-1
 				);
 				const history = chatRowsToHermesHistory(slice);
-				const reply = await callHermes(history, message.trim());
+				const reply = await callHermes(history, normalizedMessage.trim());
 				addChatMessage('hermes', reply, null, null, null, 'sent', threadId);
 			} catch (err) {
 				console.error('Hermes call failed:', err);
@@ -341,7 +344,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						role: (r.sender === 'operator' ? 'user' : 'assistant') as 'user' | 'assistant',
 						content: r.message
 					}));
-				const lastContent = await buildMultimodalContent(message.trim());
+				const lastContent = await buildMultimodalContent(normalizedMessage.trim());
 				routerMessages.push({ role: 'user', content: lastContent });
 
 				if (routerMessages.length > 20) {
@@ -353,7 +356,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					routerMessages,
 					'gemini',
 					undefined,
-					await buildSystemPrompt({ targetRepo, currentTier, threadId }, message.trim())
+					await buildSystemPrompt({ targetRepo, currentTier, threadId }, normalizedMessage.trim())
 				);
 				addChatMessage('agy', result.reply, null, null, null, 'sent', threadId);
 				upsertThreadTier(threadId, currentTier, result.model_used);
@@ -390,8 +393,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// toggle is what flips this.
 		if (imageMode && sender !== 'system') {
 			try {
-				const { url } = await generateGeminiImage(message.trim());
-				const md = `![${message.trim().slice(0, 80) || 'generated image'}](${url})`;
+				const { url } = await generateGeminiImage(normalizedMessage.trim());
+				const md = `![${normalizedMessage.trim().slice(0, 80) || 'generated image'}](${url})`;
 				addChatMessage('agy', md, null, null, null, 'sent', threadId);
 			} catch (err) {
 				console.error('Gemini image gen failed:', err);
@@ -435,7 +438,7 @@ Here is the recent conversation history for context:
 ---
 ${historyContext}
 ---
-The operator's latest command is: "${message}"
+The operator's latest command is: "${normalizedMessage}"
 
 Please execute the request, make any necessary code/file modifications in your target repository (${targetRepo}).
 
@@ -512,7 +515,7 @@ waiting.`;
 			try {
 				// PR 8: emit a linking observation BEFORE dispatch so the dispatched
 				// worker can receive operator chat context as injected memory.
-				emitDispatchLinkObservation(threadId, message, targetRepo, currentTier);
+				emitDispatchLinkObservation(threadId, normalizedMessage, targetRepo, currentTier);
 
 				const response = await fetchWithTimeout(
 					`${serverConfig.gatewayUrl}/api/v1/dispatch`,
