@@ -68,6 +68,7 @@
 		"@fontsource-variable/fraunces": "^5.2.9",
 		"@fontsource-variable/inter": "^5.2.8",
 		"@fontsource-variable/jetbrains-mono": "^5.2.8",
+		"@iconscout/unicons": "^4.2.0",
 		"ai": "^6.0.191",
 		"better-sqlite3": "^12.10.0",
 		"bits-ui": "^2.18.1",
