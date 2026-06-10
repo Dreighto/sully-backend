@@ -20,7 +20,9 @@ test('composer pulse clears within 1.5s of last token', async ({ page }) => {
 	await expect(sendBtn).toBeVisible({ timeout: 5_000 });
 
 	// Composer pill (the outer div that gets composer-sending when sending).
-	const composerPill = page.locator('div.rounded-3xl').filter({ has: textarea }).first();
+	// Selected by test id, NOT by utility class — the D2 token sweep (LOS-185)
+	// broke the old `div.rounded-3xl` selector when radii moved to var() tokens.
+	const composerPill = page.getByTestId('composer-pill');
 
 	const tSendClick = Date.now();
 	await sendBtn.click();

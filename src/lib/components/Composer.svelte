@@ -262,6 +262,7 @@
 >
 	<!-- Outer border shifting glow container -->
 	<div
+		data-testid="composer-pill"
 		class="relative flex flex-col gap-2 rounded-[var(--r-xl)] border p-2 transition-all duration-[var(--dur-slow)]
 			{composerMode === 'talkback'
 			? 'border-emerald-500/40 bg-emerald-500/[0.04] shadow-[var(--shadow-accent)]'
