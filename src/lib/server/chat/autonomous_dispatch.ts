@@ -40,9 +40,11 @@ import { env } from '$env/dynamic/private';
 import type { Tier } from '$lib/server/phase_classifier';
 import type { MutationGateResult } from '$lib/server/routing/mutation_gate';
 import { resolveTurnDecision, type TurnDecision } from '$lib/server/routing/turn_decision';
-
-/** Operator-facing worker label. */
-const workerLabel = (w: 'claude-code' | 'gemini'): string => (w === 'gemini' ? 'AGY' : 'CC');
+import {
+	DEFAULT_ROUTED_WORKER,
+	resolveDispatchableWorker,
+	workerLabel
+} from '$lib/server/worker-registry';
 
 export interface AutonomousDispatchArgs {
 	/** The latest user message text (space-joined, trimmed). */
@@ -154,7 +156,9 @@ export async function applyTurnDecision(
 			markGatedProposal(
 				taskId,
 				{
-					worker: 'claude-code',
+					// Honor a worker the operator named in the held request; otherwise
+					// the registry's single routed default (never a local literal).
+					worker: resolveDispatchableWorker(userText) ?? DEFAULT_ROUTED_WORKER,
 					category: 'code',
 					brief: userText.slice(0, 200),
 					targetRepo,
@@ -232,8 +236,10 @@ export async function applyTurnDecision(
 				dispatched: res.ok,
 				held_reason: res.ok ? null : res.reason
 			});
+			// Correct attribution (LOS-191): the reply names the worker actually
+			// dispatched ("DPSK is on it"), never a hardcoded persona.
 			const msg = res.ok
-				? `On it — this one needs some real digging, so give me a few minutes. I'll drop the answer right here the moment it's ready.`
+				? `${workerLabel(worker)} is on it — I'll drop the answer right here the moment it's ready.`
 				: `⚠️ Dispatch held: ${res.reason}.`;
 			addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, {
 				taskId
@@ -254,6 +260,19 @@ export async function applyTurnDecision(
 				dispatched: false
 			});
 			return { spokenSuffix: ask };
+		}
+
+		case 'REJECT_WORKER': {
+			// Operator named a non-dispatchable roster member — graceful, deterministic
+			// rejection with the registry's copy. No silent substitution (LOS-191).
+			addChatMessage('local', decision.message, null, null, null, 'sent', threadId, { taskId });
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Reject',
+				reason: `non-dispatchable:${decision.name}`,
+				dispatched: false
+			});
+			markSelfHandled(taskId);
+			return { spokenSuffix: decision.message };
 		}
 
 		case 'ANSWER_NOW': {

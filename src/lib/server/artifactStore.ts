@@ -1,4 +1,5 @@
 import type { DeclaredArtifact } from './verifyPoll';
+import { workerLabel } from './worker-registry';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -223,16 +224,10 @@ export function promoteArtifactsForTask(input: PromoteInput): PromoteResult {
 	return { promoted: meta, failed };
 }
 
+// Labels flow from the worker registry (LOS-191) — no local snapshot.
+// workerLabel already falls back to id.slice(0, 3).toUpperCase() for unknowns.
 function workerShort(id: string): string {
-	const m: Record<string, string> = {
-		'claude-code': 'CC',
-		gemini: 'GMI',
-		agy: 'AGY',
-		cdx: 'CDX',
-		deepseek: 'DPSK',
-		cursor: 'CUR'
-	};
-	return m[id] ?? id.slice(0, 3).toUpperCase();
+	return workerLabel(id);
 }
 
 const ORDER = { primary: 0, secondary: 1, supporting: 2 } as const;

@@ -6,8 +6,8 @@ describe('decide — behavior-preserving extraction', () => {
 		expect(decide({ userText: '@cc fix the build', fromTool: false }).action).toBe('Dispatch');
 		expect(decide({ userText: '@cc fix the build', fromTool: false }).worker).toBe('claude-code');
 	});
-	it('@agy dispatches to gemini', () => {
-		expect(decide({ userText: '@agy restyle the header', fromTool: false }).worker).toBe('gemini');
+	it('@agy dispatches to the agy worker (LOS-191: no more silent gemini remap)', () => {
+		expect(decide({ userText: '@agy restyle the header', fromTool: false }).worker).toBe('agy');
 	});
 	it('plain chatter is Talk', () => {
 		expect(decide({ userText: 'hey how are you', fromTool: false }).action).toBe('Talk');

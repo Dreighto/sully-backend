@@ -5,8 +5,7 @@ import { getProposalByTaskId, markAborted, markSelfHandled } from '$lib/server/d
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { addChatMessage, resolveProposalMessage } from '$lib/server/chat';
 import { logTaskEvent } from '$lib/server/chatActivity';
-
-const workerLabel = (w: 'claude-code' | 'gemini'): string => (w === 'gemini' ? 'AGY' : 'CC');
+import { workerLabel } from '$lib/server/worker-registry';
 
 /**
  * Tap-to-confirm endpoint for ask-before-dispatch (the buttons on a proposal

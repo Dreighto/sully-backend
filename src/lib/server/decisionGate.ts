@@ -1,21 +1,36 @@
 // Decision Gate (spec §4.2). Three stages, no second local model:
-//   1. ruleGate       — zero-token literal pre-filter (@cc/@agy mentions).
+//   1. ruleGate       — zero-token literal pre-filter (worker mentions / named
+//                       dispatch commands, roster-driven via worker-registry).
 //   2. valueGate      — deterministic, model-independent objective-signal gate
 //                       + injection guard (tool/pasted content can't auto-fire).
 //   3. parseSchema    — validate the {escalate,...} tail of the CLI-bridge reply
 //                       (Task 1b.3).
+import { type WorkerName, WORKER_REGISTRY, extractNamedWorker, getWorker } from './worker-registry';
 
 export interface RuleResult {
 	forced: boolean;
-	worker?: 'claude-code' | 'gemini';
+	worker?: WorkerName;
+	/** Set when the operator named a NON-dispatchable roster member (CUR/Hermes). */
+	rejection?: { name: string; label: string; copy: string };
 }
 
-// Literal worker mentions force a dispatch route, bypassing the value gate.
+// An explicitly named roster worker forces a dispatch route, bypassing the
+// value gate (LOS-191: the whole roster, not just @cc/@agy — "Dispatch DPSK"
+// must reach DPSK, never silently substitute claude-code). Naming a
+// non-dispatchable member yields a rejection instead of a force.
 export function ruleGate(text: string): RuleResult {
-	const t = text.toLowerCase();
-	if (t.includes('@cc')) return { forced: true, worker: 'claude-code' };
-	if (t.includes('@agy') || t.includes('@gemini')) return { forced: true, worker: 'gemini' };
-	return { forced: false };
+	const named = extractNamedWorker(text);
+	if (!named) return { forced: false };
+	const { entry } = named;
+	if (!entry.dispatchable) {
+		// Every non-dispatchable registry entry carries its rejection copy — the
+		// literal types guarantee it, so no fallback string is needed here.
+		return {
+			forced: false,
+			rejection: { name: entry.name, label: entry.label, copy: entry.rejection }
+		};
+	}
+	return { forced: true, worker: entry.name as WorkerName };
 }
 
 // Objective signals that justify spending a cloud dispatch.
@@ -104,6 +119,12 @@ export function valueGate(input: { text: string; fromTool: boolean }): ValueGate
 // machine-readable block as the LAST line of its reply. We strip it from the
 // visible text and validate it server-side. Zero extra model, zero extra call.
 
+// The allowed-worker line FLOWS from the registry — adding a worker there
+// updates the teacher's vocabulary with no edit here (LOS-191).
+const GATE_WORKER_MENU = WORKER_REGISTRY.filter((w) => w.dispatchable)
+	.map((w) => `"${w.name}"${w.hint ? ` (${w.hint})` : ''}`)
+	.join(', ');
+
 export const GATE_INSTRUCTION = `
 DISPATCH SELF-ASSESSMENT — after your normal reply, if (and only if) the request
 would be better executed by a coding worker than answered directly, append ONE
@@ -111,13 +132,13 @@ line in EXACTLY this shape as the final line of your message (otherwise omit it)
 
 <<<SULLY_GATE {"escalate":true,"worker":"claude-code","confidence":0.0,"category":"<short>","brief":"<one-line task brief>","est_scope":"small|medium|large"} >>>
 
-worker MUST be "claude-code" (backend/code) or "gemini" (frontend/UI). confidence
+worker MUST be one of: ${GATE_WORKER_MENU}. confidence
 is 0..1. Do NOT wrap it in code fences. Emit nothing if no dispatch is warranted.
 `.trim();
 
 export interface GateSchema {
 	escalate: boolean;
-	worker: 'claude-code' | 'gemini';
+	worker: WorkerName;
 	confidence: number;
 	category: string;
 	brief: string;
@@ -146,8 +167,10 @@ export function validateGate(block: string | null): GateValidation {
 	}
 	const g = parsed as Partial<GateSchema>;
 	if (typeof g.escalate !== 'boolean') return { ok: false, error: 'escalate-not-boolean' };
-	if (g.worker !== 'claude-code' && g.worker !== 'gemini')
-		return { ok: false, error: 'invalid-worker' };
+	// Canonicalize through the registry: a teacher emitting an alias ("cc")
+	// still resolves to the dispatch name the kernel listener accepts.
+	const workerEntry = typeof g.worker === 'string' ? getWorker(g.worker) : null;
+	if (!workerEntry?.dispatchable) return { ok: false, error: 'invalid-worker' };
 	if (typeof g.confidence !== 'number' || g.confidence < 0 || g.confidence > 1)
 		return { ok: false, error: 'confidence-out-of-range' };
 	if (typeof g.category !== 'string' || !g.category.trim())
@@ -159,7 +182,7 @@ export function validateGate(block: string | null): GateValidation {
 		ok: true,
 		gate: {
 			escalate: g.escalate,
-			worker: g.worker,
+			worker: workerEntry.name as WorkerName,
 			confidence: g.confidence,
 			category: g.category.trim(),
 			brief: g.brief.trim(),

@@ -1,5 +1,5 @@
 {"text":"@cc fix the failing build in the auth endpoint","fromTool":false,"expected":"Dispatch","locked":true,"note":"explicit @cc"}
-{"text":"@agy restyle the chat header","fromTool":false,"expected":"Dispatch","note":"explicit @agy → gemini"}
+{"text":"@agy restyle the chat header","fromTool":false,"expected":"Dispatch","note":"explicit @agy → agy worker (LOS-191)"}
 {"text":"@cc run the test suite and report failures","fromTool":false,"expected":"Dispatch","locked":true,"note":"explicit @cc"}
 {"text":"@agy tweak the orb glow color","fromTool":false,"expected":"Dispatch","note":"explicit @agy"}
 {"text":"add a settings page to the console","fromTool":false,"tier":"chat","expected":"Ask","note":"strong imperative + repo"}

@@ -7,6 +7,7 @@
 // 'Talk') until the Ask-behavior is built in Phase 2. The scorecard grades
 // against Talk/Ask/Dispatch regardless, which is what surfaces the gap.
 import { ruleGate, valueGate, validateGate } from '../decisionGate';
+import { DEFAULT_ROUTED_WORKER, type WorkerName } from '../worker-registry';
 import type { Tier } from '../phase_classifier';
 
 export type RouteAction = 'Talk' | 'Ask' | 'Dispatch';
@@ -23,8 +24,11 @@ export interface DecideInput {
 
 export interface RouteDecision {
 	action: RouteAction;
-	worker?: 'claude-code' | 'gemini';
+	worker?: WorkerName;
 	reason: string;
+	/** Set (with action 'Talk') when the operator named a non-dispatchable
+	 *  roster member — carries the graceful rejection copy to surface. */
+	rejection?: { name: string; label: string; copy: string };
 }
 
 export function decide(input: DecideInput): RouteDecision {
@@ -38,13 +42,22 @@ export function decide(input: DecideInput): RouteDecision {
 	//    pasted chatter is just Talk. This precedes ruleGate by design.
 	if (fromTool) {
 		return vg.qualifies
-			? { action: 'Ask', worker: 'claude-code', reason: 'tool-sourced' }
+			? { action: 'Ask', worker: DEFAULT_ROUTED_WORKER, reason: 'tool-sourced' }
 			: { action: 'Talk', reason: vg.reason };
 	}
 
-	// 2. Explicit @cc/@agy mention from the operator is a direct command — the
-	//    ONLY path that dispatches immediately, no confirmation needed.
+	// 2. An explicitly named roster worker from the operator is a direct command
+	//    — the ONLY path that dispatches immediately, no confirmation needed.
+	//    Naming a non-dispatchable member (CUR/Hermes) is rejected gracefully
+	//    instead of silently substituting a default (LOS-191).
 	const forced = ruleGate(userText);
+	if (forced.rejection) {
+		return {
+			action: 'Talk',
+			reason: `non-dispatchable:${forced.rejection.name}`,
+			rejection: forced.rejection
+		};
+	}
 	if (forced.forced && forced.worker) {
 		return { action: 'Dispatch', worker: forced.worker, reason: 'rule:mention' };
 	}
@@ -64,7 +77,8 @@ export function decide(input: DecideInput): RouteDecision {
 		return { action: 'Ask', worker: gate.gate.worker, reason: 'work-intent+model-vote' };
 	}
 
-	// 5. Qualifying work intent without an explicit @mention → PROPOSE (ask first),
-	//    never auto-dispatch. The operator confirms with a natural "yes".
-	return { action: 'Ask', worker: 'claude-code', reason: 'work-intent' };
+	// 5. Qualifying work intent without an explicitly named worker → PROPOSE
+	//    (ask first), never auto-dispatch. The operator confirms with a natural
+	//    "yes". The registry's single routed default — never a scattered literal.
+	return { action: 'Ask', worker: DEFAULT_ROUTED_WORKER, reason: 'work-intent' };
 }

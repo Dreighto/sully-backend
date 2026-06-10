@@ -287,6 +287,29 @@ describe('resolveTurnDecision — intent gate branch (D)', () => {
 		expect(d.kind).toBe('PROPOSE');
 	});
 
+	it('"Dispatch DPSK …" → DISPATCH worker=dpsk, no confirm round-trip (LOS-191)', async () => {
+		const { resolveTurnDecision } = await setup();
+		const d = resolveTurnDecision({
+			userText: 'Dispatch DPSK to review the routing layer',
+			threadId: 'tD-dpsk'
+		});
+		expect(d.kind).toBe('DISPATCH');
+		if (d.kind === 'DISPATCH') expect(d.worker).toBe('dpsk');
+	});
+
+	it('naming non-dispatchable CUR → REJECT_WORKER with the registry copy (LOS-191)', async () => {
+		const { resolveTurnDecision } = await setup();
+		const d = resolveTurnDecision({
+			userText: 'dispatch cur to restyle the header',
+			threadId: 'tD-cur'
+		});
+		expect(d.kind).toBe('REJECT_WORKER');
+		if (d.kind === 'REJECT_WORKER') {
+			expect(d.name).toBe('cur');
+			expect(d.message).toContain('interactive-only');
+		}
+	});
+
 	it('brainstorm ("just kicking an idea around…") → ANSWER_NOW', async () => {
 		const { resolveTurnDecision } = await setup();
 		const d = resolveTurnDecision({

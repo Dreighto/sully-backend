@@ -56,13 +56,30 @@ export function isDisplayableAction(action: string): boolean {
 	return !(HIDDEN_ACTIONS as readonly string[]).includes(action);
 }
 
+/** A short status line derived from the task's actual brief ("Audit the docs
+ *  folder…"), or null when no brief is available. Capped so a long brief can't
+ *  blow up the card. */
+function briefLine(brief: string | null | undefined): string | null {
+	const b = (brief || '').trim().replace(/\s+/g, ' ');
+	if (!b) return null;
+	const capped = b.length > 80 ? `${b.slice(0, 79).trimEnd()}…` : `${b}…`;
+	return capped.charAt(0).toUpperCase() + capped.slice(1);
+}
+
 /**
  * Map a raw worker activity row to a plain-English status line, or `null` to
  * hide it entirely. The `target` (file paths, commands, JSON) is intentionally
  * NEVER interpolated, and an unknown verb falls back to a generic phrase — a
- * non-coder must never see a raw action name or payload.
+ * non-coder must never see a raw action name or payload. When the task `brief`
+ * is supplied, run-state lines derive from it instead of a canned claim (the
+ * old hardcoded test-running copy lied whenever the worker ran anything else —
+ * LOS-191).
  */
-export function friendlyStep(action: string, _target: string | null): string | null {
+export function friendlyStep(
+	action: string,
+	_target: string | null,
+	brief?: string | null
+): string | null {
 	if (!isDisplayableAction(action)) return null;
 	switch (action) {
 		case 'reading':
@@ -76,7 +93,7 @@ export function friendlyStep(action: string, _target: string | null): string | n
 		case 'running':
 		case 'ran':
 		case 'testing':
-			return 'Running the tests…';
+			return briefLine(brief) ?? 'Running a command…';
 		case 'searching':
 			return 'Searching…';
 		case 'fetching':

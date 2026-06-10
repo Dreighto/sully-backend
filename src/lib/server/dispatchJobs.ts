@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { serverConfig } from './config';
+import type { WorkerName } from './worker-registry';
 
 // Task lifecycle states (Phase 1, task-first architecture). The original
 // dispatch states (decided→…→done) are now the MIDDLE of a larger arc that
@@ -427,7 +428,7 @@ export function markSelfHandled(traceId: string): void {
 
 /** The dispatch payload stashed on a 'gated' proposal until the operator confirms. */
 export interface ProposalPayload {
-	worker: 'claude-code' | 'gemini';
+	worker: WorkerName;
 	category: string;
 	brief: string;
 	targetRepo: string;

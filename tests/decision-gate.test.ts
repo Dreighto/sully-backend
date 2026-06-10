@@ -6,8 +6,8 @@ describe('ruleGate', () => {
 	it('hard-routes an explicit @cc mention to dispatch', () => {
 		expect(ruleGate('@cc fix the failing test')).toEqual({ forced: true, worker: 'claude-code' });
 	});
-	it('hard-routes @agy to gemini', () => {
-		expect(ruleGate('@agy restyle the header')).toEqual({ forced: true, worker: 'gemini' });
+	it('hard-routes @agy to the agy worker (LOS-191: no more silent gemini remap)', () => {
+		expect(ruleGate('@agy restyle the header')).toEqual({ forced: true, worker: 'agy' });
 	});
 	it('returns no forced route for plain chat', () => {
 		expect(ruleGate('what do you think about dinner')).toEqual({ forced: false });
