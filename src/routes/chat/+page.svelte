@@ -89,6 +89,16 @@
 			} catch {
 				/* navigation failure shouldn't break the in-page switch */
 			}
+		},
+		persistActiveThread: (threadId) => {
+			// Fire-and-forget server persist so a background/close right after a
+			// switch resumes THIS thread on reopen (restore order step 2). Errors are
+			// non-fatal — the next real turn re-persists via setActiveThread anyway.
+			void fetch(resolve('/api/chat/state'), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ thread: threadId })
+			}).catch(() => {});
 		}
 	});
 	const composerCtrl = createComposerStateController({
@@ -222,6 +232,40 @@
 	let dockMode = $state<WorkSurfaceDockMode>('badge');
 	let dockOpenSurfaceId = $state<string | null>(null);
 	let dockSheetReturnMode = $state<WorkSurfaceDockMode>('badge');
+
+	/** Open the work-surface card for `traceId` as an expanded sheet. Used by the
+	 *  notification deep-link (PR-0c): tap a "task done" push → land in the thread
+	 *  → focus that task's card. Idempotent + safe to no-op (returns quietly if the
+	 *  dispatch row for this trace isn't in the loaded thread, e.g. it was deleted). */
+	function focusTraceCard(traceId: string) {
+		const t = (traceId || '').trim();
+		if (!t) return;
+		const surfaceId = ensureSurfaceForTrace(t);
+		if (!surfaceId) return;
+		dockOpenSurfaceId = surfaceId;
+		dockSheetReturnMode = 'badge';
+		dockMode = 'sheet';
+	}
+
+	/** Apply a notification deep-link URL: switch to its `thread` (if different)
+	 *  then focus its `trace_id` task card. Used for the WARM path (app already
+	 *  open) — the service worker postMessages the URL on notificationclick. The
+	 *  COLD-START path is handled in onMount (the thread is already resolved
+	 *  server-side; we just focus the trace). */
+	async function handleDeepLink(rawUrl: string) {
+		let parsed: URL;
+		try {
+			parsed = new URL(rawUrl, window.location.origin);
+		} catch {
+			return;
+		}
+		const thread = parsed.searchParams.get('thread');
+		const trace = parsed.searchParams.get('trace_id');
+		if (thread && thread !== threadsCtrl.activeThread) {
+			await threadsCtrl.switchThread(thread);
+		}
+		if (trace) focusTraceCard(trace);
+	}
 
 	// threadMenuOpenFor (and renamingFor / renameDraft / showArchived) live on
 	// threadsCtrl now (PR E1) — the global popover handler reads
@@ -939,9 +983,30 @@
 	let pollTimer: ReturnType<typeof setInterval>;
 	let activityTimer: ReturnType<typeof setInterval>;
 	let sentinelObs: IntersectionObserver | null = null;
+	// Service-worker → page channel for the WARM notification-tap deep-link.
+	let swMessageHandler: ((e: MessageEvent) => void) | null = null;
 
 	onMount(() => {
 		void loadTier(threadsCtrl.activeThread);
+
+		// COLD-START notification deep-link: the thread is already resolved
+		// server-side (restore order, step 1 = ?thread=). If the push also carried a
+		// trace_id, focus that task's work-surface card once the feed has mounted.
+		const coldTrace = $page.url.searchParams.get('trace_id');
+		if (coldTrace) queueMicrotask(() => focusTraceCard(coldTrace));
+		// Invalid/missing deep-linked thread → plain-English fallback (never a blank
+		// screen). The server already fell back to the last-active conversation.
+		if (data.deepLinkMiss) {
+			toasts.add('That conversation is no longer available — showing your latest chat.', 'info');
+		}
+		// WARM notification deep-link: SW focuses this client and postMessages the
+		// target URL so we switch to the exact thread + focus the card without a reload.
+		swMessageHandler = (e: MessageEvent) => {
+			if (e.data?.type === 'deep-link' && typeof e.data.url === 'string') {
+				void handleDeepLink(e.data.url);
+			}
+		};
+		navigator.serviceWorker?.addEventListener('message', swMessageHandler);
 		// Restore this device's tools-unlock code (set previously via /unlock).
 		try {
 			toolsKey = localStorage.getItem('companion-tools-key') ?? '';
@@ -978,6 +1043,7 @@
 	onDestroy(() => {
 		clearInterval(pollTimer);
 		if (activityTimer) clearInterval(activityTimer);
+		if (swMessageHandler) navigator.serviceWorker?.removeEventListener('message', swMessageHandler);
 		for (const ctrl of Object.values(dispatchStreams)) ctrl.destroy();
 		sentinelObs?.disconnect();
 		if (activityFadeTimer) clearTimeout(activityFadeTimer);

@@ -16,6 +16,7 @@ function makeController(overrides: Partial<Parameters<typeof createThreadsContro
 	const pollMessages = vi.fn().mockResolvedValue(undefined);
 	const loadTier = vi.fn().mockResolvedValue(undefined);
 	const syncUrlThread = vi.fn();
+	const persistActiveThread = vi.fn();
 	const deps = {
 		getInitialThreads: () => [baseThread],
 		getInitialActiveThread: () => 'default',
@@ -24,6 +25,7 @@ function makeController(overrides: Partial<Parameters<typeof createThreadsContro
 		pollMessages,
 		loadTier,
 		syncUrlThread,
+		persistActiveThread,
 		...overrides
 	};
 	return {
@@ -72,5 +74,23 @@ describe('createThreadsController', () => {
 		expect(deps.setMessages).toHaveBeenCalledWith([]);
 		expect(deps.pollMessages).toHaveBeenCalledWith('research');
 		expect(deps.loadTier).toHaveBeenCalledWith('research');
+	});
+
+	it('persists the active thread server-side on switch (switch-then-reopen fix)', async () => {
+		const { ctrl, deps } = makeController();
+
+		await ctrl.switchThread('research');
+
+		// LOS-178: the new thread must be persisted so a background/close right
+		// after the switch resumes THIS thread, not the pre-switch one.
+		expect(deps.persistActiveThread).toHaveBeenCalledWith('research');
+	});
+
+	it('does NOT persist when switching to the already-active thread (no-op guard)', async () => {
+		const { ctrl, deps } = makeController();
+
+		await ctrl.switchThread('default'); // already active
+
+		expect(deps.persistActiveThread).not.toHaveBeenCalled();
 	});
 });

@@ -99,7 +99,7 @@ export async function closeOutTask(
 	// summarize it in plain English (Haiku) so the Captain can digest it without
 	// a follow-up. Best-effort — on any failure/timeout `summary` is null and we
 	// fall back to posting the raw result verbatim (nothing is lost).
-	
+
 	// ── Phase 6: artifact promotion (copy → manifest → breadcrumbs) ──
 	if (outcome === 'done' && job) {
 		try {
@@ -113,15 +113,14 @@ export async function closeOutTask(
 				evidence
 			});
 			// Emit breadcrumbs AFTER manifest write (§2.5.4)
-			for (const m of promoted) 
+			for (const m of promoted)
 				logTaskEvent(traceId, 'created_artifact', { target: m.original_path });
-			for (const f of failed) 
-				logTaskEvent(traceId, 'wrote_file', { target: f.path }); // stays evidence (§2.5.6)
+			for (const f of failed) logTaskEvent(traceId, 'wrote_file', { target: f.path }); // stays evidence (§2.5.6)
 		} catch (e) {
 			console.warn('[artifacts] promotion skipped:', e); // never breaks close-out
 		}
 	}
-	
+
 	const summary = text
 		? await synthesizeWorkerResult({
 				brief: job?.brief ?? '',
@@ -166,7 +165,10 @@ export async function closeOutTask(
 			title: outcome === 'done' ? 'Sully — task done' : 'Sully — task needs you',
 			body:
 				outcome === 'done' ? 'Your task finished. Tap to see the result.' : 'A task hit a snag.',
-			url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(threadId)}`,
+			// Deep-link carries BOTH thread_id (exact conversation) AND trace_id (so
+			// the tap focuses this task's work-surface card). traceId is always known
+			// on this companion-native close-out path (PR-0c).
+			url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(threadId)}&trace_id=${encodeURIComponent(traceId)}`,
 			badge,
 			threadGroupId: threadId
 		};

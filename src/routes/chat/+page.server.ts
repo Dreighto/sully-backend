@@ -2,7 +2,7 @@
 // Visual rewrite only; backend contracts unchanged.
 
 import type { PageServerLoad } from './$types';
-import { getChatMessages, listChatThreads } from '$lib/server/chat';
+import { getChatMessages, listChatThreads, resolveInitialThread } from '$lib/server/chat';
 import { listThreadMeta } from '$lib/server/thread_meta';
 import { serverConfig, runMode, clientSafeConfig, appIdentity } from '$lib/server/config';
 
@@ -74,11 +74,11 @@ const FALLBACK_WORKSPACES: Workspace[] = runMode.companion
 	? COMPANION_FALLBACK_WORKSPACES
 	: WIRED_FALLBACK_WORKSPACES;
 
-// A bare open (no ?thread=) lands the operator on a FRESH thread in The Den,
-// like ChatGPT/Claude — we deliberately do NOT resume the last/default thread.
-// The id isn't persisted until the first message (persistUserTurn), so empty
-// opens never leave phantom threads in the sidebar. Format mirrors the client's
-// newThread() slug (`chat-<base36>`).
+// Last-resort fresh-thread id, generated only when the restore order has nothing
+// real to resume (no valid ?thread=, no existing last-active thread). Mirrors the
+// client's newThread() slug (`chat-<base36>`). Not persisted until the first
+// message lands (persistUserTurn), so an unused fresh open leaves no phantom
+// thread in the sidebar.
 function freshThreadId(): string {
 	const t = Date.now().toString(36).slice(-5);
 	const r = Math.floor(Math.random() * 46656)
@@ -89,7 +89,10 @@ function freshThreadId(): string {
 
 export const load: PageServerLoad = async ({ url }) => {
 	const queryThread = url.searchParams.get('thread')?.trim();
-	const thread = queryThread || freshThreadId();
+	// Restore order (LOS-178): URL param → persisted last-active → validated-existing
+	// → fresh-as-last-resort. Reverses the previous deliberate fresh-on-open: a bare
+	// open now RESUMES the thread the operator was last in instead of starting blank.
+	const { thread, deepLinkMiss } = resolveInitialThread(queryThread, freshThreadId());
 	const messages = getChatMessages(100, thread);
 
 	// Merge two sources: chat_messages-derived list (for backfill of threads
@@ -177,6 +180,11 @@ export const load: PageServerLoad = async ({ url }) => {
 		messages,
 		threads,
 		activeThread: thread,
+		// True when a thread was requested (deep-link / explicit ?thread=) but no
+		// longer exists, so we fell back to the last-active conversation. The client
+		// shows a plain-English toast instead of silently swapping threads — and
+		// never a blank screen (PR-0c invalid-thread fallback).
+		deepLinkMiss,
 		workspaces,
 		appIdentity: clientSafeConfig.appIdentity,
 		companionDispatchEnabled: clientSafeConfig.companionDispatchEnabled

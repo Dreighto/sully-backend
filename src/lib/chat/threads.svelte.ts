@@ -20,6 +20,13 @@ export interface ThreadsDeps {
 	pollMessages: (threadId: string) => Promise<void>;
 	loadTier: (threadId: string) => Promise<void>;
 	syncUrlThread: (threadId: string) => void;
+	/**
+	 * Persist the active thread server-side (POST /api/chat/state). Called on every
+	 * switch so backgrounding/closing and reopening lands the operator back on the
+	 * thread they were LAST on — not the one they last *sent* in. Fire-and-forget;
+	 * the impl owns its own error handling. (LOS-178 switch-then-reopen fix.)
+	 */
+	persistActiveThread: (threadId: string) => void;
 }
 
 export interface ThreadsController {
@@ -64,6 +71,9 @@ export function createThreadsController(deps: ThreadsDeps): ThreadsController {
 		// thread they just created).
 		if (!opts.keepSidebarOpen) deps.setSidebarOpen(false);
 		deps.setMessages([]);
+		// Persist the new active thread immediately (before the awaits) so a
+		// background/close right after a switch still resumes THIS thread on reopen.
+		deps.persistActiveThread(threadId);
 		// Pass the target thread explicitly so pollMessages can drop the
 		// response if another switch happens before this fetch returns.
 		await deps.pollMessages(threadId);

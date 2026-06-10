@@ -77,13 +77,16 @@ describe('completion push URL carries thread id (deep-link fix)', () => {
 
 		await closeOutTask('push-url-t1', 'done', 'all done');
 
-		// Both web push and APNs should have been called with a threaded URL.
+		// Both web push and APNs should have been called with a threaded URL that
+		// ALSO carries the trace_id (PR-0c deep-link → focus the task card).
 		const allPayloads = [...webPushPayloads, ...apnsPayloads];
 		expect(allPayloads.length).toBeGreaterThan(0);
 		for (const p of allPayloads) {
 			const payload = p as { url?: string };
 			expect(payload.url).toContain('?thread=');
 			expect(payload.url).toContain('thread-abc123');
+			expect(payload.url).toContain('trace_id=');
+			expect(payload.url).toContain('push-url-t1');
 		}
 	});
 

@@ -44,10 +44,11 @@ afterEach(() => {
 });
 
 describe('completion_poller push URL carries thread id (deep-link fix)', () => {
-	it('fires sendPushToAll with ?thread=<id> for a JSONL entry with thread_id', async () => {
-		// Write a completion log entry with a thread_id
+	it('fires sendPushToAll with ?thread=<id>&trace_id=<id> for an entry carrying both', async () => {
+		// Write a completion log entry with a thread_id + trace_id (PR-0c deep-link).
 		const entry = JSON.stringify({
 			thread_id: 'thread-xyz789',
+			trace_id: 'sully-1717-abcd',
 			ticket_id: 'CC-42',
 			status: 'done',
 			worker_id: 'cc'
@@ -63,6 +64,23 @@ describe('completion_poller push URL carries thread id (deep-link fix)', () => {
 		const payload = webPushPayloads[0] as { url?: string; title?: string };
 		expect(payload.url).toContain('?thread=');
 		expect(payload.url).toContain('thread-xyz789');
+		// PR-0c: the trace_id rides along so the tap can focus the task card.
+		expect(payload.url).toContain('trace_id=');
+		expect(payload.url).toContain('sully-1717-abcd');
+	});
+
+	it('omits trace_id from the URL when the entry has no trace_id', async () => {
+		const entry = JSON.stringify({ thread_id: 'thread-no-trace', status: 'done' });
+		fs.writeFileSync(LOG_PATH, entry + '\n', 'utf8');
+
+		const { poll } = await import('$lib/server/completion_poller');
+		poll();
+
+		expect(webPushPayloads.length).toBe(1);
+		const payload = webPushPayloads[0] as { url?: string };
+		expect(payload.url).toContain('?thread=');
+		expect(payload.url).toContain('thread-no-trace');
+		expect(payload.url).not.toContain('trace_id=');
 	});
 
 	it('does NOT fire for entries without a thread_id (non-chat workers)', async () => {

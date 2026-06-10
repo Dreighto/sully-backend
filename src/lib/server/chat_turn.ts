@@ -10,7 +10,7 @@
 // version; the route handlers stay thin.
 
 import { randomBytes } from 'node:crypto';
-import { addChatMessage, getChatMessages, type MessageForensics } from './chat';
+import { addChatMessage, getChatMessages, setActiveThread, type MessageForensics } from './chat';
 import { classifyTier, type Tier } from './phase_classifier';
 import { getThreadState, upsertThreadTier, type ThreadState } from './thread_state';
 import { touchLastActivity, upsertThreadMeta } from './thread_meta';
@@ -86,6 +86,12 @@ export function classifyAndTouchThread(args: {
 } {
 	upsertThreadMeta(args.threadId, {});
 	touchLastActivity(args.threadId);
+	// Persist the active thread on EVERY real turn (text AND voice — both pipelines
+	// converge here). This is the core thread-resume seam: without it the restore
+	// order has no last-active thread to come back to. touchLastActivity above only
+	// stamps the thread's own meta; it does NOT record which thread the operator is
+	// in. setActiveThread is the missing write (LOS-178).
+	setActiveThread(args.threadId);
 
 	// Ask-before-dispatch: a pending proposal lives ONLY for the operator's
 	// immediate next reply. Any turn that is NOT an affirmation AND NOT a routing

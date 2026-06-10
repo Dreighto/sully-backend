@@ -14,9 +14,22 @@ let started = false;
 
 interface CompletionEntry {
 	thread_id?: string;
+	trace_id?: string;
 	ticket_id?: string;
 	status?: string;
 	worker_id?: string;
+}
+
+/**
+ * Build the deep-link a notification tap opens. Always carries `?thread=` so the
+ * tap lands in the exact conversation; appends `&trace_id=` when present so the
+ * client can focus that task's work-surface card (PR-0c). Both values are
+ * URL-encoded.
+ */
+function buildDeepLinkUrl(base: string, threadId: string, traceId?: string | null): string {
+	let u = `${base}?thread=${encodeURIComponent(threadId)}`;
+	if (traceId && traceId.trim()) u += `&trace_id=${encodeURIComponent(traceId.trim())}`;
+	return u;
 }
 
 /** Exported only for unit tests — not part of the public API. */
@@ -61,7 +74,7 @@ export function poll() {
 			sendPushToAll({
 				title: 'LogueOS: Worker complete',
 				body: `${ticketLabel}${statusLabel}`,
-				url: `${appIdentity.pushDefaultUrl}?thread=${encodeURIComponent(entry.thread_id)}`,
+				url: buildDeepLinkUrl(appIdentity.pushDefaultUrl, entry.thread_id, entry.trace_id),
 				badge,
 				threadGroupId: entry.thread_id
 			}).catch(() => {});

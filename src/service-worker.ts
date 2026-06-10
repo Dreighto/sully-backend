@@ -81,7 +81,38 @@ self.addEventListener('push', (event: any) => {
 
 self.addEventListener('notificationclick', (event: any) => {
 	event.notification.close();
-	event.waitUntil((self as any).clients.openWindow(event.notification.data?.url || APP_START_URL));
+	const targetUrl: string = event.notification.data?.url || APP_START_URL;
+	const sw = self as any;
+	event.waitUntil(
+		(async () => {
+			// WARM (app already open): focus the existing client and hand it the
+			// deep-link via postMessage so it switches to the exact thread + focuses
+			// the task card WITHOUT a full reload. On iOS a bare openWindow() only
+			// refocuses the running PWA and never navigates, so the tap would land on
+			// whatever thread was already showing. matchAll only ever returns
+			// same-origin window clients.
+			const wins = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			for (const client of wins) {
+				if ('focus' in client) {
+					try {
+						await client.focus();
+					} catch {
+						/* focus can reject if another window grabbed it — fall through */
+					}
+					try {
+						client.postMessage({ type: 'deep-link', url: targetUrl });
+					} catch {
+						/* client gone — fall through to openWindow */
+					}
+					return;
+				}
+			}
+			// COLD-START (app not running): open a fresh window at the deep-link. The
+			// server load() resolves the thread from ?thread= (restore order) and the
+			// client reads trace_id on mount to focus the task card.
+			await sw.clients.openWindow(targetUrl);
+		})()
+	);
 });
 
 self.addEventListener('fetch', (event: any) => {
