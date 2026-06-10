@@ -2,9 +2,18 @@
 // slice 3c). Owns two cohesive concerns:
 //   1. iOS audio-unlock workaround (a muted blip on first user gesture so the
 //      persistent <audio> element is allowed to play TTS later).
-//   2. The hands-free continuous "Talkback" loop: capture (Web Speech API
-//      primary, MediaRecorder + VAD + async transcription fallback) → dispatch
-//      → wait for reply → speak (TTS) → chime → loop.
+//   2. The hands-free continuous "Talkback" loop: capture → dispatch → wait for
+//      reply → speak (TTS) → chime → loop.
+//
+// CAPTURE TRANSPORT (LOS-174 / T1a). Talkback STT routes through the local
+// Jetson STT WebSocket bridge (`/companion-voice` → `logueos-companion-stt`
+// :18770 → Jetson unified voice service http://10.10.10.2:18780), gated by
+// `TALKBACK_STT_VIA_BRIDGE`. When the bridge is unreachable (Jetson offline /
+// mic denied / WS down) talkback surfaces an EXPLICIT error and the composer
+// stays usable — there is NO silent browser/cloud (AssemblyAI) fallback. The
+// legacy browser Web Speech API + AssemblyAI capture path is kept INTACT behind
+// the disabled flag as rollback safety until the on-device cutover is verified
+// (do not delete `acquireTranscriptViaLegacy` / `beginTalkbackCaptureViaMediaRecorder`).
 //
 // REACTIVE OWNERSHIP. This module owns exactly two reactive values — `active`
 // and `phase` — via `$state` (legal because the file is `.svelte.ts`). Only
@@ -22,9 +31,17 @@
 // `SpeechRecognition` comes from the ambient `$lib/types/web-speech.d.ts`
 // (absent from the TS DOM lib).
 
-import { resolve } from '$app/paths';
+import { base, resolve } from '$app/paths';
 import { toasts } from '$lib/utils/toasts';
+import { parseSttMessage, isTalkbackStopWord, buildVoiceWsUrl } from '$lib/chat/stt-bridge';
 import type { Tier, ComposerMode, TalkbackPhase, ChatMessage } from '$lib/types/chat-ui';
+
+// LOS-174 (T1a): route the in-composer Talkback STT through the local Jetson
+// STT WS bridge instead of the browser Web Speech API + AssemblyAI cloud
+// fallback. Flip to `false` to restore the legacy browser/cloud path (kept
+// intact behind this branch as rollback safety until on-device cutover is
+// verified). Rollback = flip this flag OR revert the PR.
+const TALKBACK_STT_VIA_BRIDGE = true;
 
 // The page-owned reactive state the voice machine reads/writes. Reads are
 // getters (so each call samples the live `$state`); writes are actions (so the
@@ -76,10 +93,10 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 	let audioUnlocked = false;
 
 	// ── Talkback capture/transport (imperative) ─────────────────────────
-	// WebSocket path removed — talkback uses Web Speech API (primary) or
-	// MediaRecorder → async AssemblyAI (fallback). Both work with/without
-	// headphones via browser echo cancellation. AssemblyAI realtime token
-	// endpoint returns 404 on the current plan as of 2026-05-28.
+	// LEGACY transport (reached ONLY when TALKBACK_STT_VIA_BRIDGE is false):
+	// browser Web Speech API (primary) or MediaRecorder → async AssemblyAI
+	// (fallback). Kept intact as rollback safety (LOS-174). AssemblyAI realtime
+	// token endpoint returns 404 on the current plan as of 2026-05-28.
 	let talkbackStream: MediaStream | null = null;
 	let talkbackAudioCtx: AudioContext | null = null;
 	let talkbackProcessor: ScriptProcessorNode | null = null;
@@ -92,6 +109,21 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 	let talkbackDispatchMsgId: number | null = null;
 	let talkbackConsecutiveFailures = 0;
 	let continuousSilenceMs = 0;
+
+	// ── Jetson STT WS bridge transport (imperative; bridge-enabled path) ──
+	// Session-level resources: opened once on toggle-on, reused across every
+	// turn, torn down on stop. Deliberately SEPARATE from the legacy refs above
+	// so the two transports never entangle.
+	let talkbackWs: WebSocket | null = null;
+	let talkbackMicStream: MediaStream | null = null;
+	let talkbackMicCtx: AudioContext | null = null;
+	let talkbackWorklet: AudioWorkletNode | null = null;
+	let talkbackMicSource: MediaStreamAudioSourceNode | null = null;
+	let talkbackStreaming = false; // gate: ship worklet PCM only while capturing
+	let talkbackServicesStarted = false; // we started the on-demand GPU STT unit
+	let talkbackWsPath = '/companion-voice';
+	let talkbackFinalResolver: ((text: string) => void) | null = null;
+	let talkbackLastVoiceTs = 0; // timestamp of last non-empty utterance (silence auto-stop)
 
 	// ── Audio iOS workaround ─────────────────────────────────────────────
 	function unlockAudio() {
@@ -187,6 +219,7 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		phase = null;
 		talkbackDispatchMsgId = null;
 		talkbackStopCapture();
+		await teardownTalkbackBridge();
 		talkbackTtsAbortController?.abort();
 		talkbackTtsAbortController = null;
 		const audioEl = deps.getAudioEl();
@@ -205,13 +238,33 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 	async function toggleTalkback() {
 		if (active) {
 			// No toast on manual stop — the pill returns to idle, which is signal
-			// enough. Auto-stop paths (cap hit, mic disconnected, error streak)
-			// still toast because their reason carries information the operator
-			// needs.
+			// enough. Auto-stop paths (cap hit, mic disconnected, error streak,
+			// Jetson offline) still toast because their reason carries information
+			// the operator needs.
 			await stopTalkback();
 			return;
 		}
 		unlockAudio();
+
+		if (TALKBACK_STT_VIA_BRIDGE) {
+			// Create the mic AudioContext IN the user gesture (synchronously) so iOS
+			// unlocks it — any post-await creation loses the gesture and iOS refuses
+			// to start audio. The mic/WS/service bring-up is async in
+			// startTalkbackBridge below and reuses this context.
+			try {
+				talkbackMicCtx = talkbackMicCtx ?? new AudioContext();
+				void talkbackMicCtx.resume();
+			} catch {
+				/* surfaced by startTalkbackBridge */
+			}
+			const ready = await startTalkbackBridge();
+			// Jetson offline / mic denied / WS unreachable → an explicit error was
+			// already toasted and the bridge torn down. Do NOT enter talkback: the
+			// composer stays fully usable (no mode switch) and there is NO silent
+			// cloud fallback.
+			if (!ready) return;
+		}
+
 		try {
 			if ('wakeLock' in navigator) {
 				talkbackWakeLock = await (
@@ -227,7 +280,258 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		deps.setComposerMode('talkback');
 		talkbackConsecutiveFailures = 0;
 		continuousSilenceMs = 0;
+		talkbackLastVoiceTs = Date.now();
 		void beginTalkbackCapture();
+	}
+
+	// ── Jetson STT WS bridge transport (bridge-enabled path) ─────────────
+	// Brings up the on-demand GPU STT service, the mic capture graph, and the
+	// STT WebSocket. The on-demand `start` is ALSO the Jetson-readiness gate:
+	// it returns not-ready when the speech service / Jetson is unreachable, which
+	// is how "Jetson offline" becomes an explicit state instead of a silent cloud
+	// fallback. Returns true once everything is live, false (already toasted +
+	// torn down) on any failure.
+	async function startTalkbackBridge(): Promise<boolean> {
+		try {
+			// 1. config — where the STT WS lives + whether voice is enabled.
+			const cfgResp = await fetch(resolve('/api/chat/voice-config'));
+			if (cfgResp.ok) {
+				const cfg = (await cfgResp.json()) as { voiceEnabled?: boolean; wsPath?: string };
+				if (cfg.voiceEnabled === false) {
+					toasts.add('Voice is disabled.', 'error');
+					return false;
+				}
+				talkbackWsPath = cfg.wsPath || talkbackWsPath;
+			}
+
+			// 2. start the on-demand speech service (cold GPU start may take a while)
+			//    — and confirm it is actually READY (the Jetson-reachability gate).
+			const ctl = await fetch(resolve('/api/chat/voice-control'), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'start' })
+			});
+			const ctlBody = (await ctl.json().catch(() => ({}))) as { ready?: boolean };
+			if (!ctl.ok || !ctlBody.ready) {
+				toasts.add('Voice service offline — Talkback unavailable. You can still type.', 'error');
+				return false;
+			}
+			talkbackServicesStarted = true;
+
+			// 3. mic capture graph + 4. STT socket.
+			await startTalkbackMic();
+			await connectTalkbackWs();
+			return true;
+		} catch (e) {
+			console.error('Talkback bridge start error:', e);
+			toasts.add(
+				'Could not reach the voice service — Talkback unavailable. You can still type.',
+				'error'
+			);
+			await teardownTalkbackBridge();
+			return false;
+		}
+	}
+
+	async function startTalkbackMic() {
+		talkbackMicStream = await navigator.mediaDevices.getUserMedia({
+			audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+		});
+		if (!talkbackMicCtx) talkbackMicCtx = new AudioContext();
+		await talkbackMicCtx.audioWorklet.addModule(`${base}/pcm-capture-worklet.js`);
+		talkbackMicSource = talkbackMicCtx.createMediaStreamSource(talkbackMicStream);
+		talkbackWorklet = new AudioWorkletNode(talkbackMicCtx, 'pcm-capture');
+		talkbackWorklet.port.onmessage = (e: MessageEvent) => {
+			// The worklet captures continuously; the `talkbackStreaming` gate decides
+			// WHAT we ship — only during a capture turn, never while dispatching /
+			// waiting / speaking (so the companion's own TTS isn't fed back in).
+			if (talkbackStreaming && talkbackWs && talkbackWs.readyState === WebSocket.OPEN) {
+				talkbackWs.send(e.data as ArrayBuffer);
+			}
+		};
+		talkbackMicSource.connect(talkbackWorklet);
+		// Silent (the worklet writes no output) — keeps the graph pulling so
+		// process() runs on every browser.
+		talkbackWorklet.connect(talkbackMicCtx.destination);
+		talkbackMicStream.getTracks().forEach((track) => {
+			track.onended = () => {
+				if (active) void stopTalkback('Microphone disconnected — Talkback stopped');
+			};
+		});
+	}
+
+	function connectTalkbackWs(): Promise<void> {
+		return new Promise((res, rej) => {
+			const socket = new WebSocket(
+				buildVoiceWsUrl(location.protocol, location.host, talkbackWsPath)
+			);
+			socket.binaryType = 'arraybuffer';
+			talkbackWs = socket;
+			let settled = false;
+			const openTimer = setTimeout(() => {
+				if (!settled) {
+					settled = true;
+					rej(new Error('Speech socket timed out.'));
+				}
+			}, 20_000);
+			socket.onmessage = (ev) => {
+				// First message is the server's {type:'ready'} handshake.
+				if (!settled && typeof ev.data === 'string' && ev.data.includes('"ready"')) {
+					settled = true;
+					clearTimeout(openTimer);
+					// Server-side VAD endpoints each utterance (continuous), so a single
+					// persistent socket serves every talkback turn.
+					talkbackWsSend({
+						type: 'config',
+						sampleRate: talkbackMicCtx?.sampleRate ?? 48000,
+						continuous: true
+					});
+					socket.onmessage = onTalkbackWsMessage;
+					res();
+					return;
+				}
+				onTalkbackWsMessage(ev);
+			};
+			socket.onerror = () => {
+				if (!settled) {
+					settled = true;
+					clearTimeout(openTimer);
+					rej(new Error('Could not reach the speech service.'));
+				}
+			};
+			socket.onclose = () => {
+				// A drop mid-session is an explicit failure — surface it, never fall
+				// back to cloud STT.
+				if (active) void failTalkback('Voice connection dropped — Talkback stopped');
+			};
+		});
+	}
+
+	function onTalkbackWsMessage(ev: MessageEvent) {
+		const m = parseSttMessage(ev.data);
+		switch (m.type) {
+			case 'final':
+				// Resolve the in-flight capture turn with the server's transcript.
+				talkbackFinalResolver?.(m.text ?? '');
+				break;
+			case 'error':
+				if (active) void failTalkback('Voice recognition error — Talkback stopped');
+				break;
+			// 'partial' / 'ready' / 'ignore' are not surfaced by the talkback strip.
+		}
+	}
+
+	function talkbackWsSend(obj: Record<string, unknown>) {
+		if (talkbackWs && talkbackWs.readyState === WebSocket.OPEN) {
+			try {
+				talkbackWs.send(JSON.stringify(obj));
+			} catch {
+				/* ignore — surfaces on the next send / onclose */
+			}
+		}
+	}
+
+	// One capture turn over the persistent bridge socket: reset the server
+	// buffer, open the mic gate, and resolve with the server's `final` transcript
+	// (or '' on the per-turn max-capture timeout). Sets `talkbackTranscriptBuffer`
+	// for the shared post-processing in beginTalkbackCapture.
+	function captureBridgeTranscript(): Promise<void> {
+		return new Promise((resolveCapture) => {
+			if (!active || !talkbackWs || talkbackWs.readyState !== WebSocket.OPEN) {
+				resolveCapture();
+				return;
+			}
+			// Hands-free silence auto-stop: nothing intelligible heard for the idle
+			// window → stop (parity with the legacy path's 3-minute auto-stop).
+			if (Date.now() - talkbackLastVoiceTs >= TALKBACK_SILENCE_AUTOSTOP_MS) {
+				void stopTalkback('3 minutes of silence — Talkback auto-stopped');
+				resolveCapture();
+				return;
+			}
+			let settled = false;
+			const finish = (text: string) => {
+				if (settled) return;
+				settled = true;
+				talkbackStreaming = false;
+				talkbackFinalResolver = null;
+				if (text.trim()) talkbackLastVoiceTs = Date.now();
+				talkbackTranscriptBuffer = text;
+				resolveCapture();
+			};
+			// Per-turn cap: if server VAD never sends a `final` (e.g. pure silence),
+			// resolve empty so the loop re-arms instead of hanging.
+			const maxTimer = setTimeout(() => finish(''), TALKBACK_MAX_CAPTURE_MS);
+			// A `final` from the WS clears the cap and finalizes the turn.
+			talkbackFinalResolver = (text: string) => {
+				clearTimeout(maxTimer);
+				finish(text);
+			};
+			talkbackWsSend({ type: 'reset' });
+			talkbackStreaming = true;
+		});
+	}
+
+	// Explicit talkback failure: stop the loop and surface a clear message. NEVER
+	// falls back to browser/cloud STT — that silent fallback is exactly what
+	// LOS-174 removes.
+	async function failTalkback(message: string) {
+		await stopTalkback();
+		toasts.add(message, 'error');
+	}
+
+	// Tear down every bridge-transport resource and stop the on-demand GPU STT
+	// service if we started it. Safe to call when nothing is up (legacy path /
+	// already torn down) — every ref is null-guarded.
+	async function teardownTalkbackBridge() {
+		talkbackStreaming = false;
+		talkbackFinalResolver = null;
+		if (talkbackWs) {
+			talkbackWs.onmessage = null;
+			talkbackWs.onerror = null;
+			talkbackWs.onclose = null;
+			try {
+				talkbackWs.close();
+			} catch {
+				/* ignore */
+			}
+			talkbackWs = null;
+		}
+		if (talkbackWorklet) {
+			talkbackWorklet.port.onmessage = null;
+			try {
+				talkbackWorklet.disconnect();
+			} catch {
+				/* ignore */
+			}
+			talkbackWorklet = null;
+		}
+		if (talkbackMicSource) {
+			try {
+				talkbackMicSource.disconnect();
+			} catch {
+				/* ignore */
+			}
+			talkbackMicSource = null;
+		}
+		talkbackMicStream?.getTracks().forEach((t) => t.stop());
+		talkbackMicStream = null;
+		if (talkbackMicCtx) {
+			await talkbackMicCtx.close().catch(() => {});
+			talkbackMicCtx = null;
+		}
+		if (talkbackServicesStarted) {
+			// Free the GPU: stop the on-demand STT service we started on toggle-on.
+			try {
+				await fetch(resolve('/api/chat/voice-control'), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action: 'stop' })
+				});
+			} catch {
+				/* best effort */
+			}
+			talkbackServicesStarted = false;
+		}
 	}
 
 	async function beginTalkbackCapture() {
@@ -236,63 +540,19 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		talkbackTranscriptBuffer = '';
 
 		try {
-			// Primary path: Web Speech API — browser-native, no API cost, works
-			// with or without headphones (device echo cancellation handles speaker
-			// feedback). Available on iOS Safari 14.5+, Chrome, Edge. Falls back to
-			// MediaRecorder + async AssemblyAI transcription on unsupported browsers.
-			const SpeechRecognitionCtor =
-				typeof window !== 'undefined' &&
-				((window as unknown as { SpeechRecognition?: new () => SpeechRecognition })
-					.SpeechRecognition ||
-					(window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition })
-						.webkitSpeechRecognition);
-
-			if (SpeechRecognitionCtor) {
-				const recognition = new SpeechRecognitionCtor();
-				talkbackRecognition = recognition;
-				recognition.continuous = false;
-				recognition.interimResults = false;
-				recognition.lang = 'en-US';
-				recognition.maxAlternatives = 1;
-
-				const heardText = await new Promise<string>((res) => {
-					let settled = false;
-					const finish = (t: string) => {
-						if (!settled) {
-							settled = true;
-							res(t);
-						}
-					};
-					// Max capture guard
-					const maxTimer = setTimeout(() => finish(''), TALKBACK_MAX_CAPTURE_MS);
-					recognition.onresult = (e: SpeechRecognitionEvent) => {
-						clearTimeout(maxTimer);
-						finish(e.results[0][0].transcript);
-					};
-					recognition.onerror = () => {
-						clearTimeout(maxTimer);
-						// 'no-speech' and 'aborted' are not errors — just an empty turn
-						finish('');
-					};
-					recognition.onend = () => {
-						clearTimeout(maxTimer);
-						finish('');
-					};
-					recognition.start();
-				});
-
-				talkbackRecognition = null;
-				talkbackTranscriptBuffer = heardText;
+			// Acquire one utterance's transcript via the active transport. The
+			// bridge path (default) goes through the Jetson STT WS; the legacy path
+			// (flag off) uses the browser Web Speech API + AssemblyAI fallback.
+			if (TALKBACK_STT_VIA_BRIDGE) {
+				await captureBridgeTranscript();
 			} else {
-				// Fallback: MediaRecorder + VAD silence detection + async AssemblyAI
-				await beginTalkbackCaptureViaMediaRecorder();
+				await acquireTranscriptViaLegacy();
 			}
 
 			if (!active) return;
 
 			// Stop-word check
-			const lower = talkbackTranscriptBuffer.toLowerCase();
-			if (lower.includes('stop talkback') || lower.includes('cancel talkback')) {
+			if (isTalkbackStopWord(talkbackTranscriptBuffer)) {
 				await stopTalkback('Stop word detected — Talkback stopped');
 				return;
 			}
@@ -315,6 +575,64 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 			}
 			toasts.add('Talkback error — retrying', 'error');
 			if (active) await pSleep(500).then(() => beginTalkbackCapture());
+		}
+	}
+
+	// LEGACY capture transport — reached ONLY when TALKBACK_STT_VIA_BRIDGE is
+	// false (rollback safety, LOS-174). Browser Web Speech API (primary) or
+	// MediaRecorder + async AssemblyAI (fallback); sets talkbackTranscriptBuffer.
+	// DO NOT DELETE until the on-device Jetson-bridge cutover is verified.
+	async function acquireTranscriptViaLegacy() {
+		// Primary path: Web Speech API — browser-native, no API cost, works
+		// with or without headphones (device echo cancellation handles speaker
+		// feedback). Available on iOS Safari 14.5+, Chrome, Edge. Falls back to
+		// MediaRecorder + async AssemblyAI transcription on unsupported browsers.
+		const SpeechRecognitionCtor =
+			typeof window !== 'undefined' &&
+			((window as unknown as { SpeechRecognition?: new () => SpeechRecognition })
+				.SpeechRecognition ||
+				(window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition })
+					.webkitSpeechRecognition);
+
+		if (SpeechRecognitionCtor) {
+			const recognition = new SpeechRecognitionCtor();
+			talkbackRecognition = recognition;
+			recognition.continuous = false;
+			recognition.interimResults = false;
+			recognition.lang = 'en-US';
+			recognition.maxAlternatives = 1;
+
+			const heardText = await new Promise<string>((res) => {
+				let settled = false;
+				const finish = (t: string) => {
+					if (!settled) {
+						settled = true;
+						res(t);
+					}
+				};
+				// Max capture guard
+				const maxTimer = setTimeout(() => finish(''), TALKBACK_MAX_CAPTURE_MS);
+				recognition.onresult = (e: SpeechRecognitionEvent) => {
+					clearTimeout(maxTimer);
+					finish(e.results[0][0].transcript);
+				};
+				recognition.onerror = () => {
+					clearTimeout(maxTimer);
+					// 'no-speech' and 'aborted' are not errors — just an empty turn
+					finish('');
+				};
+				recognition.onend = () => {
+					clearTimeout(maxTimer);
+					finish('');
+				};
+				recognition.start();
+			});
+
+			talkbackRecognition = null;
+			talkbackTranscriptBuffer = heardText;
+		} else {
+			// Fallback: MediaRecorder + VAD silence detection + async AssemblyAI
+			await beginTalkbackCaptureViaMediaRecorder();
 		}
 	}
 
