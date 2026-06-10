@@ -172,7 +172,7 @@
 			<button
 				type="button"
 				onclick={onnewThread}
-				class="flex h-11 items-center gap-1.5 rounded-full bg-[#ec2d78]/10 px-3 text-[#ff7eb3] transition-all hover:bg-[#ec2d78]/20 hover:text-white active:scale-95 sm:h-9"
+				class="flex h-11 items-center gap-1.5 rounded-full bg-[var(--live-bg)] px-3 text-[var(--accent)] transition-all hover:bg-[var(--live-line)] hover:text-white active:scale-95 sm:h-9"
 				title="Start a new conversation"
 				aria-label="New thread"
 			>

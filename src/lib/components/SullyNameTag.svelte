@@ -13,7 +13,7 @@
 >
 	<span
 		class="h-2 w-2 shrink-0 rounded-full"
-		style="background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 6px rgba(236, 45, 120, 0.6);"
+		style="background: var(--orb-grad); box-shadow: 0 0 6px rgba(124, 132, 232, 0.6);"
 	></span>
 	<span>{label}</span>
 </div>

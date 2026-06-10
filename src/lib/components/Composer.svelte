@@ -268,7 +268,7 @@
 			: imageMode
 				? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[0_0_30px_rgba(6,182,212,0.15)]'
 				: sending
-					? 'composer-sending border-[#ec2d78]/55 bg-[#ec2d78]/[0.05]'
+					? 'composer-sending border-[var(--live-line)] bg-[var(--live-bg)]'
 					: 'border-white/[0.08] bg-[#0e0e11]/60 backdrop-blur-2xl focus-within:border-white/20'}"
 	>
 		<!-- Talkback Status indicator inside composer -->
@@ -414,7 +414,7 @@
 						showModelOverrideModal = next;
 					}}
 					class="flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-full px-2 font-sans transition-all active:scale-95 {showModelOverrideModal
-						? 'bg-[#ec2d78]/10 text-white'
+						? 'bg-white/10 text-white'
 						: 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'}"
 					aria-label={selectedModelChoice.id === 'auto' && lastModelUsed
 						? `Auto — currently ${humanizeModelId(lastModelUsed)} — Model picker`
@@ -435,7 +435,7 @@
 					<ChevronUp
 						size={10}
 						class="shrink-0 transition-transform duration-200 {showModelOverrideModal
-							? 'rotate-180 text-[#ff7eb3]'
+							? 'rotate-180 text-zinc-200'
 							: 'text-zinc-500'}"
 					/>
 				</button>
@@ -493,13 +493,13 @@
 									type="button"
 									onclick={() => onsetModelChoice(choice)}
 									class="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-1.5 text-left transition-all hover:bg-white/[0.04] active:scale-[0.985] active:bg-white/[0.07]
-										{selectedModelChoice.id === choice.id ? 'font-medium text-[#ff7eb3]' : 'text-zinc-200'}"
+										{selectedModelChoice.id === choice.id ? 'font-medium text-white' : 'text-zinc-200'}"
 								>
 									<span class="flex min-w-0 items-center gap-2.5">
 										<span
 											class="flex h-6 w-6 shrink-0 items-center justify-center {selectedModelChoice.id ===
 											choice.id
-												? 'text-[#ff7eb3]'
+												? 'text-white'
 												: 'text-zinc-400'}"
 										>
 											<PickerIcon provider={choice.provider} size={16} />
@@ -541,7 +541,7 @@
 					actionsOpen = !actionsOpen;
 				}}
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 sm:h-9 sm:w-9 {actionsOpen
-					? 'rotate-45 bg-[#ec2d78]/10 text-[#ff7eb3]'
+					? 'rotate-45 bg-white/10 text-white'
 					: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
 				aria-label="More actions"
 				aria-haspopup="menu"

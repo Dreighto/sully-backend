@@ -68,7 +68,7 @@
 		type="button"
 		onclick={() => onopenWorkspaceContext()}
 		class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 sm:h-9 sm:w-9 {workspaceContextOpen
-			? 'bg-[#ec2d78]/10 text-[#ff7eb3] shadow-[0_0_18px_rgba(236,45,120,0.15)]'
+			? 'bg-white/10 text-white'
 			: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
 		aria-label="Sully's workspace context"
 		aria-haspopup="dialog"

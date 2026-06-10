@@ -17,7 +17,10 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Companion" />
-		<meta name="description" content="Sully — your voice-first AI companion for orchestrating LogueOS agents from your phone." />
+		<meta
+			name="description"
+			content="Sully — your voice-first AI companion for orchestrating LogueOS agents from your phone."
+		/>
 		<meta name="theme-color" content="#0d1117" />
 		<meta name="text-scale" content="scale" />
 
@@ -98,12 +101,11 @@
 			media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)"
 		/>
 
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400;1,600&family=Inter:ital,opsz,wght@0,14..32,200..700;1,14..32,200..700&display=swap"
-			rel="stylesheet"
-		/>
+		<!-- Fonts are self-hosted via Fontsource (Blend Mk II — Fraunces / Bricolage
+		     Grotesque / JetBrains Mono), imported in src/routes/+layout.svelte and
+		     bundled into the build. No Google Fonts at runtime (locked spec v1.0
+		     Section 4): Sully renders identically offline with zero third-party
+		     font requests and no font-swap flash. -->
 
 		<!-- Eruda — touch-friendly mobile DevTools console for the real-iPhone
 		     debugging path (no Safari Web Inspector on Linux). Activates when

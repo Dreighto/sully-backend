@@ -5,6 +5,12 @@
 	import PwaUpdatePrompt from '$lib/components/PwaUpdatePrompt.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import { initNativePush } from '$lib/native/push';
+	// Self-hosted Blend Mk II faces (locked spec v1.0 Section 4 Option A). Vite
+	// bundles the woff2 into the build and Capacitor packages them into the IPA,
+	// so Sully renders identically offline with zero Google Fonts requests.
+	import '@fontsource-variable/fraunces';
+	import '@fontsource-variable/bricolage-grotesque';
+	import '@fontsource-variable/jetbrains-mono';
 	import '../app.css';
 
 	let { children } = $props();
@@ -31,10 +37,9 @@
 	<link rel="manifest" href="{base}/manifest.webmanifest" />
 </svelte:head>
 
-<!-- Living aurora — the app's animated magenta background, behind all content. -->
-<div class="app-aurora" aria-hidden="true">
-	<span class="a1"></span><span class="a2"></span><span class="a3"></span>
-</div>
+<!-- Ambient Indigo wash — fixed, paint-isolated shell layer behind all content
+     (locked spec v1.0 Section 3; magenta retired). -->
+<div class="app-bg" aria-hidden="true"></div>
 
 <!-- Companion is chat-only: full-bleed immersive shell, no Console chrome/nav. -->
 <div class="relative z-[1] flex h-[100dvh] flex-col overflow-hidden text-foreground">

@@ -330,7 +330,7 @@
 		<div class="flex flex-col items-start gap-1">
 			<SullyNameTag label={appIdentity?.coreLabel ?? 'Sully'} />
 			<div
-				class="flex items-center gap-2.5 rounded-2xl border border-[#ec2d78]/20 bg-[#ec2d78]/[0.06] py-2 pr-4 pl-2.5"
+				class="flex items-center gap-2.5 rounded-2xl border border-[var(--live-line)] bg-[var(--live-bg)] py-2 pr-4 pl-2.5"
 				aria-label="Sully is thinking"
 				role="status"
 			>
@@ -339,15 +339,15 @@
 				<SullyAvatar state="thinking" size={34} glow={false} />
 				<div class="flex items-center gap-1.5">
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
+						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
 						style="animation-delay: 0ms"
 					></span>
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
+						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
 						style="animation-delay: 150ms"
 					></span>
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[#ec2d78]"
+						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
 						style="animation-delay: 300ms"
 					></span>
 				</div>

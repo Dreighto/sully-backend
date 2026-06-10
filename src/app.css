@@ -1,31 +1,37 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+
+/* ============================================================================
+   Sully — Locked Design Spec v1.0 FINAL (Indigo · Blend Mk II · self-hosted).
+   The canonical token surface (spec Section 2) lives in the single :root block
+   below the @theme — ONE source of truth, zero duplicate palette/type/motion
+   blocks. Smoothness defaults (spec Section 3) are in the layers further down.
+   Fonts are self-hosted (spec Section 4 Option A): the three variable families
+   are imported at the top of src/routes/+layout.svelte; no Google Fonts at
+   runtime. Magenta is retired everywhere — the identity accent is Indigo.
+   The @theme block keeps the names Tailwind utilities are generated from; its
+   palette/type values now track the Indigo :root surface below. ============= */
 
 @theme {
+	--font-display: 'Fraunces Variable', Georgia, serif;
 	--font-sans:
-		'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-		sans-serif;
-	--font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		'Bricolage Grotesque Variable', -apple-system, system-ui, BlinkMacSystemFont, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 
-	/* Operator glass + build mode (Companion revamp v1) */
-	--color-background: #0a0a0b;
-	--color-surface: #141416;
-	--color-surface-raised: #1a1a1e;
-	--color-cta: #cf6f93;
+	/* Operator glass + build mode — backgrounds aligned to the Indigo bg ramp. */
+	--color-background: #0b0c10; /* = --bg0 */
+	--color-surface: #14161c; /* = --bg2 */
+	--color-surface-raised: #1b1d25; /* = --bg3 */
+	--color-cta: #7c84e8; /* = --accent */
 
-	/* ── Sully brand: the magenta "thought-drop" identity (companion-brand-sheet.png).
-	   This is the resting/identity accent. Functional MODE colors (amber=recording,
-	   emerald=talkback, cyan=image) are intentionally left alone so modes stay
-	   distinguishable — magenta is reserved for "this is Sully". */
-	/* Muted-rose identity ramp (operator pick 2026-06-06, swatch B). Magenta was
-	   too loud for the operator-cockpit reframe — rose reads as Sully without
-	   shouting. Identity ONLY (mark, focus ring, the one hero action); never a
-	   status colour. */
-	--color-brand: #cf6f93;
-	--color-brand-bright: #dd8aaa;
-	--color-brand-deep: #a8536f;
-	--color-brand-soft: #e6b3c4;
-	--color-brand-glow: #d995b1;
+	/* ── Sully brand: the Indigo identity accent (locked spec v1.0 — magenta
+	   retired). Identity ONLY (mark, orb, focus ring, the one hero action);
+	   never a status colour. The ramp tracks --accent (#7c84e8) — see the :root
+	   token surface below, which is the source of truth for the Indigo decision. */
+	--color-brand: #7c84e8;
+	--color-brand-bright: #9aa1f0;
+	--color-brand-deep: #5e6ad2;
+	--color-brand-soft: #c3c8ff;
+	--color-brand-glow: #9aa1f0;
 
 	--color-status-green: #22c55e;
 	--color-status-amber: #f59e0b;
@@ -48,12 +54,12 @@
 	--color-worker-gemini: #3b82f6;
 	--color-worker-operator: #ef4444;
 
-	--color-on-brand: #050505;
+	--color-on-brand: #ffffff; /* white text on the Indigo accent fill (= --on-accent) */
 
 	/* shadcn-svelte compatibility */
 	--radius: 0.5rem;
 
-	--color-primary: #cf6f93;
+	--color-primary: #7c84e8;
 	--color-primary-foreground: #ffffff;
 
 	--color-secondary: #18181b;
@@ -71,7 +77,7 @@
 	--color-border: #27272a;
 	--color-input: #27272a;
 	--color-hairline: rgb(255 255 255 / 0.09);
-	--color-ring: #cf6f93;
+	--color-ring: #7c84e8;
 
 	/* Tailwind 4 utility-class tokens — these must live in @theme (not just
      :root) for text-foreground / bg-card / bg-popover etc. to compile.
@@ -79,35 +85,161 @@
      kept for any components that read CSS vars directly; these @theme
      entries are what generates the actual utility classes. */
 	--color-foreground: #fafafa;
-	--color-card: #141416;
+	--color-card: #14161c;
 	--color-card-foreground: #fafafa;
-	--color-popover: #141416;
+	--color-popover: #14161c;
 	--color-popover-foreground: #ffffff;
 }
 
-@layer base {
-	:root {
-		--background: #0a0a0b;
-		--foreground: #fafafa;
-		--card: #141416;
-		--card-foreground: #fafafa;
-		--popover: #141416;
-		--popover-foreground: #ffffff;
-		--primary: #cf6f93;
-		--primary-foreground: #ffffff;
-		--secondary: #18181b;
-		--secondary-foreground: #ffffff;
-		--muted: #18181b;
-		--muted-foreground: #a1a1aa;
-		--accent: #18181b;
-		--accent-foreground: #ffffff;
-		--destructive: #f85149;
-		--destructive-foreground: #ffffff;
-		--border: #27272a;
-		--input: #27272a;
-		--ring: #cf6f93;
-		--radius: 0.5rem;
-	}
+/* ============================================================================
+   Canonical token surface — Sully locked spec v1.0 FINAL, Section 2 (verbatim).
+   This is the ENTIRE design-token surface and the single source of truth. Do
+   not add a second palette/type/motion block anywhere in the codebase. =========
+   ============================================================================ */
+:root {
+	/* ============ PALETTE — INDIGO ============ */
+	--bg0: #0b0c10;
+	--bg1: #0f1015;
+	--bg2: #14161c;
+	--bg3: #1b1d25;
+	--bg4: #242730;
+
+	--line: rgba(200, 210, 255, 0.07);
+	--line2: rgba(200, 210, 255, 0.11);
+	--line3: rgba(200, 210, 255, 0.18);
+
+	--t1: #f3f4f8;
+	--t2: #b6b9c7;
+	--t3: #7f8394;
+	--t4: #545866;
+
+	--accent: #7c84e8;
+	--accent-dim: #5e6ad2;
+	--accent-glow: rgba(124, 132, 232, 0.26);
+	--on-accent: #ffffff; /* text on accent-filled buttons */
+	--grad: linear-gradient(90deg, #5e6ad2, #7c84e8);
+
+	--ui: #8b8e9e; /* quiet chrome — selected states, badges, secondary borders */
+	--live: #7c84e8; /* live-state only — pulses, cursors, rings, escalations */
+
+	--green: #4ade80;
+	--amber: #fbbf24;
+	--red: #f87171;
+	--blue: #60a5fa;
+
+	--glass-bg: rgba(20, 22, 28, 0.74);
+	--glass-border: rgba(200, 210, 255, 0.1);
+
+	--orb-grad: radial-gradient(
+		circle at 32% 28%,
+		#c3c8ff 0%,
+		#7c84e8 40%,
+		#5e6ad2 72%,
+		#363f99 100%
+	);
+
+	/* ============ TYPE — BLEND MK II ============ */
+	/* Family names assume Fontsource variable packages (Section 4, Option A). */
+	--font-display: 'Fraunces Variable', Georgia, serif;
+	--font-body: 'Bricolage Grotesque Variable', -apple-system, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+	--weight-regular: 400;
+	--weight-medium: 500;
+	--weight-semibold: 600;
+	--weight-bold: 700;
+	--disp-weight: 600;
+	--disp-track: -0.008em;
+
+	--text-xs: 0.75rem;
+	--leading-xs: 1.35;
+	--text-sm: 0.8125rem;
+	--leading-sm: 1.45;
+	--text-base: 0.9375rem;
+	--leading-base: 1.55;
+	--text-lg: 1.0625rem;
+	--leading-lg: 1.5;
+	--text-xl: 1.25rem;
+	--leading-xl: 1.3;
+	--text-2xl: 1.625rem;
+	--leading-2xl: 1.2;
+	--text-3xl: 2.125rem;
+	--leading-3xl: 1.1;
+	--text-4xl: 2.875rem;
+	--leading-4xl: 1.04;
+
+	/* ============ MOTION — MERGED (single source of truth) ============ */
+	--ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1); /* Captain */
+	--ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1); /* Captain */
+	--ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1); /* v1 — message/card entries */
+	--ease-exit: cubic-bezier(0.4, 0, 1, 1); /* Captain */
+	--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* v1 — orb, dots */
+	--ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* v1 — iOS sheets ONLY */
+
+	--dur-instant: 80ms; /* touch acknowledgment */
+	--dur-fast: 120ms; /* Captain */
+	--dur-med: 180ms; /* Captain */
+	--dur-base: 220ms; /* v1 — message land, card enter */
+	--dur-slow: 280ms; /* Captain */
+	--dur-panel: 360ms; /* Captain — panels/sheets */
+	--dur-long: 480ms; /* v1 — sheet enter, ambient */
+
+	/* ============ RADIUS (Captain) ============ */
+	--r-xs: 6px;
+	--r-sm: 10px;
+	--r-md: 14px;
+	--r-lg: 18px;
+	--r-xl: 24px;
+	--r-pill: 999px;
+
+	/* ============ ELEVATION (Captain) ============ */
+	--shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.28);
+	--shadow-card: 0 16px 48px rgba(0, 0, 0, 0.36);
+	--shadow-float: 0 24px 80px rgba(0, 0, 0, 0.46);
+	--shadow-accent: 0 0 0 1px rgba(124, 132, 232, 0.18), 0 14px 44px rgba(124, 132, 232, 0.14);
+
+	/* ============ FOCUS (Captain) ============ */
+	--focus: 0 0 0 2px rgba(124, 132, 232, 0.45);
+	--focus-strong: 0 0 0 3px rgba(124, 132, 232, 0.62);
+
+	/* ============ STATUS SURFACES (Captain) ============ */
+	/* Derived from --live and semantic colors at fixed alphas. */
+	--live-bg: rgba(124, 132, 232, 0.12);
+	--live-line: rgba(124, 132, 232, 0.28);
+	--green-bg: rgba(74, 222, 128, 0.1);
+	--green-line: rgba(74, 222, 128, 0.24);
+	--amber-bg: rgba(251, 191, 36, 0.1);
+	--amber-line: rgba(251, 191, 36, 0.26);
+	--red-bg: rgba(248, 113, 113, 0.1);
+	--red-line: rgba(248, 113, 113, 0.28);
+	--blue-bg: rgba(96, 165, 250, 0.1);
+	--blue-line: rgba(96, 165, 250, 0.25);
+
+	/* ============ APP SURFACES (Captain) ============ */
+	--surface-chat: rgba(15, 16, 21, 0.96); /* = bg1 family */
+	--surface-card: rgba(20, 22, 28, 0.88); /* = bg2 family */
+	--surface-raised: rgba(27, 29, 37, 0.94); /* = bg3 family */
+	--surface-overlay: rgba(11, 12, 16, 0.76); /* scrims */
+
+	/* ============ WORK OBJECTS (Captain) ============ */
+	--thread-pill-bg: rgba(20, 22, 28, 0.82);
+	--thread-pill-border: rgba(200, 210, 255, 0.1);
+	--artifact-bg: rgba(20, 22, 28, 0.9);
+	--artifact-border: rgba(124, 132, 232, 0.18);
+	--worker-bg: rgba(124, 132, 232, 0.1);
+	--worker-border: rgba(124, 132, 232, 0.22);
+
+	/* ============ COMPOSER (Captain) ============ */
+	--composer-bg: rgba(20, 22, 28, 0.92);
+	--composer-border: rgba(200, 210, 255, 0.12);
+	--composer-border-active: rgba(124, 132, 232, 0.42);
+
+	/* ============ WORKER HEARTBEAT TIMING ============ */
+	/* Animation-timing for the shared worker-surface breath (graph · waveform ·
+	   registry · Next); folded in here to keep one custom-property surface. */
+	--worker-breath-duration: 1.6s;
+	--worker-breath-duration-finishing: 1.05s;
+	--worker-breath-delay-stagger: 0.35s;
 }
 
 @layer base {
@@ -133,8 +265,8 @@
 			'calt' 1;
 		/* Prevent boundary scroll rubber-banding on mobile */
 		overscroll-behavior: none;
-		/* Near-black base. The living-aurora layer (.app-aurora in +layout.svelte)
-		   now provides the magenta ambient glow + slow motion behind the content. */
+		/* Near-black base. The fixed .app-bg layer (in +layout.svelte) provides the
+		   Indigo ambient wash behind all content (locked spec v1.0 Section 3). */
 		background-color: var(--color-background);
 	}
 
@@ -197,13 +329,6 @@
 }
 
 @layer base {
-	:root {
-		/* D7 brand extensions — softer/glow magenta steps for the Sully name-tag
-		   dot, hovers, and ambient accents. */
-		--color-brand-soft: #e6b3c4;
-		--color-brand-glow: #d995b1;
-	}
-
 	/* Keyboard-only focus ring (mouse/touch stay clean). */
 	:focus-visible {
 		outline: 2px solid var(--color-ring);
@@ -213,20 +338,15 @@
 }
 
 @layer components {
-	/* Sully's glossy magenta "thought-drop" identity orb. */
+	/* Sully's glossy Indigo "thought-drop" identity orb. Takes the canonical
+	   --orb-grad (locked spec v1.0); the orb state machine is untouched. */
 	.sully-orb {
 		border-radius: 9999px;
-		background: radial-gradient(
-			circle at 32% 26%,
-			#ffe3f1 0%,
-			var(--color-brand-bright) 30%,
-			var(--color-brand) 60%,
-			var(--color-brand-deep) 100%
-		);
+		background: var(--orb-grad);
 		box-shadow:
 			inset 0 1px 1px rgb(255 255 255 / 0.4),
 			inset 0 0 0 1px rgb(255 255 255 / 0.06),
-			0 4px 14px -4px rgb(236 45 120 / 0.55);
+			0 4px 14px -4px rgba(124, 132, 232, 0.5);
 	}
 
 	/* Work Surface type ramp — Linear/v0 clarity, Apple headline tracking.
@@ -338,7 +458,7 @@
 		}
 	}
 
-	/* The one magenta call-to-action: the send button. */
+	/* The one Indigo call-to-action: the send button. */
 	.btn-brand {
 		background: linear-gradient(
 			135deg,
@@ -347,7 +467,7 @@
 			var(--color-brand-deep)
 		);
 		color: #fff;
-		box-shadow: 0 4px 16px -5px rgb(236 45 120 / 0.6);
+		box-shadow: 0 4px 16px -5px rgba(124, 132, 232, 0.5);
 		transition:
 			filter 0.15s,
 			transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
@@ -373,51 +493,41 @@
 		box-shadow: 0 16px 48px -12px rgb(0 0 0 / 0.7);
 	}
 
-	/* ── Living aurora — the app's animated magenta background. Mounted once in
-	   +layout.svelte as .app-aurora behind all content. Slow, low-opacity,
-	   premium; never a loud screensaver. ── */
-	.app-aurora {
+	/* ── Ambient washes — locked spec v1.0 Section 3. A fixed, paint-isolated
+	   shell layer (Indigo, magenta retired) that paints ONCE and never rescrolls;
+	   on the Capacitor iOS WebView a body gradient repaints the full height during
+	   scroll. Mounted once in +layout.svelte as .app-bg behind all content. ── */
+	.app-bg {
 		position: fixed;
 		inset: 0;
 		z-index: 0;
-		overflow: hidden;
 		pointer-events: none;
-		background-color: var(--color-background);
+		background:
+			radial-gradient(circle at 20% 0%, rgba(124, 132, 232, 0.1), transparent 34%),
+			radial-gradient(circle at 80% 10%, rgba(96, 165, 250, 0.07), transparent 28%);
+		contain: strict;
 	}
-	.app-aurora span {
-		position: absolute;
-		display: block;
-		border-radius: 50%;
-		filter: blur(64px);
-		mix-blend-mode: screen;
-		will-change: transform;
+	/* All app content renders above it. */
+	.app-root {
+		position: relative;
+		z-index: 1;
 	}
-	.app-aurora .a1 {
-		width: 78%;
-		height: 46%;
-		left: -16%;
-		top: 2%;
-		opacity: 0.55;
-		background: radial-gradient(circle, rgb(236 45 120 / 0.32), transparent 66%);
-		animation: aurora1 24s ease-in-out infinite alternate;
+
+	/* Smoothness defaults — locked spec v1.0 Section 3. Small interactive
+	   elements only; never apply to full-width panels/sheets (transitioning
+	   box-shadow/background-color on large surfaces costs frames — panels use
+	   transform/opacity animations only). */
+	.sully-smooth {
+		transition:
+			transform var(--dur-med) var(--ease-standard),
+			opacity var(--dur-med) var(--ease-standard),
+			background-color var(--dur-med) var(--ease-standard),
+			border-color var(--dur-med) var(--ease-standard),
+			box-shadow var(--dur-med) var(--ease-standard);
 	}
-	.app-aurora .a2 {
-		width: 66%;
-		height: 52%;
-		right: -20%;
-		top: 34%;
-		opacity: 0.45;
-		background: radial-gradient(circle, rgb(196 24 106 / 0.26), transparent 64%);
-		animation: aurora2 30s ease-in-out infinite alternate;
-	}
-	.app-aurora .a3 {
-		width: 86%;
-		height: 44%;
-		left: 4%;
-		bottom: -14%;
-		opacity: 0.4;
-		background: radial-gradient(circle, rgb(255 77 148 / 0.18), transparent 68%);
-		animation: aurora3 27s ease-in-out infinite alternate;
+
+	.sully-panel-enter {
+		animation: sully-panel-in var(--dur-panel) var(--ease-emphasized) both;
 	}
 
 	/* Frosted-glass surfaces (top bar, composer, sheets, drawer). */
@@ -479,7 +589,7 @@
 		opacity: 0.4;
 	}
 
-	/* Magenta tactile — the voice-mode + send buttons: domed magenta with glow. */
+	/* Indigo tactile — the voice-mode + send buttons: domed accent with glow. */
 	.btn-tactile-brand {
 		display: flex;
 		align-items: center;
@@ -495,8 +605,8 @@
 		box-shadow:
 			inset 0 1px 0 rgb(255 255 255 / 0.35),
 			inset 0 -1px 1px rgb(0 0 0 / 0.25),
-			0 4px 14px -3px rgb(236 45 120 / 0.55),
-			0 0 18px -2px rgb(255 77 148 / 0.5);
+			0 4px 14px -3px rgba(124, 132, 232, 0.55),
+			0 0 18px -2px rgba(154, 161, 240, 0.5);
 		color: #fff;
 		transition:
 			transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
@@ -526,12 +636,12 @@
 @keyframes composerSendingGlow {
 	0%,
 	100% {
-		border-color: rgb(236 45 120 / 0.55);
-		box-shadow: 0 0 24px -2px rgb(236 45 120 / 0.22);
+		border-color: rgba(124, 132, 232, 0.55);
+		box-shadow: 0 0 24px -2px rgba(124, 132, 232, 0.22);
 	}
 	50% {
-		border-color: rgb(236 45 120 / 0.95);
-		box-shadow: 0 0 38px -2px rgb(236 45 120 / 0.45);
+		border-color: rgba(124, 132, 232, 0.95);
+		box-shadow: 0 0 38px -2px rgba(124, 132, 232, 0.45);
 	}
 }
 .composer-sending {
@@ -561,43 +671,20 @@
 	}
 }
 
-@keyframes aurora1 {
+/* Panel/sheet entry — locked spec v1.0 Section 3 (used by .sully-panel-enter). */
+@keyframes sully-panel-in {
 	from {
-		transform: translate(0, 0) scale(1);
+		opacity: 0;
+		transform: translateY(10px) scale(0.985);
 	}
 	to {
-		transform: translate(7%, 8%) scale(1.15);
-	}
-}
-@keyframes aurora2 {
-	from {
-		transform: translate(0, 0) scale(1.05);
-	}
-	to {
-		transform: translate(-8%, -6%) scale(1.2);
-	}
-}
-@keyframes aurora3 {
-	from {
-		transform: translate(0, 0) scale(0.96);
-	}
-	to {
-		transform: translate(6%, -7%) scale(1.16);
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	.app-aurora span {
-		animation: none;
+		opacity: 1;
+		transform: translateY(0) scale(1);
 	}
 }
 
-/* ── Work Surface: shared worker heartbeat (graph · waveform · registry · Next) */
-:root {
-	--worker-breath-duration: 1.6s;
-	--worker-breath-duration-finishing: 1.05s;
-	--worker-breath-delay-stagger: 0.35s;
-}
-
+/* ── Work Surface: shared worker heartbeat (graph · waveform · registry · Next).
+   Timing tokens live in the canonical :root token surface near the top. */
 @keyframes worker-surface-breath {
 	0%,
 	100% {
@@ -723,5 +810,18 @@
 	.px-safe {
 		padding-left: env(safe-area-inset-left);
 		padding-right: env(safe-area-inset-right);
+	}
+}
+
+/* Global reduced-motion — locked spec v1.0 Section 3. Covers .sully-smooth,
+   .sully-panel-enter, and any view transitions for users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 1ms !important;
 	}
 }
