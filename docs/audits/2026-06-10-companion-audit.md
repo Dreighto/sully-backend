@@ -12,21 +12,21 @@ The precise death point for stale trace `sully-1781123047255-171f42a1` is betwee
 
 ## Mission A - Inventory Verdicts
 
-| Location | Verdict | Evidence |
-| --- | --- | --- |
-| `/home/dreighto/dev/LogueOS-Companion` | canonical/live | `systemctl cat logueos-companion.service` points `WorkingDirectory` and `ExecStart` here; git `main...origin/main`, HEAD `0f5588e`; directory mtime `2026-06-10 14:38:42 -0700`. |
-| `/home/dreighto/dev/worktrees/LogueOS-Companion/w1` | active audit worktree | Branch `audit/los-197-companion-audit...origin/main`, HEAD `0f5588e`; directory mtime `2026-06-10 14:37:50 -0700`; not the live service source. |
-| `/home/dreighto/dev/agents/cc/LogueOS-Companion` | stale duplicate | Branch `agent/cc/work...origin/agent/cc/work`, HEAD `989b1a3`; directory mtime `2026-06-08 19:33:16 -0700`; separate agent checkout, not referenced by systemd. |
-| `/home/dreighto/dev/sully-workspace` | adjacent canonical workspace, not Companion app | Branch `_parking_sully-workspace`, HEAD `36928fd`; directory mtime `2026-06-05 13:00:25 -0700`; Companion dispatch code treats it as a target repo for workspace builds, not as the app (`src/lib/server/companionDispatch.ts:50-56`, `src/lib/server/companionDispatch.ts:116-123`). |
-| `/home/dreighto/dev/work-surface-live` | archive-candidate / static prototype | Directory exists, mtime `2026-06-06 17:51:11 -0700`; no git state found in the inventory command; not referenced by live service. |
-| `/home/dreighto/dev/companion-speech` | adjacent voice service repo | Branch `main...origin/main`, HEAD `1e6dc21`; directory mtime `2026-06-10 15:10:02 -0700`; contains voice assets such as `voices/sully_goodman.wav`, not the SvelteKit app. |
-| `/home/dreighto/dev/worktrees/companion-speech` | voice worktree pool | Directory exists, mtime `2026-06-10 14:53:07 -0700`; adjacent to Companion but outside app runtime. |
-| `/home/dreighto/dev/_archive/work-surface-abc` | archive | Directory mtime `2026-06-08 21:56:27 -0700`; under `_archive`, not referenced by systemd. |
-| `/home/dreighto/dev/_archive/companion-canonical-cleanup-2026-06-09` | archive | Directory mtime `2026-06-09 21:56:38 -0700`; under `_archive`, not referenced by systemd. |
-| `/home/dreighto/dev/LogueOS-Companion/static/facelift/*` | stale mockups retained inside canonical repo | 14 HTML mockups found: `integrated-mockups-v2.html`, `depth.html`, `integrated-mockups-v4.html`, `integrated-mockups-v3.html`, `integrated-mockups.html`, `index.html`, `glass.html`, `sidebar-layouts.html`, `polish-tactile.html`, `sidebar.html`, `aurora.html`, `polish-soft.html`, `audit-questions.html`, `final.html`; they are static reference/mockup files, not mounted Svelte routes. |
-| `/home/dreighto/dev/training-corpora/companion-*` | canonical training artifacts, not runtime | Found `companion-v2-best`, `companion-v2-lora`, `companion-v3-lora`, `companion-2026-06-01`, `companion-dispatch-2026-06-06`; not referenced by systemd app start. |
-| `/home/dreighto/dev/odysseus/companion` | separate product area | Found by `find ~/dev -maxdepth 3` with tests `test_companion_readonly.py` and `test_companion_pairing.py`; no evidence it is the LogueOS Companion app runtime. |
-| `/home/dreighto/dev/LogueOS-Orchestrator/companion` | kernel-side companion integration | Found by inventory; read-only evidence source for listener logs and canon, not SvelteKit runtime. |
+| Location                                                             | Verdict                                         | Evidence                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/home/dreighto/dev/LogueOS-Companion`                               | canonical/live                                  | `systemctl cat logueos-companion.service` points `WorkingDirectory` and `ExecStart` here; git `main...origin/main`, HEAD `0f5588e`; directory mtime `2026-06-10 14:38:42 -0700`.                                                                                                                                                                                                                 |
+| `/home/dreighto/dev/worktrees/LogueOS-Companion/w1`                  | active audit worktree                           | Branch `audit/los-197-companion-audit...origin/main`, HEAD `0f5588e`; directory mtime `2026-06-10 14:37:50 -0700`; not the live service source.                                                                                                                                                                                                                                                  |
+| `/home/dreighto/dev/agents/cc/LogueOS-Companion`                     | stale duplicate                                 | Branch `agent/cc/work...origin/agent/cc/work`, HEAD `989b1a3`; directory mtime `2026-06-08 19:33:16 -0700`; separate agent checkout, not referenced by systemd.                                                                                                                                                                                                                                  |
+| `/home/dreighto/dev/sully-workspace`                                 | adjacent canonical workspace, not Companion app | Branch `_parking_sully-workspace`, HEAD `36928fd`; directory mtime `2026-06-05 13:00:25 -0700`; Companion dispatch code treats it as a target repo for workspace builds, not as the app (`src/lib/server/companionDispatch.ts:50-56`, `src/lib/server/companionDispatch.ts:116-123`).                                                                                                            |
+| `/home/dreighto/dev/work-surface-live`                               | archive-candidate / static prototype            | Directory exists, mtime `2026-06-06 17:51:11 -0700`; no git state found in the inventory command; not referenced by live service.                                                                                                                                                                                                                                                                |
+| `/home/dreighto/dev/companion-speech`                                | adjacent voice service repo                     | Branch `main...origin/main`, HEAD `1e6dc21`; directory mtime `2026-06-10 15:10:02 -0700`; contains voice assets such as `voices/sully_goodman.wav`, not the SvelteKit app.                                                                                                                                                                                                                       |
+| `/home/dreighto/dev/worktrees/companion-speech`                      | voice worktree pool                             | Directory exists, mtime `2026-06-10 14:53:07 -0700`; adjacent to Companion but outside app runtime.                                                                                                                                                                                                                                                                                              |
+| `/home/dreighto/dev/_archive/work-surface-abc`                       | archive                                         | Directory mtime `2026-06-08 21:56:27 -0700`; under `_archive`, not referenced by systemd.                                                                                                                                                                                                                                                                                                        |
+| `/home/dreighto/dev/_archive/companion-canonical-cleanup-2026-06-09` | archive                                         | Directory mtime `2026-06-09 21:56:38 -0700`; under `_archive`, not referenced by systemd.                                                                                                                                                                                                                                                                                                        |
+| `/home/dreighto/dev/LogueOS-Companion/static/facelift/*`             | stale mockups retained inside canonical repo    | 14 HTML mockups found: `integrated-mockups-v2.html`, `depth.html`, `integrated-mockups-v4.html`, `integrated-mockups-v3.html`, `integrated-mockups.html`, `index.html`, `glass.html`, `sidebar-layouts.html`, `polish-tactile.html`, `sidebar.html`, `aurora.html`, `polish-soft.html`, `audit-questions.html`, `final.html`; they are static reference/mockup files, not mounted Svelte routes. |
+| `/home/dreighto/dev/training-corpora/companion-*`                    | canonical training artifacts, not runtime       | Found `companion-v2-best`, `companion-v2-lora`, `companion-v3-lora`, `companion-2026-06-01`, `companion-dispatch-2026-06-06`; not referenced by systemd app start.                                                                                                                                                                                                                               |
+| `/home/dreighto/dev/odysseus/companion`                              | separate product area                           | Found by `find ~/dev -maxdepth 3` with tests `test_companion_readonly.py` and `test_companion_pairing.py`; no evidence it is the LogueOS Companion app runtime.                                                                                                                                                                                                                                  |
+| `/home/dreighto/dev/LogueOS-Orchestrator/companion`                  | kernel-side companion integration               | Found by inventory; read-only evidence source for listener logs and canon, not SvelteKit runtime.                                                                                                                                                                                                                                                                                                |
 
 Live data note: the real DB is `/home/dreighto/dev/LogueOS-Companion/data/companion.db`; the worktree also has `/home/dreighto/dev/worktrees/LogueOS-Companion/w1/data/companion.db`, but all trace reads in this audit used `sqlite3 'file:/home/dreighto/dev/LogueOS-Companion/data/companion.db?mode=ro'` per the worktree-DB rule.
 
@@ -91,18 +91,18 @@ Type-check measurement:
 
 Largest source surfaces by bytes:
 
-| Size | File | Refactor signal |
-| ---: | --- | --- |
-| 56,125 | `src/routes/chat/+page.svelte` | Main orchestration hotspot: messages, dispatch streams, activity polling, surface spawning, composer state. |
-| 28,140 | `src/lib/components/WorkSurfaceCard.svelte` | Legacy/work-surface candidate for quarantine or extraction. |
-| 27,264 | `src/lib/components/Composer.svelte` | Clear `SullyComposer` extraction target. |
-| 24,495 | `src/lib/work-surface/hybrid/HybridDetailSheet.svelte` | `SullyDrawer` / run-detail candidate. |
-| 22,990 | `src/lib/work-surface/hybrid/HybridDispatchCard.svelte` | `SullyWorkerRunPill` / artifact-card overlap. |
-| 21,549 | `src/lib/components/WorkGraph.svelte` | Legacy visualization candidate. |
-| 17,331 | `src/lib/components/VoiceMode.svelte` | `SullyVoiceOverlay` extraction target. |
-| 16,381 | `src/lib/components/MessageFeed.svelte` | `SullyThreadItem` and `SullyWorkerRunPill` mount point. |
-| 15,864 | `src/lib/components/Markdown.svelte` | Thread item rendering dependency. |
-| 15,747 | `src/lib/components/ThreadsSidebar.svelte` | Drawer/sidebar pattern input. |
+|   Size | File                                                    | Refactor signal                                                                                             |
+| -----: | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 56,125 | `src/routes/chat/+page.svelte`                          | Main orchestration hotspot: messages, dispatch streams, activity polling, surface spawning, composer state. |
+| 28,140 | `src/lib/components/WorkSurfaceCard.svelte`             | Legacy/work-surface candidate for quarantine or extraction.                                                 |
+| 27,264 | `src/lib/components/Composer.svelte`                    | Clear `SullyComposer` extraction target.                                                                    |
+| 24,495 | `src/lib/work-surface/hybrid/HybridDetailSheet.svelte`  | `SullyDrawer` / run-detail candidate.                                                                       |
+| 22,990 | `src/lib/work-surface/hybrid/HybridDispatchCard.svelte` | `SullyWorkerRunPill` / artifact-card overlap.                                                               |
+| 21,549 | `src/lib/components/WorkGraph.svelte`                   | Legacy visualization candidate.                                                                             |
+| 17,331 | `src/lib/components/VoiceMode.svelte`                   | `SullyVoiceOverlay` extraction target.                                                                      |
+| 16,381 | `src/lib/components/MessageFeed.svelte`                 | `SullyThreadItem` and `SullyWorkerRunPill` mount point.                                                     |
+| 15,864 | `src/lib/components/Markdown.svelte`                    | Thread item rendering dependency.                                                                           |
+| 15,747 | `src/lib/components/ThreadsSidebar.svelte`              | Drawer/sidebar pattern input.                                                                               |
 
 Re-render and state hotspots from source reads:
 
@@ -113,17 +113,17 @@ Re-render and state hotspots from source reads:
 
 ### Component Catalog
 
-| Proposed primitive | Current variants to replace or normalize |
-| --- | --- |
-| `SullyButton` | Inline buttons in `Composer.svelte`, `ChatHeader.svelte`, `ThreadsSidebar.svelte`, message action buttons in `MessageFeed.svelte`, dispatch chips in `DispatchChips.svelte`. |
-| `SullyCard` | `ProofCard.svelte`, `WorkSurfaceCard.svelte`, `DispatchCard.svelte`, `HybridDispatchCard.svelte`, `WorkspaceContextModal.svelte` panels. |
-| `SullyPill` | `SullyNameTag.svelte`, `DispatchChips.svelte`, worker/status chips in `WorkerRow.svelte`, pills in `HybridDispatchPill.svelte`. |
-| `SullyComposer` | Extract from `Composer.svelte` and `WorkSurfaceComposerChrome.svelte`; keep chat and work-surface composer behavior behind one tokenized shell. |
-| `SullyThreadItem` | Extract from `MessageFeed.svelte` branches: operator bubble, Sully/local markdown message, system worker-pill row, thinking/tool rows. |
-| `SullyArtifactCard` | `ProofCard.svelte`, artifact listing/rendering in `Markdown.svelte` and artifact endpoint consumers. |
-| `SullyWorkerRunPill` | Landed `src/lib/work-surface/pill/WorkerPill.svelte`, plus old `DispatchCard.svelte`, `HybridDispatchPill.svelte`, `HybridDispatchCard.svelte`, `WorkSurfacePill.svelte`. |
-| `SullyDrawer` | `ThreadsSidebar.svelte`, `HybridDetailSheet.svelte`, `WorkspaceContextModal.svelte`, canvas/lightbox/modal shells. |
-| `SullyVoiceOverlay` | `VoiceMode.svelte`, voice picker controls, avatar state mapping, transcript overlay. |
+| Proposed primitive   | Current variants to replace or normalize                                                                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SullyButton`        | Inline buttons in `Composer.svelte`, `ChatHeader.svelte`, `ThreadsSidebar.svelte`, message action buttons in `MessageFeed.svelte`, dispatch chips in `DispatchChips.svelte`. |
+| `SullyCard`          | `ProofCard.svelte`, `WorkSurfaceCard.svelte`, `DispatchCard.svelte`, `HybridDispatchCard.svelte`, `WorkspaceContextModal.svelte` panels.                                     |
+| `SullyPill`          | `SullyNameTag.svelte`, `DispatchChips.svelte`, worker/status chips in `WorkerRow.svelte`, pills in `HybridDispatchPill.svelte`.                                              |
+| `SullyComposer`      | Extract from `Composer.svelte` and `WorkSurfaceComposerChrome.svelte`; keep chat and work-surface composer behavior behind one tokenized shell.                              |
+| `SullyThreadItem`    | Extract from `MessageFeed.svelte` branches: operator bubble, Sully/local markdown message, system worker-pill row, thinking/tool rows.                                       |
+| `SullyArtifactCard`  | `ProofCard.svelte`, artifact listing/rendering in `Markdown.svelte` and artifact endpoint consumers.                                                                         |
+| `SullyWorkerRunPill` | Landed `src/lib/work-surface/pill/WorkerPill.svelte`, plus old `DispatchCard.svelte`, `HybridDispatchPill.svelte`, `HybridDispatchCard.svelte`, `WorkSurfacePill.svelte`.    |
+| `SullyDrawer`        | `ThreadsSidebar.svelte`, `HybridDetailSheet.svelte`, `WorkspaceContextModal.svelte`, canvas/lightbox/modal shells.                                                           |
+| `SullyVoiceOverlay`  | `VoiceMode.svelte`, voice picker controls, avatar state mapping, transcript overlay.                                                                                         |
 
 ### Staged Migration Order
 
