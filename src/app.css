@@ -184,6 +184,12 @@
 	--dur-panel: 360ms; /* Captain — panels/sheets */
 	--dur-long: 480ms; /* v1 — sheet enter, ambient */
 
+	/* ambient tier — decorative cycles ≥1s; extend only when a real ambient
+	   needs it; reduced-motion neutralizes globally. */
+	--dur-ambient-fast: 1.05s;
+	--dur-ambient: 1.6s;
+	--dur-ambient-slow: 2s;
+
 	/* ============ RADIUS (Captain) ============ */
 	--r-xs: 6px;
 	--r-sm: 10px;
@@ -237,8 +243,8 @@
 	/* ============ WORKER HEARTBEAT TIMING ============ */
 	/* Animation-timing for the shared worker-surface breath (graph · waveform ·
 	   registry · Next); folded in here to keep one custom-property surface. */
-	--worker-breath-duration: 1.6s;
-	--worker-breath-duration-finishing: 1.05s;
+	--worker-breath-duration: var(--dur-ambient);
+	--worker-breath-duration-finishing: var(--dur-ambient-fast);
 	--worker-breath-delay-stagger: 0.35s;
 }
 
@@ -632,7 +638,7 @@
 	}
 }
 .composer-sending {
-	animation: composerSendingGlow var(--dur-long) var(--ease-standard) infinite;
+	animation: composerSendingGlow var(--dur-ambient-slow) var(--ease-standard) infinite;
 }
 
 @keyframes composerTalkbackGlow {
@@ -647,7 +653,7 @@
 	}
 }
 .composer-talkback {
-	animation: composerTalkbackGlow var(--worker-breath-duration) var(--ease-standard) infinite;
+	animation: composerTalkbackGlow var(--dur-ambient) var(--ease-standard) infinite;
 }
 
 /* Per-user-prefs respect — don't pulse if reduce-motion is set. */
