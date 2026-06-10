@@ -32,6 +32,7 @@
 	import { createStreamingController } from '$lib/chat/streaming.svelte';
 	import { createVoiceController } from '$lib/chat/voice.svelte';
 	import { createRealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
+	import { createVoiceModeMachine } from '$lib/chat/voice-mode.svelte';
 	import { createMessageActionsController } from '$lib/chat/message-actions.svelte';
 	import { replaceState } from '$app/navigation';
 	import { toasts } from '$lib/utils/toasts';
@@ -300,7 +301,11 @@
 		},
 		setCurrentTier: (t) => (currentTier = t),
 		setUserAtBottom: (v) => (userAtBottom = v),
-		pollMessages
+		pollMessages,
+		// Surface exclusion (T1b): Talkback refuses to arm while the full-voice
+		// overlay owns the screen. Reads rtVoice (declared below) lazily — only
+		// invoked on a user toggle, long after init, so the forward ref is safe.
+		isFullVoiceActive: () => rtVoice.open
 	});
 
 	// Realtime Voice Mode controller — the immersive local-GPU voice pipeline
@@ -310,6 +315,23 @@
 	const rtVoice = createRealtimeVoiceController({
 		getActiveThread: () => threadsCtrl.activeThread,
 		pollMessages
+	});
+
+	// Voice SURFACE state machine (LOS-176 / T1b) — the single coordinator for
+	// which voice surface owns the screen. Enforces Talkback ⊻ full-voice mutual
+	// exclusion and decides whether the composer is MOUNTED (it is unmounted in
+	// full voice, not hidden). Surface-level only: it never touches either
+	// controller's transport. The template drives the voice-mode + talkback
+	// toggles through THIS, not the controllers directly, so exclusion is
+	// enforced in one place.
+	const voiceMode = createVoiceModeMachine({
+		getVoicePhase: () => rtVoice.phase,
+		isFullVoiceOpen: () => rtVoice.open,
+		isTalkbackActive: () => voice.active,
+		openFullVoice: () => rtVoice.enter(),
+		closeFullVoice: () => rtVoice.exit(),
+		toggleTalkback: () => voice.toggleTalkback(),
+		stopTalkback: (reason) => voice.stopTalkback(reason)
 	});
 
 	// Element refs
@@ -1157,9 +1179,9 @@
 				onfocus={() => composerMode === 'idle' && (composerMode = 'focused')}
 				onblur={() => composerMode === 'focused' && (composerMode = 'idle')}
 				ontriggerUpload={triggerUpload}
-				ontoggleTalkback={() => void voice.toggleTalkback()}
+				ontoggleTalkback={() => void voiceMode.toggleTalkback()}
 				onstopTalkback={() => void voice.stopTalkback()}
-				onvoiceMode={() => void rtVoice.enter()}
+				onvoiceMode={() => void voiceMode.enterFullVoice()}
 				onpickSlash={(cmd) => void pickSlash(cmd)}
 				onremoveAttachment={composerCtrl.removeAttachment}
 				onsetModelChoice={(choice) => void setModelChoice(choice)}
@@ -1167,21 +1189,28 @@
 			/>
 		{/snippet}
 
-		{#if useInlineDispatch}
-			<!-- Flag-on: Composer alone. DispatchCard renders inline in MessageFeed;
-			     old chrome (pill + dock above composer) suppressed to avoid the
-			     "2 graphs / 2 surfaces" double-render. -->
-			{@render composerEl()}
-		{:else}
-			<WorkSurfaceComposerChrome
-				bind:mode={dockMode}
-				bind:openSurfaceId={dockOpenSurfaceId}
-				bind:sheetReturnMode={dockSheetReturnMode}
-			>
-				{#snippet composer()}
-					{@render composerEl()}
-				{/snippet}
-			</WorkSurfaceComposerChrome>
+		<!-- Composer mount gate (LOS-176 / T1b): in full voice the composer is
+		     UNMOUNTED — actually removed from the component tree, not hidden — so
+		     streaming voice updates can't re-render it and its reactive closures
+		     can't leak. The full-screen VoiceMode overlay owns the screen instead.
+		     The {#if} (not display:none) is what makes the unmount real. -->
+		{#if voiceMode.composerMounted}
+			{#if useInlineDispatch}
+				<!-- Flag-on: Composer alone. DispatchCard renders inline in MessageFeed;
+				     old chrome (pill + dock above composer) suppressed to avoid the
+				     "2 graphs / 2 surfaces" double-render. -->
+				{@render composerEl()}
+			{:else}
+				<WorkSurfaceComposerChrome
+					bind:mode={dockMode}
+					bind:openSurfaceId={dockOpenSurfaceId}
+					bind:sheetReturnMode={dockSheetReturnMode}
+				>
+					{#snippet composer()}
+						{@render composerEl()}
+					{/snippet}
+				</WorkSurfaceComposerChrome>
+			{/if}
 		{/if}
 	</main>
 </div>

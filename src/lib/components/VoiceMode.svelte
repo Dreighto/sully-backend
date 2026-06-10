@@ -28,6 +28,7 @@
 	} from 'lucide-svelte';
 	import SullyAvatar from './SullyAvatar.svelte';
 	import type { RealtimeVoiceController } from '$lib/chat/realtime-voice.svelte';
+	import { mapVoicePhase } from '$lib/chat/voice-mode.svelte';
 
 	let { voice }: { voice: RealtimeVoiceController } = $props();
 
@@ -164,6 +165,19 @@
 					? 'listening'
 					: 'idle'
 	);
+
+	// Named full-voice UI state (LOS-176 / T1b) — the overlay renders against the
+	// same surface state machine the page uses, so the transcript hierarchy is
+	// driven by the canonical IDLE/LISTENING/THINKING/SPEAKING vocabulary rather
+	// than re-derived from raw phase booleans here.
+	const uiState = $derived(mapVoicePhase(voice.phase));
+
+	// Operator's own words. Secondary + ephemeral: shown live WHILE listening,
+	// then faded out the moment Sully takes the floor (thinking/speaking). Her
+	// reply is the persistent primary (below) — this is just a transient echo of
+	// what you said, not a transcript line.
+	const operatorCaption = $derived(voice.partial || voice.userText);
+	const operatorCaptionVisible = $derived(uiState === 'LISTENING' && operatorCaption.length > 0);
 </script>
 
 {#if voice.open}
@@ -365,19 +379,32 @@
 					<SullyAvatar state={voiceAvatarState} size={128} />
 				</button>
 
-				<!-- Operator's live / final utterance -->
-				<div class="min-h-[2rem] max-w-2xl text-center text-lg font-medium text-zinc-100">
-					{voice.partial || voice.userText}
-				</div>
-
-				<!-- Companion reply (captions) -->
+				<!-- PRIMARY: Sully's reply. The hero of the transcript now — large,
+				     high-contrast, and it stays put as the turn settles (it is also
+				     persisted to the chat feed server-side, so it survives closing the
+				     overlay). Hidden only when captions are off (voice-only) or she
+				     hasn't spoken yet this turn. -->
 				{#if voice.captions && voice.replyText}
 					<div
-						class="max-h-[40vh] max-w-2xl overflow-y-auto rounded-2xl bg-zinc-900/70 px-5 py-4 text-center text-base leading-relaxed whitespace-pre-wrap text-zinc-300"
+						class="max-h-[44vh] max-w-2xl overflow-y-auto text-center text-xl leading-relaxed font-medium whitespace-pre-wrap text-zinc-100"
+						aria-live="polite"
 					>
 						{voice.replyText}
 					</div>
 				{/if}
+
+				<!-- SECONDARY / ephemeral: the operator's own words. Small + dim, and it
+				     FADES out once Sully takes the floor. Opacity-only transition (never
+				     animates layout), height reserved so the feed doesn't jump as it
+				     fades, and prefers-reduced-motion disables the animation. -->
+				<div
+					class="min-h-[1.75rem] max-w-xl text-center text-sm text-zinc-500 transition-opacity duration-500 ease-out motion-reduce:transition-none {operatorCaptionVisible
+						? 'opacity-100'
+						: 'opacity-0'}"
+					aria-hidden={!operatorCaptionVisible}
+				>
+					{operatorCaption}
+				</div>
 			{/if}
 		</div>
 

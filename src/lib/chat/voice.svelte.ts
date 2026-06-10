@@ -61,6 +61,15 @@ export interface VoiceDeps {
 	setUserAtBottom: (atBottom: boolean) => void;
 	/** Reconcile the feed against the DB (talkback reply polling). */
 	pollMessages: () => Promise<void>;
+	/**
+	 * Surface-exclusion hook (LOS-176 / T1b): Talkback ⊻ full-voice. Reads the
+	 * realtime full-voice overlay's open state so Talkback refuses to arm while
+	 * full voice owns the screen. SURFACE-level only — it does not touch
+	 * Talkback's own transport (`TALKBACK_STT_VIA_BRIDGE` / the STT bridge),
+	 * which keeps gating itself. Optional so callers/tests without a full-voice
+	 * surface (the loop never blocks) still construct cleanly.
+	 */
+	isFullVoiceActive?: () => boolean;
 }
 
 export interface VoiceController {
@@ -244,6 +253,10 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 			await stopTalkback();
 			return;
 		}
+		// Surface exclusion (T1b): never arm Talkback while the full-voice overlay
+		// owns the screen — it owns the mic. Toggling OFF above is unaffected.
+		// This is a surface guard only; the STT bridge transport is untouched.
+		if (deps.isFullVoiceActive?.()) return;
 		unlockAudio();
 
 		if (TALKBACK_STT_VIA_BRIDGE) {
