@@ -29,8 +29,9 @@
 		>
 			<div class="worker-left">
 				<span
-					class="worker-dot {worker.status === 'active' ? 'worker-surface-dot-breath' : ''} {worker.status ===
-						'active' && workerBreathFinishing(worker)
+					class="worker-dot {worker.status === 'active'
+						? 'worker-surface-dot-breath'
+						: ''} {worker.status === 'active' && workerBreathFinishing(worker)
 						? 'worker-surface-breath--finishing'
 						: ''}"
 				></span>
@@ -59,7 +60,7 @@
 	}
 
 	.worker-row {
-		@apply flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm transition-colors;
+		@apply flex items-center justify-between rounded-[var(--r-xs)] border border-border bg-surface px-3 py-2 text-sm transition-colors;
 	}
 
 	.worker-row.row-active {
@@ -79,7 +80,7 @@
 	}
 
 	.worker-dot {
-		@apply h-1.5 w-1.5 flex-shrink-0 rounded-full;
+		@apply h-1.5 w-1.5 flex-shrink-0 rounded-[var(--r-pill)];
 		background-color: color-mix(in srgb, var(--worker-color) 40%, transparent);
 	}
 	.worker-row.row-active .worker-dot {
@@ -114,6 +115,6 @@
 	}
 
 	.worker-badge-pill {
-		@apply rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase;
+		@apply rounded-[var(--r-xs)] px-1.5 py-0.5 text-[9px] font-bold uppercase;
 	}
 </style>

@@ -120,7 +120,7 @@
 		align-items: center;
 		position: relative;
 		z-index: 2;
-		transition: opacity 0.3s ease;
+		transition: opacity var(--dur-slow) ease;
 		min-width: 2.75rem;
 	}
 
@@ -139,7 +139,7 @@
 	.icon-slot {
 		width: 22px;
 		height: 22px;
-		border-radius: 999px;
+		border-radius: var(--r-pill);
 		border: 1px solid rgb(255 255 255 / 0.1);
 		background-color: rgb(255 255 255 / 0.03);
 		box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
@@ -156,7 +156,7 @@
 	}
 
 	.icon-slot.reply-slot {
-		border-radius: 8px;
+		border-radius: var(--r-sm);
 	}
 
 	.segment.done .icon-slot {
@@ -236,7 +236,7 @@
 		stroke: var(--color-border);
 		stroke-width: 1px;
 		opacity: 0.35;
-		transition: all 0.2s ease;
+		transition: all var(--dur-base) ease;
 	}
 
 	.segment.done .connector-line,

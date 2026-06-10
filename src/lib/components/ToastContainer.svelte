@@ -43,17 +43,19 @@
 			out:fly={{ y: -16, duration: 180 }}
 			data-toast
 			data-toast-type={toast.type}
-			class="pointer-events-auto flex items-start gap-2.5 rounded-lg border p-2.5 text-zinc-100 shadow-lg backdrop-blur-md sm:p-3 {panel[toast.type]}"
+			class="pointer-events-auto flex items-start gap-2.5 rounded-[var(--r-sm)] border p-2.5 text-zinc-100 shadow-[var(--shadow-card)] backdrop-blur-md sm:p-3 {panel[
+				toast.type
+			]}"
 		>
 			<Icon size={16} class="mt-0.5 shrink-0 {iconColor[toast.type]}" aria-hidden="true" />
-			<div class="flex-1 text-xs font-medium leading-snug sm:text-sm">
+			<div class="flex-1 text-xs leading-snug font-medium sm:text-sm">
 				{toast.message}
 			</div>
 			<button
 				type="button"
 				onclick={() => toasts.remove(toast.id)}
 				aria-label="Dismiss notification"
-				class="shrink-0 rounded-md p-1 text-zinc-400 opacity-60 transition-opacity hover:opacity-100"
+				class="shrink-0 rounded-[var(--r-xs)] p-1 text-zinc-400 opacity-60 transition-opacity hover:opacity-100"
 			>
 				<X size={12} aria-hidden="true" />
 			</button>

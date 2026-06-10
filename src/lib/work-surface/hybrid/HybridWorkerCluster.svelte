@@ -57,7 +57,7 @@
 		font-weight: 700;
 		letter-spacing: 0.05em;
 		padding: 1px 5px;
-		border-radius: 4px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised);
 		color: var(--color-st-done);
 		white-space: nowrap;

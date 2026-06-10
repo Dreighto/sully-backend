@@ -51,10 +51,10 @@
 
 	<section class="mb-6">
 		<h2 class="mb-2 text-[13px] text-fuchsia-200/70">Autonomy</h2>
-		<div class="inline-flex rounded-full border border-fuchsia-400/25 bg-black/30 p-1">
+		<div class="inline-flex rounded-[var(--r-pill)] border border-fuchsia-400/25 bg-black/30 p-1">
 			{#each modes as mode (mode.id)}
 				<button
-					class="rounded-full px-3 py-1 text-[12px] transition-all active:scale-95 {autonomy ===
+					class="rounded-[var(--r-pill)] px-3 py-1 text-[12px] transition-all active:scale-95 {autonomy ===
 					mode.id
 						? 'bg-fuchsia-500/90 text-white'
 						: 'text-fuchsia-200/70'}"

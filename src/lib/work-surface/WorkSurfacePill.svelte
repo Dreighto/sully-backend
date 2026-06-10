@@ -22,7 +22,7 @@
 
 <button
 	type="button"
-	class="work-surface-pill inline-flex h-11 min-w-[44px] items-center gap-2 rounded-full border bg-card px-3 text-xs font-medium text-foreground transition-colors active:scale-[0.98] {hasNeedsYou
+	class="work-surface-pill inline-flex h-11 min-w-[44px] items-center gap-2 rounded-[var(--r-pill)] border bg-card px-3 text-xs font-medium text-foreground transition-colors active:scale-[0.98] {hasNeedsYou
 		? 'border-st-needs'
 		: 'border-border'}"
 	{onclick}
@@ -30,7 +30,7 @@
 >
 	{#if hasRunning}
 		<span
-			class="dot-pulse-soft h-2 w-2 rounded-full bg-st-run"
+			class="dot-pulse-soft h-2 w-2 rounded-[var(--r-pill)] bg-st-run"
 			style="animation-duration: {pulseDuration}s"
 			aria-hidden="true"
 		></span>
@@ -39,7 +39,7 @@
 
 	{#if hasNeedsYou}
 		<span
-			class="dot-pulse-urgent h-2 w-2 rounded-full bg-st-needs"
+			class="dot-pulse-urgent h-2 w-2 rounded-[var(--r-pill)] bg-st-needs"
 			style="animation-duration: {pulseDuration}s"
 			aria-hidden="true"
 		></span>
@@ -47,7 +47,8 @@
 	{/if}
 
 	{#if isRecentComplete}
-		<span class="dot-pulse-once h-2 w-2 rounded-full bg-status-green" aria-hidden="true"></span>
+		<span class="dot-pulse-once h-2 w-2 rounded-[var(--r-pill)] bg-status-green" aria-hidden="true"
+		></span>
 	{/if}
 </button>
 

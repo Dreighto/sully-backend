@@ -55,7 +55,8 @@
 				{#each task.proof.checks as check}
 					<li>
 						<span class="check-dot {getCheckStatusDotClass(check.status)}"></span>
-						<span class="text-white">{check.name}:</span> <span class="text-muted-foreground"
+						<span class="text-white">{check.name}:</span>
+						<span class="text-muted-foreground"
 							>{check.status} {check.detail ? `(${check.detail})` : ''}</span
 						>
 					</li>
@@ -68,7 +69,7 @@
 <style lang="postcss">
 	@reference "../../app.css";
 	.proof-card {
-		@apply bg-transparent border border-dashed border-border rounded-md p-3 flex flex-col gap-1.5;
+		@apply flex flex-col gap-1.5 rounded-[var(--r-xs)] border border-dashed border-border bg-transparent p-3;
 		@apply md:col-span-2; /* Make proof card span two columns on md screens */
 	}
 
@@ -81,7 +82,7 @@
 	}
 
 	.proof-log {
-		@apply text-xs text-muted-foreground leading-tight font-mono;
+		@apply font-mono text-xs leading-tight text-muted-foreground;
 	}
 
 	.proof-checks-title {
@@ -89,13 +90,13 @@
 	}
 
 	.proof-checks-list {
-		@apply list-none pl-0 space-y-1; /* Removed list-disc to use custom dot, added space-y-1 */
+		@apply list-none space-y-1 pl-0; /* Removed list-disc to use custom dot, added space-y-1 */
 	}
 	.proof-checks-list li {
 		@apply flex items-center gap-1.5;
 	}
 
 	.check-dot {
-		@apply w-1.5 h-1.5 rounded-full flex-shrink-0;
+		@apply h-1.5 w-1.5 flex-shrink-0 rounded-[var(--r-pill)];
 	}
 </style>

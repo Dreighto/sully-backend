@@ -1152,13 +1152,14 @@
 		{#if activityPill}
 			<div
 				class="relative z-10 mx-auto shrink-0 px-4 pb-1 select-none"
-				style="animation: fade-in 0.3s ease-out;"
+				style="animation: fade-in var(--dur-slow) ease-out;"
 			>
 				<div
-					class="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-950/20 px-3.5 py-1.5 backdrop-blur-md"
-					style="box-shadow: 0 0 16px rgba(34, 211, 238, 0.1);"
+					class="inline-flex items-center gap-2 rounded-[var(--r-pill)] border border-cyan-400/25 bg-cyan-950/20 px-3.5 py-1.5 backdrop-blur-md"
+					style="box-shadow: var(--shadow-accent);"
 				>
-					<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400"></span>
+					<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-[var(--r-pill)] bg-cyan-400"
+					></span>
 					<span class="font-sans text-[11px] tracking-wide text-cyan-400">
 						⚡ {activityPill.worker}: {activityPill.step}
 					</span>
@@ -1214,8 +1215,8 @@
 					unseenCount = 0;
 					scrollFeedToBottom('smooth');
 				}}
-				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-sans text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
-				style="box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);"
+				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-[var(--r-pill)] border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-sans text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
+				style="box-shadow: var(--shadow-accent);"
 			>
 				{unseenCount} new messages ↓
 			</button>

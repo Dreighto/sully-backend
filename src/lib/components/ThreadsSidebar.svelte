@@ -140,7 +140,7 @@
 {/if}
 
 <aside
-	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[4px_0_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0 lg:transform-none!"
+	class="fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[var(--shadow-float)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0 lg:transform-none!"
 	style="transition: transform 320ms cubic-bezier(0.22,0.61,0.36,1), opacity 280ms cubic-bezier(0.22,0.61,0.36,1), width 280ms cubic-bezier(0.22,0.61,0.36,1); transform: {sidebarOpen
 		? 'translateX(0)'
 		: 'translateX(-100%)'}"
@@ -172,7 +172,7 @@
 			<button
 				type="button"
 				onclick={onnewThread}
-				class="flex h-11 items-center gap-1.5 rounded-full bg-[var(--live-bg)] px-3 text-[var(--accent)] transition-all hover:bg-[var(--live-line)] hover:text-white active:scale-95 sm:h-9"
+				class="flex h-11 items-center gap-1.5 rounded-[var(--r-pill)] bg-[var(--live-bg)] px-3 text-[var(--accent)] transition-all hover:bg-[var(--live-line)] hover:text-white active:scale-95 sm:h-9"
 				title="Start a new conversation"
 				aria-label="New thread"
 			>
@@ -182,7 +182,7 @@
 			<button
 				type="button"
 				onclick={oncloseSidebar}
-				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9 lg:hidden"
+				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9 lg:hidden"
 				aria-label="Close sidebar"
 				title="Close"
 			>
@@ -195,7 +195,7 @@
 	<div class="flex flex-1 flex-col overflow-y-auto p-2">
 		<!-- Search input -->
 		<div
-			class="mx-1 mb-2 flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2"
+			class="mx-1 mb-2 flex items-center gap-2 rounded-[var(--r-md)] border border-white/[0.07] bg-white/[0.04] px-3 py-2"
 		>
 			<Search size={12} class="shrink-0 text-zinc-500" />
 			<input
@@ -207,7 +207,7 @@
 			/>
 			{#if searchLoading}
 				<span
-					class="h-3 w-3 shrink-0 animate-spin rounded-full border border-zinc-600 border-t-brand-soft"
+					class="h-3 w-3 shrink-0 animate-spin rounded-[var(--r-pill)] border border-zinc-600 border-t-brand-soft"
 				></span>
 			{/if}
 		</div>
@@ -225,7 +225,7 @@
 							searchQuery = '';
 							onswitchThread(r.thread_id);
 						}}
-						class="w-full rounded-xl border border-transparent px-3 py-2 text-left transition-all hover:border-white/[0.05] hover:bg-white/[0.04] active:scale-[0.98]"
+						class="w-full rounded-[var(--r-md)] border border-transparent px-3 py-2 text-left transition-all hover:border-white/[0.05] hover:bg-white/[0.04] active:scale-[0.98]"
 					>
 						<div class="mb-0.5 flex items-center gap-1.5">
 							<Hash size={10} class="shrink-0 text-zinc-600" />
@@ -246,7 +246,7 @@
 			<button
 				type="button"
 				onclick={() => (showArchived = !showArchived)}
-				class="flex h-7 items-center gap-1.5 rounded-lg px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-white/[0.04] hover:text-brand-soft active:scale-95"
+				class="flex h-7 items-center gap-1.5 rounded-[var(--r-sm)] px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-white/[0.04] hover:text-brand-soft active:scale-95"
 				title={showArchived ? 'Hide archived sessions' : 'Show archived sessions'}
 			>
 				<Archive size={10} />
@@ -255,7 +255,7 @@
 			<button
 				type="button"
 				onclick={onclearAll}
-				class="flex h-7 items-center gap-1.5 rounded-lg px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-red-500/10 hover:text-red-400 active:scale-95"
+				class="flex h-7 items-center gap-1.5 rounded-[var(--r-sm)] px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-red-500/10 hover:text-red-400 active:scale-95"
 				title="Archive and delete every thread"
 			>
 				<Eraser size={10} />
@@ -280,7 +280,7 @@
 						{#if renamingFor === t.thread_id}
 							<!-- Rename input replaces the row in-place. -->
 							<form
-								class="flex items-center gap-1 rounded-xl border border-purple-500/40 bg-zinc-900 px-2 py-1.5"
+								class="flex items-center gap-1 rounded-[var(--r-md)] border border-purple-500/40 bg-zinc-900 px-2 py-1.5"
 								onsubmit={(e) => {
 									e.preventDefault();
 									oncommitRename(t.thread_id);
@@ -310,11 +310,11 @@
 							{@const isDen = t.thread_id === 'default'}
 							<div
 								id="thread-row-{t.thread_id}"
-								class="group flex w-full items-center gap-1 rounded-xl pr-1
+								class="group flex w-full items-center gap-1 rounded-[var(--r-md)] pr-1
 									{isDen
 									? activeThread === t.thread_id
-										? 'border border-brand/45 bg-brand/[0.12] shadow-[0_0_16px_-4px_rgba(236,45,120,0.4)]'
-										: 'border border-brand/25 bg-brand/[0.07] hover:bg-brand/[0.14] hover:shadow-[0_0_12px_-4px_rgba(236,45,120,0.3)]'
+										? 'border border-brand/45 bg-brand/[0.12] shadow-[var(--shadow-accent)]'
+										: 'border border-brand/25 bg-brand/[0.07] hover:bg-brand/[0.14] hover:shadow-[var(--shadow-accent)]'
 									: activeThread === t.thread_id
 										? 'border border-zinc-700/50 bg-zinc-800/40'
 										: 'border border-transparent hover:border-white/[0.05] hover:bg-white/[0.04]'}
@@ -376,7 +376,7 @@
 						{#if threadMenuOpenFor === t.thread_id}
 							<div
 								data-popover
-								class="absolute top-full right-0 z-50 mt-1 min-w-40 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0e0e11]/85 py-1.5 shadow-2xl backdrop-blur-2xl"
+								class="absolute top-full right-0 z-50 mt-1 min-w-40 overflow-hidden rounded-[var(--r-lg)] border border-white/[0.08] bg-[#0e0e11]/85 py-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl"
 							>
 								<button
 									type="button"

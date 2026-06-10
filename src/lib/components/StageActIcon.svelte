@@ -45,7 +45,7 @@
 		justify-content: center;
 		width: 1.375rem;
 		height: 1.375rem;
-		border-radius: 0.375rem;
+		border-radius: var(--r-xs);
 		border: 1px solid rgb(255 255 255 / 0.1);
 		background: rgb(255 255 255 / 0.04);
 		color: rgb(255 255 255 / 0.78);

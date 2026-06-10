@@ -58,7 +58,7 @@
 
 {#if showPrompt}
 	<div
-		class="fixed top-3 right-3 left-3 z-[110] mx-auto flex max-w-sm items-center gap-2 rounded-xl border border-[var(--live-line)] bg-zinc-950/95 p-2.5 text-zinc-100 shadow-2xl shadow-black/40 backdrop-blur-md"
+		class="fixed top-3 right-3 left-3 z-[110] mx-auto flex max-w-sm items-center gap-2 rounded-[var(--r-md)] border border-[var(--live-line)] bg-zinc-950/95 p-2.5 text-zinc-100 shadow-[var(--shadow-float)] shadow-black/40 backdrop-blur-md"
 		style="top: calc(env(safe-area-inset-top, 0px) + 0.75rem);"
 		data-testid="pwa-update-prompt"
 	>
@@ -66,14 +66,14 @@
 		<div class="min-w-0 flex-1 text-xs leading-snug font-medium">A Companion update is ready.</div>
 		<button
 			type="button"
-			class="h-9 shrink-0 rounded-lg bg-gradient-to-br from-[#7c84e8] to-[#5e6ad2] px-3 text-xs font-semibold text-white transition-transform active:scale-95"
+			class="h-9 shrink-0 rounded-[var(--r-sm)] bg-gradient-to-br from-[#7c84e8] to-[#5e6ad2] px-3 text-xs font-semibold text-white transition-transform active:scale-95"
 			onclick={applyUpdate}
 		>
 			Update
 		</button>
 		<button
 			type="button"
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white"
+			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white"
 			aria-label="Dismiss update prompt"
 			onclick={() => (showPrompt = false)}
 		>

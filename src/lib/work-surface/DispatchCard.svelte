@@ -138,13 +138,13 @@
 			e.preventDefault();
 			toggleExpanded();
 		}}
-		class="dispatch-card-trigger flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-left transition-all duration-200 hover:bg-zinc-800/40 focus:ring-2 focus:ring-brand/40 focus:outline-none"
+		class="dispatch-card-trigger flex w-full items-center justify-between gap-3 rounded-[var(--r-md)] border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-left transition-all duration-[var(--dur-base)] hover:bg-zinc-800/40 focus:ring-2 focus:ring-brand/40 focus:outline-none"
 		style="--worker-color: {brandColor}; border-color: color-mix(in srgb, var(--worker-color) 20%, var(--color-border))"
 	>
 		<div class="flex min-w-0 items-center gap-2.5">
 			<!-- Worker Brand Glyph -->
 			<div
-				class="flex h-6 w-6 items-center justify-center rounded-md border border-zinc-800/80 bg-zinc-950/60"
+				class="flex h-6 w-6 items-center justify-center rounded-[var(--r-xs)] border border-zinc-800/80 bg-zinc-950/60"
 				style="color: var(--worker-color);"
 			>
 				<svg class="h-4 w-4" fill="currentColor">
@@ -154,7 +154,7 @@
 
 			<!-- Status Dot -->
 			<span
-				class="inline-block h-2 w-2 rounded-full {statusDotColor} shadow-[0_0_8px_currentColor]"
+				class="inline-block h-2 w-2 rounded-[var(--r-pill)] {statusDotColor} shadow-[var(--shadow-accent)]"
 				style="color: {brandColor};"
 			></span>
 
@@ -170,7 +170,9 @@
 			<!-- Chevron -->
 			<ChevronDown
 				size={16}
-				class="text-zinc-500 transition-transform duration-200 {expanded ? 'rotate-180' : ''}"
+				class="text-zinc-500 transition-transform duration-[var(--dur-base)] {expanded
+					? 'rotate-180'
+					: ''}"
 			/>
 		</div>
 	</Collapsible.Trigger>
@@ -178,7 +180,7 @@
 	<!-- State B: Expanded Content -->
 	<Collapsible.Content class="dispatch-card-content mt-2 w-full">
 		<div
-			class="rounded-xl border bg-zinc-900/50 p-4 shadow-lg backdrop-blur-md"
+			class="rounded-[var(--r-md)] border bg-zinc-900/50 p-4 shadow-[var(--shadow-card)] backdrop-blur-md"
 			style="border-color: color-mix(in srgb, var(--worker-color) 20%, var(--color-border))"
 		>
 			<!-- Embed WorkSurfaceCard (consumes the task projection, not the surface wrapper) -->
@@ -208,17 +210,17 @@
 	     parent's overflow:hidden traps regardless of where it portals. -->
 	<Dialog.Portal>
 		<Dialog.Overlay
-			class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-200"
+			class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-all duration-[var(--dur-base)]"
 		/>
 		<Dialog.Content
-			class="dispatch-card-sheet fixed right-0 bottom-0 left-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-zinc-800 bg-zinc-950 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl transition-all duration-300 focus:outline-none"
+			class="dispatch-card-sheet fixed right-0 bottom-0 left-0 z-50 flex max-h-[85dvh] flex-col rounded-t-[var(--r-lg)] border-t border-zinc-800 bg-zinc-950 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-float)] transition-all duration-[var(--dur-slow)] focus:outline-none"
 		>
 			<!-- Swipe-detection wrapper. svelte-gestures actions can't attach to
 			     bits-ui components (no addAction on Svelte components), so the
 			     drag handle's surrounding area is the gesture surface. -->
 			<div class="-mx-6 -mt-6 px-6 pt-6" {...sheetSwipeProps}>
 				<!-- Dialog Header / Drag Handle -->
-				<div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-800"></div>
+				<div class="mx-auto mb-4 h-1.5 w-12 rounded-[var(--r-pill)] bg-zinc-800"></div>
 			</div>
 
 			<Dialog.Title class="text-lg font-bold text-zinc-100">Detail View</Dialog.Title>
@@ -235,7 +237,7 @@
 			<!-- Close Button -->
 			<div class="mt-6 flex justify-end">
 				<Dialog.Close
-					class="min-h-[44px] rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-[16px] font-medium text-zinc-200 transition-all hover:bg-zinc-800 active:scale-95 sm:min-h-0 sm:text-sm"
+					class="min-h-[44px] rounded-[var(--r-sm)] border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-[16px] font-medium text-zinc-200 transition-all hover:bg-zinc-800 active:scale-95 sm:min-h-0 sm:text-sm"
 				>
 					Close
 				</Dialog.Close>
@@ -250,10 +252,10 @@
 	   View Transitions API (Safari 18+/iOS 18+) wraps the toggle for a
 	   shared-element morph; this is the fallback / overlay for older WebKit. */
 	:global(.dispatch-card-content[data-state='open']) {
-		animation: dispatch-card-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+		animation: dispatch-card-slide-in var(--dur-slow) var(--ease-emphasized);
 	}
 	:global(.dispatch-card-content[data-state='closed']) {
-		animation: dispatch-card-slide-out 200ms ease;
+		animation: dispatch-card-slide-out var(--dur-base) ease;
 	}
 	@keyframes dispatch-card-slide-in {
 		from {

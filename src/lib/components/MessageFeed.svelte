@@ -177,7 +177,7 @@
 					<div
 						class="font-sans text-[14px] leading-relaxed tracking-[-0.005em] antialiased selection:bg-brand/40 selection:text-white
 									{m.sender === 'operator'
-							? 'max-w-[85%] rounded-2xl border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
+							? 'max-w-[85%] rounded-[var(--r-lg)] border border-zinc-700/60 bg-zinc-900/60 px-3.5 py-2 text-zinc-100 sm:max-w-[80%]'
 							: 'w-full px-0.5 text-zinc-100/95'}"
 					>
 						{#if m.sender === 'operator'}
@@ -195,7 +195,7 @@
 							<button
 								type="button"
 								onclick={() => oncopy(m)}
-								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 sm:min-h-0"
+								class="flex min-h-[44px] items-center gap-1 rounded-[var(--r-xs)] px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 sm:min-h-0"
 								aria-label="Copy reply"
 								title={copiedIds.has(m.id) ? 'Copied' : 'Copy reply'}
 							>
@@ -211,7 +211,7 @@
 								type="button"
 								onclick={() => onregenerate(m)}
 								disabled={sending || regeneratingIds.has(m.id)}
-								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"
+								class="flex min-h-[44px] items-center gap-1 rounded-[var(--r-xs)] px-2 py-1 font-sans text-[11px] font-medium text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0"
 								aria-label={regeneratingIds.has(m.id)
 									? 'Regen… — Regenerate reply'
 									: 'Regen — Regenerate reply'}
@@ -223,7 +223,7 @@
 							<button
 								type="button"
 								onclick={() => onspeak(m)}
-								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {speakingId ===
+								class="flex min-h-[44px] items-center gap-1 rounded-[var(--r-xs)] px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {speakingId ===
 								m.id
 									? 'text-brand-soft'
 									: 'text-zinc-500 hover:text-zinc-200'}"
@@ -257,7 +257,7 @@
 							<button
 								type="button"
 								onclick={() => onfeedback(m, m.quality_signal === 1 ? 0 : 1)}
-								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
+								class="flex min-h-[44px] items-center gap-1 rounded-[var(--r-xs)] px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
 								1
 									? 'text-emerald-400'
 									: 'text-zinc-500 hover:text-zinc-200'}"
@@ -271,7 +271,7 @@
 							<button
 								type="button"
 								onclick={() => onfeedback(m, m.quality_signal === -1 ? 0 : -1)}
-								class="flex min-h-[44px] items-center gap-1 rounded-md px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
+								class="flex min-h-[44px] items-center gap-1 rounded-[var(--r-xs)] px-2 py-1 font-sans text-[11px] font-medium transition-all hover:bg-white/[0.06] active:scale-95 sm:min-h-0 {m.quality_signal ===
 								-1
 									? 'text-rose-400'
 									: 'text-zinc-500 hover:text-zinc-200'}"
@@ -295,14 +295,14 @@
 							<button
 								type="button"
 								onclick={() => onproposal(m, 'run')}
-								class="min-h-[44px] rounded-full bg-brand px-4 py-1.5 text-[12px] font-semibold text-white shadow-[0_0_18px_-5px_var(--color-brand)] transition-all hover:bg-brand-bright active:scale-95 sm:min-h-0"
+								class="min-h-[44px] rounded-[var(--r-pill)] bg-brand px-4 py-1.5 text-[12px] font-semibold text-white shadow-[var(--shadow-accent)] transition-all hover:bg-brand-bright active:scale-95 sm:min-h-0"
 							>
 								Run it
 							</button>
 							<button
 								type="button"
 								onclick={() => onproposal(m, 'dismiss')}
-								class="min-h-[44px] rounded-full border border-brand/30 px-4 py-1.5 text-[12px] font-medium text-brand-soft transition-all hover:border-brand/50 hover:bg-brand/10 active:scale-95 sm:min-h-0"
+								class="min-h-[44px] rounded-[var(--r-pill)] border border-brand/30 px-4 py-1.5 text-[12px] font-medium text-brand-soft transition-all hover:border-brand/50 hover:bg-brand/10 active:scale-95 sm:min-h-0"
 							>
 								Not now
 							</button>
@@ -330,7 +330,7 @@
 		<div class="flex flex-col items-start gap-1">
 			<SullyNameTag label={appIdentity?.coreLabel ?? 'Sully'} />
 			<div
-				class="flex items-center gap-2.5 rounded-2xl border border-[var(--live-line)] bg-[var(--live-bg)] py-2 pr-4 pl-2.5"
+				class="flex items-center gap-2.5 rounded-[var(--r-lg)] border border-[var(--live-line)] bg-[var(--live-bg)] py-2 pr-4 pl-2.5"
 				aria-label="Sully is thinking"
 				role="status"
 			>
@@ -339,15 +339,15 @@
 				<SullyAvatar state="thinking" size={34} glow={false} />
 				<div class="flex items-center gap-1.5">
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
+						class="h-1.5 w-1.5 animate-bounce rounded-[var(--r-pill)] bg-[var(--live)]"
 						style="animation-delay: 0ms"
 					></span>
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
+						class="h-1.5 w-1.5 animate-bounce rounded-[var(--r-pill)] bg-[var(--live)]"
 						style="animation-delay: 150ms"
 					></span>
 					<span
-						class="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--live)]"
+						class="h-1.5 w-1.5 animate-bounce rounded-[var(--r-pill)] bg-[var(--live)]"
 						style="animation-delay: 300ms"
 					></span>
 				</div>
@@ -377,7 +377,7 @@
 						{#each sdkMsg.parts as part, i (i)}
 							{#if part.type?.startsWith('tool-')}
 								<div
-									class="flex flex-col gap-0.5 rounded-lg border border-brand/25 bg-brand/[0.05] px-2.5 py-1.5 font-sans text-[11px]"
+									class="flex flex-col gap-0.5 rounded-[var(--r-sm)] border border-brand/25 bg-brand/[0.05] px-2.5 py-1.5 font-sans text-[11px]"
 								>
 									<div class="flex items-center gap-1.5 text-brand-soft">
 										<Sparkles size={11} aria-hidden="true" />

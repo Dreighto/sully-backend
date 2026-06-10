@@ -257,7 +257,7 @@
 				<!-- 1. Status row + inline surface actions (iPhone glance — no chunky footer bar) -->
 				<div class="expanded-top-row">
 					<div class="expanded-status-line ws-eyebrow select-none">
-						<span class="h-1.5 w-1.5 rounded-full {dotColorClass}"></span>
+						<span class="h-1.5 w-1.5 rounded-[var(--r-pill)] {dotColorClass}"></span>
 						<span>{task.state} · {activeWorkerCount} active</span>
 					</div>
 					{#if showSurfaceActions}
@@ -552,7 +552,7 @@
 	}
 
 	.pulse-indicator {
-		@apply h-2 w-2 rounded-full;
+		@apply h-2 w-2 rounded-[var(--r-pill)];
 	}
 	.pulse-indicator.in-motion {
 		animation: pulse 1.5s infinite ease-in-out;
@@ -629,7 +629,7 @@
 	}
 
 	.status-pill {
-		@apply flex h-[22px] flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-medium whitespace-nowrap;
+		@apply flex h-[22px] flex-shrink-0 items-center gap-1.5 rounded-[var(--r-pill)] border px-2.5 text-[10px] font-medium whitespace-nowrap;
 		border-color: var(--ws-hairline);
 		background: var(--ws-panel);
 		color: rgb(255 255 255 / 0.82);
@@ -640,7 +640,7 @@
 		content: '';
 		width: 6px;
 		height: 6px;
-		border-radius: 999px;
+		border-radius: var(--r-pill);
 		background: currentColor;
 		opacity: 0.9;
 		box-shadow: 0 0 8px currentColor;
@@ -678,7 +678,7 @@
 	}
 
 	.work-graph-slot--inset {
-		@apply rounded-xl border px-1.5 py-2;
+		@apply rounded-[var(--r-md)] border px-1.5 py-2;
 		border-color: var(--ws-hairline);
 		background:
 			radial-gradient(120% 80% at 50% 0%, rgb(255 255 255 / 0.04), transparent 58%),
@@ -705,7 +705,7 @@
 	}
 
 	.ownership-pulse {
-		@apply h-2.5 w-2.5 flex-shrink-0 rounded-full;
+		@apply h-2.5 w-2.5 flex-shrink-0 rounded-[var(--r-pill)];
 		box-shadow: 0 0 10px
 			color-mix(in srgb, var(--worker-color, var(--color-st-run)) 55%, transparent);
 	}
@@ -724,7 +724,7 @@
 	}
 
 	.action-chip {
-		@apply inline-flex min-h-[32px] min-w-[32px] items-center justify-center gap-1 rounded-lg border px-2.5 transition-all select-none;
+		@apply inline-flex min-h-[32px] min-w-[32px] items-center justify-center gap-1 rounded-[var(--r-sm)] border px-2.5 transition-all select-none;
 		border-color: var(--ws-hairline);
 		background: var(--ws-panel);
 		color: rgb(255 255 255 / 0.86);
@@ -793,7 +793,7 @@
 	}
 
 	.stage-progress-track {
-		@apply relative h-1.5 w-full overflow-hidden rounded-full;
+		@apply relative h-1.5 w-full overflow-hidden rounded-[var(--r-pill)];
 		background: rgb(255 255 255 / 0.05);
 		box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.48);
 	}
@@ -814,7 +814,7 @@
 	}
 
 	.stage-progress-fill {
-		@apply relative z-[1] h-full rounded-full transition-[width] duration-700 ease-out;
+		@apply relative z-[1] h-full rounded-[var(--r-pill)] transition-[width] duration-[var(--dur-long)] ease-out;
 	}
 	.stage-progress-fill.progress-run {
 		background: linear-gradient(
@@ -849,7 +849,7 @@
 		z-index: 2;
 		width: 9px;
 		height: 9px;
-		border-radius: 999px;
+		border-radius: var(--r-pill);
 		transform: translate(-50%, -50%);
 		background: var(--color-progress-beam);
 		box-shadow:
@@ -929,7 +929,7 @@
 	}
 
 	.drill-accordion-meta {
-		@apply rounded-full border px-2 py-0.5;
+		@apply rounded-[var(--r-pill)] border px-2 py-0.5;
 		border-color: rgb(255 255 255 / 0.07);
 		background: rgb(255 255 255 / 0.03);
 	}
@@ -972,7 +972,7 @@
 	}
 
 	.proof-card {
-		@apply rounded-md bg-surface/50 p-3;
+		@apply rounded-[var(--r-xs)] bg-surface/50 p-3;
 		grid-column: span 1; /* Default to one column */
 	}
 	.expanded-details-layout > .proof-card {

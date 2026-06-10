@@ -41,7 +41,7 @@
 	.glow {
 		position: absolute;
 		inset: 6%;
-		border-radius: 9999px;
+		border-radius: var(--r-pill);
 		background: radial-gradient(circle, rgba(255, 77, 148, 0.5) 0%, rgba(255, 77, 148, 0) 70%);
 		animation: g 3.2s ease-in-out infinite;
 	}

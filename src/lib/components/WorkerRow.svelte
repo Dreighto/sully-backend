@@ -10,9 +10,7 @@
 	const wState = $derived(worker.status || 'idle');
 	const isBreathFinishing = $derived(workerBreathFinishing(worker));
 
-	const workerBrandColorValue = $derived(
-		workerBrandColor(worker.identity, worker.shortCode)
-	);
+	const workerBrandColorValue = $derived(workerBrandColor(worker.identity, worker.shortCode));
 
 	const strokeColor = $derived.by(() => {
 		if (wState === 'active') return workerBrandColorValue;
@@ -114,19 +112,19 @@
 		{/if}
 	</svg>
 
-	<span class="ws-live min-w-0 flex-1 truncate text-[12px]" title={rawActionText}>{actionText}</span>
+	<span class="ws-live min-w-0 flex-1 truncate text-[12px]" title={rawActionText}>{actionText}</span
+	>
 </div>
 
 <style>
 	.worker-row-shell.worker-row-active {
-		border-radius: 0.75rem;
+		border-radius: var(--r-md);
 		border: 1px solid color-mix(in srgb, var(--worker-color) 24%, rgb(255 255 255 / 0.08));
-		background:
-			linear-gradient(
-				180deg,
-				color-mix(in srgb, var(--worker-color) 9%, rgb(255 255 255 / 0.04)) 0%,
-				rgb(255 255 255 / 0.02) 100%
-			);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--worker-color) 9%, rgb(255 255 255 / 0.04)) 0%,
+			rgb(255 255 255 / 0.02) 100%
+		);
 		box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
 		padding-left: 0.625rem;
 		padding-right: 0.375rem;

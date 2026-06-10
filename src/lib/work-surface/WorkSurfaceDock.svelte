@@ -62,7 +62,7 @@
 		flex w-full flex-col bg-card/80
 		p-2 text-foreground
 		backdrop-blur-sm
-		transition-all duration-300
+		transition-all duration-[var(--dur-slow)]
 		ease-in-out md:w-80 lg:w-96
 	"
 	>
@@ -72,7 +72,7 @@
 			flex h-16
 			w-12
 			-translate-y-1/2 flex-col
-			items-center justify-center rounded-l-lg bg-card/80 text-center
+			items-center justify-center rounded-l-[var(--r-sm)] bg-card/80 text-center
 			text-sm font-bold text-foreground backdrop-blur-sm
 		"
 			onclick={toggleDockState}
@@ -85,15 +85,15 @@
 			<h2 class="text-lg font-semibold">Work Surface Dock</h2>
 			<div class="mt-1 flex gap-4 text-sm">
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-st-run"></span>
+					<span class="h-2 w-2 rounded-[var(--r-pill)] bg-st-run"></span>
 					<span>Running {view.runningList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-st-needs"></span>
+					<span class="h-2 w-2 rounded-[var(--r-pill)] bg-st-needs"></span>
 					<span>Needs You {view.needsYouList.length}</span>
 				</div>
 				<div class="flex items-center gap-1">
-					<span class="h-2 w-2 rounded-full bg-st-done"></span>
+					<span class="h-2 w-2 rounded-[var(--r-pill)] bg-st-done"></span>
 					<span>Done {view.doneList.length}</span>
 				</div>
 			</div>
@@ -105,13 +105,16 @@
 				{#each view.runningList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-[var(--r-sm)] border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
 							class="flex items-center gap-2 overflow-hidden text-sm font-medium whitespace-nowrap"
 						>
-							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
+							<span
+								class="h-2 w-2 rounded-[var(--r-pill)] {getStatusDotColor(
+									surface.status
+								)} flex-none"
 							></span>
 							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
@@ -130,13 +133,16 @@
 				{#each view.needsYouList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-[var(--r-sm)] border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
 							class="flex items-center gap-2 overflow-hidden text-sm font-medium whitespace-nowrap"
 						>
-							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
+							<span
+								class="h-2 w-2 rounded-[var(--r-pill)] {getStatusDotColor(
+									surface.status
+								)} flex-none"
 							></span>
 							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
@@ -155,13 +161,16 @@
 				{#each view.doneList as surface (surface.surfaceId)}
 					<button
 						type="button"
-						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-border bg-surface/50 p-2 text-left"
+						class="active-trigger mb-2 flex min-h-[44px] w-full cursor-pointer items-center rounded-[var(--r-sm)] border border-border bg-surface/50 p-2 text-left"
 						onclick={() => openSurfaceSheet(surface.surfaceId)}
 					>
 						<div
 							class="flex items-center gap-2 overflow-hidden text-sm font-medium whitespace-nowrap"
 						>
-							<span class="h-2 w-2 rounded-full {getStatusDotColor(surface.status)} flex-none"
+							<span
+								class="h-2 w-2 rounded-[var(--r-pill)] {getStatusDotColor(
+									surface.status
+								)} flex-none"
 							></span>
 							<span class="flex-none font-mono text-xs text-foreground">
 								{surface.task.workers[0]?.shortCode || 'SYS'}
@@ -198,13 +207,13 @@
 		></div>
 		<div
 			class="relative h-full w-full overflow-y-auto bg-card p-4
-			md:h-[90vh] md:max-w-2xl md:rounded-lg md:shadow-xl
+			md:h-[90vh] md:max-w-2xl md:rounded-[var(--r-sm)] md:shadow-[var(--shadow-card)]
 		"
 			role="dialog"
 			aria-modal="true"
 		>
 			<button
-				class="active-trigger absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/80 text-foreground"
+				class="active-trigger absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-[var(--r-pill)] bg-card/80 text-foreground"
 				onclick={closeSurfaceSheet}
 				aria-label="Back to Work Surface Dock"
 			>

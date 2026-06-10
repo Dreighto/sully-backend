@@ -74,7 +74,7 @@
 			{src}
 			{alt}
 			onclick={(e) => e.stopPropagation()}
-			class="max-h-[92vh] max-w-[94vw] rounded-lg object-contain shadow-[0_30px_90px_-20px_rgba(0,0,0,0.7)]"
+			class="max-h-[92vh] max-w-[94vw] rounded-[var(--r-sm)] object-contain shadow-[var(--shadow-float)]"
 			style="touch-action: pinch-zoom;"
 			transition:scale={{ duration: 220, easing: cubicOut, start: 0.96 }}
 		/>
@@ -99,7 +99,7 @@
 					void onSave();
 				}}
 				disabled={saving}
-				class="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90 disabled:opacity-50"
+				class="flex h-11 w-11 items-center justify-center rounded-[var(--r-pill)] bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90 disabled:opacity-50"
 				aria-label="Save image"
 				title="Save / Share"
 			>
@@ -111,7 +111,7 @@
 					e.stopPropagation();
 					onclose();
 				}}
-				class="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90"
+				class="flex h-11 w-11 items-center justify-center rounded-[var(--r-pill)] bg-white/[0.08] text-zinc-200 backdrop-blur-md transition-all hover:bg-white/[0.16] active:scale-90"
 				aria-label="Close preview"
 				title="Close"
 			>

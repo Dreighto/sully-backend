@@ -225,8 +225,18 @@
 				{#if surface.promotionWarning}
 					<section class="sheet-section">
 						<div class="promotion-warning" data-testid="promotion-warning">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-								<path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								aria-hidden="true"
+							>
+								<path
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+								/>
 							</svg>
 							<span>{surface.promotionWarning}</span>
 						</div>
@@ -265,7 +275,10 @@
 													{file.label ?? file.path}
 												</button>
 												{#if file.importance}
-													<span class="importance-chip importance-chip--{file.importance}" data-testid="importance-chip">
+													<span
+														class="importance-chip importance-chip--{file.importance}"
+														data-testid="importance-chip"
+													>
 														{file.importance}
 													</span>
 												{/if}
@@ -313,7 +326,10 @@
 													{file.label ?? file.path}
 												</span>
 												{#if file.importance}
-													<span class="importance-chip importance-chip--{file.importance}" data-testid="importance-chip">
+													<span
+														class="importance-chip importance-chip--{file.importance}"
+														data-testid="importance-chip"
+													>
 														{file.importance}
 													</span>
 												{/if}
@@ -340,8 +356,18 @@
 						<div class="evidence-list">
 							{#each surface.evidence as evidence}
 								<div class="evidence-entry" data-testid="evidence-entry">
-									<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-										<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+									<svg
+										width="14"
+										height="14"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										aria-hidden="true"
+									>
+										<path
+											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+										/>
 									</svg>
 									<span class="evidence-path">{evidence.path}</span>
 									<span class="evidence-label">Not downloadable</span>
@@ -402,7 +428,7 @@
 		inset: 0;
 		background: rgba(0, 0, 0, 0.55);
 		z-index: 49;
-		animation: fade-in 0.2s ease-out;
+		animation: fade-in var(--dur-base) ease-out;
 	}
 	:global(.sheet-content) {
 		position: fixed;
@@ -415,7 +441,7 @@
 		display: flex;
 		flex-direction: column;
 		background: var(--color-surface);
-		border-radius: 20px 20px 0 0;
+		border-radius: var(--r-xl) var(--r-xl) 0 0;
 		border-top: 1px solid var(--color-edge);
 		/* container never scrolls — it is the transform target for the drag.
 		   The .sheet-body inside is the scroller. */
@@ -423,7 +449,7 @@
 		touch-action: none;
 		will-change: transform;
 		z-index: 50;
-		animation: slide-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+		animation: slide-up var(--dur-slow) var(--ease-sheet);
 	}
 	@media (prefers-reduced-motion: reduce) {
 		:global(.sheet-overlay),
@@ -450,7 +476,7 @@
 	.sheet-handle {
 		width: 40px;
 		height: 5px;
-		border-radius: 3px;
+		border-radius: var(--r-xs);
 		background: var(--color-edge-active);
 	}
 	.sheet-header {
@@ -479,7 +505,7 @@
 	:global(.sheet-close) {
 		width: 44px;
 		height: 44px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		background: var(--color-surface-raised);
 		border: none;
 		cursor: pointer;
@@ -513,7 +539,7 @@
 		color: var(--color-brand);
 		background: transparent;
 		border: 1px solid var(--color-brand);
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		padding: 4px 10px;
 		cursor: pointer;
 		min-height: 44px;
@@ -543,7 +569,7 @@
 	.timeline-dot {
 		width: 7px;
 		height: 7px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		flex: none;
 	}
 	.timeline-dot--done {
@@ -610,7 +636,7 @@
 	.file-dot {
 		width: 7px;
 		height: 7px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		flex: none;
 	}
 	.file-dot--available {
@@ -659,7 +685,7 @@
 		font-size: 10px;
 		font-weight: 600;
 		padding: 6px 10px;
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		border: 1px solid var(--color-edge);
 		background: var(--color-surface-raised);
 		color: var(--color-st-done);
@@ -687,7 +713,7 @@
 		font-size: 10px;
 		font-weight: 600;
 		padding: 2px 6px;
-		border-radius: 4px;
+		border-radius: var(--r-xs);
 		flex: none;
 		white-space: nowrap;
 	}
@@ -724,7 +750,7 @@
 		font-size: 10px;
 		font-weight: 700;
 		padding: 1px 5px;
-		border-radius: 3px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised);
 		color: var(--color-st-done);
 		flex: none;
@@ -743,7 +769,7 @@
 		align-items: center;
 		gap: 8px;
 		padding: 10px 12px;
-		border-radius: 8px;
+		border-radius: var(--r-sm);
 		background: rgba(201, 163, 78, 0.12);
 		border: 1px solid var(--color-st-needs);
 		color: var(--color-st-needs);
@@ -775,7 +801,7 @@
 		font-size: 9px;
 		font-weight: 700;
 		padding: 2px 6px;
-		border-radius: 4px;
+		border-radius: var(--r-xs);
 		flex: none;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -822,7 +848,7 @@
 		font-size: 10px;
 		font-weight: 600;
 		padding: 2px 6px;
-		border-radius: 4px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised);
 		color: var(--color-st-done);
 		flex: none;
@@ -848,7 +874,7 @@
 	.sheet-btn {
 		flex: 1;
 		padding: 10px;
-		border-radius: 10px;
+		border-radius: var(--r-sm);
 		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
@@ -913,7 +939,7 @@
 		font-size: 12.5px;
 		line-height: 1.4;
 		padding: 4px 7px;
-		border-radius: 5px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised, rgba(255, 255, 255, 0.02));
 		border: 1px solid var(--color-edge, rgba(255, 255, 255, 0.06));
 		align-items: baseline;

@@ -95,7 +95,7 @@
 		box-sizing: border-box;
 		background: var(--color-surface);
 		border: 1px solid var(--color-edge);
-		border-radius: 12px;
+		border-radius: var(--r-md);
 		text-align: left;
 		transition:
 			border-color 0.2s,
@@ -136,7 +136,7 @@
 	.dot {
 		width: 7px;
 		height: 7px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		flex: none;
 	}
 	.dot--running {
@@ -181,7 +181,7 @@
 	}
 	.chevron {
 		display: flex;
-		transition: transform 0.25s;
+		transition: transform var(--dur-slow) var(--ease-standard);
 		color: var(--color-st-done);
 	}
 	.chevron--open {

@@ -283,7 +283,7 @@
 	.md-content :global(code:not(pre code)) {
 		background: rgb(255 255 255 / 0.06);
 		border: 1px solid rgb(255 255 255 / 0.08);
-		border-radius: 0.25rem;
+		border-radius: var(--r-xs);
 		padding: 0.1rem 0.35rem;
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 0.92em;
@@ -294,7 +294,7 @@
 	.md-content :global(.md-codeblock-wrap) {
 		background: rgb(0 0 0 / 0.4);
 		border: 1px solid rgb(255 255 255 / 0.08);
-		border-radius: 0.5rem;
+		border-radius: var(--r-sm);
 		margin: 0.5rem 0;
 		overflow: hidden;
 	}
@@ -325,7 +325,7 @@
 		padding: 0.15rem 0.4rem;
 		background: transparent;
 		border: 1px solid rgb(168 85 247 / 0.25);
-		border-radius: 0.25rem;
+		border-radius: var(--r-xs);
 		color: rgb(216 180 254);
 		font-family: inherit;
 		font-size: inherit;
@@ -349,7 +349,7 @@
 		padding: 0.15rem 0.4rem;
 		background: transparent;
 		border: 1px solid transparent;
-		border-radius: 0.25rem;
+		border-radius: var(--r-xs);
 		color: rgb(255 255 255 / 0.45);
 		font-family: inherit;
 		font-size: inherit;
@@ -440,12 +440,12 @@
 		max-width: 100%;
 		max-height: 60vh;
 		height: auto;
-		border-radius: 0.375rem;
+		border-radius: var(--r-xs);
 		border: 1px solid rgb(255 255 255 / 0.08);
 		margin: 0.4rem 0;
 		display: block;
 		cursor: zoom-in;
-		transition: opacity 160ms ease-out;
+		transition: opacity var(--dur-med) ease-out;
 	}
 	.md-content :global(img:active) {
 		opacity: 0.75;

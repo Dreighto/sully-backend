@@ -242,7 +242,7 @@
      anywhere on the chat page, not just on the composer pill). -->
 {#if isDragging}
 	<div
-		class="pointer-events-none absolute inset-3 z-[60] flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-cyan-400/60 bg-cyan-500/10 backdrop-blur-md"
+		class="pointer-events-none absolute inset-3 z-[60] flex flex-col items-center justify-center gap-2 rounded-[var(--r-xl)] border-2 border-dashed border-cyan-400/60 bg-cyan-500/10 backdrop-blur-md"
 		aria-hidden="true"
 	>
 		<Paperclip size={32} class="text-cyan-300" />
@@ -262,11 +262,12 @@
 >
 	<!-- Outer border shifting glow container -->
 	<div
-		class="relative flex flex-col gap-2 rounded-3xl border p-2 transition-all duration-300
+		data-testid="composer-pill"
+		class="relative flex flex-col gap-2 rounded-[var(--r-xl)] border p-2 transition-all duration-[var(--dur-slow)]
 			{composerMode === 'talkback'
-			? 'border-emerald-500/40 bg-emerald-500/[0.04] shadow-[0_0_30px_rgba(16,185,129,0.15)]'
+			? 'border-emerald-500/40 bg-emerald-500/[0.04] shadow-[var(--shadow-accent)]'
 			: imageMode
-				? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[0_0_30px_rgba(6,182,212,0.15)]'
+				? 'border-cyan-500/40 bg-cyan-500/[0.04] shadow-[var(--shadow-accent)]'
 				: sending
 					? 'composer-sending border-[var(--live-line)] bg-[var(--live-bg)]'
 					: 'border-white/[0.08] bg-[#0e0e11]/60 backdrop-blur-2xl focus-within:border-white/20'}"
@@ -277,7 +278,7 @@
 				class="flex items-center justify-between border-b border-white/5 px-2 pt-0.5 pb-1 font-sans text-[10px] select-none"
 			>
 				<div class="flex items-center gap-1.5">
-					<span class="h-2 w-2 animate-ping rounded-full bg-emerald-400"></span>
+					<span class="h-2 w-2 animate-ping rounded-[var(--r-pill)] bg-emerald-400"></span>
 					<span class="font-semibold text-emerald-400">
 						{talkbackPhase === 'connecting' || talkbackPhase === 'warming'
 							? '🔊 Talkback'
@@ -296,7 +297,7 @@
 					<button
 						type="button"
 						onclick={onstopTalkback}
-						class="rounded-full border border-red-500/30 bg-red-950/20 px-2 py-0.5 text-[9px] tracking-wider text-red-400 uppercase transition-all hover:bg-red-900/30"
+						class="rounded-[var(--r-pill)] border border-red-500/30 bg-red-950/20 px-2 py-0.5 text-[9px] tracking-wider text-red-400 uppercase transition-all hover:bg-red-900/30"
 					>
 						Disconnect
 					</button>
@@ -313,7 +314,7 @@
 				<button
 					type="button"
 					onclick={() => (imageMode = false)}
-					class="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-0.5 font-sans text-[10px] text-zinc-400 transition-all hover:text-white active:scale-95"
+					class="rounded-[var(--r-pill)] border border-white/[0.08] bg-white/[0.04] px-2.5 py-0.5 font-sans text-[10px] text-zinc-400 transition-all hover:text-white active:scale-95"
 				>
 					Cancel
 				</button>
@@ -325,7 +326,7 @@
 		     intercepts the literal text and runs the command handler. -->
 		{#if slashMode}
 			<div
-				class="mb-1 flex flex-col gap-1 rounded-2xl border border-cyan-500/20 bg-[#0a1416] p-1.5"
+				class="mb-1 flex flex-col gap-1 rounded-[var(--r-lg)] border border-cyan-500/20 bg-[#0a1416] p-1.5"
 				role="listbox"
 				aria-label="Slash commands"
 			>
@@ -333,7 +334,7 @@
 					<button
 						type="button"
 						onclick={() => onpickSlash(cmd)}
-						class="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-cyan-500/10"
+						class="flex w-full items-center justify-between gap-3 rounded-[var(--r-sm)] px-2.5 py-1.5 text-left transition-colors hover:bg-cyan-500/10"
 						role="option"
 						aria-selected="false"
 					>
@@ -353,25 +354,25 @@
 			<div class="flex flex-wrap gap-2 border-b border-white/5 px-1 pb-2">
 				{#each attachments as att (att.id)}
 					<div
-						class="group relative flex items-center gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 py-1 pr-1 pl-2 text-xs text-zinc-200 shadow-sm"
+						class="group relative flex items-center gap-2 rounded-[var(--r-lg)] border border-zinc-700 bg-zinc-900 py-1 pr-1 pl-2 text-xs text-zinc-200 shadow-[var(--shadow-soft)]"
 					>
 						<div class="relative h-8 w-8 shrink-0">
 							{#if att.mime?.startsWith('image/') && att.url}
 								<img
 									src={att.url.startsWith('./') ? base + '/' + att.url.slice(2) : att.url}
 									alt={att.filename}
-									class="h-full w-full rounded-md object-cover"
+									class="h-full w-full rounded-[var(--r-xs)] object-cover"
 								/>
 							{:else}
 								<div
-									class="flex h-full w-full items-center justify-center rounded-md bg-zinc-800 text-zinc-500"
+									class="flex h-full w-full items-center justify-center rounded-[var(--r-xs)] bg-zinc-800 text-zinc-500"
 								>
 									<Paperclip size={14} />
 								</div>
 							{/if}
 							{#if att.uploading}
 								<div
-									class="absolute inset-0 flex items-center justify-center rounded-md bg-zinc-950/60 backdrop-blur-sm"
+									class="absolute inset-0 flex items-center justify-center rounded-[var(--r-xs)] bg-zinc-950/60 backdrop-blur-sm"
 								>
 									<Loader2 class="animate-spin text-white" size={14} />
 								</div>
@@ -384,7 +385,7 @@
 						<button
 							type="button"
 							onclick={() => onremoveAttachment(att.id)}
-							class="ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
+							class="ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--r-pill)] text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
 							aria-label="Remove attachment"
 							title="Remove"
 						>
@@ -413,7 +414,7 @@
 						oncloseAllPopovers();
 						showModelOverrideModal = next;
 					}}
-					class="flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-full px-2 font-sans transition-all active:scale-95 {showModelOverrideModal
+					class="flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-[var(--r-pill)] px-2 font-sans transition-all active:scale-95 {showModelOverrideModal
 						? 'bg-white/10 text-white'
 						: 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'}"
 					aria-label={selectedModelChoice.id === 'auto' && lastModelUsed
@@ -434,7 +435,7 @@
 					</span>
 					<ChevronUp
 						size={10}
-						class="shrink-0 transition-transform duration-200 {showModelOverrideModal
+						class="shrink-0 transition-transform duration-[var(--dur-base)] {showModelOverrideModal
 							? 'rotate-180 text-zinc-200'
 							: 'text-zinc-500'}"
 					/>
@@ -458,12 +459,12 @@
 						aria-modal="true"
 						aria-label="Choose a model"
 						transition:sheetTransition
-						class="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-white/[0.08] bg-[#0e0e11]/85 pt-2 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] shadow-2xl backdrop-blur-2xl lg:absolute lg:inset-x-auto lg:top-auto lg:bottom-full lg:left-0 lg:mb-2 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:max-w-[calc(100vw-1rem)] lg:rounded-2xl lg:border-b lg:pt-1 lg:pb-1"
+						class="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-hidden rounded-t-[var(--r-lg)] border border-b-0 border-white/[0.08] bg-[#0e0e11]/85 pt-2 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] shadow-[var(--shadow-float)] backdrop-blur-2xl lg:absolute lg:inset-x-auto lg:top-auto lg:bottom-full lg:left-0 lg:mb-2 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:max-w-[calc(100vw-1rem)] lg:rounded-[var(--r-lg)] lg:border-b lg:pt-1 lg:pb-1"
 					>
 						<!-- Drag zone: grabber + header. Swipe down here to dismiss (mobile). -->
 						<div class="shrink-0" style="touch-action: none;" {...modelDrag.handleProps}>
 							<div
-								class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-full bg-white/20 lg:hidden"
+								class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-[var(--r-pill)] bg-white/20 lg:hidden"
 								aria-hidden="true"
 							></div>
 							<div
@@ -473,7 +474,7 @@
 								<button
 									type="button"
 									onclick={() => (showModelOverrideModal = false)}
-									class="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90"
+									class="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r-pill)] text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90"
 									aria-label="Close model picker"
 									title="Close"
 								>
@@ -523,7 +524,7 @@
 		</div>
 
 		<!-- ─── Single-row composer: [+] textarea [♪] [send|voice] ──────────
-		     All secondary buttons are rounded-full circles for visual flow
+		     All secondary buttons are rounded-[var(--r-pill)] circles for visual flow
 		     with the brand mic. btn-tactile dropped; flat hover-only
 		     treatment. -->
 		<div class="relative flex items-end gap-1.5">
@@ -540,7 +541,7 @@
 				onclick={() => {
 					actionsOpen = !actionsOpen;
 				}}
-				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 sm:h-9 sm:w-9 {actionsOpen
+				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 sm:h-9 sm:w-9 {actionsOpen
 					? 'rotate-45 bg-white/10 text-white'
 					: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
 				aria-label="More actions"
@@ -561,7 +562,7 @@
 					role="menu"
 					aria-label="Composer actions"
 					transition:fly={{ y: 8, duration: 180, easing: cubicOut }}
-					class="absolute bottom-full left-0 z-50 mb-2 flex min-w-[10rem] flex-col gap-0.5 rounded-2xl border border-white/[0.08] bg-[#0e0e11]/95 p-1 shadow-2xl backdrop-blur-2xl"
+					class="absolute bottom-full left-0 z-50 mb-2 flex min-w-[10rem] flex-col gap-0.5 rounded-[var(--r-lg)] border border-white/[0.08] bg-[#0e0e11]/95 p-1 shadow-[var(--shadow-float)] backdrop-blur-2xl"
 				>
 					<button
 						type="button"
@@ -570,7 +571,7 @@
 							actionsOpen = false;
 							ontriggerUpload();
 						}}
-						class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-zinc-200 transition-colors hover:bg-white/[0.06] active:bg-white/[0.1]"
+						class="flex items-center gap-2.5 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[13px] text-zinc-200 transition-colors hover:bg-white/[0.06] active:bg-white/[0.1]"
 					>
 						<Paperclip size={15} class="shrink-0 text-zinc-400" />
 						<span>Attach image</span>
@@ -583,7 +584,7 @@
 							imageMode = !imageMode;
 							actionsOpen = false;
 						}}
-						class="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-white/[0.06] active:bg-white/[0.1] disabled:opacity-40 {imageMode
+						class="flex items-center gap-2.5 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-white/[0.06] active:bg-white/[0.1] disabled:opacity-40 {imageMode
 							? 'text-cyan-300'
 							: 'text-zinc-200'}"
 					>
@@ -615,11 +616,11 @@
 				style="min-height: 36px; max-height: 480px;"
 			></textarea>
 
-			<!-- Right: talkback (rounded-full to match) + brand send/voice circle -->
+			<!-- Right: talkback (rounded-[var(--r-pill)] to match) + brand send/voice circle -->
 			<button
 				type="button"
 				onclick={ontoggleTalkback}
-				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 {composerMode ===
+				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 {composerMode ===
 				'talkback'
 					? 'composer-talkback border border-emerald-500/55 bg-emerald-500/10 text-emerald-300'
 					: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
@@ -642,7 +643,7 @@
 				<button
 					type="button"
 					onclick={onabort}
-					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-red-500/40 bg-red-500/10 text-red-300 transition-all hover:bg-red-500/20 hover:text-red-200 active:scale-90 sm:h-9 sm:w-9"
+					class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] border border-red-500/40 bg-red-500/10 text-red-300 transition-all hover:bg-red-500/20 hover:text-red-200 active:scale-90 sm:h-9 sm:w-9"
 					aria-label="Stop generating"
 					title="Stop generating"
 				>

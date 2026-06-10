@@ -73,10 +73,7 @@
 		} catch {
 			/* fall through to escaped */
 		}
-		return code
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;');
+		return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	});
 
 	function handleKey(e: KeyboardEvent) {
@@ -118,12 +115,7 @@
 	role="presentation"
 ></div>
 
-<div
-	class="canvas-panel"
-	role="dialog"
-	aria-modal="true"
-	aria-labelledby="canvas-title"
->
+<div class="canvas-panel" role="dialog" aria-modal="true" aria-labelledby="canvas-title">
 	<header class="canvas-header">
 		<div class="canvas-titleblock">
 			<div id="canvas-title" class="canvas-title">{headerTitle}</div>
@@ -166,7 +158,7 @@
 		background: rgb(0 0 0 / 0.55);
 		backdrop-filter: blur(2px);
 		z-index: 70;
-		animation: fade-in 140ms ease-out;
+		animation: fade-in var(--dur-fast) ease-out;
 	}
 
 	.canvas-panel {
@@ -178,11 +170,11 @@
 		max-width: 100vw;
 		background: #0a0a0a;
 		border-left: 1px solid rgb(168 85 247 / 0.25);
-		box-shadow: -8px 0 32px rgb(0 0 0 / 0.6);
+		box-shadow: var(--shadow-float);
 		display: flex;
 		flex-direction: column;
 		z-index: 71;
-		animation: slide-in 200ms ease-out;
+		animation: slide-in var(--dur-base) ease-out;
 	}
 	@media (min-width: 768px) {
 		.canvas-panel {
@@ -241,7 +233,7 @@
 		padding: 0.3rem 0.55rem;
 		background: transparent;
 		border: 1px solid rgb(255 255 255 / 0.1);
-		border-radius: 0.35rem;
+		border-radius: var(--r-xs);
 		color: rgb(255 255 255 / 0.7);
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 0.65rem;
@@ -281,11 +273,19 @@
 	}
 
 	@keyframes fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 	@keyframes slide-in {
-		from { transform: translateX(100%); }
-		to { transform: translateX(0); }
+		from {
+			transform: translateX(100%);
+		}
+		to {
+			transform: translateX(0);
+		}
 	}
 </style>

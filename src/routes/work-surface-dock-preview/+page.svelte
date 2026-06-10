@@ -58,8 +58,8 @@
 		</p>
 
 		<p class="mt-4 text-sm text-muted-foreground">
-			↓ This is the composer indicator. It shows work-state. Tap it to jump to the
-			most-important surface.
+			↓ This is the composer indicator. It shows work-state. Tap it to jump to the most-important
+			surface.
 		</p>
 		<div class="mt-2 max-w-md">
 			<WorkSurfaceComposerChrome
@@ -73,7 +73,7 @@
 		<div class="mt-4 flex flex-wrap gap-2">
 			<button
 				type="button"
-				class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
+				class="rounded-[var(--r-pill)] border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
 				onclick={() => (dockMode = 'rail')}>Open rail</button
 			>
 		</div>
@@ -82,17 +82,17 @@
 		<div class="mt-2 flex flex-wrap gap-2">
 			<button
 				type="button"
-				class="rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-xs text-foreground hover:bg-brand/20"
+				class="rounded-[var(--r-pill)] border border-brand bg-brand/10 px-3 py-1.5 text-xs text-foreground hover:bg-brand/20"
 				onclick={() => openSheetFor(runningSurfaceId)}>Sheet · Running</button
 			>
 			<button
 				type="button"
-				class="rounded-full border border-brand bg-brand/10 px-3 py-1.5 text-xs text-foreground hover:bg-brand/20"
+				class="rounded-[var(--r-pill)] border border-brand bg-brand/10 px-3 py-1.5 text-xs text-foreground hover:bg-brand/20"
 				onclick={() => openSheetFor(needsYouSurfaceId)}>Sheet · Needs-you</button
 			>
 			<button
 				type="button"
-				class="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
+				class="rounded-[var(--r-pill)] border border-border bg-surface px-3 py-1.5 text-xs text-foreground hover:bg-card"
 				onclick={() => openSheetFor(doneSurfaceId)}>Sheet · Done</button
 			>
 		</div>

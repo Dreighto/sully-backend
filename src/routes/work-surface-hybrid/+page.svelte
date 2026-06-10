@@ -20,7 +20,7 @@
 	let activePreset = $state<PresetKey>('running');
 	let activeState = $state<StateKey>('A');
 	let hydrated = $state(false);
-	
+
 	$effect(() => {
 		hydrated = true;
 	});
@@ -111,7 +111,9 @@
 >
 	<div class="mx-auto max-w-[430px] p-4 pb-24">
 		<h1 class="mb-0.5 text-lg font-semibold">Work Surface Sandbox</h1>
-		<p class="mb-4 text-xs text-[var(--color-st-done)]">C+B Hybrid — Lean Structure, Polished Visuals</p>
+		<p class="mb-4 text-xs text-[var(--color-st-done)]">
+			C+B Hybrid — Lean Structure, Polished Visuals
+		</p>
 
 		<!-- State tabs -->
 		<div class="mb-2 flex gap-1">
@@ -120,7 +122,7 @@
 					data-testid="state-tab"
 					data-state={key}
 					aria-pressed={activeState === key}
-					class="flex-1 rounded-lg border py-1.5 text-[11px] font-semibold transition-colors
+					class="flex-1 rounded-[var(--r-sm)] border py-1.5 text-[11px] font-semibold transition-colors
              {activeState === key
 						? 'border-[var(--color-edge-active)] bg-[var(--color-surface-raised)] text-white'
 						: 'border-[var(--color-edge)] bg-[var(--color-surface)] text-[var(--color-st-done)]'}"
@@ -139,7 +141,7 @@
 					data-testid="preset-tab"
 					data-preset={preset}
 					aria-pressed={activePreset === preset}
-					class="rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors
+					class="rounded-[var(--r-sm)] border px-2 py-1 text-[11px] font-semibold transition-colors
              {activePreset === preset
 						? 'border-[var(--color-edge-active)] bg-[var(--color-surface-raised)] text-white'
 						: 'border-[var(--color-edge)] bg-[var(--color-surface)] text-[var(--color-st-done)]'}"
@@ -152,17 +154,17 @@
 		<div class="mb-4 flex gap-2" id="event-buttons">
 			<button
 				data-testid="btn-complete"
-				class="rounded-lg border border-[var(--color-edge)] bg-[var(--color-surface-raised)] px-3 py-1.5 text-xs font-semibold text-white"
+				class="rounded-[var(--r-sm)] border border-[var(--color-edge)] bg-[var(--color-surface-raised)] px-3 py-1.5 text-xs font-semibold text-white"
 				onclick={applyComplete}>Complete</button
 			>
 			<button
 				data-testid="btn-fail"
-				class="rounded-lg border border-[var(--color-st-fail)] bg-[rgba(194,91,91,0.1)] px-3 py-1.5 text-xs font-semibold text-[var(--color-st-fail)]"
+				class="rounded-[var(--r-sm)] border border-[var(--color-st-fail)] bg-[rgba(194,91,91,0.1)] px-3 py-1.5 text-xs font-semibold text-[var(--color-st-fail)]"
 				onclick={applyFail}>Fail</button
 			>
 			<button
 				data-testid="btn-reset"
-				class="rounded-lg border border-[var(--color-edge)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-st-done)]"
+				class="rounded-[var(--r-sm)] border border-[var(--color-edge)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-st-done)]"
 				onclick={() => (surfaceOverride = null)}>Reset</button
 			>
 		</div>
@@ -211,7 +213,7 @@
 			data-testid="sandbox-composer"
 			type="text"
 			placeholder="Sandbox composer — stays enabled"
-			class="w-full rounded-full border border-[var(--color-edge)] bg-[var(--color-surface-raised)] px-4 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
+			class="w-full rounded-[var(--r-pill)] border border-[var(--color-edge)] bg-[var(--color-surface-raised)] px-4 py-2 text-sm outline-none focus:border-[var(--color-brand)]"
 		/>
 	</div>
 </main>

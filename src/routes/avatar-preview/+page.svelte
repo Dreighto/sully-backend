@@ -38,14 +38,15 @@
 
 	<!-- HERO: animated sprite + breathing ambient glow -->
 	<div class="relative flex h-64 w-64 items-center justify-center">
-		<div class="sully-glow absolute h-48 w-48 rounded-full"></div>
+		<div class="sully-glow absolute h-48 w-48 rounded-[var(--r-pill)]"></div>
 		<img
 			src={img(current)}
 			alt={current}
 			class="sully-alive relative z-10 h-56 w-56 object-contain"
 		/>
 	</div>
-	<span class="-mt-4 rounded-full bg-brand/20 px-3 py-1 text-sm font-medium text-brand-soft"
+	<span
+		class="-mt-4 rounded-[var(--r-pill)] bg-brand/20 px-3 py-1 text-sm font-medium text-brand-soft"
 		>{current}</span
 	>
 
@@ -56,14 +57,15 @@
 					idx = n;
 					playing = false;
 				}}
-				class="rounded-lg border px-3 py-1 text-xs transition active:scale-95 {current === s
+				class="rounded-[var(--r-sm)] border px-3 py-1 text-xs transition active:scale-95 {current ===
+				s
 					? 'border-brand bg-brand/10 text-brand-soft'
 					: 'border-zinc-800 text-zinc-400'}">{s}</button
 			>
 		{/each}
 		<button
 			onclick={() => (playing = !playing)}
-			class="rounded-lg border border-zinc-700 px-3 py-1 text-xs text-zinc-300"
+			class="rounded-[var(--r-sm)] border border-zinc-700 px-3 py-1 text-xs text-zinc-300"
 			>{playing ? 'pause' : 'play'}</button
 		>
 	</div>
@@ -76,7 +78,7 @@
 		<div class="grid grid-cols-3 gap-3">
 			<div class="flex flex-col items-center gap-1">
 				<div
-					class="flex h-28 w-full items-center justify-center rounded-xl bg-[#050505] ring-1 ring-zinc-800"
+					class="flex h-28 w-full items-center justify-center rounded-[var(--r-md)] bg-[#050505] ring-1 ring-zinc-800"
 				>
 					<img src={img(current)} alt="" class="h-24 w-24 object-contain" />
 				</div>
@@ -84,7 +86,7 @@
 			</div>
 			<div class="flex flex-col items-center gap-1">
 				<div
-					class="flex h-28 w-full items-center justify-center rounded-xl"
+					class="flex h-28 w-full items-center justify-center rounded-[var(--r-md)]"
 					style="background:linear-gradient(135deg,#c4186a,#3a0a22)"
 				>
 					<img src={img(current)} alt="" class="h-24 w-24 object-contain" />
@@ -92,7 +94,7 @@
 				<span class="text-[10px] text-zinc-600">magenta</span>
 			</div>
 			<div class="flex flex-col items-center gap-1">
-				<div class="flex h-28 w-full items-center justify-center rounded-xl bg-zinc-200">
+				<div class="flex h-28 w-full items-center justify-center rounded-[var(--r-md)] bg-zinc-200">
 					<img src={img(current)} alt="" class="h-24 w-24 object-contain" />
 				</div>
 				<span class="text-[10px] text-zinc-600">light</span>
@@ -105,7 +107,9 @@
 		<div class="mb-2 text-xs text-zinc-500">all 8 states (transparent)</div>
 		<div class="grid grid-cols-4 gap-2">
 			{#each STATES as s (s)}
-				<div class="flex flex-col items-center gap-1 rounded-lg border border-zinc-900 p-2">
+				<div
+					class="flex flex-col items-center gap-1 rounded-[var(--r-sm)] border border-zinc-900 p-2"
+				>
 					<img src={img(s)} alt={s} class="h-16 w-16 object-contain" />
 					<span class="text-[9px] text-zinc-600">{s}</span>
 				</div>

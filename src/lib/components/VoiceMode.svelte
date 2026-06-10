@@ -203,7 +203,7 @@
 							type="button"
 							onclick={() => (showVoicePicker = !showVoicePicker)}
 							disabled={isConnecting || isError}
-							class="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
+							class="flex h-10 items-center gap-1.5 rounded-[var(--r-pill)] px-3 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
 							aria-label="Change voice"
 							aria-expanded={showVoicePicker}
 							title="Change voice"
@@ -214,7 +214,7 @@
 						</button>
 						{#if showVoicePicker}
 							<div
-								class="absolute top-12 right-0 z-10 w-64 rounded-xl border border-zinc-800 bg-zinc-900/95 p-1 shadow-xl backdrop-blur"
+								class="absolute top-12 right-0 z-10 w-64 rounded-[var(--r-md)] border border-zinc-800 bg-zinc-900/95 p-1 shadow-[var(--shadow-card)] backdrop-blur"
 								role="menu"
 							>
 								{#each voice.voices as v (v.id)}
@@ -226,7 +226,7 @@
 											void voice.setVoice(v.id);
 											showVoicePicker = false;
 										}}
-										class="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-zinc-800"
+										class="flex w-full items-start gap-2 rounded-[var(--r-sm)] px-3 py-2 text-left transition hover:bg-zinc-800"
 									>
 										<Check
 											size={16}
@@ -248,7 +248,7 @@
 				<button
 					type="button"
 					onclick={() => (showProbe = !showProbe)}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+					class="flex h-10 w-10 items-center justify-center rounded-[var(--r-pill)] text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
 					aria-label="Toggle mic permission + PWA diagnostic"
 					title="Mic permission + PWA diagnostic"
 				>
@@ -259,7 +259,7 @@
 					type="button"
 					onclick={() => voice.toggleMode()}
 					disabled={isConnecting || isError}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
+					class="flex h-10 w-10 items-center justify-center rounded-[var(--r-pill)] text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100 disabled:opacity-40"
 					aria-label={isContinuous ? 'Switch to push-to-talk' : 'Switch to hands-free'}
 					title={isContinuous
 						? 'Hands-free (tap for push-to-talk)'
@@ -275,7 +275,7 @@
 				<button
 					type="button"
 					onclick={() => voice.toggleCaptions()}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+					class="flex h-10 w-10 items-center justify-center rounded-[var(--r-pill)] text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
 					aria-label={voice.captions ? 'Hide captions (voice only)' : 'Show captions'}
 					title={voice.captions ? 'Hide captions (voice only)' : 'Show captions'}
 				>
@@ -289,7 +289,7 @@
 				<button
 					type="button"
 					onclick={() => void voice.exit()}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
+					class="flex h-10 w-10 items-center justify-center rounded-[var(--r-pill)] text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-100"
 					aria-label="Close voice mode"
 					title="Close voice mode"
 				>
@@ -303,7 +303,7 @@
 			     PWA install state. Useful for confirming whether re-prompting is iOS
 			     dropping the grant vs. our code asking when it shouldn't. -->
 			<div
-				class="mx-4 mb-2 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-sans text-[11px] text-zinc-300"
+				class="mx-4 mb-2 rounded-[var(--r-sm)] border border-zinc-800 bg-zinc-900/70 px-3 py-2 font-sans text-[11px] text-zinc-300"
 			>
 				<div class="mb-1 flex items-center justify-between text-zinc-400">
 					<span>diagnostic</span>
@@ -359,7 +359,7 @@
 					<button
 						type="button"
 						onclick={() => void voice.exit()}
-						class="mt-1 rounded-full bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700"
+						class="mt-1 rounded-[var(--r-pill)] bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700"
 					>
 						Close
 					</button>
@@ -370,7 +370,7 @@
 					type="button"
 					onclick={() => voice.interrupt()}
 					disabled={!interruptible}
-					class="relative flex h-32 w-32 items-center justify-center rounded-full {interruptible
+					class="relative flex h-32 w-32 items-center justify-center rounded-[var(--r-pill)] {interruptible
 						? 'cursor-pointer'
 						: 'cursor-default'}"
 					aria-label={interruptible ? 'Interrupt' : 'Voice status'}
@@ -398,7 +398,7 @@
 				     animates layout), height reserved so the feed doesn't jump as it
 				     fades, and prefers-reduced-motion disables the animation. -->
 				<div
-					class="min-h-[1.75rem] max-w-xl text-center text-sm text-zinc-500 transition-opacity duration-500 ease-out motion-reduce:transition-none {operatorCaptionVisible
+					class="min-h-[1.75rem] max-w-xl text-center text-sm text-zinc-500 transition-opacity duration-[var(--dur-long)] ease-out motion-reduce:transition-none {operatorCaptionVisible
 						? 'opacity-100'
 						: 'opacity-0'}"
 					aria-hidden={!operatorCaptionVisible}
@@ -420,7 +420,7 @@
 						type="button"
 						onclick={() => voice.toggleMute()}
 						disabled={isConnecting}
-						class="flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all duration-150 select-none disabled:opacity-40
+						class="flex h-20 w-20 items-center justify-center rounded-[var(--r-pill)] shadow-[var(--shadow-card)] transition-all duration-[var(--dur-fast)] select-none disabled:opacity-40
 							{voice.muted
 							? 'bg-zinc-800 ring-1 ring-zinc-700'
 							: 'bg-orange-500 ring-4 ring-orange-400/30 active:scale-105'}"
@@ -445,7 +445,7 @@
 						onpointerleave={onPressUp}
 						onpointercancel={onPressUp}
 						oncontextmenu={(e) => e.preventDefault()}
-						class="flex h-20 w-20 items-center justify-center rounded-full shadow-lg transition-all duration-150 select-none disabled:opacity-40
+						class="flex h-20 w-20 items-center justify-center rounded-[var(--r-pill)] shadow-[var(--shadow-card)] transition-all duration-[var(--dur-fast)] select-none disabled:opacity-40
 							{voice.holding
 							? 'scale-110 bg-orange-500 ring-4 ring-orange-400/40'
 							: 'bg-zinc-100 hover:bg-white active:scale-105'}"

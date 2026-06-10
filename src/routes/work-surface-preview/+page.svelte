@@ -40,7 +40,9 @@
 <div
 	class="flex min-h-screen flex-col items-center justify-start gap-4 overflow-y-auto bg-background p-4 py-8 font-sans text-foreground"
 >
-	<div class="w-full max-w-2xl space-y-6 rounded-lg border border-border bg-card p-6 shadow-xl">
+	<div
+		class="w-full max-w-2xl space-y-6 rounded-[var(--r-sm)] border border-border bg-card p-6 shadow-[var(--shadow-card)]"
+	>
 		<h1 class="text-center text-2xl font-bold text-primary">Work Surface Preview</h1>
 
 		<div class="control-group">
@@ -49,7 +51,7 @@
 				{#each ['collapsed', 'compact', 'expanded'] as foot (foot)}
 					<button
 						type="button"
-						class="rounded-md px-4 py-2 text-sm font-medium transition-colors"
+						class="rounded-[var(--r-xs)] px-4 py-2 text-sm font-medium transition-colors"
 						class:bg-brand={footprint === foot}
 						class:text-white={footprint === foot}
 						class:bg-surface={footprint !== foot}
@@ -67,7 +69,7 @@
 			<div class="flex flex-wrap justify-center gap-2">
 				<button
 					type="button"
-					class="rounded-md px-4 py-2 text-sm font-medium transition-colors"
+					class="rounded-[var(--r-xs)] px-4 py-2 text-sm font-medium transition-colors"
 					class:bg-brand={previewDispatchActive}
 					class:text-white={previewDispatchActive}
 					class:bg-surface={!previewDispatchActive}
@@ -85,7 +87,7 @@
 				{#each seedKeys as key (key)}
 					<button
 						type="button"
-						class="rounded-md px-4 py-2 text-sm font-medium transition-colors"
+						class="rounded-[var(--r-xs)] px-4 py-2 text-sm font-medium transition-colors"
 						class:bg-brand={presetKey === key}
 						class:text-white={presetKey === key}
 						class:bg-surface={presetKey !== key}

@@ -250,7 +250,7 @@
 	.surface-retry {
 		font-size: 11px;
 		padding: 3px 8px;
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		border: 1px solid var(--color-st-needs, #c9a34e);
 		background: color-mix(in srgb, var(--color-st-needs, #c9a34e) 14%, transparent);
 		color: var(--color-st-needs, #c9a34e);
@@ -263,7 +263,7 @@
 		color: var(--color-st-needs, #c9a34e);
 		background: none;
 		border: 1px dashed color-mix(in srgb, var(--color-st-needs, #c9a34e) 40%, transparent);
-		border-radius: 8px;
+		border-radius: var(--r-sm);
 		padding: 8px 12px;
 		cursor: pointer;
 	}
@@ -271,7 +271,7 @@
 		display: block;
 		width: 7px;
 		height: 7px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		background: var(--color-st-needs, #c9a34e);
 		pointer-events: none;
 		animation: stale-pulse 1.2s ease-in-out infinite;

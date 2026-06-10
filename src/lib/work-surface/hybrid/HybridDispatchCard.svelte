@@ -466,10 +466,10 @@
 
 	/* ── Slide Animations on Collapsible Content ── */
 	:global(.hybrid-content[data-state='open']) {
-		animation: slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+		animation: slide-in var(--dur-slow) var(--ease-emphasized);
 	}
 	:global(.hybrid-content[data-state='closed']) {
-		animation: slide-out 200ms ease;
+		animation: slide-out var(--dur-base) ease;
 	}
 	@keyframes slide-in {
 		from {
@@ -496,7 +496,7 @@
 		margin-top: 8px;
 		background: var(--color-surface);
 		border: 1px solid var(--color-edge);
-		border-radius: 14px;
+		border-radius: var(--r-md);
 		overflow: hidden;
 		font-size: 13px;
 	}
@@ -535,7 +535,7 @@
 		color: var(--color-st-fail);
 		border: 1px solid var(--color-st-fail);
 		background: transparent;
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		padding: 4px 10px;
 		cursor: pointer;
 		min-height: 44px; /* iOS hygiene */
@@ -552,9 +552,9 @@
 	.stage-pip {
 		flex: 1;
 		height: 3px;
-		border-radius: 2px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised);
-		transition: background 0.3s;
+		transition: background var(--dur-slow) var(--ease-standard);
 	}
 	.stage-pip--done {
 		background: var(--color-st-done);
@@ -600,7 +600,7 @@
 	.lane-dot {
 		width: 5px;
 		height: 5px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		flex: none;
 	}
 	.lane-dot--running {
@@ -620,7 +620,7 @@
 		font-size: 10px;
 		font-weight: 700;
 		padding: 1px 4px;
-		border-radius: 3px;
+		border-radius: var(--r-xs);
 		background: var(--color-surface-raised);
 		color: var(--color-st-done);
 		flex: none;
@@ -658,7 +658,7 @@
 	.phase-dot-devin {
 		width: 6px;
 		height: 6px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		flex: none;
 		background: var(--color-st-done);
 	}
@@ -677,7 +677,7 @@
 	.skipped-pip {
 		width: 6px;
 		height: 6px;
-		border-radius: 50%;
+		border-radius: var(--r-pill);
 		border: 1.5px dashed var(--color-edge-active);
 		flex: none;
 	}
@@ -720,7 +720,7 @@
 		color: var(--color-background, #0a0a0b);
 		background: var(--color-st-needs);
 		border: none;
-		border-radius: 8px;
+		border-radius: var(--r-sm);
 		padding: 6px 14px;
 		cursor: pointer;
 		min-height: 44px; /* iOS hygiene */
@@ -753,7 +753,7 @@
 		border: 1px solid var(--color-edge);
 		background: transparent;
 		color: var(--color-st-done);
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		padding: 3px 10px;
 		cursor: pointer;
 		min-height: 44px; /* iOS hygiene */
@@ -777,7 +777,7 @@
 		border: 1px solid var(--color-edge);
 		background: transparent;
 		color: var(--color-st-done);
-		border-radius: 6px;
+		border-radius: var(--r-xs);
 		padding: 4px 10px;
 		cursor: pointer;
 		min-height: 44px; /* iOS hygiene */
@@ -878,10 +878,10 @@
 	}
 
 	.card-wrap:global(.anim-spawn) {
-		animation: card-spawn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+		animation: card-spawn var(--dur-slow) var(--ease-emphasized) both;
 	}
 	.card-wrap:global(.anim-fail) {
-		animation: failure-shake 180ms ease-out both;
+		animation: failure-shake var(--dur-med) ease-out both;
 	}
 
 	.complete-ring-el {
@@ -892,7 +892,7 @@
 		pointer-events: none;
 	}
 	.complete-ring-el.anim-ring {
-		animation: complete-ring 400ms ease-out both;
+		animation: complete-ring var(--dur-panel) ease-out both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

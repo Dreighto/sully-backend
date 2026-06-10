@@ -553,7 +553,7 @@
 		stroke: var(--color-surface); /* Similar to background for a subtle effect */
 		stroke-width: 4px;
 		opacity: 0.7;
-		transition: opacity 0.3s ease;
+		transition: opacity var(--dur-slow) ease;
 	}
 
 	.edge-sweep-line {

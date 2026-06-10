@@ -127,7 +127,7 @@
 
 <style>
 	.ring-foreground-arc {
-		transition: stroke-dasharray 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+		transition: stroke-dasharray var(--dur-long) var(--ease-standard);
 	}
 
 	/* Earned-rest breath — fires AFTER the completion celebration. Slow, gentle,
@@ -157,7 +157,7 @@
 		filter: drop-shadow(0 0 6px var(--color-status-green));
 	}
 	.celebrate-pulse-delayed {
-		animation-delay: 0.25s;
+		animation-delay: var(--dur-slow);
 	}
 	@keyframes celebrate-pulse {
 		0% {

@@ -15,11 +15,14 @@
 	} = $props();
 </script>
 
-<div class="work-surface-inline-panel mx-auto w-full max-w-2xl" transition:slide={{ duration: 220 }}>
+<div
+	class="work-surface-inline-panel mx-auto w-full max-w-2xl"
+	transition:slide={{ duration: 220 }}
+>
 	<div class="mb-1.5 flex items-center justify-between gap-2 px-0.5">
 		<button
 			type="button"
-			class="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-border bg-surface/80 px-3 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground active:scale-[0.98]"
+			class="inline-flex min-h-[44px] items-center gap-1 rounded-[var(--r-pill)] border border-border bg-surface/80 px-3 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground active:scale-[0.98]"
 			onclick={oncollapse}
 			aria-label="Collapse work surface"
 		>
@@ -28,7 +31,7 @@
 		</button>
 		<button
 			type="button"
-			class="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-border bg-surface/80 px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-card active:scale-[0.98]"
+			class="inline-flex min-h-[44px] items-center gap-1 rounded-[var(--r-pill)] border border-border bg-surface/80 px-3 text-[11px] font-medium text-foreground transition-colors hover:bg-card active:scale-[0.98]"
 			onclick={onmoreDetail}
 			aria-label="Open full work surface detail"
 		>
@@ -47,6 +50,6 @@
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		-webkit-overflow-scrolling: touch;
-		border-radius: 0.75rem;
+		border-radius: var(--r-md);
 	}
 </style>

@@ -39,7 +39,7 @@
 		<button
 			type="button"
 			onclick={ontoggleSidebar}
-			class="flex h-11 w-11 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-white active:scale-90 sm:h-9 sm:w-9 lg:hidden"
+			class="flex h-11 w-11 items-center justify-center rounded-[var(--r-pill)] text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-white active:scale-90 sm:h-9 sm:w-9 lg:hidden"
 			aria-label="Toggle Sessions Sidebar"
 			title="Toggle Sessions Sidebar"
 		>
@@ -67,7 +67,7 @@
 	<button
 		type="button"
 		onclick={() => onopenWorkspaceContext()}
-		class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 sm:h-9 sm:w-9 {workspaceContextOpen
+		class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 sm:h-9 sm:w-9 {workspaceContextOpen
 			? 'bg-white/10 text-white'
 			: 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'}"
 		aria-label="Sully's workspace context"

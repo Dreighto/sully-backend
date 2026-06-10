@@ -9,11 +9,11 @@
 </script>
 
 <div
-	class="mb-1.5 flex w-fit items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
+	class="mb-1.5 flex w-fit items-center gap-1.5 rounded-[var(--r-pill)] border border-brand/30 bg-brand/[0.08] px-2.5 py-0.5 font-sans text-[11px] font-semibold tracking-wide text-brand-soft select-none"
 >
 	<span
-		class="h-2 w-2 shrink-0 rounded-full"
-		style="background: var(--orb-grad); box-shadow: 0 0 6px rgba(124, 132, 232, 0.6);"
+		class="h-2 w-2 shrink-0 rounded-[var(--r-pill)]"
+		style="background: var(--orb-grad); box-shadow: var(--shadow-accent);"
 	></span>
 	<span>{label}</span>
 </div>

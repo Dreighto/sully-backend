@@ -52,10 +52,10 @@
 	}
 
 	.phase-row {
-		@apply flex justify-between items-center px-3 py-2 rounded-md border border-border bg-surface text-sm transition-colors;
+		@apply flex items-center justify-between rounded-[var(--r-xs)] border border-border bg-surface px-3 py-2 text-sm transition-colors;
 	}
 	.phase-row.skipped {
-		@apply opacity-60 border-dashed border-border; /* Apply dashed border and dimming */
+		@apply border-dashed border-border opacity-60; /* Apply dashed border and dimming */
 	}
 
 	.phase-left {
@@ -63,7 +63,7 @@
 	}
 
 	.phase-dot {
-		@apply w-1.5 h-1.5 rounded-full inline-block flex-shrink-0;
+		@apply inline-block h-1.5 w-1.5 flex-shrink-0 rounded-[var(--r-pill)];
 	}
 	.phase-row.done .phase-dot {
 		@apply bg-status-green;
@@ -73,11 +73,11 @@
 		animation: dotBreath 1.5s infinite;
 	}
 	.phase-row.pending .phase-dot {
-		@apply bg-transparent border border-muted-foreground;
+		@apply border border-muted-foreground bg-transparent;
 	}
 
 	.phase-time {
-		@apply text-muted-foreground font-mono text-xs;
+		@apply font-mono text-xs text-muted-foreground;
 	}
 
 	@keyframes dotBreath {
