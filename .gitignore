@@ -32,6 +32,8 @@ test-results/
 playwright-report/
 blob-report/
 *.log
+# Hermetic e2e harness per-run state (fresh DB + uploads per suite run, LOS-182)
+.e2e-data/
 
 # Operator-side working artifacts that should not ship in git.
 data/peer_reviews/
