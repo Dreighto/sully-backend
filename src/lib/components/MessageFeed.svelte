@@ -17,10 +17,7 @@
 	// back via callback props.
 
 	import { base } from '$app/paths';
-	import { page } from '$app/stores';
-	import { DispatchCard, surfaceStore } from '$lib/work-surface';
-	import HybridSurfaceMount from '$lib/work-surface/hybrid/HybridSurfaceMount.svelte';
-	import WorkingBubble from '$lib/components/WorkingBubble.svelte';
+	import WorkerPill from '$lib/work-surface/pill/WorkerPill.svelte';
 	import SullyAvatar from '$lib/components/SullyAvatar.svelte';
 	import SullyNameTag from '$lib/components/SullyNameTag.svelte';
 	import Markdown from '$lib/components/Markdown.svelte';
@@ -61,8 +58,7 @@
 		openCanvas,
 		onimagepreview,
 		ensureDispatchStream,
-		fmtTime,
-		traceToSurface
+		fmtTime
 	}: {
 		messages: ChatMessage[];
 		streamState: StreamState;
@@ -87,7 +83,6 @@
 			traceId: string
 		) => ReturnType<typeof import('$lib/chat/dispatchStream.svelte').createDispatchStream>;
 		fmtTime: (iso: string) => string;
-		traceToSurface: Record<string, string>;
 	} = $props();
 
 	// Friendly labels for the tool-call chips shown while Sully works, instead of
@@ -128,39 +123,26 @@
 		     arrives, m.message is non-empty and the bubble re-renders. -->
 		{#if !(streamState?.placeholderId === m.id && m.message === '')}
 			{#if m.sender === 'system' && m.trace_id?.startsWith('sully-')}
-				<!-- Dispatch hand-off: the morphing Task card IS the whole element
+				<!-- Dispatch hand-off: the collapsed worker pill IS the whole element
 				     (no LOGUEOS text bubble, no Copy/Regen footer) — one seamless unit.
-				     ensureDispatchStream() runs as side-effect: opens SSE + onActive
-				     spawns the surface in surfaceStore. Result `ctrl` is used by the
-				     fallback WorkingBubble path. -->
+				     ensureDispatchStream() runs as side-effect (opens SSE); the pill
+				     renders worker · task · stage dots · elapsed straight from the
+				     controller's reactive getters. The legacy work-surface paths
+				     (HybridSurfaceMount / DispatchCard / WorkingBubble) are retired
+				     from the feed — modules quarantined on disk, unmounted here
+				     (LOS-192 part 1; the tap-to-open run sheet lands in part 2). -->
 				{@const ctrl = ensureDispatchStream(m.trace_id)}
-				{@const useHybrid = $page.url.searchParams.get('hybrid-surface') === '1'}
-				{@const useInline = $page.url.searchParams.get('inline-dispatch') === '1'}
-				{@const surfaceId = useInline ? traceToSurface[m.trace_id] : undefined}
-				{@const surface = surfaceId
-					? surfaceStore.items.find((s) => s.surfaceId === surfaceId)
-					: null}
-				{#if useHybrid}
-					<!-- Flag-on path (Hybrid): C+B hybrid surface, fetched from /api/surface -->
-					<div class="w-full max-w-full min-w-0">
-						<HybridSurfaceMount traceId={m.trace_id} />
-					</div>
-				{:else if useInline && surface}
-					<!-- Flag-on path (Phase 1+2): DispatchCard inline in the message feed -->
-					<div class="w-full">
-						<DispatchCard {surface} message={m} />
-					</div>
-				{:else}
-					<!-- Default path: existing dispatch chip (unchanged) -->
-					<div class="flex flex-col items-start gap-1">
-						<WorkingBubble
-							worker={m.trace_id.includes('agy') ? 'gemini' : 'claude-code'}
-							rows={ctrl.rows}
-							status={ctrl.status}
-							durationLabel={ctrl.durationLabel}
-						/>
-					</div>
-				{/if}
+				<div class="w-full max-w-full min-w-0">
+					<WorkerPill
+						traceId={m.trace_id}
+						rows={ctrl.rows}
+						status={ctrl.status}
+						worker={ctrl.worker}
+						brief={ctrl.brief}
+						startedAtIso={ctrl.startedAtIso}
+						durationLabel={ctrl.durationLabel}
+					/>
+				</div>
 			{:else}
 				<div class="flex flex-col gap-1 {m.sender === 'operator' ? 'items-end' : 'items-start'}">
 					<!-- Custom Labeling / Bubble Headers -->

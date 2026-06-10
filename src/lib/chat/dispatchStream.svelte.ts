@@ -9,6 +9,10 @@ export interface DispatchStreamState {
 	readonly status: string;
 	readonly resultRef: string | null;
 	readonly durationLabel: string | null;
+	readonly worker: string | null;
+	readonly brief: string | null;
+	readonly startedAtIso: string | null;
+	readonly endedAtIso: string | null;
 }
 
 /** SQLite CURRENT_TIMESTAMP is UTC but unmarked; toISOString() carries 'Z'.
@@ -54,6 +58,12 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 	let resultRef = $state<string | null>(null);
 	let startedAtIso = $state<string | null>(null);
 	let endedAtIso = $state<string | null>(null);
+	// Job metadata for the worker pill (LOS-192). The reconcile endpoint has
+	// always returned the full job row; live (non-terminal) fields were simply
+	// discarded before. Captured here so the pill can render worker · task ·
+	// elapsed for in-flight runs without any new plumbing.
+	let worker = $state<string | null>(null);
+	let brief = $state<string | null>(null);
 	let cursor = 0;
 	let es: EventSource | null = null;
 	let removeAppResume: (() => void) | null = null;
@@ -137,12 +147,23 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 			const merged = reconcileRows(rows, fresh, cursor);
 			rows = merged.rows;
 			cursor = merged.cursor;
-			if (b.job && isTerminalStatus(b.job.status)) {
-				status = b.job.status;
-				resultRef = b.job.result_ref ?? null;
+			if (b.job) {
+				// Job metadata is valid live OR terminal — capture unconditionally.
+				worker = b.job.worker ?? worker;
+				brief = b.job.brief ?? brief;
 				startedAtIso = b.job.started_at ?? startedAtIso;
 				endedAtIso = b.job.ended_at ?? endedAtIso;
-				fireTerminal();
+				if (isTerminalStatus(b.job.status)) {
+					status = b.job.status;
+					resultRef = b.job.result_ref ?? null;
+					fireTerminal();
+				} else if (b.job.status) {
+					// Non-terminal job statuses (dispatched/working/gated/held/retry…)
+					// are all equally non-terminal to existing consumers
+					// (isTerminalStatus gates every behavior switch), but they let the
+					// pill distinguish running from needs-you truthfully.
+					status = b.job.status;
+				}
 			}
 		} catch {
 			/* offline; SSE will catch up */
@@ -201,6 +222,18 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 		},
 		get durationLabel() {
 			return fmtDuration(startedAtIso, endedAtIso);
+		},
+		get worker() {
+			return worker;
+		},
+		get brief() {
+			return brief;
+		},
+		get startedAtIso() {
+			return startedAtIso;
+		},
+		get endedAtIso() {
+			return endedAtIso;
 		},
 		start,
 		destroy
