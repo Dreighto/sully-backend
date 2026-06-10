@@ -15,6 +15,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { base } from '$app/paths';
 import { startCompletionPoller } from '$lib/server/completion_poller';
+import { startStaleJobReaper } from '$lib/server/staleJobSweep';
 import { bootstrapCompanionDb } from '$lib/server/bootstrap';
 import { runMode } from '$lib/server/config';
 
@@ -22,11 +23,19 @@ import { runMode } from '$lib/server/config';
 // touches it. Idempotent; a no-op against the shared kernel DB in wired mode.
 bootstrapCompanionDb();
 
-// The completion poller tails the kernel's cc_completion_log.jsonl — a kernel
-// artifact. In companion mode (kernelWired=false) there is no kernel to poll,
-// so it never starts.
-if (runMode.completionPoller) {
+// The completion poller tails the kernel's cc_completion_log.jsonl. Wired mode
+// uses it for completion pushes; companion-dispatch mode uses it as the
+// terminal bridge (LOS-196) that reconciles kernel terminal markers into
+// pending_jobs. With neither, there is nothing to tail.
+if (runMode.completionPoller || runMode.companionDispatchEnabled) {
 	startCompletionPoller();
+}
+
+// Clock-driven stale-job reaper (LOS-196): reaping must never depend on a
+// client being open. Same gate as the /api/chat/activity GET piggyback it
+// backs up.
+if (runMode.kernelWired || runMode.companionDispatchEnabled) {
+	startStaleJobReaper();
 }
 
 // Vite emits hashed asset filenames under ${base}/_app/immutable/* — content-addressed,

@@ -13,6 +13,7 @@ export interface DispatchStreamState {
 	readonly brief: string | null;
 	readonly startedAtIso: string | null;
 	readonly endedAtIso: string | null;
+	readonly reconciled: boolean;
 }
 
 /** SQLite CURRENT_TIMESTAMP is UTC but unmarked; toISOString() carries 'Z'.
@@ -64,6 +65,11 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 	// elapsed for in-flight runs without any new plumbing.
 	let worker = $state<string | null>(null);
 	let brief = $state<string | null>(null);
+	// Truth guard (LOS-196): false until the FIRST successful reconcile against
+	// /api/chat/dispatch/[trace]. The pill refuses to trust a non-terminal
+	// status (incl. this controller's own 'working' default) until server truth
+	// has confirmed it once.
+	let reconciled = $state(false);
 	let cursor = 0;
 	let es: EventSource | null = null;
 	let removeAppResume: (() => void) | null = null;
@@ -165,6 +171,9 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 					status = b.job.status;
 				}
 			}
+			// Server truth has answered once — non-terminal statuses are now
+			// trustworthy. A failed fetch leaves this false (offline ≠ verified).
+			reconciled = true;
 		} catch {
 			/* offline; SSE will catch up */
 		}
@@ -235,6 +244,12 @@ export function createDispatchStream(traceId: string, opts?: DispatchStreamOpts)
 		get endedAtIso() {
 			return endedAtIso;
 		},
+		get reconciled() {
+			return reconciled;
+		},
+		// Exposed so the pill's stale guard can force a server-truth refetch
+		// past the max-elapsed cap (LOS-196).
+		reconcile,
 		start,
 		destroy
 	};

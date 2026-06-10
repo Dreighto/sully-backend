@@ -143,3 +143,36 @@ export function parsePillTs(s: string | null | undefined): number {
 	if (!/[zZ]|[+-]\d\d:?\d\d$/.test(v)) v += 'Z';
 	return Date.parse(v);
 }
+
+/** Max-elapsed sanity cap (LOS-196): past this, a non-terminal pill stops
+ *  claiming a live elapsed clock and renders the explicit "stale — checking…"
+ *  state while forcing reconcile fetches. */
+export const PILL_STALE_CAP_MS = 45 * 60 * 1000;
+
+export type PillTrust = 'trusted' | 'unverified' | 'stale';
+
+/**
+ * Truth guard (LOS-196): how far the pill may trust a non-terminal status.
+ *   - terminal statuses are always trusted — they only arrive as server truth
+ *     (reconcile job row or SSE __terminal__ frame);
+ *   - a non-terminal status is 'unverified' until the first successful
+ *     reconcile against /api/chat/dispatch/[trace] — the stream's "working"
+ *     default must not read as a confirmed live run (no fake running on
+ *     mount, and no fake running forever when the reconcile fetch fails);
+ *   - past the max-elapsed cap it is 'stale' — render "stale — checking…",
+ *     never a confidently-live clock (no fake running after done).
+ */
+export function derivePillTrust(opts: {
+	terminal: boolean;
+	reconciled: boolean;
+	startedAtIso: string | null | undefined;
+	nowMs: number;
+	capMs?: number;
+}): PillTrust {
+	if (opts.terminal) return 'trusted';
+	if (!opts.reconciled) return 'unverified';
+	const start = parsePillTs(opts.startedAtIso);
+	const cap = opts.capMs ?? PILL_STALE_CAP_MS;
+	if (Number.isFinite(start) && opts.nowMs - start > cap) return 'stale';
+	return 'trusted';
+}
