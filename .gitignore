@@ -8,6 +8,10 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/chat_uploads/
+# Live artifact store (worker-generated files, written at runtime by
+# artifactStore.ts as <repoRoot>/data/sully/artifacts). Operator-only runtime
+# data — never commit; the gate already exempts data/.
+data/sully/
 # Personal data drops — chat exports, voice samples. Treat data/ as
 # operator-only; only schema (in code) is committed, never the files.
 data/*.zip
