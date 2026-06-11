@@ -37,6 +37,8 @@ describe('RunSheet SSR (dispatched-run fixture)', () => {
 		expect(body).toContain('data-testid="run-sheet-state"');
 		expect(body).toContain('data-testid="run-sheet-elapsed"');
 		expect(body).toMatch(/1m3[0-9]s/);
+		// Header state animation: trusted live run hosts the Lottie at sheet scale.
+		expect(body).toContain('data-testid="run-sheet-anim"');
 	});
 
 	it('step timeline renders all six stages with honest statuses', () => {
@@ -120,6 +122,8 @@ describe('RunSheet SSR (dispatched-run fixture)', () => {
 		expect(body).toContain('data-trust="unverified"');
 		expect(body).toContain('data-testid="run-sheet-checking"');
 		expect(body).not.toContain('data-testid="run-sheet-elapsed"');
+		// Truth guard carries to the header animation: unverified wears no motion.
+		expect(body).not.toContain('data-testid="run-sheet-anim"');
 	});
 
 	it('dismiss affordances exist: scrim, close button, drag handle on the sheet', () => {
