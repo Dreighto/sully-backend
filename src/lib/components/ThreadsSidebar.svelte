@@ -14,6 +14,7 @@
 
 	import { base, resolve } from '$app/paths';
 	import {
+		MessageCircle,
 		X,
 		MessageSquarePlus,
 		Pin,
@@ -228,7 +229,7 @@
 						class="w-full rounded-[var(--r-md)] border border-transparent px-3 py-2 text-left transition-all hover:border-white/[0.05] hover:bg-white/[0.04] active:scale-[0.98]"
 					>
 						<div class="mb-0.5 flex items-center gap-1.5">
-							<Hash size={10} class="shrink-0 text-zinc-600" />
+							<MessageCircle size={10} class="shrink-0 text-zinc-600" />
 							<span class="truncate font-sans text-[10px] font-medium text-brand-soft"
 								>{r.thread_title}</span
 							>

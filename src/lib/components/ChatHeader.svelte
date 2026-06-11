@@ -17,7 +17,7 @@
 	// icon's brand-pink active treatment while the modal is open.
 
 	import { base, resolve } from '$app/paths';
-	import { PanelLeft, BookOpen } from 'lucide-svelte';
+	import { PanelLeft, NotebookPen } from 'lucide-svelte';
 
 	let {
 		workspaceContextOpen = $bindable(false),
@@ -75,6 +75,6 @@
 		aria-expanded={workspaceContextOpen}
 		title="Edit the notes Sully sees on every message"
 	>
-		<BookOpen size={16} aria-hidden="true" />
+		<NotebookPen size={16} aria-hidden="true" />
 	</button>
 </header>

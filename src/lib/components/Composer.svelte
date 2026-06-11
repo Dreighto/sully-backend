@@ -39,12 +39,10 @@
 		Send,
 		Paperclip,
 		Sparkles,
-		Headphones,
 		Square,
 		X,
 		Loader2,
 		AudioLines,
-		Plus,
 		ChevronUp,
 		Check,
 		Mic,
@@ -546,7 +544,7 @@
 			     which crowded the textarea to ~150px on iPhone — text
 			     wrapped one word per line. Operator feedback 2026-06-02.
 			     The Plus button rotates 45° when open to feel like a
-			     toggle, and tints brand-pink for affordance. -->
+			     toggle, and brightens for affordance. -->
 			<button
 				type="button"
 				data-popover-trigger
@@ -561,7 +559,7 @@
 				aria-expanded={actionsOpen}
 				title="Attach · Image"
 			>
-				<Plus size={18} />
+				<Paperclip size={17} />
 			</button>
 
 			<!-- Action popup. Anchored to the bottom-left of the composer row
@@ -645,7 +643,7 @@
 				{#if composerMode === 'talkback'}
 					<Square size={14} />
 				{:else}
-					<Headphones size={15} />
+					<AudioLines size={15} />
 				{/if}
 			</button>
 
@@ -684,7 +682,7 @@
 					aria-label="Voice mode"
 					title="Voice mode — talk out loud"
 				>
-					<AudioLines size={16} />
+					<Mic size={16} />
 				</button>
 			{/if}
 		</div>
