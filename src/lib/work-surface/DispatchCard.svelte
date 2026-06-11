@@ -282,8 +282,8 @@
 	   animate from display:none without JS (Safari 17.5+). */
 	:global(.dispatch-card-sheet) {
 		transition:
-			opacity 280ms ease,
-			transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+			opacity var(--dur-slow) ease,
+			transform var(--dur-slow) var(--ease-emphasized);
 		transition-behavior: allow-discrete;
 	}
 	@starting-style {

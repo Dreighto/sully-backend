@@ -7,8 +7,8 @@
 	"scope": "/companion/",
 	"display": "standalone",
 	"orientation": "portrait",
-	"background_color": "#0d1117",
-	"theme_color": "#0d1117",
+	"background_color": "#0b0c10",
+	"theme_color": "#0b0c10",
 	"prefer_related_applications": false,
 	"icons": [
 		{

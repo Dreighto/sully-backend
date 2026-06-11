@@ -110,7 +110,7 @@
 			<img
 				src="{base}/sully-mark.png"
 				alt="Sully"
-				class="h-16 w-16 drop-shadow-[0_0_22px_rgba(236,45,120,0.5)]"
+				class="h-16 w-16 drop-shadow-[0_0_22px_var(--accent-glow)]"
 			/>
 			<div class="font-sans text-base text-zinc-200">Hey Captain — what's on your mind?</div>
 			<div class="font-sans text-xs text-zinc-500">Sully's here. Think out loud.</div>

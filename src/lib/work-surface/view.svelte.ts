@@ -50,14 +50,14 @@ export function createWorkSurfaceView(getOpenSurfaceId: () => string | null) {
 	);
 
 	const pulseDuration = $derived.by(() => {
-		if (activeWorkerCount >= 3) return 0.6;
-		if (activeWorkerCount >= 1) return 1.6;
-		return 2.0;
+		// 0.6s has no ambient token (spec floor is 1s) — kept literal so the
+		// 3+-worker urgency signal doesn't slow down; candidate for a spec rev.
+		if (activeWorkerCount >= 3) return '0.6s';
+		if (activeWorkerCount >= 1) return 'var(--dur-ambient)';
+		return 'var(--dur-ambient-slow)';
 	});
 
-	const mostImportantSurface = $derived(
-		needsYouList[0] ?? runningList[0] ?? doneList[0] ?? null
-	);
+	const mostImportantSurface = $derived(needsYouList[0] ?? runningList[0] ?? doneList[0] ?? null);
 
 	const mostImportantId = $derived(mostImportantSurface?.surfaceId ?? null);
 

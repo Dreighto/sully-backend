@@ -5,7 +5,7 @@
 		hasRunning = false,
 		hasNeedsYou = false,
 		isRecentComplete = false,
-		pulseDuration = 1.6,
+		pulseDuration = 'var(--dur-ambient)',
 		ariaLabel = 'Open Work Surface',
 		onclick
 	}: {
@@ -14,7 +14,7 @@
 		hasRunning?: boolean;
 		hasNeedsYou?: boolean;
 		isRecentComplete?: boolean;
-		pulseDuration?: number;
+		pulseDuration?: string;
 		ariaLabel?: string;
 		onclick?: () => void;
 	} = $props();
@@ -31,7 +31,7 @@
 	{#if hasRunning}
 		<span
 			class="dot-pulse-soft h-2 w-2 rounded-[var(--r-pill)] bg-st-run"
-			style="animation-duration: {pulseDuration}s"
+			style="animation-duration: {pulseDuration}"
 			aria-hidden="true"
 		></span>
 		<span>▶ {runningCount}</span>
@@ -40,7 +40,7 @@
 	{#if hasNeedsYou}
 		<span
 			class="dot-pulse-urgent h-2 w-2 rounded-[var(--r-pill)] bg-st-needs"
-			style="animation-duration: {pulseDuration}s"
+			style="animation-duration: {pulseDuration}"
 			aria-hidden="true"
 		></span>
 		<span>⏸ {needsYouCount} needs you</span>
@@ -59,10 +59,10 @@
 	}
 
 	.dot-pulse-soft {
-		animation: pulse-soft 1.6s ease-in-out infinite;
+		animation: pulse-soft var(--dur-ambient) ease-in-out infinite;
 	}
 	.dot-pulse-urgent {
-		animation: pulse-soft 1s ease-in-out infinite;
+		animation: pulse-soft var(--dur-ambient-fast) ease-in-out infinite;
 	}
 	.dot-pulse-once {
 		animation: pulse-once 6s ease-out forwards;

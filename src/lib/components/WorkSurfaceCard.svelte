@@ -690,7 +690,7 @@
 	}
 
 	.active-ownership-banner {
-		@apply flex items-center gap-2 rounded-[0.875rem] border px-2.5 py-2;
+		@apply flex items-center gap-2 rounded-[var(--r-md)] border px-2.5 py-2;
 		border-color: color-mix(
 			in srgb,
 			var(--worker-color, var(--color-st-run)) 22%,
