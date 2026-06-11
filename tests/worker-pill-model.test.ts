@@ -142,8 +142,11 @@ describe('pillWorker', () => {
 		expect(pillWorker(null, 'sully-123').shortCode).toBe('CC');
 	});
 
-	it('unknown worker id falls through to trace sniffing, then CC', () => {
-		expect(pillWorker('mystery-bot', 'sully-123').shortCode).toBe('CC');
+	it('renders an unknown worker id as itself — never silently CC (LOS-205)', () => {
+		expect(pillWorker('mystery-bot', 'sully-123')).toEqual({
+			shortCode: 'MYST',
+			display: 'mystery-bot'
+		});
 	});
 });
 

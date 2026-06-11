@@ -11,7 +11,7 @@
 //   - 'stopped' (operator abort) is neutral-terminal, distinct from 'failed'
 import type { StreamRow } from '$lib/chat/dispatchReconcile';
 import type { AggrStatus, PhaseKey, PhaseStatus } from '$lib/work-surface/hybrid/hybrid-types';
-import { WORKER_TEMPLATES, inferStageFromAction } from '$lib/work-surface/chatBridge.svelte';
+import { resolveWorkerTemplate, inferStageFromAction } from '$lib/work-surface/chatBridge.svelte';
 
 export interface PillStage {
 	key: PhaseKey;
@@ -107,18 +107,35 @@ export function deriveStageDots(rows: StreamRow[], aggr: AggrStatus): PillStage[
 	return dots;
 }
 
-/** Worker identity for the pill chip. Prefers the job row's worker id (arrives
- *  with the first reconcile); falls back to trace-id sniffing until then. */
+/** Trace-id sniff — the pre-reconcile HINT only (LOS-205): used while the job
+ *  row hasn't arrived yet, never to second-guess a real worker id. Tokenized
+ *  (not substring) so short ids like 'ki' can't match inside unrelated trace
+ *  words. Defaults to CC as the hint of last resort. */
+function sniffWorkerFromTrace(traceId: string): string {
+	const tokens = new Set(traceId.toLowerCase().split(/[^a-z0-9]+/));
+	const hints = [
+		'agy',
+		'antigravity',
+		'gmi',
+		'gemini',
+		'cdx',
+		'codex',
+		'dpsk',
+		'deepseek',
+		'glm',
+		'ki'
+	];
+	for (const hint of hints) if (tokens.has(hint)) return hint;
+	return 'claude-code';
+}
+
+/** Worker identity for the pill chip. The job row's worker id (arrives with
+ *  the first reconcile) is resolved through the canonical alias map — an
+ *  unknown id renders itself, NEVER silently CC (LOS-205 truth guard).
+ *  Trace-id sniffing fills in only until the job row arrives. */
 export function pillWorker(workerId: string | null | undefined, traceId: string): PillWorker {
-	const fromJob = workerId ? WORKER_TEMPLATES[workerId] : undefined;
-	if (fromJob) return { shortCode: fromJob.shortCode, display: fromJob.display };
-	const t = traceId.toLowerCase();
-	let inferred = 'claude-code';
-	if (t.includes('agy') || t.includes('antigravity')) inferred = 'antigravity';
-	else if (t.includes('gmi') || t.includes('gemini')) inferred = 'gemini';
-	else if (t.includes('cdx') || t.includes('codex')) inferred = 'codex';
-	else if (t.includes('dpsk') || t.includes('deepseek')) inferred = 'deepseek';
-	const template = WORKER_TEMPLATES[inferred] ?? WORKER_TEMPLATES['claude-code'];
+	const id = workerId?.trim() ? workerId : sniffWorkerFromTrace(traceId);
+	const template = resolveWorkerTemplate(id);
 	return { shortCode: template.shortCode, display: template.display };
 }
 

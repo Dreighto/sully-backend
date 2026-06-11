@@ -172,11 +172,14 @@
 		const id = (identity || '').toLowerCase();
 		const code = (shortCode || '').toUpperCase();
 		if (id === 'claude-code' || code === 'CC') return 'icon-claude';
-		if (id === 'antigravity' || code === 'AGY') return 'icon-antigravity';
-		if (id === 'codex' || code === 'CDX') return 'icon-cdx';
-		if (id === 'gemini' || code === 'GMI') return 'icon-gmi';
-		if (id === 'deepseek' || code === 'DPSK') return 'icon-deepseek';
+		if (id === 'agy' || id === 'antigravity' || code === 'AGY') return 'icon-antigravity';
+		if (id === 'cdx' || id === 'codex' || code === 'CDX') return 'icon-cdx';
+		if (id === 'gmi' || id === 'gemini' || code === 'GMI') return 'icon-gmi';
+		if (id === 'dpsk' || id === 'deepseek' || code === 'DPSK') return 'icon-deepseek';
 		if (id === 'cursor' || code === 'CUR') return 'icon-cursor';
+		// glm / ki: no approved brand glyph yet — neutral worker mark, never the
+		// role-fallback below (Build→AGY mark = the LOS-205 masquerade).
+		if (id === 'glm' || code === 'GLM' || id === 'ki' || code === 'KI') return 'icon-worker';
 		if (!role) return 'icon-system';
 		switch (role) {
 			case 'Research':

@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from '$lib/server/config';
-import { WORKER_TEMPLATES } from '$lib/work-surface/chatBridge.svelte';
+import { resolveWorkerTemplate } from '$lib/work-surface/chatBridge.svelte';
 import { findStoreDir, readManifest, artifactRepoRoot } from '$lib/server/artifactStore';
 
 const FILE_ACTIONS = new Set(['wrote_file', 'created_artifact', 'write_file']);
@@ -99,7 +99,8 @@ const DEFAULT_WORKSPACE =
 const APP_BASE = '/companion';
 
 function workerShortCode(workerId: string): string {
-	return WORKER_TEMPLATES[workerId]?.shortCode ?? workerId.slice(0, 8).toUpperCase();
+	// LOS-205: alias-aware; an unknown id renders itself (≤4 chars), never CC.
+	return resolveWorkerTemplate(workerId).shortCode;
 }
 
 export function classifyArtifactType(ext: string): string {

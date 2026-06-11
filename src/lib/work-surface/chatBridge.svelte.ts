@@ -23,6 +23,13 @@ const PIPELINE_STAGES: PipelineStage[] = ['Read', 'Research', 'Build', 'Check', 
 // rendering as the AGY mark (operator caught 2026-06-07 in his "build me a
 // mockup" surface). Identity always wins over role; role-fallback is only
 // for unknown identities.
+//
+// Keys are the KERNEL worker ids — the exact strings the dispatch listener's
+// allowlist accepts and pending_jobs.worker carries. LOS-205: the old long-name
+// keys ('gemini', 'deepseek', …) missed every short-id lookup ('gmi', 'dpsk')
+// and the CC fallback dressed real workers as Claude Code. PARITY: must cover
+// every dispatchable name in $lib/server/worker-registry — guarded by
+// tests/worker-label-truth.test.ts.
 export const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'>> = {
 	'claude-code': {
 		identity: 'claude-code',
@@ -31,13 +38,36 @@ export const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'
 		role: 'Build',
 		icon: 'icon-claude'
 	},
-	antigravity: {
-		identity: 'antigravity',
+	agy: {
+		identity: 'agy',
 		shortCode: 'AGY',
 		display: 'Antigravity',
 		role: 'Build',
 		icon: 'icon-antigravity'
 	},
+	cdx: {
+		identity: 'cdx',
+		shortCode: 'CDX',
+		display: 'Codex',
+		role: 'Review',
+		icon: 'icon-cdx'
+	},
+	gmi: {
+		identity: 'gmi',
+		shortCode: 'GMI',
+		display: 'Gemini',
+		role: 'Build',
+		icon: 'icon-gmi'
+	},
+	dpsk: {
+		identity: 'dpsk',
+		shortCode: 'DPSK',
+		display: 'DeepSeek',
+		role: 'Build',
+		icon: 'icon-deepseek'
+	},
+	// Legacy gemini-cli worker — still kernel-allowlisted, distinct from 'gmi'
+	// (Gemini via aider). Same brand visuals, separate identity.
 	gemini: {
 		identity: 'gemini',
 		shortCode: 'GMI',
@@ -45,30 +75,73 @@ export const WORKER_TEMPLATES: Record<string, Omit<TaskWorker, 'status' | 'step'
 		role: 'Build',
 		icon: 'icon-gmi'
 	},
-	codex: {
-		identity: 'codex',
-		shortCode: 'CDX',
-		display: 'Codex',
-		role: 'Review',
-		icon: 'icon-cdx'
-	},
-	deepseek: {
-		identity: 'deepseek',
-		shortCode: 'DPSK',
-		display: 'DeepSeek',
+	// glm / ki have brand colours (workerVisual.ts) but no approved brand glyph
+	// or reveal Lottie yet — they wear the neutral worker mark, NOT another
+	// worker's brand (that's the masquerade this ticket kills).
+	glm: {
+		identity: 'glm',
+		shortCode: 'GLM',
+		display: 'GLM 4.6',
 		role: 'Build',
-		icon: 'icon-deepseek'
+		icon: 'icon-worker'
+	},
+	ki: {
+		identity: 'ki',
+		shortCode: 'KI',
+		display: 'Qwen3-Coder',
+		role: 'Build',
+		icon: 'icon-worker'
 	}
 };
 
-/** Read `@cc / @agy / @gemini` mentions from the proposal text. Default to CC. */
+/** Long-name aliases → kernel ids. Mirrors the alias sets in
+ *  $lib/server/worker-registry — the pre-LOS-191 long names still appear in
+ *  old job rows, trace ids and operator text. */
+export const WORKER_ALIASES: Record<string, string> = {
+	claude: 'claude-code',
+	antigravity: 'agy',
+	codex: 'cdx',
+	deepseek: 'dpsk',
+	'gemini-cli': 'gemini'
+};
+
+/**
+ * THE single resolver from any worker id — kernel id, long-name alias, or an
+ * id we've never heard of — to a display template. Every label site
+ * (pillModel, surfaceAdapter, artifact attribution, this bridge) routes
+ * through here. Honest-unknown truth guard (LOS-205): an id with no template
+ * renders ITSELF (uppercased ≤4-char code + raw id), never a silent
+ * Claude Code masquerade.
+ */
+export function resolveWorkerTemplate(rawId: string): Omit<TaskWorker, 'status' | 'step'> {
+	const raw = rawId.trim();
+	const id = raw.toLowerCase();
+	const template = WORKER_TEMPLATES[WORKER_ALIASES[id] ?? id];
+	if (template) return template;
+	// Display truth: render the id exactly as it arrived (CR finding, PR #59) —
+	// only the lookup key is case-folded.
+	return {
+		identity: id,
+		shortCode: raw.toUpperCase().slice(0, 4) || '??',
+		display: raw || 'unknown',
+		role: 'Build',
+		icon: 'icon-worker'
+	};
+}
+
+/** Read `@cc / @agy / @gmi…` mentions from the proposal text — a pre-dispatch
+ *  HINT only (the job row's real worker id wins once it arrives). Returns a
+ *  kernel worker id; defaults to CC when nothing is named. */
 function inferWorkerIdentity(text: string): string {
 	const lower = text.toLowerCase();
 	if (lower.includes('@cc') || lower.includes('claude code')) return 'claude-code';
-	if (lower.includes('@agy') || lower.includes('antigravity')) return 'antigravity';
-	if (lower.includes('@gmi') || lower.includes('@gemini')) return 'gemini';
-	if (lower.includes('@cdx') || lower.includes('codex')) return 'codex';
-	if (lower.includes('@dpsk') || lower.includes('deepseek')) return 'deepseek';
+	if (lower.includes('@agy') || lower.includes('antigravity')) return 'agy';
+	if (lower.includes('@gmi')) return 'gmi';
+	if (lower.includes('@gemini') || lower.includes('gemini')) return 'gemini';
+	if (lower.includes('@cdx') || lower.includes('codex')) return 'cdx';
+	if (lower.includes('@dpsk') || lower.includes('deepseek')) return 'dpsk';
+	if (lower.includes('@glm') || lower.includes('glm')) return 'glm';
+	if (lower.includes('@ki') || lower.includes('qwen')) return 'ki';
 	return 'claude-code';
 }
 
@@ -140,7 +213,7 @@ export interface InitialTaskInput {
 /** Build a minimal initial WorkSurfaceTask. State=Reading, stage=Read, one active worker. */
 export function buildInitialTaskFromProposal(input: InitialTaskInput): WorkSurfaceTask {
 	const workerId = inferWorkerIdentity(input.proposalText);
-	const template = WORKER_TEMPLATES[workerId] ?? WORKER_TEMPLATES['claude-code'];
+	const template = resolveWorkerTemplate(workerId);
 	const worker: TaskWorker = {
 		...template,
 		status: 'active',

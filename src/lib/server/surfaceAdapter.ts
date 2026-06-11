@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { serverConfig } from './config';
-import { WORKER_TEMPLATES, inferStageFromAction } from '$lib/work-surface/chatBridge.svelte';
+import { resolveWorkerTemplate, inferStageFromAction } from '$lib/work-surface/chatBridge.svelte';
 import { workerBrandColor } from '$lib/utils/workerVisual';
 import type {
 	AggrStatus,
@@ -119,9 +119,11 @@ function mapJobStatusToAggrStatus(status: string): AggrStatus {
 }
 
 function buildWorkers(workerId: string, aggrStatus: string, activityRows: any[]): SeedWorker[] {
-	const template = WORKER_TEMPLATES[workerId] || WORKER_TEMPLATES['claude-code'];
-	const fallbackTemplate = WORKER_TEMPLATES['claude-code'];
-	const color = workerBrandColor(workerId, template.shortCode);
+	// LOS-205: resolve through the canonical alias map — kernel short ids
+	// ('dpsk', 'gmi', …) hit their own template, and an unknown id renders
+	// itself, never a silent CC masquerade.
+	const template = resolveWorkerTemplate(workerId);
+	const color = workerBrandColor(template.identity, template.shortCode);
 
 	// Get latest action
 	const latestActionRow = [...activityRows].reverse().find((row) => row.action);
@@ -166,7 +168,7 @@ function buildWorkers(workerId: string, aggrStatus: string, activityRows: any[])
 		{
 			id: workerId,
 			shortcode: template.shortCode,
-			iconId: template.icon ?? fallbackTemplate.icon ?? 'icon-claude',
+			iconId: template.icon ?? 'icon-worker',
 			color,
 			status: workerStatus,
 			currentStep,

@@ -87,8 +87,21 @@ describe('pillAnimFor', () => {
 });
 
 describe('BRAND_REVEALS', () => {
+	// glm / ki have no operator-approved reveal Lottie yet (LOS-205): the pill
+	// intro resolves null and skips cleanly (WorkerPill `?? null`). They must
+	// stay ABSENT — borrowing another worker's reveal is the brand masquerade
+	// this set exists to prevent.
+	const NO_REVEAL_ASSET_YET = new Set(['GLM', 'KI']);
+
 	it('covers every roster identity in WORKER_TEMPLATES (intro never dangles)', () => {
 		for (const tpl of Object.values(WORKER_TEMPLATES)) {
+			if (NO_REVEAL_ASSET_YET.has(tpl.shortCode)) {
+				expect(
+					BRAND_REVEALS[tpl.shortCode],
+					`${tpl.shortCode} must not borrow a reveal`
+				).toBeUndefined();
+				continue;
+			}
 			expect(BRAND_REVEALS[tpl.shortCode], `missing reveal for ${tpl.shortCode}`).toBeTruthy();
 		}
 	});

@@ -62,6 +62,21 @@
 			/>
 		</symbol>
 
+		<!-- Generic worker — neutral terminal-prompt mark for identities without
+		     an approved brand glyph yet (glm, ki, honest-unknown ids). Deliberately
+		     NOT another worker's brand: wearing a wrong mark is the masquerade
+		     LOS-205 kills. Tinted by --worker-color like every other mark. -->
+		<symbol id="icon-worker" viewBox="0 0 24 24">
+			<path
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.8"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				d="M5 7l5 5-5 5M13 17h6"
+			/>
+		</symbol>
+
 		<!-- Task focal — central work-surface mark. Four-point sparkle reads as
 		     "the focal point" without literal task semantics. -->
 		<symbol id="icon-task" viewBox="0 0 24 24">
