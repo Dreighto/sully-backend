@@ -97,11 +97,15 @@
 	let {
 		content,
 		inline = false,
+		streaming = false,
 		oncanvas,
 		onimagepreview
 	}: {
 		content: string;
 		inline?: boolean;
+		/** True while this message is the in-flight stream target — appends the
+		 *  approved pulsing --live cursor to the rendered output. */
+		streaming?: boolean;
 		oncanvas?: (code: string, language: string) => void;
 		/** Fired when an inline image is tapped — opens the full-viewport
 		 *  preview overlay. Operator feedback 2026-06-02: the in-feed image
@@ -186,7 +190,7 @@
 		const raw = inline
 			? marked.parseInline(content || '', { async: false })
 			: marked.parse(content || '', { async: false });
-		rendered = DOMPurify.sanitize(String(raw), {
+		let html = DOMPurify.sanitize(String(raw), {
 			// Conservative allowlist. We render trusted-but-cautious content.
 			ALLOWED_TAGS: [
 				'p',
@@ -256,6 +260,15 @@
 			// Force all links to open in a new tab safely.
 			FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick']
 		});
+		// Approved streaming cursor: a soft --live block pulsing at the end of
+		// the in-flight reply. Injected AFTER sanitize (trusted constant), inside
+		// the last block element so it rides the text baseline.
+		if (streaming) {
+			const CURSOR = '<span class="md-stream-cursor" aria-hidden="true"></span>';
+			const injected = html.replace(/<\/(p|li|h[1-6]|td)>\s*$/, `${CURSOR}</$1>`);
+			html = injected === html ? html + CURSOR : injected;
+		}
+		rendered = html;
 	});
 </script>
 
@@ -274,6 +287,26 @@
 {/if}
 
 <style>
+	.md-content :global(.md-stream-cursor) {
+		display: inline-block;
+		width: 7px;
+		height: 1em;
+		margin-left: 3px;
+		border-radius: 2px;
+		background: var(--live);
+		vertical-align: text-bottom;
+		animation: md-cursor-blink 1.05s ease-in-out infinite;
+	}
+	@keyframes md-cursor-blink {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.25;
+		}
+	}
+
 	/* Scoped to the rendered markdown only. Inherits color/size from the parent
 	   bubble — we just style the markdown shapes (p, code, lists, etc.). */
 	.md-content :global(p) {

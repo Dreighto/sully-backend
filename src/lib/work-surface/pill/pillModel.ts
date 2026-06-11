@@ -178,6 +178,18 @@ export function pillAnimFor(opts: {
 	}
 }
 
+/** Operator-approved brand-reveal Lotties (primary per worker) — played ONCE
+ *  as the pill's mount intro for live, trusted runs, then the working-state
+ *  animation takes over. Keyed by the pill chip's shortCode. */
+export const BRAND_REVEALS: Record<string, string> = {
+	CC: 'brand/brand-claude-reveal.json',
+	AGY: 'brand/brand-antigravity-reveal.json',
+	CDX: 'brand/brand-codex-reveal.json',
+	GMI: 'brand/brand-gemini-bloom.json',
+	DPSK: 'brand/brand-deepseek-reveal.json',
+	CUR: 'brand/brand-cursor-assemble.json'
+};
+
 /** Compact mono elapsed: 42s → 3m12s → 1h04m. Tabular-nums friendly. */
 export function fmtElapsed(ms: number): string {
 	if (!Number.isFinite(ms) || ms < 0) return '';

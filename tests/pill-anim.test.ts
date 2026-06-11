@@ -2,7 +2,8 @@
 // The truth-guard rules matter more than the file names: no motion on
 // unverified/stale pills, no motion on stopped, terminal anims don't loop.
 import { describe, expect, it } from 'vitest';
-import { pillAnimFor, type PillStage } from '../src/lib/work-surface/pill/pillModel';
+import { BRAND_REVEALS, pillAnimFor, type PillStage } from '../src/lib/work-surface/pill/pillModel';
+import { WORKER_TEMPLATES } from '../src/lib/work-surface/chatBridge.svelte';
 
 const stages = (active: string | null): PillStage[] =>
 	['read', 'research', 'build', 'check', 'approve', 'reply'].map((key) => ({
@@ -82,5 +83,13 @@ describe('pillAnimFor', () => {
 		});
 		expect(done).toEqual({ file: 'worker-done-check.json', loop: false });
 		expect(failed).toEqual({ file: 'worker-failed-x.json', loop: false });
+	});
+});
+
+describe('BRAND_REVEALS', () => {
+	it('covers every roster identity in WORKER_TEMPLATES (intro never dangles)', () => {
+		for (const tpl of Object.values(WORKER_TEMPLATES)) {
+			expect(BRAND_REVEALS[tpl.shortCode], `missing reveal for ${tpl.shortCode}`).toBeTruthy();
+		}
 	});
 });

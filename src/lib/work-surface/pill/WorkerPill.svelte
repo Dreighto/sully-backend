@@ -32,7 +32,8 @@
 		fmtElapsed,
 		parsePillTs,
 		derivePillTrust,
-		pillAnimFor
+		pillAnimFor,
+		BRAND_REVEALS
 	} from './pillModel';
 	import WorkerStateAnim from './WorkerStateAnim.svelte';
 
@@ -133,8 +134,23 @@
 	// `anim` is a fresh object whenever `stages` recomputes (every stream row),
 	// so the component consumes file/loop strings to avoid player churn.
 	const anim = $derived(pillAnimFor({ status, aggr, stages, trust }));
-	const animFile = $derived(anim?.file ?? null);
-	const animLoop = $derived(anim?.loop ?? true);
+
+	// Approved brand reveal as the mount intro: plays once when a LIVE, TRUSTED
+	// run appears (dispatch confirmation), then the state animation takes over.
+	// Terminal or unverified pills skip it — same truth guards as pillAnimFor.
+	let introActive = $state(false);
+	$effect(() => {
+		if (terminal || trust !== 'trusted') {
+			introActive = false;
+			return;
+		}
+		introActive = true;
+		const t = setTimeout(() => (introActive = false), 2900);
+		return () => clearTimeout(t);
+	});
+	const introFile = $derived(introActive ? (BRAND_REVEALS[who.shortCode] ?? null) : null);
+	const animFile = $derived(introFile ?? anim?.file ?? null);
+	const animLoop = $derived(introFile ? false : (anim?.loop ?? true));
 </script>
 
 <div

@@ -167,7 +167,12 @@
 						{#if m.sender === 'operator'}
 							<span class="whitespace-pre-wrap">{m.message}</span>
 						{:else}
-							<Markdown content={m.message} oncanvas={openCanvas} {onimagepreview} />
+							<Markdown
+								content={m.message}
+								streaming={streamState?.placeholderId === m.id}
+								oncanvas={openCanvas}
+								{onimagepreview}
+							/>
 						{/if}
 					</div>
 
