@@ -18,6 +18,7 @@
 
 	import { base, resolve } from '$app/paths';
 	import { PanelLeft, NotebookPen } from 'lucide-svelte';
+	import SullyButton from './sully/SullyButton.svelte';
 
 	let {
 		workspaceContextOpen = $bindable(false),
@@ -36,15 +37,19 @@
 >
 	<!-- Left cluster: sidebar toggle (mobile-only) + Sully identity. -->
 	<div class="flex shrink-0 items-center gap-1.5">
-		<button
-			type="button"
+		<!-- LOS-204 leaf-site proof: SullyButton quiet variant, round via the
+		     --sully-btn-r escape hatch (locked tokens only). -->
+		<SullyButton
+			variant="quiet"
+			size="sm"
 			onclick={ontoggleSidebar}
-			class="flex h-11 w-11 items-center justify-center rounded-[var(--r-pill)] text-zinc-400 transition-all hover:bg-white/[0.06] hover:text-white active:scale-90 sm:h-9 sm:w-9 lg:hidden"
+			class="h-11 w-11 sm:h-9 sm:w-9 lg:hidden"
+			style="--sully-btn-r: var(--r-pill)"
 			aria-label="Toggle Sessions Sidebar"
 			title="Toggle Sessions Sidebar"
 		>
 			<PanelLeft size={16} />
-		</button>
+		</SullyButton>
 
 		<a
 			href={resolve('/')}

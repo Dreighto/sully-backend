@@ -1,4 +1,9 @@
 <script lang="ts">
+	// LOS-204 leaf-site proof: the shell is the SullyCard primitive
+	// (--surface-card / --line / --r-lg / --shadow-card) — replaces the old
+	// dashed-transparent ad-hoc shell. Inner layout (flex, gap, padding,
+	// md:col-span-2) stays at the call site per the card's shell-only contract.
+	import SullyCard from './sully/SullyCard.svelte';
 	import type { WorkSurfaceTask } from '$lib/types/workSurface';
 
 	let { task }: { task: WorkSurfaceTask } = $props();
@@ -37,7 +42,7 @@
 </script>
 
 {#if task.proof}
-	<div class="proof-card">
+	<SullyCard class="flex flex-col gap-1.5 p-3 md:col-span-2" data-testid="proof-card">
 		<div class="proof-header">
 			<h4 class="proof-verdict">
 				Proof: <span class={getVerdictClass(task.proof.verdict)}>{task.proof.verdict}</span>
@@ -63,16 +68,11 @@
 				{/each}
 			</ul>
 		{/if}
-	</div>
+	</SullyCard>
 {/if}
 
 <style lang="postcss">
 	@reference "../../app.css";
-	.proof-card {
-		@apply flex flex-col gap-1.5 rounded-[var(--r-xs)] border border-dashed border-border bg-transparent p-3;
-		@apply md:col-span-2; /* Make proof card span two columns on md screens */
-	}
-
 	.proof-header {
 		@apply flex justify-between text-xs font-semibold text-white;
 	}
