@@ -32,8 +32,10 @@
 // (absent from the TS DOM lib).
 
 import { base, resolve } from '$app/paths';
+import { dev } from '$app/environment';
 import { toasts } from '$lib/utils/toasts';
 import { parseSttMessage, isTalkbackStopWord, buildVoiceWsUrl } from '$lib/chat/stt-bridge';
+import { createTranscriptGate, STALE_ID } from '$lib/chat/transcript-gate';
 import type { Tier, ComposerMode, TalkbackPhase, ChatMessage } from '$lib/types/chat-ui';
 
 // LOS-174 (T1a): route the in-composer Talkback STT through the local Jetson
@@ -142,8 +144,14 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 	let talkbackStreaming = false; // gate: ship worklet PCM only while capturing
 	let talkbackServicesStarted = false; // we started the on-demand GPU STT unit
 	let talkbackWsPath = '/companion-voice';
-	let talkbackFinalResolver: ((text: string) => void) | null = null;
+	// Pending capture-turn resolver, tagged with the turn id it was armed with
+	// (LOS-203) so a stale `final` — queued from an old connection or arriving
+	// after a stop boundary — can never resolve the current turn.
+	let talkbackFinalResolver: { id: number; resolve: (text: string) => void } | null = null;
 	let talkbackLastVoiceTs = 0; // timestamp of last non-empty utterance (silence auto-stop)
+	// LOS-203 transcript gating: trim/empty/visible-character checks + the
+	// monotonically increasing session/turn id that staleness is judged against.
+	const gate = createTranscriptGate('talkback', dev);
 
 	// Readiness ack + offline down-cache (LOS-181).
 	// `connecting` gates re-entrancy while a bring-up is in flight (the instant
@@ -300,12 +308,18 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		// session that's being stopped (manual Disconnect or page teardown). Also
 		// tear down the instant-ack window.
 		bringUpGen++;
+		// LOS-203: stale every outstanding capture-turn/socket id so a queued
+		// `final` arriving after this stop can never resolve into a later session.
+		gate.invalidate();
 		connecting = false;
 		clearWarmingTimer();
 		active = false;
 		deps.setComposerMode('idle');
 		phase = null;
 		talkbackDispatchMsgId = null;
+		// LOS-203: explicit stop-boundary clear — no transcript survives a session
+		// boundary (the per-turn clear in beginTalkbackCapture doesn't cover stop).
+		talkbackTranscriptBuffer = '';
 		talkbackStopCapture();
 		await teardownTalkbackBridge();
 		talkbackTtsAbortController?.abort();
@@ -408,6 +422,11 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		} catch {
 			/* continuous without lock */
 		}
+		// LOS-203: explicit session-start clears — nothing captured before this
+		// boundary (a prior session's buffer or a resolver left by a teardown
+		// race) may leak into the new session.
+		talkbackTranscriptBuffer = '';
+		talkbackFinalResolver = null;
 		active = true;
 		deps.setComposerMode('talkback');
 		talkbackConsecutiveFailures = 0;
@@ -498,6 +517,10 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 			);
 			socket.binaryType = 'arraybuffer';
 			talkbackWs = socket;
+			// LOS-203: tag THIS connection's message handler with a fresh session id.
+			// After a reconnect, a queued final delivered by the OLD socket carries
+			// the old (invalidated) id and is dropped before it can resolve anything.
+			const sessionId = gate.begin();
 			let settled = false;
 			const openTimer = setTimeout(() => {
 				if (!settled) {
@@ -517,11 +540,11 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 						sampleRate: talkbackMicCtx?.sampleRate ?? 48000,
 						continuous: true
 					});
-					socket.onmessage = onTalkbackWsMessage;
+					socket.onmessage = (ev2) => onTalkbackWsMessage(ev2, sessionId);
 					res();
 					return;
 				}
-				onTalkbackWsMessage(ev);
+				onTalkbackWsMessage(ev, sessionId);
 			};
 			socket.onerror = () => {
 				if (!settled) {
@@ -538,13 +561,24 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 		});
 	}
 
-	function onTalkbackWsMessage(ev: MessageEvent) {
+	function onTalkbackWsMessage(ev: MessageEvent, sessionId: number) {
 		const m = parseSttMessage(ev.data);
 		switch (m.type) {
-			case 'final':
-				// Resolve the in-flight capture turn with the server's transcript.
-				talkbackFinalResolver?.(m.text ?? '');
+			case 'final': {
+				// LOS-203: gate the final before it can resolve the capture turn. A
+				// final is stale when its connection's session id has been invalidated
+				// (stop / teardown / reconnect) or no capture turn is pending — it
+				// then never touches the resolver. An EMPTY final from a live turn
+				// still finishes the turn (the loop re-arms); only the trimmed,
+				// visible-character-checked text ever reaches dispatch.
+				const pending = talkbackFinalResolver;
+				const taggedId = pending && gate.isLive(sessionId) ? pending.id : STALE_ID;
+				const result = gate.gateFinal(m.text, taggedId);
+				if (result.decision !== 'dropped-stale' && pending) {
+					pending.resolve(result.text);
+				}
 				break;
+			}
 			case 'error':
 				if (active) void failTalkback('Voice recognition error — Talkback stopped');
 				break;
@@ -592,10 +626,15 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 			// Per-turn cap: if server VAD never sends a `final` (e.g. pure silence),
 			// resolve empty so the loop re-arms instead of hanging.
 			const maxTimer = setTimeout(() => finish(''), TALKBACK_MAX_CAPTURE_MS);
-			// A `final` from the WS clears the cap and finalizes the turn.
-			talkbackFinalResolver = (text: string) => {
-				clearTimeout(maxTimer);
-				finish(text);
+			// A `final` from the WS clears the cap and finalizes the turn. The
+			// resolver is tagged with a fresh turn id (LOS-203) so a final arriving
+			// after a stop/teardown boundary is judged stale and never resolves it.
+			talkbackFinalResolver = {
+				id: gate.begin(),
+				resolve: (text: string) => {
+					clearTimeout(maxTimer);
+					finish(text);
+				}
 			};
 			talkbackWsSend({ type: 'reset' });
 			talkbackStreaming = true;
@@ -614,6 +653,9 @@ export function createVoiceController(deps: VoiceDeps): VoiceController {
 	// service if we started it. Safe to call when nothing is up (legacy path /
 	// already torn down) — every ref is null-guarded.
 	async function teardownTalkbackBridge() {
+		// LOS-203: every teardown is a staleness boundary — ids issued before it
+		// (the socket's session id, any pending turn id) must never resolve after.
+		gate.invalidate();
 		talkbackStreaming = false;
 		talkbackFinalResolver = null;
 		if (talkbackWs) {

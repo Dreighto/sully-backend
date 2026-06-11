@@ -34,6 +34,8 @@
 
 import { base } from '$app/paths';
 import { resolve } from '$app/paths';
+import { dev } from '$app/environment';
+import { createTranscriptGate, STALE_ID } from '$lib/chat/transcript-gate';
 import type { VoicePhase } from '$lib/types/chat-ui';
 
 // The page-owned bits the voice controller needs. Reads are getters; the one
@@ -120,9 +122,7 @@ interface VoiceConfig {
 	continuousDefault?: boolean;
 }
 
-export function createRealtimeVoiceController(
-	deps: RealtimeVoiceDeps
-): RealtimeVoiceController {
+export function createRealtimeVoiceController(deps: RealtimeVoiceDeps): RealtimeVoiceController {
 	// ── Reactive UI state ────────────────────────────────────────────────
 	let open = $state(false);
 	let phase = $state<VoicePhase>('idle');
@@ -151,6 +151,14 @@ export function createRealtimeVoiceController(
 	let micCtx: AudioContext | null = null;
 	let workletNode: AudioWorkletNode | null = null;
 	let micSource: MediaStreamAudioSourceNode | null = null;
+	// LOS-203 transcript gating: trim/empty/visible-character checks + the
+	// monotonically increasing session/turn id staleness is judged against.
+	// `currentTurnId` is captured at each capture-turn start (beginListening);
+	// the WS message handler carries the id captured at socket open. A final is
+	// dropped unless BOTH are still live — so a queued final from an old
+	// connection, or one landing after exit/restart, never dispatches.
+	const gate = createTranscriptGate('realtime', dev);
+	let currentTurnId = STALE_ID;
 
 	// ── Reply stream (imperative) ────────────────────────────────────────
 	let replyAbort: AbortController | null = null;
@@ -354,7 +362,7 @@ export function createRealtimeVoiceController(
 	// STT WebSocket + mic
 	// ──────────────────────────────────────────────────────────────────────
 
-	function onWsMessage(ev: MessageEvent) {
+	function onWsMessage(ev: MessageEvent, sessionId: number) {
 		if (typeof ev.data !== 'string') return;
 		let m: { type?: string; text?: string; error?: string };
 		try {
@@ -368,7 +376,7 @@ export function createRealtimeVoiceController(
 				if (phase === 'listening') partial = m.text ?? '';
 				break;
 			case 'final':
-				handleFinal(m.text ?? '');
+				handleFinal(m.text ?? '', sessionId);
 				break;
 			case 'error':
 				errorMsg = m.error ?? 'Speech recognition error.';
@@ -377,18 +385,25 @@ export function createRealtimeVoiceController(
 		}
 	}
 
-	function handleFinal(text: string) {
+	function handleFinal(text: string, sessionId: number) {
+		// LOS-203: gate the final BEFORE it can touch any state. Stale = the
+		// delivering connection's session id or the current capture turn's id has
+		// been invalidated (exit / restart / reconnect) — drop without touching
+		// `userText` or starting a reply. Content gating (trim, empty/whitespace,
+		// no visible characters) keeps a junk final from ever dispatching.
+		const live = gate.isLive(sessionId) && gate.isLive(currentTurnId);
+		const result = gate.gateFinal(text, live ? currentTurnId : STALE_ID);
+		if (result.decision === 'dropped-stale') return;
 		partial = '';
-		const t = text.trim();
-		userText = t;
-		if (!t) {
+		userText = result.text;
+		if (!result.text) {
 			// Nothing intelligible heard. In continuous mode re-arm listening so the
 			// hands-free loop keeps going; in PTT drop back to idle for the next press.
 			if (mode === 'continuous' && !muted && open) beginListening();
 			else if (phase === 'thinking' || phase === 'listening') phase = 'idle';
 			return;
 		}
-		void startReply(t);
+		void startReply(result.text);
 	}
 
 	function connectWs(): Promise<void> {
@@ -399,6 +414,11 @@ export function createRealtimeVoiceController(
 			const socket = new WebSocket(`${proto}://${location.host}${wsPath}`);
 			socket.binaryType = 'arraybuffer';
 			ws = socket;
+			// LOS-203: tag THIS connection's message handler with a fresh session id.
+			// After a reconnect, a queued final delivered by the OLD socket carries
+			// the old (invalidated) id and is dropped before it can touch the new
+			// session's state.
+			const sessionId = gate.begin();
 			let settled = false;
 			const openTimer = setTimeout(() => {
 				if (!settled) {
@@ -422,11 +442,11 @@ export function createRealtimeVoiceController(
 					} catch {
 						/* will surface on first send */
 					}
-					socket.onmessage = onWsMessage;
+					socket.onmessage = (ev2) => onWsMessage(ev2, sessionId);
 					res();
 					return;
 				}
-				onWsMessage(ev);
+				onWsMessage(ev, sessionId);
 			};
 			socket.onerror = () => {
 				if (!settled) {
@@ -436,6 +456,9 @@ export function createRealtimeVoiceController(
 				}
 			};
 			socket.onclose = () => {
+				// LOS-203: a closed connection is a staleness boundary — any final
+				// still queued from it must never resolve into a later session.
+				gate.invalidate();
 				if (open && phase !== 'error') {
 					errorMsg = 'Speech connection dropped.';
 					phase = 'error';
@@ -607,7 +630,15 @@ export function createRealtimeVoiceController(
 		open = false;
 		holding = false;
 		muted = false;
+		// LOS-203: explicit close-boundary clears + staleness boundary. No
+		// transcript state (partial, finalized utterance, streaming reply) and no
+		// outstanding session/turn id survives the overlay closing — a queued
+		// final landing after this point is judged stale and dropped.
+		gate.invalidate();
+		currentTurnId = STALE_ID;
 		partial = '';
+		userText = '';
+		replyText = '';
 
 		abortReply();
 		stopPlayback();
@@ -669,6 +700,9 @@ export function createRealtimeVoiceController(
 	// reset the server buffer + VAD, open the mic gate. Shared by the PTT press,
 	// the continuous auto-loop, mute-release, and barge-in.
 	function beginListening() {
+		// LOS-203: a fresh turn id per capture turn — finals are only accepted
+		// while the turn that armed them is still the latest live one.
+		currentTurnId = gate.begin();
 		replyText = '';
 		userText = '';
 		partial = '';
@@ -725,7 +759,11 @@ export function createRealtimeVoiceController(
 		abortReply();
 		stopPlayback();
 		// Re-inform the server so it enables/disables VAD auto-endpointing.
-		wsSend({ type: 'config', sampleRate: micCtx?.sampleRate ?? 48000, continuous: mode === 'continuous' });
+		wsSend({
+			type: 'config',
+			sampleRate: micCtx?.sampleRate ?? 48000,
+			continuous: mode === 'continuous'
+		});
 		if (mode === 'continuous' && !muted) beginListening();
 		else {
 			wsSend({ type: 'reset' });
