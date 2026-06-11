@@ -204,7 +204,7 @@
 		min-width: 0;
 	}
 	.canvas-title {
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.72rem;
 		font-weight: 500;
 		letter-spacing: 0.04em;
@@ -215,7 +215,7 @@
 		text-overflow: ellipsis;
 	}
 	.canvas-meta {
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.65rem;
 		color: rgb(255 255 255 / 0.4);
 	}
@@ -235,15 +235,15 @@
 		border: 1px solid rgb(255 255 255 / 0.1);
 		border-radius: var(--r-xs);
 		color: rgb(255 255 255 / 0.7);
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.65rem;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
 		cursor: pointer;
 		transition:
-			background 120ms,
-			color 120ms,
-			border-color 120ms;
+			background var(--dur-fast),
+			color var(--dur-fast),
+			border-color var(--dur-fast);
 	}
 	.canvas-btn:hover {
 		background: rgb(255 255 255 / 0.05);
@@ -262,7 +262,7 @@
 	.canvas-pre {
 		margin: 0;
 		padding: 1rem 1.1rem max(1rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.82rem;
 		line-height: 1.5;
 		color: rgb(229 231 235);

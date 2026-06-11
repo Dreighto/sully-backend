@@ -150,10 +150,10 @@
 	}
 
 	/* Celebration pulse — one-shot expanding ring on Complete transition.
-	   Fires once, decays over 1.6s, then handed off to rest-breath. */
+	   Fires once, decays over the ambient cycle, then handed off to rest-breath. */
 	.celebrate-pulse {
 		transform-origin: 70px 70px;
-		animation: celebrate-pulse 1.6s ease-out forwards;
+		animation: celebrate-pulse var(--dur-ambient) ease-out forwards;
 		filter: drop-shadow(0 0 6px var(--color-status-green));
 	}
 	.celebrate-pulse-delayed {

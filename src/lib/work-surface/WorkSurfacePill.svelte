@@ -59,10 +59,10 @@
 	}
 
 	.dot-pulse-soft {
-		animation: pulse-soft 1.6s ease-in-out infinite;
+		animation: pulse-soft var(--dur-ambient) ease-in-out infinite;
 	}
 	.dot-pulse-urgent {
-		animation: pulse-soft 1s ease-in-out infinite;
+		animation: pulse-soft var(--dur-ambient-fast) ease-in-out infinite;
 	}
 	.dot-pulse-once {
 		animation: pulse-once 6s ease-out forwards;

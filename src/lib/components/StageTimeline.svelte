@@ -177,7 +177,7 @@
 		box-shadow:
 			inset 0 1px 0 var(--line2),
 			0 0 12px var(--accent-glow);
-		animation: pulse-soft 1.6s ease-in-out infinite alternate;
+		animation: pulse-soft var(--dur-ambient) ease-in-out infinite alternate;
 	}
 
 	.segment.active.reply .icon-slot {

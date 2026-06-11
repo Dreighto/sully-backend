@@ -309,7 +309,7 @@
 		border: 1px solid rgb(255 255 255 / 0.08);
 		border-radius: var(--r-xs);
 		padding: 0.1rem 0.35rem;
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.92em;
 		word-break: break-word;
 	}
@@ -329,7 +329,7 @@
 		padding: 0.25rem 0.5rem 0.25rem 0.75rem;
 		background: rgb(255 255 255 / 0.03);
 		border-bottom: 1px solid rgb(255 255 255 / 0.06);
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.7em;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
@@ -357,9 +357,9 @@
 		text-transform: inherit;
 		cursor: pointer;
 		transition:
-			background 120ms,
-			color 120ms,
-			border-color 120ms;
+			background var(--dur-fast),
+			color var(--dur-fast),
+			border-color var(--dur-fast);
 	}
 	.md-content :global(.md-codeblock-canvas:hover) {
 		background: rgb(168 85 247 / 0.12);
@@ -381,8 +381,8 @@
 		text-transform: inherit;
 		cursor: pointer;
 		transition:
-			background 120ms,
-			color 120ms;
+			background var(--dur-fast),
+			color var(--dur-fast);
 	}
 	.md-content :global(.md-codeblock-copy:hover) {
 		background: rgb(255 255 255 / 0.05);
@@ -402,7 +402,7 @@
 		overflow-x: auto;
 		font-size: 0.85em;
 		line-height: 1.45;
-		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-family: var(--font-mono);
 	}
 	.md-content :global(pre.md-codeblock code) {
 		background: transparent;
