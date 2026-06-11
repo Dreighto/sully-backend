@@ -39,8 +39,10 @@
 		derivePillTrust,
 		deriveGateBadges,
 		deriveResultFiles,
-		buildSheetLog
+		buildSheetLog,
+		pillAnimFor
 	} from './pillModel';
+	import WorkerStateAnim from './WorkerStateAnim.svelte';
 
 	let {
 		traceId,
@@ -92,6 +94,11 @@
 	});
 
 	const trust = $derived(derivePillTrust({ terminal, reconciled, startedAtIso, nowMs }));
+	// Same truth-guarded selection as the pill, hosted at sheet scale (40px) —
+	// the one surface with room for the state animation's actual detail.
+	// pillAnimFor returns null for untrusted/stale runs; done/failed play once
+	// and hold (loop=false), exactly the in-feed semantics.
+	const anim = $derived(pillAnimFor({ status, aggr, stages, trust }));
 	const checkLabel = $derived(
 		trust === 'stale' ? 'stale — checking…' : trust === 'unverified' ? 'checking…' : null
 	);
@@ -218,6 +225,11 @@
 		<div class="rs-handle" style="touch-action: none;" {...drag.handleProps}>
 			<div class="rs-grabber" aria-hidden="true"></div>
 			<header class="rs-header">
+				{#if anim}
+					<span class="rs-anim" data-testid="run-sheet-anim" aria-hidden="true">
+						<WorkerStateAnim file={anim.file} loop={anim.loop} size={40} />
+					</span>
+				{/if}
 				<span class="rs-worker" data-testid="run-sheet-worker" title={who.display}>
 					{who.shortCode}
 				</span>
@@ -382,6 +394,12 @@
 		margin: 2px auto 10px;
 		border-radius: var(--r-pill);
 		background: var(--line3);
+	}
+
+	.rs-anim {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
 	}
 
 	.rs-header {
