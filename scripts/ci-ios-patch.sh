@@ -112,6 +112,47 @@ else
   echo "WARNING: $APPDELEGATE not found — APNs token forwarding not injected" >&2
 fi
 
+# --- AVAudioSession category (voice volume fix) ------------------------------
+# Without an explicit audio session, WKWebView media playback ignored the iPhone
+# hardware volume / silent switch — Sully's TTS played even at zero volume.
+# Set .playAndRecord (voice mode needs BOTH mic + speaker) with .voiceChat +
+# .defaultToSpeaker so playback obeys the hardware volume and routes to the main
+# loudspeaker (not the quiet earpiece). Idempotent. NOTE: WKWebView manages its
+# own session during getUserMedia, so if iOS overrides this the fallback is a
+# Capacitor audio-session plugin set at voice-mode start. If TTS sounds
+# over-processed/quiet under .voiceChat, switch the mode to .default.
+if [ -f "$APPDELEGATE" ]; then
+  if grep -q 'AVAudioSession' "$APPDELEGATE"; then
+    echo "AppDelegate AVAudioSession config already present — skipping"
+  else
+    grep -q '^import AVFoundation' "$APPDELEGATE" \
+      || perl -0pi -e 's/(import Capacitor)/$1\nimport AVFoundation/' "$APPDELEGATE"
+    cat > /tmp/audio_session.swift <<'SWIFTEOF'
+        // Voice volume fix — use .playback, NOT .playAndRecord.
+        // Re-injected every build because ios/ is regenerated fresh.
+        // A persistent active .playAndRecord session was WRONG twice over: (1) it
+        // made iOS treat the volume as the non-mutable "call/communication" volume
+        // so it bounced up at the bottom and never reached zero (mode-independent —
+        // .voiceChat and .default both did it), and (2) it collided with WKWebView's
+        // OWN AVAudioSession management for getUserMedia, breaking talkback/mic
+        // capture. The app should NOT own a recording session — WKWebView does that
+        // for getUserMedia. .playback gives normal media behavior: TTS obeys the
+        // hardware volume INCLUDING zero, and the mic keeps working. No
+        // overrideOutputAudioPort (that's call-style routing) — iOS routes media to
+        // the speaker on its own.
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true)
+        } catch { print("[Sully] AVAudioSession config failed: \(error)") }
+SWIFTEOF
+    perl -0777 -pi -e 'BEGIN{local $/; open(F,"<","/tmp/audio_session.swift") or die "no audio file"; $a=<F>; close F;} s/(didFinishLaunchingWithOptions[^\n]*-> Bool \{\n)/$1$a/' "$APPDELEGATE"
+    echo "injected AVAudioSession config into AppDelegate ($(grep -c 'AVAudioSession' "$APPDELEGATE"))"
+  fi
+else
+  echo "WARNING: $APPDELEGATE not found — AVAudioSession config not injected" >&2
+fi
+
 # --- Verify (printed in the build log) ---------------------------------------
 echo 'iOS patch complete:'
 /usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$PLIST"
@@ -119,3 +160,4 @@ echo 'iOS patch complete:'
 echo "aps-environment:"; /usr/libexec/PlistBuddy -c 'Print :aps-environment' "$ENTITLEMENTS" 2>/dev/null || echo '(entitlements file missing)'
 echo "CODE_SIGN_ENTITLEMENTS lines:"; grep -c 'CODE_SIGN_ENTITLEMENTS = App/App.entitlements;' "$PBXPROJ" 2>/dev/null || echo 0
 echo "AppDelegate APNs forwarding:"; grep -c 'capacitorDidRegisterForRemoteNotifications' "${APPDELEGATE:-/dev/null}" 2>/dev/null || echo 0
+echo "AppDelegate AVAudioSession config:"; grep -c 'AVAudioSession' "${APPDELEGATE:-/dev/null}" 2>/dev/null || echo 0
