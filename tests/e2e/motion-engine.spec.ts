@@ -56,9 +56,9 @@ async function waitForChatSurface(page: Page) {
 	});
 	await page.goto(CHAT_PATH, { waitUntil: 'domcontentloaded' });
 	await page.waitForURL(`**${CHAT_PATH}**`, { timeout: 10_000 });
-	await expect(
-		page.getByText("Hey Captain — what's on your mind?", { exact: false })
-	).toBeVisible({ timeout: 10_000 });
+	await expect(page.getByText("Hey Captain — what's on your mind?", { exact: false })).toBeVisible({
+		timeout: 10_000
+	});
 }
 
 async function ensureSidebarClosed(page: Page) {
@@ -73,7 +73,9 @@ async function ensureSidebarClosed(page: Page) {
 async function openModelPickerInPage(page: Page) {
 	await page.waitForFunction(() => window.innerWidth > 0 && window.innerWidth < 1024);
 	await page.evaluate(() => {
-		const chip = document.querySelector('header [data-popover-trigger]') as HTMLButtonElement | null;
+		const chip = document.querySelector(
+			'header [data-popover-trigger]'
+		) as HTMLButtonElement | null;
 		chip?.click();
 	});
 	await expect.poll(() => readSheetTranslateY(page), { timeout: 8000 }).toBeLessThan(30);
@@ -190,43 +192,52 @@ test.describe('spring motion engine', () => {
 
 		const result = await page.evaluate(
 			() =>
-				new Promise<{ flushDelta: number; distinctTransforms: number; willChangeMid: string }>(
-					(resolve) => {
-						const w = window as unknown as { __motionReactiveFlushes?: number };
-						const el = document.querySelector(
-							'[data-testid="model-picker-sheet"]'
-						) as HTMLElement;
-						const flush0 = w.__motionReactiveFlushes ?? 0;
-						const transforms: string[] = [];
-						let willChangeMid = '';
-						let frames = 0;
-						function sample() {
-							transforms.push(getComputedStyle(el).transform);
-							if (frames === 4) willChangeMid = getComputedStyle(el).willChange;
-							if (++frames < 10) {
-								requestAnimationFrame(sample);
-							} else {
-								resolve({
-									flushDelta: (w.__motionReactiveFlushes ?? 0) - flush0,
-									distinctTransforms: new Set(transforms).size,
-									willChangeMid
-								});
-							}
+				new Promise<{
+					flushDelta: number;
+					distinctTransforms: number;
+					willChangeMid: string;
+					backdropFilterMid: string;
+				}>((resolve) => {
+					const w = window as unknown as { __motionReactiveFlushes?: number };
+					const el = document.querySelector('[data-testid="model-picker-sheet"]') as HTMLElement;
+					const flush0 = w.__motionReactiveFlushes ?? 0;
+					const transforms: string[] = [];
+					let willChangeMid = '';
+					let backdropFilterMid = '';
+					let frames = 0;
+					function sample() {
+						transforms.push(getComputedStyle(el).transform);
+						if (frames === 4) {
+							const cs = getComputedStyle(el);
+							willChangeMid = cs.willChange;
+							backdropFilterMid = cs.backdropFilter;
 						}
-						requestAnimationFrame(sample);
+						if (++frames < 10) {
+							requestAnimationFrame(sample);
+						} else {
+							resolve({
+								flushDelta: (w.__motionReactiveFlushes ?? 0) - flush0,
+								distinctTransforms: new Set(transforms).size,
+								willChangeMid,
+								backdropFilterMid
+							});
+						}
 					}
-				)
+					requestAnimationFrame(sample);
+				})
 		);
 
 		// Spring is animating: transform progressed across sampled frames.
 		expect(result.distinctTransforms).toBeGreaterThanOrEqual(4);
 		// will-change held during the animation.
 		expect(result.willChangeMid).toBe('transform');
+		// Heavy glass blur flattened while the sheet moves (panel-flatten).
+		expect(result.backdropFilterMid).toBe('none');
 		// No Svelte reactive flush in the frame loop (the open-flip flush
 		// happened before sampling started; allow at most one stray).
 		expect(result.flushDelta).toBeLessThanOrEqual(1);
 
-		// After the spring rests, will-change is released.
+		// After the spring rests, will-change is released and the glass returns.
 		await expect.poll(() => readSheetTranslateY(page), { timeout: 8000 }).toBeLessThan(1);
 		await expect
 			.poll(() =>
@@ -238,6 +249,11 @@ test.describe('spring motion engine', () => {
 				})
 			)
 			.toBe('auto');
+		const backdropAtRest = await page.evaluate(() => {
+			const el = document.querySelector('[data-testid="model-picker-sheet"]') as HTMLElement | null;
+			return el ? getComputedStyle(el).backdropFilter : 'gone';
+		});
+		expect(backdropAtRest).toContain('blur');
 	});
 
 	test('sidebar uses spring transform when opened on mobile', async ({ page }) => {

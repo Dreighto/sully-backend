@@ -312,8 +312,8 @@
 		position: absolute;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.4);
-		backdrop-filter: blur(4px);
 		-webkit-backdrop-filter: blur(4px);
+		backdrop-filter: blur(4px);
 	}
 
 	.mpc-sheet {

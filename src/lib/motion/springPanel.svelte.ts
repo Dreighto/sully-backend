@@ -75,6 +75,11 @@ export function createSpringPanel(opts: {
 			// Stylesheet transitions on transform would re-ease every per-frame
 			// write (the vaul "transition: none during drag" rule, generalized).
 			sheetEl.style.transitionProperty = on ? 'none' : '';
+			// Heavy backdrop-filter on the MOVING element forces the GPU to
+			// re-blur the whole backdrop every frame — the 120Hz killer. Flatten
+			// the sheet's own blur during motion, restore glass at rest. Scrim
+			// stays blurred (light + stationary).
+			sheetEl.classList.toggle('panel-flatten', on);
 		}
 	}
 
@@ -177,10 +182,14 @@ export function createSpringPanel(opts: {
 				node.style.transform = transformFor(spring.value);
 				node.style.willChange = willChangeOn ? 'transform' : '';
 				node.style.transitionProperty = willChangeOn ? 'none' : '';
+				// The model sheet mounts AFTER animateOpen starts — re-apply the
+				// motion-flatten state so the opening slide is already blur-free.
+				node.classList.toggle('panel-flatten', willChangeOn);
 			} else {
 				node.style.transform = '';
 				node.style.willChange = '';
 				node.style.transitionProperty = '';
+				node.classList.remove('panel-flatten');
 			}
 			return {
 				destroy() {

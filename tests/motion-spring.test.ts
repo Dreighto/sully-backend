@@ -61,6 +61,8 @@ describe('springPanel drives the DOM imperatively', () => {
 		expect(src).not.toMatch(/scrimOpacity = \$derived/);
 		// will-change held during animation, dropped at rest.
 		expect(src).toContain('setWillChange');
+		// Heavy backdrop blur flattened on the moving sheet during motion.
+		expect(src).toContain('panel-flatten');
 	});
 });
 

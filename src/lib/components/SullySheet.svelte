@@ -138,8 +138,8 @@
 		border-bottom: none;
 		border-radius: var(--r-lg) var(--r-lg) 0 0;
 		background: var(--glass-bg);
-		backdrop-filter: blur(20px) saturate(1.35);
 		-webkit-backdrop-filter: blur(20px) saturate(1.35);
+		backdrop-filter: blur(20px) saturate(1.35);
 		box-shadow: var(--shadow-float);
 		padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
 		will-change: transform;

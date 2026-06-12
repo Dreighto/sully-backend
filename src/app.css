@@ -530,18 +530,22 @@
 		animation: sully-panel-in var(--dur-panel) var(--ease-emphasized) both;
 	}
 
-	/* Frosted-glass surfaces (top bar, composer, sheets, drawer). */
+	/* Frosted-glass surfaces (top bar, composer, sheets, drawer).
+	   NOTE: -webkit-backdrop-filter must come BEFORE the standard property
+	   everywhere in this codebase — Lightning CSS (Tailwind v4's prod minifier)
+	   collapses the pair to the LAST declaration; if -webkit- wins, Chromium
+	   silently loses the blur (it never reads the prefixed form). */
 	.glass {
 		background: rgb(20 20 23 / 0.6);
-		backdrop-filter: blur(26px) saturate(1.4);
 		-webkit-backdrop-filter: blur(26px) saturate(1.4);
+		backdrop-filter: blur(26px) saturate(1.4);
 		border: 1px solid rgb(255 255 255 / 0.07);
 	}
 	.glass-bar {
 		position: relative;
 		background: rgb(16 16 19 / 0.62);
-		backdrop-filter: blur(26px) saturate(1.5);
 		-webkit-backdrop-filter: blur(26px) saturate(1.5);
+		backdrop-filter: blur(26px) saturate(1.5);
 	}
 	.glass-bar::before {
 		content: '';
@@ -851,8 +855,8 @@
 	border-radius: var(--r-lg) var(--r-lg) 0 var(--r-lg);
 	border: 1px solid var(--glass-border);
 	background: rgba(255, 255, 255, 0.04);
-	backdrop-filter: blur(8px);
 	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 	color: rgb(244 244 245);
 }
@@ -944,9 +948,24 @@
 	border-radius: var(--r-lg);
 	border: 1px solid var(--glass-border);
 	background: var(--glass-bg);
-	backdrop-filter: blur(20px) saturate(1.35);
 	-webkit-backdrop-filter: blur(20px) saturate(1.35);
+	backdrop-filter: blur(20px) saturate(1.35);
 	box-shadow: var(--shadow-float);
+}
+
+/* Motion flatten — springPanel toggles this on the MOVING sheet/panel only
+   (setWillChange). Heavy backdrop-filter on a translating element forces a
+   full backdrop re-blur every frame, blowing the 8ms 120Hz budget; glass
+   returns the instant the spring rests. Scrims are never flattened. */
+.panel-flatten {
+	-webkit-backdrop-filter: none !important;
+	backdrop-filter: none !important;
+}
+
+/* The glass popover bg is 0.74 alpha — see-through over chat content once
+   its blur is off. Hold a near-opaque same-family surface during the slide. */
+.sully-glass-popover.panel-flatten {
+	background: var(--surface-card);
 }
 
 .ss-sheet-list {
@@ -1104,8 +1123,8 @@
 	border: 1px solid var(--glass-border);
 	background: var(--glass-bg);
 	padding: 8px 10px;
-	backdrop-filter: blur(16px);
 	-webkit-backdrop-filter: blur(16px);
+	backdrop-filter: blur(16px);
 	box-shadow: var(--shadow-soft);
 	pointer-events: auto;
 }

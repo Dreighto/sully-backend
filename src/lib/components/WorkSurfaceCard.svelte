@@ -444,8 +444,8 @@
 				rgb(0 0 0 / 0.15) 100%
 			),
 			rgb(10 10 12 / 0.78);
-		backdrop-filter: blur(22px) saturate(145%);
 		-webkit-backdrop-filter: blur(22px) saturate(145%);
+		backdrop-filter: blur(22px) saturate(145%);
 		box-shadow:
 			inset 0 1px 0 rgb(255 255 255 / 0.1),
 			0 0 0 1px rgb(0 0 0 / 0.45),
