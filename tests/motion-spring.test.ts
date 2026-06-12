@@ -29,6 +29,15 @@ describe('springValue (logic via module export)', () => {
 		const mod = await import('../src/lib/motion/springValue.svelte');
 		expect(typeof mod.createSpringValue).toBe('function');
 	});
+
+	it('spring tick uses rAF timestamps with clamped dt (not fixed 1/60)', async () => {
+		const { readFileSync } = await import('node:fs');
+		const src = readFileSync('src/lib/motion/springValue.svelte.ts', 'utf8');
+		expect(src).toContain('function tick(now: number)');
+		expect(src).toContain('lastTs');
+		expect(src).toContain('maxDtSec');
+		expect(src).not.toMatch(/function tick\(\)[\s\S]*const dt = 1 \/ 60/);
+	});
 });
 
 describe('motion surfaces use spring engine not keyframes', () => {

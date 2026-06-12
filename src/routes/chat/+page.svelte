@@ -271,6 +271,11 @@
 		threadsCtrl.threadMenuOpenFor = null;
 	}
 
+	/** Close other popovers without flashing the model picker binding false→true. */
+	function closePeerPopovers() {
+		threadsCtrl.threadMenuOpenFor = null;
+	}
+
 	// Global popover dismiss — keyboard Escape + click outside any popover
 	// content closes everything open. Each popover content `<div>` carries
 	// `data-popover` (clicks inside the open popover are left alone), each
@@ -1146,7 +1151,7 @@
 			ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
 			onsetModelChoice={(choice) => void setModelChoice(choice)}
-			oncloseAllPopovers={closeAllPopovers}
+			onclosePeerPopovers={closePeerPopovers}
 		/>
 
 		<!-- ═════════════════════════════════════════════════════════════════

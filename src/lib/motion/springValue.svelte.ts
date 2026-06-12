@@ -37,10 +37,13 @@ export function createSpringValue(initial: number, config: SpringConfig = {}): S
 	const restEpsilon = config.restEpsilon ?? 0.5;
 	const velocityEpsilon = config.velocityEpsilon ?? 3;
 
+	const maxDtSec = 1 / 30;
+
 	let pos = $state(initial);
 	let target = initial;
 	let vel = 0;
 	let rafId = 0;
+	let lastTs: number | null = null;
 	let onRestCb: (() => void) | null = null;
 	let animating = $state(false);
 
@@ -54,8 +57,13 @@ export function createSpringValue(initial: number, config: SpringConfig = {}): S
 		cb?.();
 	}
 
-	function tick() {
-		const dt = 1 / 60;
+	function tick(now: number) {
+		const dt =
+			lastTs === null
+				? 1 / 60
+				: Math.min(Math.max((now - lastTs) / 1000, 1 / 1000), maxDtSec);
+		lastTs = now;
+
 		const f = -stiffness * (pos - target) - damping * vel;
 		vel += (f / mass) * dt;
 		pos += vel * dt;
@@ -69,6 +77,7 @@ export function createSpringValue(initial: number, config: SpringConfig = {}): S
 
 	function startLoop() {
 		animating = true;
+		lastTs = null;
 		if (!rafId) rafId = requestAnimationFrame(tick);
 	}
 
@@ -89,6 +98,7 @@ export function createSpringValue(initial: number, config: SpringConfig = {}): S
 			}
 			animating = false;
 			onRestCb = null;
+			lastTs = null;
 			pos = position;
 			target = position;
 			vel = 0;
@@ -115,6 +125,7 @@ export function createSpringValue(initial: number, config: SpringConfig = {}): S
 			rafId = 0;
 			animating = false;
 			onRestCb = null;
+			lastTs = null;
 		}
 	};
 }

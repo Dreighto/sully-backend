@@ -17,7 +17,7 @@
 		pickerProvider,
 		lastModelUsed,
 		onsetModelChoice,
-		oncloseAllPopovers
+		onclosePeerPopovers
 	}: {
 		open?: boolean;
 		selectedModelChoice: ModelChoice;
@@ -25,7 +25,8 @@
 		pickerProvider: ProviderPref;
 		lastModelUsed: string;
 		onsetModelChoice: (choice: ModelChoice) => void;
-		oncloseAllPopovers: () => void;
+		/** Close thread menus etc. without clearing this chip's `open` binding first. */
+		onclosePeerPopovers: () => void;
 	} = $props();
 
 	function isMobileSheet(): boolean {
@@ -82,9 +83,12 @@
 	}
 
 	function toggleOpen() {
-		const next = !open;
-		oncloseAllPopovers();
-		open = next;
+		if (open) {
+			requestClose();
+			return;
+		}
+		onclosePeerPopovers();
+		open = true;
 	}
 
 	function requestClose() {
@@ -182,7 +186,12 @@
 				use:measureSheet
 				onclick={(e) => e.stopPropagation()}
 			>
-				<div class="shrink-0" style="touch-action: none;" {...modelDrag.handleProps}>
+				<div
+					class="shrink-0"
+					style="touch-action: none;"
+					data-testid="model-picker-sheet-handle"
+					{...modelDrag.handleProps}
+				>
 					<div
 						class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-[var(--r-pill)] bg-white/20"
 						aria-hidden="true"

@@ -89,7 +89,13 @@ export default defineConfig({
 		// can't be screenshot-verified; must run without waiting on visual baselines).
 		{
 			name: 'chromium-motion',
-			use: { ...devices['Desktop Chrome'] },
+			use: {
+				...devices['Desktop Chrome'],
+				// Block SW registration — PwaUpdatePrompt's controllerchange handler
+				// reloads the page when a new worker activates, which races transform
+				// sampling and destroys the execution context mid-poll.
+				serviceWorkers: 'block'
+			},
 			testMatch: ['**/motion-engine.spec.ts']
 		},
 		...ENGINES.flatMap(({ name, device }) => [
