@@ -91,7 +91,6 @@
 		onvoiceMode,
 		onpickSlash,
 		onremoveAttachment,
-		onsetModelChoice,
 		oncloseAllPopovers
 	}: {
 		textDraft: string;

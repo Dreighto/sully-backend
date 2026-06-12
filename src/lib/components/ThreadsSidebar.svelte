@@ -79,6 +79,48 @@
 		coreLabel?: string;
 	} = $props();
 
+	const PANEL_MS = 380; // --dur-panel (360ms) + slack
+
+	let closing = $state(false);
+	let prevSidebarOpen = false;
+
+	function requestClose() {
+		if (closing) return;
+		const reduced =
+			typeof window !== 'undefined' &&
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		if (reduced) {
+			oncloseSidebar();
+			return;
+		}
+		closing = true;
+		setTimeout(() => {
+			closing = false;
+			oncloseSidebar();
+		}, PANEL_MS);
+	}
+
+	// Programmatic close (parent sets sidebarOpen=false) — keep panel mounted for exit.
+	$effect(() => {
+		if (prevSidebarOpen && !sidebarOpen && !closing) {
+			const reduced =
+				typeof window !== 'undefined' &&
+				window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			if (!reduced) {
+				closing = true;
+				setTimeout(() => {
+					closing = false;
+				}, PANEL_MS);
+			}
+		}
+		prevSidebarOpen = sidebarOpen;
+	});
+
+	const sidebarMotionState = $derived(
+		closing ? 'closing' : sidebarOpen ? 'open' : 'closed'
+	);
+	const scrimVisible = $derived(sidebarOpen || closing);
+
 	// When the sidebar opens, scroll the active-thread row into view so the
 	// operator can always see where they are without hunting the list. Fixes
 	// operator feedback 2026-06-02: "I can't even get back to the thread I
@@ -130,20 +172,21 @@
 	});
 </script>
 
-{#if sidebarOpen}
-	<!-- Back-drop overlay for mobile -->
+{#if scrimVisible}
+	<!-- Back-drop overlay for mobile — fades with panel (flagship sheet motion) -->
 	<button
 		type="button"
-		onclick={oncloseSidebar}
-		class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm lg:hidden"
+		onclick={requestClose}
+		class="ts-sidebar-scrim fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm lg:hidden {closing
+			? 'ts-closing'
+			: ''}"
 		aria-label="Close sidebar"
 	></button>
 {/if}
 
 <aside
-	class="sidebar-panel-motion fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[var(--shadow-float)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0 {sidebarOpen
-		? 'translate-x-0'
-		: '-translate-x-full lg:translate-x-0'}"
+	data-sidebar-state={sidebarMotionState}
+	class="sidebar-panel-motion fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[var(--shadow-float)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0"
 >
 	<!-- Safe-area spacer — a background-matched div that fills the exact height of
 	     env(safe-area-inset-top). Using a spacer instead of padding on the fixed
@@ -181,7 +224,7 @@
 			</button>
 			<button
 				type="button"
-				onclick={oncloseSidebar}
+				onclick={requestClose}
 				class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] text-zinc-500 transition-all hover:bg-white/[0.06] hover:text-zinc-200 active:scale-90 sm:h-9 sm:w-9 lg:hidden"
 				aria-label="Close sidebar"
 				title="Close"
