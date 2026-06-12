@@ -36,7 +36,7 @@ export interface StreamingDeps {
 	getUserAtBottom: () => boolean;
 	setMessages: (next: ChatMessage[]) => void;
 	pollMessages: () => Promise<void>;
-	scrollToBottom: (behavior?: ScrollBehavior) => void;
+	scrollToBottom: () => void;
 }
 
 type StreamState = { placeholderId: number; threadId: string } | null;
@@ -108,7 +108,7 @@ export function createStreamingController(deps: StreamingDeps): StreamingControl
 			deps.setMessages(prev.map((m) => (m.id === id ? { ...m, message: txt } : m)));
 		});
 		if (deps.getUserAtBottom()) {
-			queueMicrotask(() => deps.scrollToBottom('smooth'));
+			queueMicrotask(() => deps.scrollToBottom());
 		}
 	});
 

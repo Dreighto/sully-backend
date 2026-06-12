@@ -21,7 +21,7 @@
 		ontoggleSidebar,
 		onopenWorkspaceContext,
 		onsetModelChoice,
-		oncloseAllPopovers
+		onclosePeerPopovers
 	}: {
 		workspaceContextOpen?: boolean;
 		showModelOverrideModal?: boolean;
@@ -32,7 +32,7 @@
 		ontoggleSidebar: () => void;
 		onopenWorkspaceContext: () => void;
 		onsetModelChoice: (choice: ModelChoice) => void;
-		oncloseAllPopovers: () => void;
+		onclosePeerPopovers: () => void;
 	} = $props();
 </script>
 
@@ -77,7 +77,7 @@
 			{pickerProvider}
 			{lastModelUsed}
 			{onsetModelChoice}
-			{oncloseAllPopovers}
+			{onclosePeerPopovers}
 		/>
 	</div>
 

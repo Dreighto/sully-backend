@@ -41,6 +41,7 @@
 	import WorkspaceContextModal from '$lib/components/WorkspaceContextModal.svelte';
 	import ThreadsSidebar from '$lib/components/ThreadsSidebar.svelte';
 	import ChatHeader from '$lib/components/ChatHeader.svelte';
+	import { createFeedScrollController } from '$lib/utils/feedScroll';
 	import Composer from '$lib/components/Composer.svelte';
 	import { spawnSurface, setStatus } from '$lib/work-surface';
 	import { buildInitialTaskFromProposal } from '$lib/work-surface/chatBridge.svelte';
@@ -270,6 +271,11 @@
 		threadsCtrl.threadMenuOpenFor = null;
 	}
 
+	/** Close other popovers without flashing the model picker binding false→true. */
+	function closePeerPopovers() {
+		threadsCtrl.threadMenuOpenFor = null;
+	}
+
 	// Global popover dismiss — keyboard Escape + click outside any popover
 	// content closes everything open. Each popover content `<div>` carries
 	// `data-popover` (clicks inside the open popover are left alone), each
@@ -373,9 +379,15 @@
 	let textareaEl = $state<HTMLTextAreaElement | null>(null);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	function scrollFeedToBottom(behavior: ScrollBehavior = 'smooth') {
+	const feedScroll = createFeedScrollController();
+
+	function scrollFeedToBottom(mode: 'instant' | 'animated' = 'instant') {
 		if (!feedContainer) return;
-		feedContainer.scrollTo({ top: feedContainer.scrollHeight, behavior });
+		if (mode === 'animated') {
+			feedScroll.scrollToBottomAnimated(feedContainer);
+		} else {
+			feedScroll.scrollToBottomInstant(feedContainer);
+		}
 	}
 
 	// SDK streaming + transport extracted to streaming.svelte.ts (PR E4).
@@ -391,7 +403,7 @@
 			messages = next;
 		},
 		pollMessages: () => pollMessages(),
-		scrollToBottom: (behavior) => scrollFeedToBottom(behavior)
+		scrollToBottom: () => scrollFeedToBottom('instant')
 	});
 	const streamState = $derived(streamingCtrl.streamState);
 	const sdkChat = $derived(streamingCtrl.sdkChat);
@@ -696,10 +708,10 @@
 					queueMicrotask(() => {
 						if (!feedContainer) return;
 						const restored = restoreScrollPos(forThread, feedContainer);
-						if (restored === null) scrollFeedToBottom('auto');
+						if (restored === null) scrollFeedToBottom('instant');
 					});
 				} else if (userAtBottom) {
-					queueMicrotask(() => scrollFeedToBottom('smooth'));
+					queueMicrotask(() => scrollFeedToBottom('instant'));
 				}
 			}
 		} catch {
@@ -786,7 +798,7 @@
 		messages = [...messages, optimistic];
 		composerCtrl.textDraft = '';
 		composerCtrl.attachments = [];
-		queueMicrotask(() => scrollFeedToBottom('smooth'));
+		queueMicrotask(() => scrollFeedToBottom('instant'));
 
 		// Routing decision: if the message looks like an explicit worker
 		// dispatch or it's an image-gen request, use the non-streaming
@@ -1020,7 +1032,7 @@
 			);
 			sentinelObs.observe(scrollSentinel);
 		}
-		queueMicrotask(() => scrollFeedToBottom('auto'));
+		queueMicrotask(() => scrollFeedToBottom('instant'));
 		pollTimer = setInterval(pollMessages, 3000);
 		// Companion dispatch streams live activity over SSE (per-trace). The
 		// legacy 5s pollActivity loop only runs when SSE dispatch is NOT active.
@@ -1139,7 +1151,7 @@
 			ontoggleSidebar={() => (sidebarOpen = !sidebarOpen)}
 			onopenWorkspaceContext={() => void openWorkspaceContextEditor()}
 			onsetModelChoice={(choice) => void setModelChoice(choice)}
-			oncloseAllPopovers={closeAllPopovers}
+			onclosePeerPopovers={closePeerPopovers}
 		/>
 
 		<!-- ═════════════════════════════════════════════════════════════════
@@ -1174,7 +1186,8 @@
 		     ═════════════════════════════════════════════════════════════════ -->
 		<div
 			bind:this={feedContainer}
-			class="relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-4 md:px-6"
+			class="chat-feed-scroll relative z-10 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-4 py-4 md:px-6"
+			onscroll={() => feedScroll.markUserScroll()}
 		>
 			<MessageFeed
 				{messages}
@@ -1216,7 +1229,7 @@
 				onclick={() => {
 					userAtBottom = true;
 					unseenCount = 0;
-					scrollFeedToBottom('smooth');
+					scrollFeedToBottom('animated');
 				}}
 				class="absolute right-1/2 bottom-24 z-20 flex translate-x-1/2 items-center gap-1 rounded-[var(--r-pill)] border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1.5 font-sans text-[11px] text-cyan-300 backdrop-blur-md transition-all select-none hover:scale-105 active:scale-95"
 				style="box-shadow: var(--shadow-accent);"

@@ -1010,58 +1010,16 @@
 	transform: scale(0.98);
 }
 
+.chat-feed-scroll {
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
 .sidebar-panel-motion {
 	transition:
 		transform var(--dur-panel) var(--ease-sheet),
 		opacity var(--dur-panel) var(--ease-sheet),
 		width var(--dur-panel) var(--ease-sheet);
-}
-
-/* Threads sidebar — mobile slide + scrim fade (flagship Phase B) */
-@media (max-width: 1023px) {
-	.ts-sidebar-scrim {
-		animation: ts-scrim-in var(--dur-panel) var(--ease-sheet) backwards;
-	}
-	.ts-sidebar-scrim.ts-closing {
-		animation: ts-scrim-out var(--dur-panel) var(--ease-sheet) forwards;
-	}
-
-	aside.sidebar-panel-motion[data-sidebar-state='closed'] {
-		transform: translate3d(-100%, 0, 0);
-	}
-	aside.sidebar-panel-motion[data-sidebar-state='open'] {
-		animation: ts-sidebar-in var(--dur-panel) var(--ease-sheet) both;
-	}
-	aside.sidebar-panel-motion[data-sidebar-state='closing'] {
-		animation: ts-sidebar-out var(--dur-panel) var(--ease-sheet) forwards;
-	}
-}
-
-@keyframes ts-sidebar-in {
-	from {
-		transform: translate3d(-100%, 0, 0);
-	}
-	to {
-		transform: translate3d(0, 0, 0);
-	}
-}
-@keyframes ts-sidebar-out {
-	to {
-		transform: translate3d(-100%, 0, 0);
-	}
-}
-@keyframes ts-scrim-in {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-@keyframes ts-scrim-out {
-	to {
-		opacity: 0;
-	}
 }
 
 .empty-hero {

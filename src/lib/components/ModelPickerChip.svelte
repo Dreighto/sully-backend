@@ -1,6 +1,5 @@
 <script lang="ts">
-	// Header model picker — compact chip + mobile sheet / desktop dropdown.
-	// Extracted from Composer.svelte (Phase B flagship pass).
+	// Header model picker — compact chip + mobile spring sheet / desktop dropdown.
 
 	import PickerIcon from './PickerIcon.svelte';
 	import { humanizeModelId } from '$lib/chat/model-registry';
@@ -9,6 +8,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import type { TransitionConfig } from 'svelte/transition';
 	import { createSheetDrag } from '$lib/utils/sheetDrag.svelte';
+	import { createSpringPanel } from '$lib/motion/springPanel.svelte';
 
 	let {
 		open = $bindable(false),
@@ -17,7 +17,7 @@
 		pickerProvider,
 		lastModelUsed,
 		onsetModelChoice,
-		oncloseAllPopovers
+		onclosePeerPopovers
 	}: {
 		open?: boolean;
 		selectedModelChoice: ModelChoice;
@@ -25,78 +25,28 @@
 		pickerProvider: ProviderPref;
 		lastModelUsed: string;
 		onsetModelChoice: (choice: ModelChoice) => void;
-		oncloseAllPopovers: () => void;
+		/** Close thread menus etc. without clearing this chip's `open` binding first. */
+		onclosePeerPopovers: () => void;
 	} = $props();
-
-	const PANEL_MS = 380; // --dur-panel (360ms) + slack
-
-	let closing = $state(false);
-	let closeFired = false;
-	let prevOpen = false;
 
 	function isMobileSheet(): boolean {
 		return typeof window !== 'undefined' && window.innerWidth < 1024;
 	}
 
-	function fireClose() {
-		if (closeFired) return;
-		closeFired = true;
-		open = false;
-		closing = false;
-	}
-
-	function requestClose() {
-		if (closing || closeFired) return;
-		const reduced =
-			typeof window !== 'undefined' &&
-			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		if (reduced || !isMobileSheet()) {
-			fireClose();
-			return;
-		}
-		closing = true;
-		setTimeout(fireClose, PANEL_MS);
-	}
-
-	// Parent closeAllPopovers sets open=false directly — keep the layer mounted
-	// long enough for the exit animation (portal destroy() otherwise wins the race).
-	$effect(() => {
-		if (prevOpen && !open && !closing && !closeFired && isMobileSheet()) {
-			const reduced =
-				typeof window !== 'undefined' &&
-				window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			if (reduced) return;
-			closing = true;
-			setTimeout(() => {
-				closing = false;
-			}, PANEL_MS);
-		}
-		if (open) {
-			closeFired = false;
-		}
-		prevOpen = open;
-	});
-
-	let layerOpen = $derived(open || closing);
-
-	$effect(() => {
-		if (!layerOpen || !isMobileSheet()) return;
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') requestClose();
-		};
-		document.addEventListener('keydown', onKey);
-		const prevOverflow = document.body.style.overflow;
-		document.body.style.overflow = 'hidden';
-		return () => {
-			document.removeEventListener('keydown', onKey);
-			document.body.style.overflow = prevOverflow;
-		};
+	const panel = createSpringPanel({
+		getOpen: () => open,
+		setOpen: (v) => (open = v),
+		axis: 'y',
+		fallbackClosedSize: 480
 	});
 
 	const modelDrag = createSheetDrag({
-		onDismiss: requestClose,
-		isEnabled: () => typeof window !== 'undefined' && window.innerWidth < 1024,
-		externalExit: true
+		onDismiss: () => panel.requestClose(),
+		isEnabled: () => isMobileSheet(),
+		motion: {
+			setDragPosition: (dy) => panel.setDragPosition(dy),
+			releaseDrag: (dy, vel) => panel.releaseDrag(dy, vel)
+		}
 	});
 
 	function mobilePortal(node: HTMLElement): { destroy(): void } | void {
@@ -105,6 +55,18 @@
 		return {
 			destroy() {
 				if (node.parentNode === document.body) node.remove();
+			}
+		};
+	}
+
+	function measureSheet(node: HTMLElement): { destroy(): void } {
+		const measure = () => panel.setClosedSize(node.getBoundingClientRect().height);
+		measure();
+		const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+		ro?.observe(node);
+		return {
+			destroy() {
+				ro?.disconnect();
 			}
 		};
 	}
@@ -121,15 +83,40 @@
 	}
 
 	function toggleOpen() {
-		const next = !open;
-		oncloseAllPopovers();
-		open = next;
+		if (open) {
+			requestClose();
+			return;
+		}
+		onclosePeerPopovers();
+		open = true;
+	}
+
+	function requestClose() {
+		if (!isMobileSheet()) {
+			open = false;
+			return;
+		}
+		panel.requestClose();
 	}
 
 	function pickModel(choice: ModelChoice) {
 		onsetModelChoice(choice);
 		requestClose();
 	}
+
+	$effect(() => {
+		if (!panel.present || !isMobileSheet()) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') requestClose();
+		};
+		document.addEventListener('keydown', onKey);
+		const prevOverflow = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.removeEventListener('keydown', onKey);
+			document.body.style.overflow = prevOverflow;
+		};
+	});
 </script>
 
 <div class="relative min-w-0 max-w-[11rem] shrink-0">
@@ -167,30 +154,44 @@
 		/>
 	</button>
 
-	{#if layerOpen}
+	{#if panel.present}
 		<div
 			class="mpc-root lg:hidden"
-			class:mpc-closing={closing}
 			role="presentation"
+			data-testid="model-picker-sheet-root"
 			use:mobilePortal
 			onclick={requestClose}
 			onkeydown={(e) => {
 				if (e.key === 'Escape') requestClose();
 			}}
 		>
-			<div class="mpc-scrim" aria-hidden="true"></div>
+			<div
+				class="mpc-scrim"
+				style:opacity={panel.scrimOpacity}
+				aria-hidden="true"
+				data-testid="model-picker-scrim"
+			></div>
 			<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 			<div
 				class="mpc-sheet sully-glass-popover"
 				data-sheet
 				data-popover
+				data-testid="model-picker-sheet"
 				role="dialog"
 				aria-modal="true"
 				aria-label="Choose a model"
 				tabindex="-1"
+				style:transform={panel.transform}
+				style:will-change="transform"
+				use:measureSheet
 				onclick={(e) => e.stopPropagation()}
 			>
-				<div class="shrink-0" style="touch-action: none;" {...modelDrag.handleProps}>
+				<div
+					class="shrink-0"
+					style="touch-action: none;"
+					data-testid="model-picker-sheet-handle"
+					{...modelDrag.handleProps}
+				>
 					<div
 						class="mx-auto mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-[var(--r-pill)] bg-white/20"
 						aria-hidden="true"
@@ -210,7 +211,7 @@
 				</div>
 				<div
 					class="overflow-y-auto overscroll-contain"
-					style="touch-action: pan-y;"
+					style="touch-action: pan-y; -webkit-overflow-scrolling: touch;"
 					use:modelDrag.bodyAction
 					{...modelDrag.bodyProps}
 				>
@@ -314,10 +315,6 @@
 		background: rgba(0, 0, 0, 0.4);
 		backdrop-filter: blur(4px);
 		-webkit-backdrop-filter: blur(4px);
-		animation: mpc-fade-in var(--dur-panel) var(--ease-sheet) backwards;
-	}
-	.mpc-closing .mpc-scrim {
-		animation: mpc-fade-out var(--dur-panel) var(--ease-sheet) forwards;
 	}
 
 	.mpc-sheet {
@@ -330,47 +327,5 @@
 		border-radius: var(--r-lg) var(--r-lg) 0 0;
 		padding-top: 0.5rem;
 		padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
-		will-change: transform;
-		animation: mpc-sheet-in var(--dur-long) var(--ease-sheet) backwards;
-	}
-	.mpc-closing .mpc-sheet {
-		animation: mpc-sheet-out var(--dur-panel) var(--ease-sheet) forwards;
-	}
-
-	@keyframes mpc-sheet-in {
-		from {
-			opacity: 0;
-			transform: translate3d(0, 100%, 0);
-		}
-		to {
-			opacity: 1;
-			transform: translate3d(0, 0, 0);
-		}
-	}
-	@keyframes mpc-sheet-out {
-		to {
-			opacity: 0;
-			transform: translate3d(0, 100%, 0);
-		}
-	}
-	@keyframes mpc-fade-in {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-	@keyframes mpc-fade-out {
-		to {
-			opacity: 0;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.mpc-scrim,
-		.mpc-sheet {
-			animation: none !important;
-		}
 	}
 </style>

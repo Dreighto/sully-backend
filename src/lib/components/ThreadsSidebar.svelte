@@ -1,16 +1,5 @@
 <script lang="ts">
 	// Threads sidebar — pinned/active thread list + rename/archive/delete/pin controls.
-	// Extracted from /chat as Task #7 PR 2 of the +page.svelte decomposition.
-	//
-	// Self-contained markup, but state crossing the boundary stays as props +
-	// callbacks (no store). The parent owns all $state runes; bindable props
-	// are used where the parent's global popover-close $effect needs to read
-	// the value by name (`showArchived`, `renamingFor`, `renameDraft`,
-	// `threadMenuOpenFor`).
-	//
-	// ARIA labels, the <aside> landmark tag, and the data-popover /
-	// data-popover-trigger attributes are load-bearing — the chat e2e suite
-	// and the parent's global popover effect select on them. Do not change.
 
 	import { base, resolve } from '$app/paths';
 	import {
@@ -28,6 +17,8 @@
 		Eraser,
 		Search
 	} from 'lucide-svelte';
+	import { createSpringPanel } from '$lib/motion/springPanel.svelte';
+	import { createSheetDrag } from '$lib/utils/sheetDrag.svelte';
 
 	type Thread = {
 		thread_id: string;
@@ -75,57 +66,47 @@
 		ondeleteThread: (thread: Thread) => void;
 		onopenRename: (thread: Thread) => void;
 		onclearAll: () => void;
-		/** Footer "CORE:" pill label — fork-aware (companion vs console). */
 		coreLabel?: string;
 	} = $props();
 
-	const PANEL_MS = 380; // --dur-panel (360ms) + slack
+	function isMobileDrawer(): boolean {
+		return typeof window !== 'undefined' && window.innerWidth < 1024;
+	}
 
-	let closing = $state(false);
-	let prevSidebarOpen = false;
+	const panel = createSpringPanel({
+		getOpen: () => sidebarOpen,
+		setOpen: (v) => (sidebarOpen = v),
+		axis: 'x',
+		fallbackClosedSize: 288
+	});
+
+	const drawerDrag = createSheetDrag({
+		onDismiss: () => panel.requestClose(),
+		isEnabled: () => isMobileDrawer(),
+		axis: 'x',
+		motion: {
+			setDragPosition: (dx) => panel.setDragPosition(dx),
+			releaseDrag: (dx, vel) => panel.releaseDrag(dx, vel)
+		}
+	});
+
+	function measureDrawer(node: HTMLElement): { destroy(): void } {
+		const measure = () => panel.setClosedSize(node.getBoundingClientRect().width);
+		measure();
+		const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+		ro?.observe(node);
+		return { destroy: () => ro?.disconnect() };
+	}
 
 	function requestClose() {
-		if (closing) return;
-		const reduced =
-			typeof window !== 'undefined' &&
-			window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		if (reduced) {
+		if (!isMobileDrawer()) {
 			oncloseSidebar();
 			return;
 		}
-		closing = true;
-		setTimeout(() => {
-			closing = false;
-			oncloseSidebar();
-		}, PANEL_MS);
+		panel.requestClose();
 	}
 
-	// Programmatic close (parent sets sidebarOpen=false) — keep panel mounted for exit.
-	$effect(() => {
-		if (prevSidebarOpen && !sidebarOpen && !closing) {
-			const reduced =
-				typeof window !== 'undefined' &&
-				window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			if (!reduced) {
-				closing = true;
-				setTimeout(() => {
-					closing = false;
-				}, PANEL_MS);
-			}
-		}
-		prevSidebarOpen = sidebarOpen;
-	});
-
-	const sidebarMotionState = $derived(
-		closing ? 'closing' : sidebarOpen ? 'open' : 'closed'
-	);
-	const scrimVisible = $derived(sidebarOpen || closing);
-
-	// When the sidebar opens, scroll the active-thread row into view so the
-	// operator can always see where they are without hunting the list. Fixes
-	// operator feedback 2026-06-02: "I can't even get back to the thread I
-	// started." The 'instant' behavior keeps the open animation un-jittered;
-	// scroll happens after the slide transition starts.
+	// When the sidebar opens, scroll the active-thread row into view
 	$effect(() => {
 		if (!sidebarOpen || !activeThread) return;
 		queueMicrotask(() => {
@@ -134,7 +115,6 @@
 		});
 	});
 
-	// ── Full-history search ──────────────────────────────────────────────────
 	type SearchResult = {
 		message_id: number;
 		thread_id: string;
@@ -172,32 +152,31 @@
 	});
 </script>
 
-{#if scrimVisible}
-	<!-- Back-drop overlay for mobile — fades with panel (flagship sheet motion) -->
+{#if panel.present}
 	<button
 		type="button"
 		onclick={requestClose}
-		class="ts-sidebar-scrim fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm lg:hidden {closing
-			? 'ts-closing'
-			: ''}"
+		class="ts-sidebar-scrim fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm lg:hidden"
+		style:opacity={panel.scrimOpacity}
 		aria-label="Close sidebar"
+		data-testid="threads-sidebar-scrim"
 	></button>
 {/if}
 
 <aside
-	data-sidebar-state={sidebarMotionState}
-	class="sidebar-panel-motion fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[var(--shadow-float)] backdrop-blur-2xl will-change-transform lg:static lg:z-auto lg:translate-x-0"
+	data-sheet
+	data-testid="threads-sidebar-panel"
+	class="sidebar-panel-motion fixed top-0 bottom-0 left-0 z-[60] flex w-72 flex-col border-r border-zinc-800/60 bg-[#090909]/98 shadow-[var(--shadow-float)] backdrop-blur-2xl lg:static lg:z-auto lg:translate-x-0"
+	style:transform={isMobileDrawer() ? panel.transform : undefined}
+	style:will-change={isMobileDrawer() ? 'transform' : undefined}
+	use:measureDrawer
 >
-	<!-- Safe-area spacer — a background-matched div that fills the exact height of
-	     env(safe-area-inset-top). Using a spacer instead of padding on the fixed
-	     element itself is the reliable pattern for WKWebView (Capacitor iOS):
-	     env() on padding of position:fixed can mis-compute; a height-only spacer
-	     at the top of the fixed container is unambiguous. -->
 	<div class="shrink-0" style="height: env(safe-area-inset-top, 0px);"></div>
 
-	<!-- Sidebar Header -->
 	<div
 		class="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 pt-3 pb-3"
+		style="touch-action: none;"
+		{...drawerDrag.handleProps}
 	>
 		<div class="flex items-center gap-2">
 			<img
@@ -208,10 +187,6 @@
 			<span class="font-sans text-sm font-semibold tracking-tight text-zinc-100">Sully</span>
 		</div>
 		<div class="flex items-center gap-1.5">
-			<!-- New thread: labeled pill so the affordance is unambiguous. Operator
-			     feedback 2026-06-02: the previous icon-only Compass button read as
-			     "explore," not "new chat." Now: brand-pink-tinted, MessageSquarePlus
-			     icon + visible "New" label. -->
 			<button
 				type="button"
 				onclick={onnewThread}
@@ -234,9 +209,12 @@
 		</div>
 	</div>
 
-	<!-- Threads Scroll Area -->
-	<div class="flex flex-1 flex-col overflow-y-auto p-2">
-		<!-- Search input -->
+	<div
+		class="flex flex-1 flex-col overflow-y-auto p-2"
+		style="touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;"
+		use:drawerDrag.bodyAction
+		{...drawerDrag.bodyProps}
+	>
 		<div
 			class="mx-1 mb-2 flex items-center gap-2 rounded-[var(--r-md)] border border-white/[0.07] bg-white/[0.04] px-3 py-2"
 		>
@@ -255,7 +233,6 @@
 			{/if}
 		</div>
 
-		<!-- Search results overlay — shown when query is active -->
 		{#if searchQuery.trim()}
 			<div class="mb-2 space-y-0.5">
 				{#if searchResults.length === 0 && !searchLoading}
@@ -282,7 +259,6 @@
 			</div>
 		{/if}
 
-		<!-- Toolbar — Show archived toggle + Clear All -->
 		<div
 			class="mt-1 mb-2 flex items-center justify-between border-b border-white/[0.04] px-2 pt-1 pb-2"
 		>
@@ -314,14 +290,12 @@
 					.filter((t) => showArchived || !t.archived)
 					.slice()
 					.sort((a, b) => {
-						// The Den (home) is always pinned to the very top, above everything.
 						if (a.thread_id === 'default') return -1;
 						if (b.thread_id === 'default') return 1;
 						return Number(b.pinned ?? false) - Number(a.pinned ?? false);
 					}) as t (t.thread_id)}
 					<div class="relative">
 						{#if renamingFor === t.thread_id}
-							<!-- Rename input replaces the row in-place. -->
 							<form
 								class="flex items-center gap-1 rounded-[var(--r-md)] border border-purple-500/40 bg-zinc-900 px-2 py-1.5"
 								onsubmit={(e) => {
@@ -463,7 +437,6 @@
 		{/if}
 	</div>
 
-	<!-- Sidebar footer — settings entry (dev HOST line removed, Phase A) -->
 	<div
 		class="shrink-0 border-t border-zinc-800/50 bg-black/25 p-3 font-sans text-[9px] text-zinc-600 select-none"
 		style="padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));"
