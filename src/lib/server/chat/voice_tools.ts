@@ -11,8 +11,10 @@
 
 import { searchOllama, fetchOllama, OLLAMA_API_KEY, UNTRUSTED_NOTE } from './web_search';
 import { logTaskEvent } from '../chatActivity';
+import { VOICE_OLLAMA_URL } from '../voice_runtime';
 
-const OLLAMA = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+// Voice inference runs on the Jetson Ollama, never the ROOM 5060 (see voice_runtime).
+const OLLAMA = VOICE_OLLAMA_URL;
 
 // Ollama tool schemas (OpenAI-function shape — what /api/chat expects).
 export const VOICE_TOOL_SCHEMAS = [

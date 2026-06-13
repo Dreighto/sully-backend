@@ -12,10 +12,12 @@ import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/se
 import { restartTtsService } from '$lib/server/voice_services';
 import { speakableText } from '$lib/server/tts_normalize';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
+import { resolveTtsUrl } from '$lib/server/voice_runtime';
 
 const EMMA_VOICE_ID = '56bWURjYFHyYyVf490Dp';
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
-const TTS_URL = (process.env.COMPANION_TTS_URL || 'http://127.0.0.1:18771').replace(/\/+$/, '');
+// Guarded: Jetson bridge only, never the local 5060 Chatterbox (see voice_runtime).
+const TTS_URL = resolveTtsUrl();
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);

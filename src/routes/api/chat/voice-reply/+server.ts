@@ -49,9 +49,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	// detectTargetRepo. The Mutation Gate (R2) will hook in here.
 	const { taskId, currentTier, targetRepo, shadowDecision, userMessageText } =
 		await prepareTurnLifecycle({
-		text,
-		threadId,
-		source: 'voice'
+			text,
+			threadId,
+			source: 'voice'
 		});
 
 	// D2.2: Classify-before-answer gate. A work turn speaks ONLY the short status
@@ -124,7 +124,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					model: VOICE_MODEL,
 					messages: chatMessages,
 					keepAlive: VOICE_KEEP_ALIVE,
-					numCtx: 8192,
+					numCtx: 4096,
 					signal: request.signal,
 					taskId,
 					onToolStart: (toolName) => {

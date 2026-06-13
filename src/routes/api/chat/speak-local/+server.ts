@@ -11,8 +11,10 @@ import type { RequestHandler } from './$types';
 import { getVoice, localRefFor, kokoroVoiceFor } from '$lib/server/voices';
 import { speakableText } from '$lib/server/tts_normalize';
 import { restartTtsService } from '$lib/server/voice_services';
+import { resolveTtsUrl } from '$lib/server/voice_runtime';
 
-const TTS_URL = (process.env.COMPANION_TTS_URL || 'http://127.0.0.1:18771').replace(/\/+$/, '');
+// Guarded: Jetson bridge only, never the local 5060 Chatterbox (see voice_runtime).
+const TTS_URL = resolveTtsUrl();
 
 export const POST: RequestHandler = async ({ request }) => {
 	let body: { text?: string; voice?: string; voice_ref?: string };

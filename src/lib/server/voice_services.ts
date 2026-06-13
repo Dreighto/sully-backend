@@ -11,12 +11,14 @@
 import { execFile } from 'node:child_process';
 import net from 'node:net';
 import { promisify } from 'node:util';
+import { resolveTtsUrl } from './voice_runtime';
 
 const run = promisify(execFile);
 const STT_UNIT = 'logueos-companion-stt.service';
 const TTS_UNIT = 'logueos-companion-tts.service';
 const STT_PORT = Number(process.env.COMPANION_STT_PORT || 18770);
-const TTS_URL = (process.env.COMPANION_TTS_URL || 'http://127.0.0.1:18771').replace(/\/+$/, '');
+// Guarded: Jetson bridge only, never the local 5060 Chatterbox (see voice_runtime).
+const TTS_URL = resolveTtsUrl();
 
 // When TTS_URL points to a remote host (e.g. Kokoro on Jetson), skip all
 // systemctl TTS lifecycle ops — the remote service runs persistently and is
