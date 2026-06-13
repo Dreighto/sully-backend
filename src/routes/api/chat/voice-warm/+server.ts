@@ -10,9 +10,10 @@
 
 import type { RequestHandler } from './$types';
 import { resolveVoiceModel } from '$lib/server/model_catalog';
-import { VOICE_KEEP_ALIVE } from '$lib/server/voice_runtime';
+import { VOICE_KEEP_ALIVE, VOICE_OLLAMA_URL } from '$lib/server/voice_runtime';
 
-const OLLAMA = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+// Voice model is warmed on the Jetson Ollama, never the ROOM 5060.
+const OLLAMA = VOICE_OLLAMA_URL;
 const VOICE_MODEL = resolveVoiceModel();
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -26,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				messages: [{ role: 'user', content: 'hi' }],
 				stream: false,
 				keep_alive: VOICE_KEEP_ALIVE,
-				options: { num_ctx: 8192, num_predict: 1 }
+				options: { num_ctx: 4096, num_predict: 1 }
 			}),
 			signal: request.signal
 		});
