@@ -297,13 +297,13 @@ export const GET: RequestHandler = async ({ url }) => {
 	if (!runMode.companionDispatchEnabled) {
 		return json({ enabled: false, window });
 	}
-	if (!fs.existsSync(serverConfig.memoryDbPath)) {
+	if (!fs.existsSync(serverConfig.kernelDbPath)) {
 		return json(emptyResponse(window));
 	}
 
 	const worker = (url.searchParams.get('worker') || '').trim() || null;
 	const traceId = (url.searchParams.get('trace_id') || '').trim() || null;
-	const db = new Database(serverConfig.memoryDbPath, { readonly: true, fileMustExist: true });
+	const db = new Database(serverConfig.kernelDbPath, { readonly: true, fileMustExist: true });
 	try {
 		const rows = readRows(db, window, worker, traceId);
 		return json(buildTokenSpendResponse(rows, window));

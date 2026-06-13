@@ -85,6 +85,14 @@ export const serverConfig = {
 		'LOGUEOS_MEMORY_DB_PATH',
 		'/home/dreighto/dev/LogueOS-Orchestrator/data/logueos_memory.db'
 	),
+	// The kernel's dispatch ledger DB — ALWAYS the orchestrator's logueos_memory.db
+	// (where the dispatch_listener writes worker_runs), regardless of app mode. In
+	// 'companion' mode memoryDbPath is overridden to companion.db (chat data), so
+	// worker_runs is NOT there — read this path for per-worker token spend.
+	kernelDbPath: getEnv(
+		'LOGUEOS_KERNEL_DB_PATH',
+		'/home/dreighto/dev/LogueOS-Orchestrator/data/logueos_memory.db'
+	),
 	// Directory for operator-pasted images in the Chat tab. Files are written
 	// here by POST /api/chat/uploads and streamed back by GET
 	// /api/chat/uploads/[filename]. Companion overrides this to its own data dir.
