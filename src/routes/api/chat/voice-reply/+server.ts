@@ -19,6 +19,7 @@ import { prepareTurnLifecycle } from '$lib/server/chat/stream_prepare';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 import { runVoiceToolLoop } from '$lib/server/chat/voice_tools';
+import { runVoiceStreamingSpeak } from '$lib/server/chat/voice_stream';
 
 // Voice model id resolved via the shared catalog so a "change the default voice
 // model" tweak lands in one place (model_catalog.ts), not three (PR D).
@@ -104,6 +105,89 @@ export const POST: RequestHandler = async ({ request }) => {
 	// matches the text Sully — warm, short, no spoken lists, time-aware.
 	const voiceSystem = await buildVoiceSystemPrompt(threadId, userMessageText);
 	const chatMessages = [{ role: 'system', content: voiceSystem }, ...turns];
+
+	// ── T-stream (VOICE_REPLY_STREAMING) ────────────────────────────────────
+	// Stream tokens from Ollama and fire each sentence to Kokoro the moment it
+	// lands, so the first sentence is audible WHILE the model is still
+	// generating (SSE: sentence/audio/done + ms timing). Tool turns fall back to
+	// the proven non-streaming loop inside runVoiceStreamingSpeak. Flag OFF → the
+	// await-then-emit text path below (rollback, byte-for-byte unchanged).
+	if (process.env.VOICE_REPLY_STREAMING === 'true') {
+		const sseEnc = new TextEncoder();
+		const stream = new ReadableStream({
+			async start(controller) {
+				let transcript = '';
+				try {
+					const res = await runVoiceStreamingSpeak(
+						{
+							model: VOICE_MODEL,
+							messages: chatMessages,
+							keepAlive: VOICE_KEEP_ALIVE,
+							numCtx: 4096,
+							signal: request.signal,
+							taskId
+						},
+						controller,
+						sseEnc
+					);
+					transcript = res.transcript;
+				} catch (e) {
+					console.error('[voice-reply] streaming path failed', e);
+					try {
+						controller.enqueue(
+							sseEnc.encode(
+								`event: error\ndata: ${JSON.stringify({ message: (e as Error).message })}\n\n`
+							)
+						);
+					} catch {
+						/* already closed */
+					}
+				} finally {
+					if (transcript.trim()) {
+						persistAssistantTurn({
+							text: transcript.trim(),
+							sender: 'local',
+							threadId,
+							model: VOICE_MODEL,
+							tier: currentTier,
+							taskId,
+							provider: 'local',
+							latencyMs: Date.now() - turnStartedAt
+						});
+						try {
+							const r = await applyTurnDecision(decision, {
+								taskId,
+								threadId,
+								targetRepo,
+								userText: userMessageText
+							});
+							if (r?.spokenSuffix) {
+								controller.enqueue(
+									sseEnc.encode(
+										`event: suffix\ndata: ${JSON.stringify({ text: r.spokenSuffix })}\n\n`
+									)
+								);
+							}
+						} catch (e) {
+							console.error('[voice-reply] autonomous-dispatch failed', e);
+						}
+					}
+					try {
+						controller.close();
+					} catch {
+						/* already closed */
+					}
+				}
+			}
+		});
+		return new Response(stream, {
+			headers: {
+				'Content-Type': 'text/event-stream; charset=utf-8',
+				'Cache-Control': 'no-store',
+				Connection: 'keep-alive'
+			}
+		});
+	}
 
 	let full = '';
 	const enc = new TextEncoder();
