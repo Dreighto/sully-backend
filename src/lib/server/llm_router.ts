@@ -19,6 +19,7 @@ import * as ollama from './providers/ollama';
 import { getTokenUsage, addTokenUsage } from './thread_state';
 import type { Tier } from './phase_classifier';
 import { MODELS as CATALOG_MODELS, type Provider as CatalogProvider } from './model_catalog';
+import { executeSullyModelCall } from './sully_model_router';
 
 export type { Tier };
 
@@ -69,6 +70,8 @@ export interface RouterResult {
 	tokens_used: number;
 	/** True if router fell forward from the operator's preferred provider. */
 	fell_forward: boolean;
+	mode_used?: string;
+	trace_id?: string;
 }
 
 function getDailyTokenCap(provider: Provider): number {
@@ -105,77 +108,23 @@ export async function routeChat(
 	 * OpenAI/Ollama). Pass undefined for a bare conversation. */
 	system?: string
 ): Promise<RouterResult> {
-	const order =
-		preference === 'gemini'
-			? GEMINI_FIRST_ORDER
-			: preference === 'anthropic'
-				? ANTHROPIC_FIRST_ORDER
-				: DEFAULT_ORDER;
-
-	// For 'local' tier, only Ollama is in the map.
-	const filteredOrder: Provider[] = tier === 'local' ? ['ollama'] : order;
-
-	let fell_forward = false;
-
-	for (let i = 0; i < filteredOrder.length; i++) {
-		const provider = filteredOrder[i];
-		const model = tierModelFor(tier, provider);
-		if (!model) continue;
-
-		// Skip unavailable providers and cap-exceeded ones.
-		if (provider !== 'ollama' && isCapExceeded(provider)) {
-			fell_forward = true;
-			continue;
-		}
-
-		try {
-			let result: { reply: string; usage: { input: number; output: number; total: number } };
-
-			if (provider === 'anthropic') {
-				if (!anthropic.isAvailable()) continue;
-				result = await anthropic.chat({ messages, model, signal, system });
-			} else if (provider === 'gemini') {
-				if (!gemini.isAvailable()) continue;
-				result = await gemini.chat({ messages, model, signal, system });
-			} else if (provider === 'openai') {
-				if (!openai.isAvailable()) continue;
-				result = await openai.chat({ messages, model, signal, system });
-			} else {
-				result = await ollama.chat({ messages, model, signal, system });
-			}
-
-			// Track usage.
-			addTokenUsage(provider, result.usage.total);
-
-			return {
-				reply: result.reply,
-				provider_used: provider,
-				model_used: model,
-				tokens_used: result.usage.total,
-				fell_forward
-			};
-		} catch (err) {
-			const status = getStatus(err);
-
-			// 402 billing: rotate credential within provider (don't tier-down),
-			// but there's only one credential per provider here — surface error
-			// directly rather than silently falling forward.
-			if (status === 402) {
-				throw new Error(
-					`${provider} billing limit (402). Credential rotation required — check account standing.`
-				);
-			}
-
-			// 5xx or cap-exhausted: fall forward to next provider in same tier.
-			console.error(`[llm_router] ${provider} failed (HTTP ${status || 'unknown'}):`, err);
-			fell_forward = true;
-			// Continue to next provider in loop.
-		}
-	}
-
-	throw new Error(
-		`All providers exhausted for tier '${tier}'. Check provider keys and daily caps.`
-	);
+	const sullyResult = await executeSullyModelCall({
+		tier,
+		messages,
+		preference,
+		signal,
+		system,
+		taskShape: ['sully-chat', `tier:${tier}`]
+	});
+	return {
+		reply: sullyResult.reply,
+		provider_used: sullyResult.provider_used,
+		model_used: sullyResult.model_used,
+		tokens_used: sullyResult.tokens_used,
+		fell_forward: sullyResult.fell_forward,
+		mode_used: sullyResult.mode_used,
+		trace_id: sullyResult.trace_id
+	};
 }
 
 export type RouterStreamEvent =
@@ -226,14 +175,12 @@ export async function* routeChatStream(
 		try {
 			const reply: string[] = [];
 			let usageTotal = 0;
-			let yieldedAny = false;
 
 			if (provider === 'anthropic') {
 				if (!anthropic.isAvailable()) continue;
 				for await (const evt of anthropic.streamChat({ messages, model, signal, system })) {
 					if (evt.type === 'token') {
 						reply.push(evt.text);
-						yieldedAny = true;
 						yield { type: 'token', text: evt.text };
 					} else {
 						usageTotal = evt.usage.total;
@@ -244,7 +191,6 @@ export async function* routeChatStream(
 				for await (const evt of gemini.streamChat({ messages, model, signal, system })) {
 					if (evt.type === 'token') {
 						reply.push(evt.text);
-						yieldedAny = true;
 						yield { type: 'token', text: evt.text };
 					} else {
 						usageTotal = evt.usage.total;
@@ -258,7 +204,6 @@ export async function* routeChatStream(
 				if (provider === 'openai' && !openai.isAvailable()) continue;
 				const result = await fn({ messages, model, signal, system });
 				reply.push(result.reply);
-				yieldedAny = true;
 				usageTotal = result.usage.total;
 				yield { type: 'token', text: result.reply };
 			}
@@ -277,7 +222,8 @@ export async function* routeChatStream(
 			const status = getStatus(err);
 			if (status === 402) {
 				throw new Error(
-					`${provider} billing limit (402). Credential rotation required — check account standing.`
+					`${provider} billing limit (402). Credential rotation required — check account standing.`,
+					{ cause: err }
 				);
 			}
 			console.error(`[llm_router stream] ${provider} failed (HTTP ${status || 'unknown'}):`, err);
