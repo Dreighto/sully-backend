@@ -16,10 +16,19 @@
 // non-streaming tool loop (tool behavior unchanged). We never emit a sentence
 // before confirming this is a plain speak turn.
 //
+// Per-sentence TTS is itself STREAMED: a long sentence is sent to Kokoro's
+// /tts/stream with clause-splitting, which yields the first clause's audio
+// before the whole sentence is synthesized — so the first audio of a long first
+// sentence lands sooner. A short sentence uses the buffered /tts (one fast
+// synth; clause-splitting a short line regresses it). Each Kokoro segment is a
+// self-contained WAV, emitted as its own `audio` event (carrying `seg`), still
+// in strict sentence-then-segment order via the reorder drainer.
+//
 // Output is SSE (text/event-stream): `meta`, `sentence` (fired→TTS), `audio`
-// (in-order, base64 WAV), `done` (transcript + timing). Timestamps are ms since
-// turn start; the proof that first-audio precedes generation-complete lives in
-// the `done` event + per-event `ms`.
+// (in-order, base64 WAV — one per Kokoro segment, with `i`=sentence, `seg`=segment
+// index), `done` (transcript + timing). Timestamps are ms since turn start; the
+// proof that first-audio precedes generation-complete lives in the `done` event
+// + per-event `ms`.
 
 import { VOICE_OLLAMA_URL, resolveTtsUrl } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
@@ -28,6 +37,21 @@ import { OLLAMA_API_KEY } from './web_search';
 
 const OLLAMA = VOICE_OLLAMA_URL;
 const TTS_URL = resolveTtsUrl();
+
+// A sentence at/over this many speakable chars is streamed via /tts/stream with
+// clause-splitting (the first clause's audio lands early). Shorter sentences go
+// through the buffered /tts — measured warm, a short clause-split synth lands its
+// first audio LATER than just buffering the (already-fast) whole synth.
+const STREAM_SPLIT_MIN_CHARS = 80;
+
+// Until the first sentence dispatches, fire on a clause boundary once the opening
+// fragment reaches this length — so a LONG first sentence's opening clause goes to
+// TTS without waiting out the whole sentence (the dominant long-reply TTFA cost:
+// measured first_tts_dispatch ~1.4s on a long opener). 40 fires at the first
+// natural comma of a long opener (~600-700ms) to keep TTFA reliably under 1.5s;
+// short openers (a brief "Well," / "Ah,") stay under the threshold and are
+// unaffected. Lower = faster first word but riskier of a clipped-sounding opener.
+const FIRST_CLAUSE_FLUSH_CHARS = 40;
 
 // No-punctuation runaway guard: flush a pending fragment as a "sentence" once it
 // exceeds this many chars, so a model that forgets punctuation can't starve TTS.
@@ -69,12 +93,39 @@ function sse(c: SseController, enc: TextEncoder, event: string, data: unknown) {
 // at the very end of the buffer (might be a decimal/more — wait for the next
 // chunk), and a small abbreviation set. A boundary is `.!?` followed by
 // whitespace or a closing quote/bracket.
-export function extractSentences(buf: string): { sentences: string[]; rest: string } {
+//
+// `clauseFlushChars` (>0) additionally treats a `,;:` clause boundary as a flush
+// point ONCE the pending fragment is at least that long — so a LONG opening
+// sentence's first clause can fire to TTS without waiting for the period. The
+// caller enables this only until the first sentence has dispatched (it is the
+// TTFA-critical opener); the rest of the reply keeps natural sentence boundaries.
+export function extractSentences(
+	buf: string,
+	clauseFlushChars = 0
+): { sentences: string[]; rest: string } {
 	const sentences: string[] = [];
 	let start = 0;
 	let i = 0;
 	while (i < buf.length) {
 		const c = buf[i];
+		if (
+			clauseFlushChars > 0 &&
+			(c === ',' || c === ';' || c === ':') &&
+			i - start >= clauseFlushChars
+		) {
+			const next = buf[i + 1];
+			if (next === undefined) break; // wait — more may follow
+			// Number-internal punctuation ("3,000", "3:30") — not a clause break.
+			const digitBoth = /\d/.test(buf[i - 1] ?? '') && /\d/.test(next);
+			if (!digitBoth && /\s/.test(next)) {
+				sentences.push(buf.slice(start, i + 1).trim()); // keep the comma (natural pause)
+				let end = i + 1;
+				while (end < buf.length && /\s/.test(buf[end])) end++;
+				start = end;
+				i = end;
+				continue;
+			}
+		}
 		if (c === '.' || c === '!' || c === '?') {
 			const next = buf[i + 1];
 			// Punctuation at the very end — we don't yet know what follows
@@ -151,59 +202,134 @@ export async function runVoiceStreamingSpeak(
 	const rel = () => Date.now() - t0;
 	sse(controller, enc, 'meta', { turn_started_ms: t0, model: opts.model, streaming: true });
 
-	// Synthesize one sentence on Kokoro (Jetson). Returns the WAV bytes.
-	async function synth(text: string): Promise<Buffer> {
-		const r = await fetch(`${TTS_URL}/tts`, {
+	// Stream-synthesize one sentence on Kokoro (Jetson), pushing each WAV segment
+	// to `onSegment` the moment it arrives. A long sentence goes to /tts/stream
+	// with clause-splitting (first clause's audio lands early, framed as
+	// `<u32 LE length><WAV>` records); a short sentence uses the buffered /tts
+	// (one segment — faster warm than per-clause synth overhead).
+	async function synthSentence(text: string, onSegment: (wav: Buffer) => void): Promise<void> {
+		const speak = speakableText(text);
+		if (speak.length < STREAM_SPLIT_MIN_CHARS) {
+			const r = await fetch(`${TTS_URL}/tts`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text: speak, voice: opts.voice ?? 'am_fenrir' }),
+				signal: opts.signal
+			});
+			if (!r.ok) throw new Error(`kokoro /tts HTTP ${r.status}`);
+			onSegment(Buffer.from(await r.arrayBuffer()));
+			return;
+		}
+		const r = await fetch(`${TTS_URL}/tts/stream`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ text: speakableText(text), voice: opts.voice ?? 'am_fenrir' }),
+			body: JSON.stringify({ text: speak, voice: opts.voice ?? 'am_fenrir', split: 'clause' }),
 			signal: opts.signal
 		});
-		if (!r.ok) throw new Error(`kokoro /tts HTTP ${r.status}`);
-		return Buffer.from(await r.arrayBuffer());
+		if (!r.ok || !r.body) throw new Error(`kokoro /tts/stream HTTP ${r.status}`);
+		// Reassemble `<u32 LE byte length><WAV bytes>` frames from the chunked body.
+		const reader = r.body.getReader();
+		let buf = Buffer.alloc(0);
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			if (value && value.length) buf = Buffer.concat([buf, Buffer.from(value)]);
+			for (;;) {
+				if (buf.length < 4) break;
+				const n = buf.readUInt32LE(0);
+				if (buf.length < 4 + n) break;
+				onSegment(Buffer.from(buf.subarray(4, 4 + n)));
+				buf = buf.subarray(4 + n);
+			}
+		}
+		if (buf.length)
+			throw new Error(`kokoro /tts/stream incomplete frame (${buf.length}B trailing)`);
 	}
 
-	const synths: Array<Promise<Buffer>> = [];
+	// Per-sentence synthesis state. Segments arrive concurrently across sentences
+	// but are emitted in strict sentence-then-segment order by the drainer below.
+	type SentenceState = { segments: Buffer[]; done: boolean; error?: Error };
+	const states: SentenceState[] = [];
 	let idx = 0;
 	let firstDispatchMs: number | null = null;
 	let genDone = false;
-	// Wake the drainer when a new sentence is fired or generation ends.
-	let notify: () => void = () => {};
-	let waiter = new Promise<void>((r) => (notify = r));
+	// Condition-variable: capture `waiter` BEFORE inspecting state and await it
+	// only after no progress — signal() resolves the current waiter AND re-arms,
+	// so a wake that races an inspection is never lost.
+	let wake: () => void = () => {};
+	let waiter!: Promise<void>;
+	const arm = () => {
+		waiter = new Promise<void>((r) => (wake = r));
+	};
+	arm();
+	const signal = () => {
+		const w = wake;
+		arm();
+		w();
+	};
 
 	function fireSentence(text: string) {
 		const i = idx++;
 		if (firstDispatchMs === null) firstDispatchMs = rel();
 		sse(controller, enc, 'sentence', { i, text, fired_ms: rel() });
-		synths[i] = synth(text);
-		notify();
-		waiter = new Promise<void>((r) => (notify = r));
+		const st: SentenceState = { segments: [], done: false };
+		states[i] = st;
+		void (async () => {
+			try {
+				await synthSentence(text, (wav) => {
+					st.segments.push(wav);
+					signal();
+				});
+			} catch (err) {
+				st.error = err as Error;
+			} finally {
+				st.done = true;
+				signal();
+			}
+		})();
+		signal();
 	}
 
-	// In-order drainer: await synths[e] in sequence, emit audio in sentence order.
+	// In-order drainer: emit each sentence's segments in order, advancing to the
+	// next sentence only once the current one is fully produced AND drained.
 	let firstAudioMs: number | null = null;
+	let segmentsTotal = 0;
 	const drain = (async () => {
-		let e = 0;
+		let e = 0; // sentence cursor
+		let segOut = 0; // segments of sentence e already emitted
 		for (;;) {
-			if (e < synths.length) {
-				try {
-					const wav = await synths[e];
+			const w = waiter; // capture before inspecting (no lost wakeups)
+			let progressed = false;
+			while (e < idx) {
+				const st = states[e];
+				if (!st) break;
+				while (segOut < st.segments.length) {
+					const wav = st.segments[segOut];
 					if (firstAudioMs === null) firstAudioMs = rel();
 					sse(controller, enc, 'audio', {
 						i: e,
+						seg: segOut,
 						ms: rel(),
 						bytes: wav.length,
 						wav_b64: wav.toString('base64')
 					});
-				} catch (err) {
-					sse(controller, enc, 'audio_error', { i: e, error: (err as Error).message });
+					segOut++;
+					segmentsTotal++;
+					progressed = true;
 				}
-				e++;
-			} else if (genDone) {
-				return;
-			} else {
-				await waiter;
+				if (st.done && segOut >= st.segments.length) {
+					if (st.error) {
+						sse(controller, enc, 'audio_error', { i: e, error: st.error.message });
+					}
+					e++;
+					segOut = 0;
+					progressed = true;
+					continue;
+				}
+				break; // sentence e still producing — wait for more segments
 			}
+			if (genDone && e >= idx) return;
+			if (!progressed) await w;
 		}
 	})();
 
@@ -298,7 +424,10 @@ export async function runVoiceStreamingSpeak(
 				if (decided === 'speak' && msg?.content) {
 					sentenceBuf += msg.content;
 					transcript += msg.content;
-					const { sentences, rest } = extractSentences(sentenceBuf);
+					// Only the TTFA-critical opener gets clause-flushing; once the first
+					// sentence has dispatched, revert to natural sentence boundaries.
+					const clauseFlush = firstDispatchMs === null ? FIRST_CLAUSE_FLUSH_CHARS : 0;
+					const { sentences, rest } = extractSentences(sentenceBuf, clauseFlush);
 					sentenceBuf = rest;
 					for (const s of sentences) fireSentence(s);
 				}
@@ -308,7 +437,7 @@ export async function runVoiceStreamingSpeak(
 		if (sentenceBuf.trim()) fireSentence(sentenceBuf.trim());
 		const generationCompleteMs = rel();
 		genDone = true;
-		notify();
+		signal();
 		await drain;
 		sse(controller, enc, 'done', {
 			transcript: transcript.trim(),
@@ -318,12 +447,13 @@ export async function runVoiceStreamingSpeak(
 			first_token_ms: firstTokenMs,
 			prompt_eval_count: promptEvalCount,
 			prompt_eval_ms: promptEvalMs,
-			sentences: idx
+			sentences: idx,
+			segments_total: segmentsTotal
 		});
 		return { toolTurn: toolMode, transcript: transcript.trim() };
 	} catch (e) {
 		genDone = true;
-		notify();
+		signal();
 		await drain.catch(() => {});
 		throw e;
 	}
