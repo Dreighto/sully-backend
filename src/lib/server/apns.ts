@@ -53,8 +53,12 @@ function ensureTable(db: Database.Database): void {
 	`);
 }
 
-/** True only when the operator has provided the .p8 + key id and the file exists. */
+/** True only when the operator has provided the .p8 + key id and the file exists.
+ * Returns false if APNS_DISABLED=true in the env — operator killswitch to stop
+ * push delivery (e.g. when the only registered token is a dead Capacitor app's
+ * and the current SwiftUI build has no APNs handler to clear the badge). */
 export function apnsConfigured(): boolean {
+	if (process.env.APNS_DISABLED === 'true') return false;
 	return (
 		!!serverConfig.apnsKeyPath &&
 		!!serverConfig.apnsKeyId &&
