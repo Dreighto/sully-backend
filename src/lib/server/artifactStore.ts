@@ -286,9 +286,12 @@ export interface InlineArtifactInput {
 	taskId?: string;
 }
 
-/** Promote a single piece of inline (teacher-written) content to the durable
- *  store under its own synthetic trace, and return its manifest metadata. */
-export function promoteInlineArtifact(input: InlineArtifactInput): ArtifactMetadata | null {
+/** Promote a BATCH of inline (teacher-written) artifacts from ONE reply turn to
+ *  the durable store under ONE shared synthetic trace, so they group into a
+ *  single inline card (and one bundle.zip). Returns all manifest metadata.
+ *  Empty input → []. The whole batch fails closed to [] on any error. */
+export function promoteInlineArtifacts(inputs: InlineArtifactInput[]): ArtifactMetadata[] {
+	if (!inputs.length) return [];
 	try {
 		const repoRoot = artifactRepoRoot();
 		const stamp = Date.now();
@@ -297,24 +300,39 @@ export function promoteInlineArtifact(input: InlineArtifactInput): ArtifactMetad
 		const date = new Date().toISOString().slice(0, 10);
 		const dir = storeDirFor(repoRoot, traceId, date);
 		fs.mkdirSync(dir, { recursive: true });
-		const filename = slugifyTitle(input.title) + extForInlineType(input.artifactType, input.language);
-		fs.writeFileSync(path.join(dir, filename), input.content, 'utf8');
-		const meta: ArtifactMetadata = {
-			created_by: 'Sully',
-			task_id: input.taskId ?? traceId,
-			trace_id: traceId,
-			timestamp: new Date().toISOString(),
-			source_worker: 'teacher',
-			workspace_path: dir,
-			artifact_type: input.artifactType,
-			original_path: filename,
-			artifact_url: `/companion/api/artifacts/${encodeURIComponent(traceId)}/${encodeURIComponent(filename)}`,
-			label: input.title.trim() || filename,
-			importance: 'primary'
-		};
-		writeManifestAtomic(dir, [meta]);
-		return meta;
+		const now = new Date().toISOString();
+		const metas: ArtifactMetadata[] = [];
+		const used = new Set<string>();
+		for (const input of inputs) {
+			const ext = extForInlineType(input.artifactType, input.language);
+			const base = slugifyTitle(input.title);
+			let filename = base + ext;
+			let n = 1;
+			while (used.has(filename)) filename = `${base}-${n++}${ext}`; // dedupe within the trace dir
+			used.add(filename);
+			fs.writeFileSync(path.join(dir, filename), input.content, 'utf8');
+			metas.push({
+				created_by: 'Sully',
+				task_id: input.taskId ?? traceId,
+				trace_id: traceId,
+				timestamp: now,
+				source_worker: 'teacher',
+				workspace_path: dir,
+				artifact_type: input.artifactType,
+				original_path: filename,
+				artifact_url: `/companion/api/artifacts/${encodeURIComponent(traceId)}/${encodeURIComponent(filename)}`,
+				label: input.title.trim() || filename,
+				importance: metas.length === 0 ? 'primary' : 'secondary'
+			});
+		}
+		writeManifestAtomic(dir, metas);
+		return metas;
 	} catch {
-		return null;
+		return [];
 	}
+}
+
+/** Single-artifact convenience wrapper over promoteInlineArtifacts. */
+export function promoteInlineArtifact(input: InlineArtifactInput): ArtifactMetadata | null {
+	return promoteInlineArtifacts([input])[0] ?? null;
 }

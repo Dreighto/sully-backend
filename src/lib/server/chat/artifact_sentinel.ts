@@ -12,7 +12,11 @@
 //   …the artifact content…
 //   <<<END_SULLY_ARTIFACT>>>
 
-import { promoteInlineArtifact, type ArtifactMetadata } from '$lib/server/artifactStore';
+import {
+	promoteInlineArtifacts,
+	type InlineArtifactInput,
+	type ArtifactMetadata
+} from '$lib/server/artifactStore';
 
 // Opening sentinel (self-delimited by `>>>`, like SULLY_GATE). The CLOSE tag is
 // OPTIONAL — LLMs are unreliable with paired delimiters, so we treat content as
@@ -61,7 +65,10 @@ export function extractAndPromoteArtifacts(
 		});
 	}
 
-	const artifacts: ArtifactMetadata[] = [];
+	// Collect every well-formed block as one input batch, strip it from the prose,
+	// then promote the whole batch under ONE shared trace so the turn's artifacts
+	// group into a single inline card. A malformed header keeps its raw block.
+	const inputs: InlineArtifactInput[] = [];
 	let stripped = '';
 	let cursor = 0;
 	for (const b of blocks) {
@@ -76,7 +83,7 @@ export function extractAndPromoteArtifacts(
 			continue;
 		}
 		if (!b.content.trim()) continue;
-		const promoted = promoteInlineArtifact({
+		inputs.push({
 			content: b.content,
 			artifactType: typeof meta.type === 'string' ? meta.type : 'doc',
 			title: typeof meta.title === 'string' ? meta.title : 'Artifact',
@@ -84,10 +91,10 @@ export function extractAndPromoteArtifacts(
 			threadId: ctx.threadId,
 			taskId: ctx.taskId
 		});
-		if (promoted) artifacts.push(promoted);
 	}
 	stripped += text.slice(cursor);
 
+	const artifacts = promoteInlineArtifacts(inputs);
 	const strippedText = stripped.replace(/\n{3,}/g, '\n\n').trim();
 	return { strippedText, artifacts };
 }
