@@ -224,6 +224,11 @@ export async function* streamViaClaudeCLI(
 	// Parse stdout NDJSON line-by-line.
 	const rl = createInterface({ input: child.stdout, crlfDelay: Infinity });
 	let yieldedFinish = false;
+	// Tracks whether we've emitted visible text yet. Used to insert a paragraph
+	// break when a SECOND text block opens (i.e. a tool-use turn ran in between),
+	// so pre-tool prose and post-tool prose don't concatenate with no separator
+	// ("...dig.Worker's back..."). Bug from thread B7BB0D39.
+	let sawText = false;
 
 	try {
 		for await (const line of rl) {
@@ -240,12 +245,26 @@ export async function* streamViaClaudeCLI(
 				event?: {
 					type?: string;
 					delta?: { type?: string; text?: string };
+					content_block?: { type?: string };
 				};
 				is_error?: boolean;
 				result?: string;
 				stop_reason?: string;
 				api_error_status?: number | null;
 			};
+
+			// A new TEXT block opening after we've already emitted text means a
+			// tool-use turn ran in between (the parser drops tool blocks). Insert
+			// a paragraph break so the segments don't abut ("dig.Worker's back").
+			if (
+				e.type === 'stream_event' &&
+				e.event?.type === 'content_block_start' &&
+				e.event.content_block?.type === 'text' &&
+				sawText
+			) {
+				yield { type: 'text-delta', delta: '\n\n' };
+				continue;
+			}
 
 			// Incremental text deltas from the model's stream.
 			if (
@@ -254,6 +273,7 @@ export async function* streamViaClaudeCLI(
 				e.event.delta?.type === 'text_delta' &&
 				e.event.delta.text
 			) {
+				sawText = true;
 				yield { type: 'text-delta', delta: e.event.delta.text };
 				continue;
 			}
