@@ -11,7 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from '$lib/server/config';
 import { resolveWorkerTemplate } from '$lib/work-surface/chatBridge.svelte';
-import { findStoreDir, readManifest, artifactRepoRoot } from '$lib/server/artifactStore';
+import {
+	findStoreDir,
+	readManifest,
+	artifactRepoRoot,
+	storeRoot
+} from '$lib/server/artifactStore';
 
 const FILE_ACTIONS = new Set(['wrote_file', 'created_artifact', 'write_file']);
 
@@ -256,6 +261,48 @@ export function listArtifactsForTrace(traceId: string): ArtifactListResponse | n
 		count: manifest.length,
 		bundle_url
 	};
+}
+
+export interface AllArtifactsResponse {
+	artifacts: ArtifactMetadata[];
+	count: number;
+}
+
+/**
+ * Index of ALL promoted artifacts across every trace, newest first. Backs the
+ * Artifacts LIBRARY surface (GET /api/artifacts) — the tap-through view of every
+ * output a dispatched worker produced, with provenance (source_worker, trace_id,
+ * task_id, artifact_type, timestamp) already carried on each ArtifactMetadata.
+ * Scans the same durable store as listArtifactsForTrace
+ * (data/sully/artifacts/<date>/<trace>/manifest.json), just unfiltered.
+ */
+export function listAllArtifacts(limit = 500): AllArtifactsResponse {
+	const root = storeRoot(artifactRepoRoot());
+	const all: ArtifactMetadata[] = [];
+	let dates: string[];
+	try {
+		dates = fs.readdirSync(root);
+	} catch {
+		return { artifacts: [], count: 0 };
+	}
+	for (const date of dates) {
+		const dateDir = path.join(root, date);
+		let traces: string[];
+		try {
+			traces = fs.readdirSync(dateDir);
+		} catch {
+			continue;
+		}
+		for (const trace of traces) {
+			const dir = path.join(dateDir, trace);
+			if (!fs.existsSync(path.join(dir, 'manifest.json'))) continue;
+			for (const a of readManifest(dir)) all.push(a);
+		}
+	}
+	// Newest first by ISO timestamp.
+	all.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+	const sliced = all.slice(0, limit);
+	return { artifacts: sliced, count: sliced.length };
 }
 
 /** Reject traversal segments and confine resolved path under workspace root. */
