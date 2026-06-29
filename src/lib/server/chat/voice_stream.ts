@@ -25,6 +25,7 @@ import { VOICE_OLLAMA_URL, resolveTtsUrl } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
+import type { SentenceLogEntry } from './voice_turn_registry';
 
 const OLLAMA = VOICE_OLLAMA_URL;
 const TTS_URL = resolveTtsUrl();
@@ -58,23 +59,70 @@ const ABBREVS = new Set([
 
 type SseController = ReadableStreamDefaultController<Uint8Array>;
 
-export type VoiceStreamResult = { toolTurn: boolean; transcript: string };
+export type VoiceStreamResult = {
+	toolTurn: boolean;
+	transcript: string;
+	/** True if the underlying signal aborted before generation completed (the
+	 *  client/operator interrupted, or `/api/chat/voice-truncate` fired). When
+	 *  true, the caller should compute the heard prefix via the registry's
+	 *  `heardPrefixFromLog(sentenceLog, audio_end_ms)` and persist THAT. */
+	aborted: boolean;
+	/** Per-sentence timing log: when each boundary surfaced and when the WAV
+	 *  bytes were emitted. The caller uses this with the truncate-time
+	 *  audio_end_ms to compute exactly what the operator heard. */
+	sentenceLog: SentenceLogEntry[];
+};
 
 function sse(c: SseController, enc: TextEncoder, event: string, data: unknown) {
 	c.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
 }
 
+// Minimum clause length (chars from `start`) before a comma / semicolon / colon
+// counts as a flush-worthy boundary. Smaller → audio starts sooner but rhythm
+// gets choppy; larger → smoother but defeats the point of clause chunking.
+// 32 lands at roughly "noun-phrase + verb-phrase" length in English.
+const CLAUSE_MIN_CHARS = 32;
+
 // Pull complete sentences off the front of `buf`. Returns the sentences found and
 // the unconsumed remainder. Guards: decimals (3.5), single trailing punctuation
 // at the very end of the buffer (might be a decimal/more — wait for the next
-// chunk), and a small abbreviation set. A boundary is `.!?` followed by
-// whitespace or a closing quote/bracket.
+// chunk), and a small abbreviation set. A boundary is:
+//   - `.!?` followed by whitespace or a closing quote/bracket (sentence-final), OR
+//   - `,;:` followed by whitespace WHEN the current pending segment is already
+//     long enough that a clause break is worth the latency win (clause-level
+//     chunking — operator decision 2026-06-28, replaces the prior sentence-only
+//     gating that left first-audio waiting ~1.5s for a complete sentence).
 export function extractSentences(buf: string): { sentences: string[]; rest: string } {
 	const sentences: string[] = [];
 	let start = 0;
 	let i = 0;
 	while (i < buf.length) {
 		const c = buf[i];
+		// Clause-level boundary (commas + semicolons + colons). Fires only when
+		// the pending segment is already long enough. Guards mirror the
+		// sentence-final logic: next-char must be whitespace; numeric commas
+		// (1,000) are skipped because both sides are digits; close-quote/bracket
+		// suffixes consume cleanly.
+		if (c === ',' || c === ';' || c === ':') {
+			const next = buf[i + 1];
+			if (next === undefined) break;
+			// Numeric thousand-separator (1,000) — keep going.
+			if (c === ',' && /\d/.test(buf[i - 1] ?? '') && /\d/.test(next)) {
+				i++;
+				continue;
+			}
+			// Only honor as a flush if (a) next char is whitespace and (b)
+			// pending segment has reached the min clause length.
+			if (/\s/.test(next) && i - start >= CLAUSE_MIN_CHARS) {
+				let end = i + 1;
+				while (end < buf.length && /[,;:"'’”)\]]/.test(buf[end])) end++;
+				sentences.push(buf.slice(start, end).trim());
+				while (end < buf.length && /\s/.test(buf[end])) end++;
+				start = end;
+				i = end;
+				continue;
+			}
+		}
 		if (c === '.' || c === '!' || c === '?') {
 			const next = buf[i + 1];
 			// Punctuation at the very end — we don't yet know what follows
@@ -143,13 +191,26 @@ export async function runVoiceStreamingSpeak(
 		voice?: string;
 		signal?: AbortSignal;
 		taskId?: string;
+		/** Server-minted response id for this turn — surfaced to the client via the
+		 *  meta SSE event so it can call `/api/chat/voice-truncate` with it. */
+		responseId?: string;
 	},
 	controller: SseController,
 	enc: TextEncoder
 ): Promise<VoiceStreamResult> {
 	const t0 = Date.now();
 	const rel = () => Date.now() - t0;
-	sse(controller, enc, 'meta', { turn_started_ms: t0, model: opts.model, streaming: true });
+	sse(controller, enc, 'meta', {
+		turn_started_ms: t0,
+		model: opts.model,
+		streaming: true,
+		response_id: opts.responseId ?? null
+	});
+
+	// Sentence log: every boundary push pre-fills i/text/fired_ms; the drainer
+	// fills audio_ms when the WAV bytes are emitted. Single shared array so the
+	// caller can pass it straight to `heardPrefixFromLog` on abort.
+	const sentenceLog: SentenceLogEntry[] = [];
 
 	// Synthesize one sentence on Kokoro (Jetson). Returns the WAV bytes.
 	async function synth(text: string): Promise<Buffer> {
@@ -173,8 +234,10 @@ export async function runVoiceStreamingSpeak(
 
 	function fireSentence(text: string) {
 		const i = idx++;
-		if (firstDispatchMs === null) firstDispatchMs = rel();
-		sse(controller, enc, 'sentence', { i, text, fired_ms: rel() });
+		const firedMs = rel();
+		if (firstDispatchMs === null) firstDispatchMs = firedMs;
+		sentenceLog.push({ i, text, fired_ms: firedMs, audio_ms: null });
+		sse(controller, enc, 'sentence', { i, text, fired_ms: firedMs });
 		synths[i] = synth(text);
 		notify();
 		waiter = new Promise<void>((r) => (notify = r));
@@ -188,10 +251,15 @@ export async function runVoiceStreamingSpeak(
 			if (e < synths.length) {
 				try {
 					const wav = await synths[e];
-					if (firstAudioMs === null) firstAudioMs = rel();
+					const audioMs = rel();
+					if (firstAudioMs === null) firstAudioMs = audioMs;
+					// Record when the WAV bytes were emitted so the truncate path can
+					// compute the exact heard prefix from the operator's audio_end_ms.
+					const entry = sentenceLog[e];
+					if (entry) entry.audio_ms = audioMs;
 					sse(controller, enc, 'audio', {
 						i: e,
-						ms: rel(),
+						ms: audioMs,
 						bytes: wav.length,
 						wav_b64: wav.toString('base64')
 					});
@@ -207,37 +275,54 @@ export async function runVoiceStreamingSpeak(
 		}
 	})();
 
-	// Stream the model.
-	const body: Record<string, unknown> = {
-		model: opts.model,
-		messages: opts.messages,
-		stream: true,
-		keep_alive: opts.keepAlive,
-		options: { num_ctx: opts.numCtx }
-	};
-	if (OLLAMA_API_KEY) body.tools = VOICE_TOOL_SCHEMAS;
+	// Stream the model. When the model ends in `-cloud`, route the call to
+	// Ollama Pro (https://ollama.com/api/chat) with Bearer auth instead of
+	// the local Jetson Ollama socket — same chat-API shape, but lets us run
+	// a bigger model (gpt-oss:120b-cloud, gemini-3-flash-preview-cloud etc.)
+	// for the voice surface without local VRAM constraints. The cloud route
+	// drops keep_alive and num_ctx — those are Jetson-only knobs.
+	const isCloudModel = opts.model.endsWith('-cloud');
+	const body: Record<string, unknown> = isCloudModel
+		? { model: opts.model, messages: opts.messages, stream: true }
+		: {
+				model: opts.model,
+				messages: opts.messages,
+				stream: true,
+				keep_alive: opts.keepAlive,
+				options: { num_ctx: opts.numCtx }
+			};
+	if (!isCloudModel && OLLAMA_API_KEY) body.tools = VOICE_TOOL_SCHEMAS;
 
-	const resp = await fetch(`${OLLAMA}/api/chat`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(body),
-		signal: opts.signal
-	});
-	if (!resp.ok || !resp.body) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
-
-	const reader = resp.body.getReader();
-	const dec = new TextDecoder();
-	let lineBuf = '';
-	let sentenceBuf = '';
+	// Hoisted so the catch block can see them on early-abort (truncate fires
+	// before any token landed → reader/transcript never bound below the fetch).
 	let transcript = '';
-	let decided: 'speak' | null = null;
 	let toolMode = false;
-	// Diagnostics: time-to-first-token and Ollama's reported prompt_eval cost.
 	let firstTokenMs: number | null = null;
 	let promptEvalCount: number | null = null;
 	let promptEvalMs: number | null = null;
 
 	try {
+		// The fetch is INSIDE the try so a truncate / barge-in that fires before
+		// Ollama responds (AbortError thrown before the readLoop ever starts) is
+		// still caught and translated into `aborted: true` — the caller needs the
+		// sentenceLog to compute the heard prefix (which is empty in this case).
+		const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (isCloudModel && OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+		const resp = await fetch(endpoint, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(body),
+			signal: opts.signal
+		});
+		if (!resp.ok || !resp.body) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
+
+		const reader = resp.body.getReader();
+		const dec = new TextDecoder();
+		let lineBuf = '';
+		let sentenceBuf = '';
+		let decided: 'speak' | null = null;
+
 		readLoop: for (;;) {
 			const { value, done } = await reader.read();
 			if (done) break;
@@ -320,10 +405,26 @@ export async function runVoiceStreamingSpeak(
 			prompt_eval_ms: promptEvalMs,
 			sentences: idx
 		});
-		return { toolTurn: toolMode, transcript: transcript.trim() };
+		return { toolTurn: toolMode, transcript: transcript.trim(), aborted: false, sentenceLog };
 	} catch (e) {
+		// Signal abort is the truncate / barge-in path — drain whatever sentences
+		// have already been synthesized (so the client gets the trailing `audio`
+		// events for what we did produce) and return cleanly. The caller decides
+		// what to persist by consulting the sentence log + audio_end_ms. Any other
+		// failure (Ollama 500, network drop) re-throws as before.
+		const isAbort =
+			(e instanceof Error && e.name === 'AbortError') || opts.signal?.aborted === true;
 		genDone = true;
 		notify();
+		if (isAbort) {
+			await drain.catch(() => {});
+			return {
+				toolTurn: toolMode,
+				transcript: transcript.trim(),
+				aborted: true,
+				sentenceLog
+			};
+		}
 		await drain.catch(() => {});
 		throw e;
 	}

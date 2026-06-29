@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sully brand mark — concept review</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0b0d;
+    --panel: #131318;
+    --panel-2: #1a1a20;
+    --line: rgba(255,255,255,0.05);
+    --text: #e6e7eb;
+    --dim: #9aa0a8;
+    --muted: #5e636d;
+    --brand: #ec2d78;
+    --brand-soft: #ff7eb3;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; letter-spacing: -0.01em;
+  }
+  body { padding: 32px 24px 80px; max-width: 1280px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .lede { color: var(--dim); font-size: 14px; margin: 0 0 28px; }
+  h2 {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--dim); margin: 36px 0 12px;
+  }
+
+  /* Each candidate row. */
+  .row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    margin-bottom: 14px;
+    align-items: start;
+  }
+  .row.winner {
+    border-color: rgba(236,45,120,0.4);
+    box-shadow: 0 0 32px rgba(236,45,120,0.12);
+  }
+  .meta { display: flex; flex-direction: column; gap: 8px; }
+  .meta .name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+  }
+  .meta .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; width: max-content;
+  }
+  .tag.strong { background: rgba(236,45,120,0.15); color: var(--brand-soft); }
+  .tag.refine { background: rgba(255,255,255,0.06); color: var(--dim); }
+  .tag.weak { background: rgba(255,255,255,0.04); color: var(--muted); }
+  .tag.control { background: rgba(120,140,255,0.12); color: #aab8ff; }
+  .meta .note {
+    font-size: 12px; color: var(--dim); line-height: 1.5;
+  }
+
+  /* The contexts row — actual product surfaces. */
+  .ctx {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    align-items: center;
+  }
+  .cell {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 12px 6px; background: var(--panel-2); border-radius: 10px;
+  }
+  .cell .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin-top: 2px;
+  }
+
+  /* Surface sizes — pixel-exact to what ships. */
+  .icon-1024 { width: 96px; height: 96px; border-radius: 20px; overflow: hidden; }
+  .icon-1024 img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .icon-home { width: 64px; height: 64px; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
+  .icon-home img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* Header simulation — matches ChatHeader.svelte */
+  .header-sim {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: rgba(11,11,13,0.55);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .header-sim .mark { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
+  .header-sim .mark img { width: 100%; height: 100%; object-fit: cover; }
+  .header-sim .wordmark { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* Picker chip — matches Composer.svelte */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 8px; height: 28px;
+    background: rgba(236,45,120,0.10); color: white;
+    border-radius: 999px; font-size: 11px; letter-spacing: 0.02em;
+  }
+  .chip .chip-mark { width: 14px; height: 14px; border-radius: 4px; overflow: hidden; }
+  .chip .chip-mark img { width: 100%; height: 100%; object-fit: cover; }
+  .chip .chev { color: var(--brand-soft); font-size: 10px; }
+
+  /* Avatar — message-feed bubble */
+  .bubble-sim {
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .avatar { width: 24px; height: 24px; border-radius: 999px; overflow: hidden; flex-shrink: 0; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .bubble-text {
+    background: rgba(255,255,255,0.05); padding: 6px 10px; border-radius: 12px;
+    border-top-left-radius: 4px; font-size: 11px; color: var(--dim);
+    max-width: 120px;
+  }
+
+  /* Summary block */
+  .summary {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px 22px; margin-top: 28px;
+  }
+  .summary h2 { margin-top: 0; }
+  .summary p { font-size: 13px; line-height: 1.6; color: var(--dim); margin: 6px 0; }
+  .summary strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<h1>Sully brand mark — concept review</h1>
+<p class="lede">
+  Each candidate rendered at the actual sizes Sully uses in product:
+  app icon (96px), home-screen tile (64px), header mark (32px), picker chip (14px), message avatar (24px).
+  The chip is the hardest size test — if a mark survives there, it survives everywhere.
+</p>
+
+<h2>Strong direction</h2>
+
+<div class="row winner">
+  <div class="meta">
+    <span class="tag strong">A2 · top pick</span>
+    <div class="name">Folded ribbon — sharp S</div>
+    <p class="note">Crisp angular folds form a clear S. Cream-pink palette. Real depth, scales cleanly. Closest to flagship icon energy.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-A2-fold-sharp.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-A2-fold-sharp.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell">
+      <div class="header-sim"><div class="mark"><img src="brand-concepts/concept-A2-fold-sharp.png" alt=""></div><span class="wordmark">Sully</span></div>
+      <span class="label">Header 32px</span>
+    </div>
+    <div class="cell">
+      <div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-A2-fold-sharp.png" alt=""></div>Auto<span class="chev">▴</span></div>
+      <span class="label">Picker chip</span>
+    </div>
+    <div class="cell">
+      <div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-A2-fold-sharp.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div>
+      <span class="label">Message</span>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag refine">B2 · alt direction</span>
+    <div class="name">Bold crescent</div>
+    <p class="note">Brand-pink saturated crescent with cream inner highlight. Reads instantly at every size. More mood/atmosphere than letterform.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-B2-crescent-bold.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-B2-crescent-bold.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell">
+      <div class="header-sim"><div class="mark"><img src="brand-concepts/concept-B2-crescent-bold.png" alt=""></div><span class="wordmark">Sully</span></div>
+      <span class="label">Header 32px</span>
+    </div>
+    <div class="cell">
+      <div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-B2-crescent-bold.png" alt=""></div>Auto<span class="chev">▴</span></div>
+      <span class="label">Picker chip</span>
+    </div>
+    <div class="cell">
+      <div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-B2-crescent-bold.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div>
+      <span class="label">Message</span>
+    </div>
+  </div>
+</div>
+
+<h2>First-pass concepts (kept for reference)</h2>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag refine">A · v1</span>
+    <div class="name">Folded ribbon — original</div>
+    <p class="note">Softer/curlier than A2 — the S is less legible at the chip size.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-A-fold.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-A-fold.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="brand-concepts/concept-A-fold.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-A-fold.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-A-fold.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag weak">B · v1</span>
+    <div class="name">Crescent — original</div>
+    <p class="note">Muted oxblood pink. Cropped tight. Smears at small sizes — see chip.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-B-crescent.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-B-crescent.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="brand-concepts/concept-B-crescent.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-B-crescent.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-B-crescent.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag weak">C · v1</span>
+    <div class="name">Brushstroke S — original</div>
+    <p class="note">Model added an unwanted outer white frame. Personal feel survived but the frame breaks the iOS pattern.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-C-brush.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-C-brush.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="brand-concepts/concept-C-brush.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-C-brush.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-C-brush.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag refine">C2 · refined</span>
+    <div class="name">Brushstroke S — clean</div>
+    <p class="note">Frame fixed. Stroke is softer than A2 — personal hand-felt vibe but weaker letterform read at small sizes.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-C2-brush-clean.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-C2-brush-clean.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="brand-concepts/concept-C2-brush-clean.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-C2-brush-clean.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-C2-brush-clean.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag weak">D</span>
+    <div class="name">Conversation bloom</div>
+    <p class="note">Right shape blobbed out. Concept didn't land in the gen pass.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="brand-concepts/concept-D-bloom.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="brand-concepts/concept-D-bloom.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="brand-concepts/concept-D-bloom.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="brand-concepts/concept-D-bloom.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="brand-concepts/concept-D-bloom.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<h2>Current — for comparison</h2>
+
+<div class="row">
+  <div class="meta">
+    <span class="tag control">Current</span>
+    <div class="name">Magenta orb (shipping today)</div>
+    <p class="note">What's in production right now. Use to gauge whether any new direction is actually an upgrade.</p>
+  </div>
+  <div class="ctx">
+    <div class="cell"><div class="icon-1024"><img src="../../static/icon-1024.png" alt=""></div><span class="label">App icon</span></div>
+    <div class="cell"><div class="icon-home"><img src="../../static/icon-1024.png" alt=""></div><span class="label">Home tile</span></div>
+    <div class="cell"><div class="header-sim"><div class="mark"><img src="../../static/sully-mark.png" alt=""></div><span class="wordmark">Sully</span></div><span class="label">Header 32px</span></div>
+    <div class="cell"><div class="chip"><div class="chip-mark"><img src="../../static/sully-mark.png" alt=""></div>Auto<span class="chev">▴</span></div><span class="label">Picker chip</span></div>
+    <div class="cell"><div class="bubble-sim"><div class="avatar"><img src="../../static/sully-mark.png" alt=""></div><div class="bubble-text">Hey Captain — I'm here.</div></div><span class="label">Message</span></div>
+  </div>
+</div>
+
+<div class="summary">
+  <h2>My honest read</h2>
+  <p><strong>A2 (folded ribbon S)</strong> is the strongest candidate. It works at every size, has a real letterform anchor (the S), and the cream-on-pink palette has the warmth the brief asked for. It's also the closest to a flagship app icon — sits naturally next to Things, Linear, or Notion on an iOS home screen.</p>
+  <p><strong>B2 (bold crescent)</strong> is the alternative if you want vibe over letterform. It's atmospheric — a quiet always-present companion mark. Weakness: less distinctive at very small sizes (the crescent fills the bounding box, which can read busy).</p>
+  <p><strong>C2 (brushstroke)</strong> is decent but loses the letterform legibility A2 keeps. Useful as a fallback direction if you want personal/handmade energy.</p>
+  <p>If A2 doesn't land, the cheapest next iteration is 2–3 A-variants with different ribbon angles (more vertical, more horizontal, less curl on the bottom). Tell me which direction to push.</p>
+</div>
+
+</body>
+</html>

@@ -28,6 +28,15 @@ export type EscalationRow = {
 	model: string;
 	current_tier: string;
 	target_repo: string;
+	/** Discriminates text-chat escalations from voice-specialist escalations.
+	 *  Default 'text' for back-compat with rows written before Rank 2 shipped. */
+	source?: 'text' | 'voice';
+	/** Voice-only correlation id (mirrors the voice-reply `response_id` pattern).
+	 *  Set when `source === 'voice'`, omitted otherwise. */
+	voice_session_id?: string;
+	/** Free-form caller-supplied metadata. Voice clients use this to record
+	 *  device/preset/turn context that isn't worth its own column. */
+	metadata?: Record<string, unknown>;
 	// Filled in by the stream handler once the reply lands:
 	reply_text?: string;
 	reasoning?: string | null; // model's <thinking>/reasoning block if surfaced

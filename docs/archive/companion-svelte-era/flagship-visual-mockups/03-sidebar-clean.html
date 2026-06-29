@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>Mockup 03 — Sidebar</title>
+	<link rel="stylesheet" href="./shared.css">
+	<style>
+		.drawer-layout { display: flex; height: 100%; }
+		.drawer {
+			width: 82%;
+			max-width: 300px;
+			background: rgba(15, 16, 21, 0.97);
+			backdrop-filter: blur(24px);
+			border-right: 1px solid var(--line);
+			display: flex;
+			flex-direction: column;
+			padding-top: calc(var(--safe-top) + 8px);
+		}
+		.drawer-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 8px 14px 12px;
+		}
+		.drawer-head .brand-mark { width: 28px; height: 28px; }
+		.new-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			height: 36px;
+			padding: 0 14px;
+			border-radius: var(--r-pill);
+			border: 1px solid var(--live-line);
+			background: var(--live-bg);
+			color: var(--accent-soft);
+			font-size: 13px;
+			font-weight: 600;
+		}
+		.search {
+			margin: 0 12px 12px;
+			padding: 10px 12px;
+			border-radius: var(--r-md);
+			border: 1px solid var(--line2);
+			background: rgba(255,255,255,0.03);
+			color: var(--t3);
+			font-size: 14px;
+		}
+		.section-label {
+			padding: 8px 16px 4px;
+			font-size: 10px;
+			font-weight: 700;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			color: var(--t4);
+		}
+		.thread {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin: 2px 10px;
+			padding: 10px 12px;
+			border-radius: var(--r-md);
+			font-size: 14px;
+			color: var(--t2);
+		}
+		.thread.active {
+			background: var(--live-bg);
+			border: 1px solid var(--live-line);
+			color: var(--t1);
+		}
+		.thread .count {
+			margin-left: auto;
+			font-size: 11px;
+			color: var(--t4);
+			background: rgba(255,255,255,0.06);
+			padding: 2px 8px;
+			border-radius: var(--r-pill);
+		}
+		.task-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin: 2px 10px;
+			padding: 8px 12px;
+			border-radius: var(--r-md);
+			border: 1px solid var(--amber-line, rgba(251,191,36,0.26));
+			background: rgba(251,191,36,0.08);
+			font-size: 12px;
+			color: var(--t2);
+		}
+		.task-row .pulse {
+			width: 8px; height: 8px; border-radius: 50%;
+			background: #fbbf24;
+			box-shadow: 0 0 8px rgba(251,191,36,0.5);
+		}
+		.drawer-foot {
+			margin-top: auto;
+			padding: 16px;
+			border-top: 1px solid var(--line);
+		}
+		.profile-chip {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 10px 12px;
+			border-radius: var(--r-md);
+			border: 1px solid var(--line2);
+			background: rgba(255,255,255,0.03);
+			font-size: 13px;
+			color: var(--t2);
+		}
+		.chat-dim {
+			flex: 1;
+			background: rgba(0,0,0,0.35);
+			filter: blur(1px);
+		}
+	</style>
+</head>
+<body>
+	<div class="phone-stage">
+		<div class="phone-label">Target — Phase A + Active Tasks (Phase C shell)</div>
+		<div class="phone">
+			<div class="drawer-layout">
+				<aside class="drawer">
+					<div class="drawer-head">
+						<div class="brand"><div class="brand-mark"></div><span class="brand-name">Sully</span></div>
+						<button class="new-btn" type="button">+ New</button>
+					</div>
+					<div class="search">Search conversations…</div>
+
+					<div class="section-label">Active</div>
+					<div class="task-row">
+						<span class="pulse"></span>
+						<span>CC · PRO-193 run sheet</span>
+					</div>
+
+					<div class="section-label">Pinned</div>
+					<div class="thread active">
+						<span>🌙</span>
+						<span>The Den</span>
+						<span class="count">90</span>
+					</div>
+
+					<div class="section-label">Recent</div>
+					<div class="thread"><span>#</span><span>Cheapest Mac Mini for LLM</span><span class="count">28</span></div>
+					<div class="thread"><span>#</span><span>Treehouse wiring plan</span><span class="count">12</span></div>
+					<div class="thread"><span>#</span><span>Voice stack tuning</span><span class="count">7</span></div>
+
+					<div class="drawer-foot">
+						<div class="profile-chip">
+							<div class="brand-mark" style="width:24px;height:24px"></div>
+							<span>Settings & context</span>
+						</div>
+					</div>
+				</aside>
+				<div class="chat-dim"></div>
+			</div>
+		</div>
+		<span class="badge-note">No HOST footer · human titles · empty slugs hidden</span>
+	</div>
+</body>
+</html>

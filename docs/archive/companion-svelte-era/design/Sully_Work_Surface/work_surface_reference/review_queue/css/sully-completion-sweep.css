@@ -1,0 +1,68 @@
+/* ==========================================================================
+   SULLY WORK SURFACE - SOFT CONFIRMATION SWEEP MODULE
+   ========================================================================== */
+
+/* Shimmer overlay effect across card surface */
+.sully-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -200%;
+  width: 150%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.03) 40%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.03) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  z-index: 16;
+  pointer-events: none;
+}
+
+.sully-card.sweep-active::before {
+  animation: softSweepPass 1.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+/* Background glow settlement effect */
+.sully-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background-color: rgba(16, 185, 129, 0);
+  z-index: 15;
+  pointer-events: none;
+  transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sully-card.sweep-active::after {
+  animation: softSweepGlow 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Keyframes */
+@keyframes softSweepPass {
+  0% { left: -200%; }
+  100% { left: 150%; }
+}
+
+@keyframes softSweepGlow {
+  0% { background-color: rgba(16, 185, 129, 0); }
+  25% { background-color: rgba(16, 185, 129, 0.08); }
+  75% { background-color: rgba(16, 185, 129, 0.08); }
+  100% { background-color: rgba(16, 185, 129, 0); }
+}
+
+/* Reduced Motion Overrides */
+@media (prefers-reduced-motion: reduce) {
+  .sully-card.sweep-active::before,
+  .sully-card.sweep-active::after {
+    animation: none !important;
+    display: none !important;
+  }
+}

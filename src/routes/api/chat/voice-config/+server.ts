@@ -12,6 +12,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getSetting } from '$lib/server/settings';
 import { getVoice, clientVoices, routingFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
+import { buildVadConfig } from '$lib/server/voice_vad_config';
 
 export const GET: RequestHandler = () => {
 	const activeId = getSetting('active_voice') || DEFAULT_VOICE_ID;
@@ -39,6 +40,10 @@ export const GET: RequestHandler = () => {
 		// mic while listening/thinking. PTT stays available via the in-overlay toggle
 		// (better for noisy rooms / no headphones / iOS backgrounding).
 		pttDefault: false,
-		continuousDefault: true
+		continuousDefault: true,
+		// Rank 1.5 — VAD config exposure. Server-authoritative. Bridge enforces;
+		// client renders as a status panel / settings UI bounded by `clamp`. No
+		// setter route yet; future Cursor brief picks up the iOS-side UI.
+		vad: buildVadConfig()
 	});
 };

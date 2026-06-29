@@ -154,6 +154,11 @@ export function persistAssistantTurn(args: {
 	completionTokens?: number | null;
 	latencyMs?: number | null;
 	error?: string | null;
+	/** Row status. Defaults to 'sent'. Voice barge-in / truncate sets
+	 *  'truncated' so downstream consumers (history rehydrate, voice context
+	 *  rebuilds) can tell what the operator actually heard vs what was
+	 *  generated. */
+	status?: string;
 }): void {
 	// Caller (route handler) already decided this turn is worth persisting —
 	// don't second-guess with a .trim() guard. Originally both routes advanced
@@ -168,7 +173,16 @@ export function persistAssistantTurn(args: {
 		latencyMs: args.latencyMs ?? null,
 		error: args.error ?? null
 	};
-	addChatMessage(args.sender, args.text, null, null, null, 'sent', args.threadId, forensics);
+	addChatMessage(
+		args.sender,
+		args.text,
+		null,
+		null,
+		null,
+		args.status ?? 'sent',
+		args.threadId,
+		forensics
+	);
 	upsertThreadTier(args.threadId, args.tier, args.model);
 	touchLastActivity(args.threadId);
 	if (args.taskId) {

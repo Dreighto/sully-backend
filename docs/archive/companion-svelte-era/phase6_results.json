@@ -1,0 +1,82 @@
+{
+  "viewportBefore": {
+    "w": 1280,
+    "h": 720
+  },
+  "viewportAfter": {
+    "w": 1280,
+    "h": 720
+  },
+  "safeAreas": {
+    "top": "0px",
+    "bottom": "0px"
+  },
+  "smallTargets": [
+    {
+      "tag": "BUTTON",
+      "className": "flex h-11 items-center gap-1.5 rounded-[var(--r-pill)] bg-[var(--live-bg)] px-3 text-[var(--accent)] transition-all hover:bg-[var(--live-line)] hover:text-white active:scale-95 sm:h-9",
+      "w": 71.90625,
+      "h": 36
+    },
+    {
+      "tag": "INPUT",
+      "className": "flex-1 bg-transparent font-sans text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none",
+      "w": 217,
+      "h": 16
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-7 items-center gap-1.5 rounded-[var(--r-sm)] px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-white/[0.04] hover:text-brand-soft active:scale-95",
+      "w": 118.25,
+      "h": 28
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-7 items-center gap-1.5 rounded-[var(--r-sm)] px-2 font-sans text-[10px] font-medium tracking-wide text-zinc-400 uppercase transition-all hover:bg-red-500/10 hover:text-red-400 active:scale-95",
+      "w": 85.25,
+      "h": 28
+    },
+    {
+      "tag": "A",
+      "className": "ml-0.5 flex items-center gap-2 transition-opacity hover:opacity-80",
+      "w": 68.390625,
+      "h": 32
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 sm:h-9 sm:w-9 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200",
+      "w": 36,
+      "h": 36
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-9 max-w-[11rem] min-w-0 items-center gap-1.5 rounded-[var(--r-pill)] px-2 font-sans transition-all active:scale-95 text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200",
+      "w": 78.109375,
+      "h": 36
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 sm:h-9 sm:w-9 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200",
+      "w": 36,
+      "h": 36
+    },
+    {
+      "tag": "TEXTAREA",
+      "className": "min-w-0 flex-1 resize-none self-center bg-transparent px-1 py-2 font-sans text-[16px] leading-snug tracking-[-0.005em] text-white placeholder:text-zinc-600 focus:outline-none disabled:text-zinc-500",
+      "w": 816,
+      "h": 38
+    },
+    {
+      "tag": "BUTTON",
+      "className": "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-pill)] transition-all active:scale-90 disabled:opacity-40 sm:h-9 sm:w-9 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200",
+      "w": 36,
+      "h": 36
+    },
+    {
+      "tag": "BUTTON",
+      "className": "btn-tactile-brand h-11 w-11 shrink-0 sm:h-9 sm:w-9",
+      "w": 36,
+      "h": 36
+    }
+  ]
+}

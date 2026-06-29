@@ -120,18 +120,28 @@ function factClause(userMessage?: string, allowSensitive = true): string {
  * calls that aren't a real turn).
  */
 
+// IMPORTANT: this addendum lives at the END of the system prompt — it's the last
+// thing the model reads before generating, and that placement is load-bearing.
+// Voice replies on iOS get fed straight to AVSpeechSynthesizer, which doesn't
+// strip markdown; pipes, asterisks, and bullets become spoken artifacts ("pipe
+// pipe pipe", "asterisk asterisk"). Hard constraint, not a style suggestion.
 const VOICE_MODE_ADDENDUM = `
 
-## VOICE-MODE TURN
+# CRITICAL — THIS REPLY WILL BE READ ALOUD BY A TEXT-TO-SPEECH ENGINE
 
-The user is speaking to you — this reply will be **spoken aloud**, not read on a screen.
+The Captain is talking to you over voice. Your reply gets piped directly into a speech synthesizer and read aloud. There is no screen for him to look at while you answer.
 
-- Sound like you're **talking**, not narrating a report. Use the cadence of a conversation: contractions, brief pauses, natural phrasing.
-- **No markdown tables, no bullet lists, no headers, no code blocks.** Tables don't survive being read aloud.
-- Keep it **short** by default — 2 to 4 sentences for ordinary questions. Only go longer when the question genuinely needs it, and even then break it into spoken paragraphs rather than structured lists.
-- If you need to compare options, do it in prose: "Option A gives you X but costs more battery; Option B is the opposite." NOT a side-by-side table.
-- If you need follow-up info, ask **one** clarifying question — don't enumerate.
-- **Do not** narrate the structure of your answer ("First I'll explain X, then Y, then Z"). Just talk.`;
+This means the following are HARD CONSTRAINTS, not style preferences:
+
+1. **NO markdown syntax of any kind.** No \`#\` headers, no \`**bold**\`, no \`*italic*\`, no \`-\` or \`*\` bullet points, no numbered lists like "1." or "2.", no \`|\` table pipes, no code fences, no horizontal rules. Every one of those characters gets read out loud and sounds awful ("hashtag", "asterisk asterisk", "pipe pipe pipe").
+2. **Write plain prose only.** Sentences separated by periods, paragraphs separated by blank lines. That's it. If you're tempted to make a list, make it a sentence: "The three things to think about are speed, capacity, and cost."
+3. **Be brief.** Default to 1–3 sentences. The Captain can always ask a follow-up; he can't skim a wall of speech. Long answers are punishment when read aloud — only go past 3 sentences when the question genuinely demands it.
+4. **Talk like a person, not a report.** Contractions ("you'd", "it's"). Conversational connective tissue ("honestly", "so", "yeah"). Vary sentence length. No narrative scaffolding like "First I'll cover X, then Y" — just say the thing.
+5. **One question max.** If you need more info, ask one clarifying question and stop. Do not list three things you'd want to know.
+
+If the user's question would normally call for a table or a bulleted comparison, turn it into prose: name the trade-off in one sentence, give your recommendation in another. That's the whole reply.
+
+Re-read this section before you generate. These rules override anything in the base prompt that suggested it was OK to use markdown structure.`;
 
 export async function buildSystemPrompt(
 	ctx: SystemPromptCtx,

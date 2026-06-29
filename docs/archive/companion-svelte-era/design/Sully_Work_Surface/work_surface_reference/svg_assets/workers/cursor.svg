@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Cursor-inspired IDE logo</title>
+  <desc id="desc">A geometric black and ivory cube/cursor style icon for an AI IDE. Unofficial, not the official Cursor trademark.</desc>
+    <g filter="url(#shadow)">
+    <path d="M256 76L410 165V344L256 433L102 344V165L256 76Z" fill="#F7F7F2"/>
+    <path d="M256 76L410 165L256 254L102 165L256 76Z" fill="#FFFFFF"/>
+    <path d="M102 165L256 254V433L102 344V165Z" fill="#DCDCD4"/>
+    <path d="M410 165L256 254V433L410 344V165Z" fill="#BDBDB3"/>
+    <path d="M256 254L410 165V232L256 321L102 232V165L256 254Z" fill="#1B1B18"/>
+    <path d="M256 321L410 232V344L256 433V321Z" fill="#26261E"/>
+    <path d="M256 321L102 232V344L256 433V321Z" fill="#323229"/>
+    <path d="M256 76L410 165L256 254L102 165L256 76Z" stroke="#0F0F0D" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M102 165V344L256 433L410 344V165" stroke="#0F0F0D" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M102 165L256 254L410 165" stroke="#0F0F0D" stroke-width="16" stroke-linejoin="round"/>
+    <path d="M256 254V433" stroke="#0F0F0D" stroke-width="16" stroke-linecap="round"/>
+  </g>
+  <defs>
+    <filter id="shadow" x="62" y="52" width="388" height="421" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+</svg>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>Mockup 01 — Quiet Conversation</title>
+	<link rel="stylesheet" href="./shared.css">
+	<style>
+		.hint {
+			text-align: center;
+			font-family: var(--font-mono);
+			font-size: 10px;
+			color: var(--t4);
+			padding: 4px 16px 8px;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+	</style>
+</head>
+<body>
+	<div class="phone-stage">
+		<div class="phone-label">AGY — Quiet Conversation (Phase A+B)</div>
+		<div class="phone">
+			<div class="app">
+				<div class="app-bg"></div>
+				<div class="app-root">
+					<header class="header quiet">
+						<div class="header-left">
+							<button class="icon-btn" aria-label="Menu">☰</button>
+							<a class="brand" href="#">
+								<div class="brand-mark"></div>
+							</a>
+						</div>
+						
+						<button class="model-chip" type="button">
+							<span class="dot"></span>
+							Auto ▾
+						</button>
+						
+						<div class="header-right">
+							<button class="icon-btn" aria-label="New thread">✎</button>
+						</div>
+					</header>
+
+					<div class="feed">
+						<div class="msg-user">Can you check what's running on the machine?</div>
+						<div class="msg-meta" style="align-self: flex-end; margin-top: -16px; margin-bottom: 4px;">12:41 PM</div>
+
+						<div class="msg-block">
+							<div class="name-tag"><span class="orb"></span> Sully</div>
+							<div class="msg-assistant">
+								Three services are up: companion, dispatch listener, and the MCP gateway.
+								CC finished PRO-205 twelve minutes ago — nothing else is in flight.
+							</div>
+							<div class="msg-actions">
+								<button class="act" title="Copy">⎘</button>
+								<button class="act" title="Regenerate">↻</button>
+								<button class="act" title="Read aloud">▶</button>
+								<button class="act" title="More">···</button>
+							</div>
+							<div class="msg-meta">12:41 PM</div>
+						</div>
+
+						<div class="msg-block">
+							<div class="name-tag"><span class="orb"></span> Sully</div>
+							<div class="msg-assistant">
+								Tap or hover a reply to reveal actions — the conversation stays
+								clean until you need controls.
+							</div>
+							<div class="msg-actions">
+								<button class="act" title="Copy">⎘</button>
+								<button class="act" title="Regenerate">↻</button>
+								<button class="act" title="Read aloud">▶</button>
+								<button class="act" title="More">···</button>
+							</div>
+							<div class="msg-meta">12:42 PM</div>
+						</div>
+					</div>
+
+					<p class="hint">Tap a reply to disclose actions</p>
+
+					<div class="composer-wrap">
+						<div class="composer">
+							<div class="composer-row">
+								<button class="icon-btn" type="button">📎</button>
+								<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
+								<button class="icon-btn" type="button">〰</button>
+								<button class="send-fab" type="button">🎤</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<span class="badge-note">Model chip in header • actions visible on tap/hover</span>
+	</div>
+
+	<script>
+		const msgBlocks = document.querySelectorAll('.msg-block');
+		msgBlocks.forEach(block => {
+			block.addEventListener('click', (e) => {
+				msgBlocks.forEach(b => { if (b !== block) b.classList.remove('focused'); });
+				block.classList.toggle('focused');
+				e.stopPropagation();
+			});
+		});
+		document.addEventListener('click', () => {
+			msgBlocks.forEach(b => b.classList.remove('focused'));
+		});
+	</script>
+</body>
+</html>

@@ -83,6 +83,13 @@ export interface ApplyTurnDecisionCtx {
 	threadId: string;
 	targetRepo: string;
 	userText: string;
+	/** When true, suppress the assistant-side chat row each branch normally
+	 *  writes (the templated "That looks like a job for X" / "On it" string).
+	 *  Voice-reply Part A (2026-06-28) needs the gate-marking + dispatch
+	 *  bookkeeping side effects but generates its own natural reply via
+	 *  companion-v1-voice; persisting the template polluted history and made
+	 *  the next turn echo the template's style. */
+	suppressSpokenChatRow?: boolean;
 }
 
 /**
@@ -95,6 +102,20 @@ export async function applyTurnDecision(
 	ctx: ApplyTurnDecisionCtx
 ): Promise<{ spokenSuffix?: string }> {
 	const { taskId, threadId, targetRepo, userText } = ctx;
+	// Voice-reply opts out of templated spoken chat rows — companion-v1-voice
+	// will generate the spoken reply naturally and those template rows in
+	// history bias the next turn toward AI-chatbot phrasing. Keep all OTHER
+	// side effects (gate marks, dispatch calls, journal events).
+	const writeSpokenRow = !ctx.suppressSpokenChatRow;
+	// When the chat row is suppressed, also DROP the returned spokenSuffix.
+	// The caller (voice-reply) currently emits any non-empty spokenSuffix as
+	// a `suffix` SSE event; iOS appends it to captions; result was the
+	// templated "That looks like a job for CC — ..." string typing onto the
+	// voice mode screen at end-of-reply with NO audio (b104 regression
+	// observed in the operator's 2026-06-28 recording at 2:11). Same flag
+	// gates both the row write and the return value so the templated string
+	// can never reach the surface.
+	const sup = (s: string) => (ctx.suppressSpokenChatRow ? '' : s);
 
 	switch (decision.kind) {
 		case 'ROUTING_ANSWER': {
@@ -120,35 +141,39 @@ export async function applyTurnDecision(
 				const msg = res.ok
 					? `On it — running that as a separate task. I'll drop the result right here when it's ready.`
 					: `Could not start a new task: ${res.reason}.`;
-				addChatMessage(
-					'system',
-					msg,
-					res.ok ? siblingTraceId : null,
-					null,
-					null,
-					'sent',
-					threadId,
-					{
-						taskId: pendingRoutingAsk.taskId
-					}
-				);
+				if (writeSpokenRow) {
+					addChatMessage(
+						'system',
+						msg,
+						res.ok ? siblingTraceId : null,
+						null,
+						null,
+						'sent',
+						threadId,
+						{
+							taskId: pendingRoutingAsk.taskId
+						}
+					);
+				}
 				markAborted(pendingRoutingAsk.taskId);
 				markSelfHandled(taskId);
-				return { spokenSuffix: msg };
+				return { spokenSuffix: sup(msg) };
 			}
 			// defer
 			markAborted(pendingRoutingAsk.taskId);
 			const msg = `Okay — I'll hold that until the current task finishes.`;
-			addChatMessage('local', msg, null, null, null, 'sent', threadId, {
-				taskId: pendingRoutingAsk.taskId
-			});
+			if (writeSpokenRow) {
+				addChatMessage('local', msg, null, null, null, 'sent', threadId, {
+					taskId: pendingRoutingAsk.taskId
+				});
+			}
 			logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
 				action: 'Defer',
 				reason: 'routing-ask: defer',
 				deferred_content: pendingRoutingAsk.task
 			});
 			markSelfHandled(taskId);
-			return { spokenSuffix: msg };
+			return { spokenSuffix: sup(msg) };
 		}
 
 		case 'RUNNING_WORK_INTENT': {
@@ -167,15 +192,17 @@ export async function applyTurnDecision(
 				'routing_ask'
 			);
 			const ask = `I've got a task running. Want me to hold this until it finishes, or run it as a separate task? Just tell me 'hold it' or 'run it separately'.`;
-			addChatMessage('local', ask, activeTaskId, null, null, 'sent', threadId, {
-				taskId
-			});
+			if (writeSpokenRow) {
+				addChatMessage('local', ask, activeTaskId, null, null, 'sent', threadId, {
+					taskId
+				});
+			}
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'RoutingAsk',
 				reason: 'running-task work-intent — held, not injected',
 				activeTaskId
 			});
-			return { spokenSuffix: ask };
+			return { spokenSuffix: sup(ask) };
 		}
 
 		case 'CONVERSATIONAL_ONLY': {
@@ -209,12 +236,22 @@ export async function applyTurnDecision(
 			const msg = res.ok
 				? `On it — handing that to ${workerLabel(pending.worker)} now. I'll drop the answer right here when it's ready.`
 				: `⚠️ Dispatch held: ${res.reason}.`;
-			addChatMessage('system', msg, res.ok ? pending.taskId : null, null, null, 'sent', threadId, {
-				taskId: pending.taskId
-			});
+			if (writeSpokenRow)
+				addChatMessage(
+					'system',
+					msg,
+					res.ok ? pending.taskId : null,
+					null,
+					null,
+					'sent',
+					threadId,
+					{
+						taskId: pending.taskId
+					}
+				);
 			if (!res.ok) markSelfHandled(pending.taskId);
 			markSelfHandled(taskId);
-			return { spokenSuffix: msg };
+			return { spokenSuffix: sup(msg) };
 		}
 
 		case 'DISPATCH': {
@@ -241,38 +278,45 @@ export async function applyTurnDecision(
 			const msg = res.ok
 				? `${workerLabel(worker)} is on it — I'll drop the answer right here the moment it's ready.`
 				: `⚠️ Dispatch held: ${res.reason}.`;
-			addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, {
-				taskId
-			});
+			if (writeSpokenRow)
+				addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, {
+					taskId
+				});
 			if (!res.ok) markSelfHandled(taskId);
-			return { spokenSuffix: msg };
+			return { spokenSuffix: sup(msg) };
 		}
 
 		case 'PROPOSE': {
 			const { worker, category, brief } = decision;
 			markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
 			const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
-			addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, { taskId });
+			if (writeSpokenRow) {
+				addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, {
+					taskId
+				});
+			}
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Ask',
 				reason: decision.reason,
 				worker,
 				dispatched: false
 			});
-			return { spokenSuffix: ask };
+			return { spokenSuffix: sup(ask) };
 		}
 
 		case 'REJECT_WORKER': {
 			// Operator named a non-dispatchable roster member — graceful, deterministic
 			// rejection with the registry's copy. No silent substitution (LOS-191).
-			addChatMessage('local', decision.message, null, null, null, 'sent', threadId, { taskId });
+			if (writeSpokenRow) {
+				addChatMessage('local', decision.message, null, null, null, 'sent', threadId, { taskId });
+			}
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Reject',
 				reason: `non-dispatchable:${decision.name}`,
 				dispatched: false
 			});
 			markSelfHandled(taskId);
-			return { spokenSuffix: decision.message };
+			return { spokenSuffix: sup(decision.message) };
 		}
 
 		case 'ANSWER_NOW': {

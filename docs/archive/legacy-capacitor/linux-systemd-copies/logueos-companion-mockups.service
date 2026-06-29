@@ -1,0 +1,19 @@
+[Unit]
+Description=LogueOS Companion flagship visual mockups (static HTTP, port 8765)
+Documentation=file:///home/dreighto/dev/LogueOS-Companion/docs/flagship-visual-mockups/README.md
+# Tailnet-only static server — binds 0.0.0.0:8765 so phone can reach via Tailscale.
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dreighto
+WorkingDirectory=/home/dreighto/dev/LogueOS-Companion/docs/flagship-visual-mockups
+ExecStart=/usr/bin/python3 -m http.server 8765 --bind 0.0.0.0
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -94,7 +94,7 @@ const ARTIFACT_TYPE: Record<string, string> = {
 
 const DEFAULT_WORKSPACE =
 	process.env.LOGUEOS_ARTIFACT_WORKSPACE_DEFAULT ||
-	'/home/dreighto/dev/worktrees/LogueOS-Companion/w1';
+	'/home/dreighto/dev/sully-backend';
 
 const APP_BASE = '/companion';
 

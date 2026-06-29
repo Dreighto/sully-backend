@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sully — Glow &amp; Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050505;
+    --deep:#c4186a;
+    --brand:#ec2d78;
+    --bright:#ff4d94;
+    --soft:#ff7eb3;
+    --glow:#ff8fc0;
+    --ink:#f4f4f6;
+    --ink2:#d6d6db;
+    --muted:#9a9aa3;
+    --faint:#6c6c75;
+    --glass:rgba(20,20,23,.62);
+    --glass2:rgba(26,26,30,.55);
+    --hairline:rgba(255,255,255,.08);
+    --hair-strong:rgba(255,255,255,.14);
+    --radius:26px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  html,body{background:#000;font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink)}
+  body{
+    min-height:100vh;
+    padding:54px 20px 90px;
+    display:flex;flex-direction:column;align-items:center;gap:60px;
+    background:
+      radial-gradient(900px 600px at 18% -8%, rgba(196,24,106,.12), transparent 60%),
+      radial-gradient(900px 700px at 110% 12%, rgba(236,45,120,.07), transparent 55%),
+      #020203;
+  }
+
+  /* ---------- caption ---------- */
+  .caption{
+    width:420px;max-width:100%;
+    font-size:10.5px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--faint);
+    margin:0 0 14px 4px;display:flex;align-items:center;gap:10px;
+  }
+  .caption::before{content:"";width:18px;height:1px;background:linear-gradient(90deg,var(--brand),transparent)}
+
+  .stack{display:flex;flex-direction:column;align-items:center}
+
+  /* ---------- phone shell ---------- */
+  .phone{
+    position:relative;
+    width:420px;max-width:100%;
+    height:880px;
+    border-radius:46px;
+    overflow:hidden;
+    background:var(--bg);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.04),
+      0 2px 4px rgba(0,0,0,.6),
+      0 40px 90px -30px rgba(0,0,0,.9),
+      0 0 120px -40px rgba(236,45,120,.18);
+    isolation:isolate;
+  }
+  .phone::after{ /* inner bezel sheen */
+    content:"";position:absolute;inset:0;border-radius:46px;pointer-events:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06), inset 0 0 0 1px rgba(255,255,255,.03);
+    z-index:60;
+  }
+
+  /* ---------- living aurora ---------- */
+  .aurora{position:absolute;inset:-30%;z-index:0;pointer-events:none;filter:blur(46px);opacity:.9}
+  .aurora span{position:absolute;border-radius:50%;mix-blend-mode:screen}
+  .a1{width:70%;height:46%;left:-14%;top:6%;
+    background:radial-gradient(circle at 50% 50%, rgba(236,45,120,.34), transparent 66%);
+    animation:drift1 22s ease-in-out infinite alternate;opacity:.5}
+  .a2{width:64%;height:50%;right:-18%;top:30%;
+    background:radial-gradient(circle at 50% 50%, rgba(196,24,106,.30), transparent 64%);
+    animation:drift2 28s ease-in-out infinite alternate;opacity:.42}
+  .a3{width:80%;height:44%;left:6%;bottom:-12%;
+    background:radial-gradient(circle at 50% 50%, rgba(255,77,148,.22), transparent 68%);
+    animation:drift3 25s ease-in-out infinite alternate;opacity:.38}
+  @keyframes drift1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(8%,9%) scale(1.16)}}
+  @keyframes drift2{0%{transform:translate(0,0) scale(1.05)}100%{transform:translate(-9%,-6%) scale(1.22)}}
+  @keyframes drift3{0%{transform:translate(0,0) scale(1)}100%{transform:translate(6%,-8%) scale(1.18)}}
+  @media (prefers-reduced-motion:reduce){.aurora span{animation:none}}
+
+  /* faint vignette so aurora reads as depth */
+  .vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% 0%, transparent 40%, rgba(0,0,0,.55) 100%)}
+
+  .screen{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column}
+
+  /* ---------- status bar ---------- */
+  .statusbar{
+    height:46px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px 0 30px;
+    font-size:14px;font-weight:600;color:var(--ink);
+    position:relative;z-index:30;
+  }
+  .statusbar .time{letter-spacing:.2px;font-variant-numeric:tabular-nums}
+  .sb-right{display:flex;align-items:center;gap:7px}
+  .sb-right svg{display:block}
+  .notch{
+    position:absolute;top:11px;left:50%;transform:translateX(-50%);
+    width:118px;height:30px;background:#000;border-radius:18px;z-index:31;
+  }
+  .notch::after{content:"";position:absolute;right:14px;top:50%;transform:translateY(-50%);
+    width:9px;height:9px;border-radius:50%;background:#0c0c0e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+
+  /* ---------- glass top bar ---------- */
+  .topbar{
+    flex-shrink:0;height:60px;
+    display:flex;align-items:center;gap:12px;
+    padding:0 16px;
+    background:var(--glass);
+    backdrop-filter:blur(26px) saturate(150%);
+    -webkit-backdrop-filter:blur(26px) saturate(150%);
+    border-bottom:1px solid var(--hairline);
+    position:relative;z-index:20;
+  }
+  .topbar::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent)}
+
+  .ham{
+    width:40px;height:40px;border-radius:13px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--hairline);background:rgba(255,255,255,.03);
+    cursor:pointer;transition:transform .15s, background .2s;
+  }
+  .ham:active{transform:scale(.93)}
+  .ham span{display:block;width:16px;height:1.6px;border-radius:2px;background:var(--ink2);margin:2px 0}
+
+  .identity{display:flex;align-items:center;gap:9px;min-width:0;flex:1}
+  .id-dot{
+    width:10px;height:10px;border-radius:50%;flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%, #ffd0e6, var(--bright) 55%, var(--deep));
+    box-shadow:0 0 0 3px rgba(236,45,120,.16), 0 0 14px 2px rgba(255,77,148,.7);
+    animation:pulseDot 3.4s ease-in-out infinite;
+  }
+  @keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(236,45,120,.14), 0 0 12px 1px rgba(255,77,148,.6)}50%{box-shadow:0 0 0 4px rgba(236,45,120,.2), 0 0 20px 4px rgba(255,77,148,.85)}}
+  .id-name{font-size:16px;font-weight:600;letter-spacing:-.01em}
+
+  /* slim model pill — single line, truncates, never overflows */
+  .model-pill{
+    flex-shrink:0;max-width:118px;
+    display:flex;align-items:center;gap:5px;
+    height:30px;padding:0 11px;
+    border-radius:999px;
+    background:rgba(255,255,255,.045);
+    border:1px solid var(--hairline);
+    font-size:12.5px;font-weight:500;color:var(--ink2);
+    cursor:pointer;transition:background .2s, transform .12s;
+    overflow:hidden;
+  }
+  .model-pill:active{transform:scale(.96)}
+  .model-pill .mp-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .model-pill .mp-caret{color:var(--muted);font-size:9px;flex-shrink:0;line-height:1}
+
+  /* ---------- conversation ---------- */
+  .convo{
+    flex:1;overflow:hidden;
+    padding:22px 18px 4px;
+    display:flex;flex-direction:column;gap:22px;
+    position:relative;
+  }
+  .convo::before{ /* top fade */
+    content:"";position:absolute;left:0;right:0;top:0;height:26px;z-index:5;pointer-events:none;
+    background:linear-gradient(rgba(5,5,5,.85),transparent)}
+
+  .row-op{display:flex;justify-content:flex-end}
+  .op-pill{
+    max-width:76%;
+    padding:11px 16px;
+    border-radius:20px 20px 6px 20px;
+    background:rgba(255,255,255,.055);
+    border:1px solid var(--hairline);
+    color:var(--ink);font-size:15px;line-height:1.45;letter-spacing:-.005em;
+    box-shadow:0 4px 14px -8px rgba(0,0,0,.6);
+  }
+
+  .sully-block{max-width:90%}
+  .sully-tag{display:flex;align-items:center;gap:7px;margin:0 0 8px 2px}
+  .sully-tag .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ffd0e6, var(--bright) 60%, var(--deep));
+    box-shadow:0 0 9px 1px rgba(255,77,148,.7);
+  }
+  .sully-tag .nm{font-size:12.5px;font-weight:600;color:var(--soft);letter-spacing:.01em}
+  .sully-text{
+    font-size:15.5px;line-height:1.58;color:var(--ink2);letter-spacing:-.006em;
+    padding:2px 2px 2px 2px;
+    /* barely-raised glassy surface */
+    background:linear-gradient(rgba(255,255,255,.018),rgba(255,255,255,.006));
+    border-radius:14px;padding:12px 14px;
+    border:1px solid rgba(255,255,255,.05);
+  }
+  .sully-text b{color:var(--ink);font-weight:600}
+
+  /* system glass pill */
+  .sys-row{display:flex;justify-content:center;margin-top:2px}
+  .sys-pill{
+    display:flex;align-items:center;gap:9px;
+    padding:8px 15px;border-radius:999px;
+    background:var(--glass2);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--hairline);
+    font-size:12.5px;color:var(--muted);font-weight:450;
+    box-shadow:0 6px 20px -12px rgba(0,0,0,.7);
+  }
+  .sys-pill .pulse{
+    width:7px;height:7px;border-radius:50%;background:var(--bright);position:relative;flex-shrink:0;
+    box-shadow:0 0 8px 1px rgba(255,77,148,.8);
+  }
+  .sys-pill .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;
+    border:1px solid rgba(255,77,148,.55);animation:ripple 2s ease-out infinite}
+  @keyframes ripple{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.1);opacity:0}}
+  .sys-pill b{color:var(--ink2);font-weight:600}
+
+  /* ---------- composer ---------- */
+  .composer-wrap{flex-shrink:0;padding:6px 14px 16px;position:relative;z-index:15}
+
+  .quick-row{
+    display:flex;justify-content:center;gap:8px;margin-bottom:9px;opacity:.62;
+  }
+  .quick-chip{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 12px;border-radius:999px;
+    background:rgba(255,255,255,.03);border:1px solid var(--hairline);
+    font-size:11.5px;color:var(--muted);font-weight:500;
+  }
+  .quick-chip svg{opacity:.8}
+
+  .composer{
+    display:flex;align-items:center;gap:9px;
+    padding:8px 8px 8px 8px;
+    border-radius:28px;
+    background:var(--glass);
+    backdrop-filter:blur(28px) saturate(160%);
+    -webkit-backdrop-filter:blur(28px) saturate(160%);
+    border:1px solid var(--hair-strong);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      0 12px 34px -16px rgba(0,0,0,.85),
+      0 0 40px -22px rgba(236,45,120,.5);
+    position:relative;
+  }
+
+  .c-plus{
+    width:38px;height:38px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.06);border:1px solid var(--hairline);
+    color:var(--ink2);cursor:pointer;transition:transform .14s, background .2s;
+  }
+  .c-plus:active{transform:scale(.9) rotate(90deg)}
+  .c-input{
+    flex:1;min-width:0;
+    font-size:15.5px;color:var(--faint);letter-spacing:-.005em;
+    padding:0 2px;user-select:none;
+  }
+  .c-mic{
+    width:38px;height:38px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);cursor:pointer;transition:transform .14s,color .2s;
+  }
+  .c-mic:active{transform:scale(.9)}
+
+  /* voice-mode button — the favorite control, glowing magenta circle */
+  .c-voice{
+    width:46px;height:46px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 38% 30%, var(--bright), var(--brand) 55%, var(--deep));
+    cursor:pointer;position:relative;
+    box-shadow:
+      0 0 0 1px rgba(255,158,200,.35),
+      0 6px 18px -4px rgba(236,45,120,.7),
+      0 0 26px -2px rgba(255,77,148,.65);
+    transition:transform .14s;
+  }
+  .c-voice:active{transform:scale(.92)}
+  .c-voice::before{ /* glow pool */
+    content:"";position:absolute;inset:-12px;border-radius:50%;z-index:-1;
+    background:radial-gradient(circle, rgba(255,77,148,.5), transparent 70%);
+    animation:breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes breathe{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:.9;transform:scale(1.08)}}
+  .c-voice .wave{display:flex;align-items:center;gap:2.5px;height:18px}
+  .c-voice .wave i{width:2.4px;border-radius:2px;background:#fff;box-shadow:0 0 4px rgba(255,255,255,.6);animation:eq 1.1s ease-in-out infinite}
+  .c-voice .wave i:nth-child(1){height:6px;animation-delay:0s}
+  .c-voice .wave i:nth-child(2){height:14px;animation-delay:.18s}
+  .c-voice .wave i:nth-child(3){height:9px;animation-delay:.36s}
+  .c-voice .wave i:nth-child(4){height:16px;animation-delay:.12s}
+  .c-voice .wave i:nth-child(5){height:7px;animation-delay:.3s}
+  @keyframes eq{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+
+  .home-ind{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);
+    width:128px;height:5px;border-radius:3px;background:rgba(255,255,255,.32);z-index:40}
+
+  /* ===================================================== */
+  /* SECTION 2 — DRAWER                                    */
+  /* ===================================================== */
+  .dim-backdrop{position:absolute;inset:0;z-index:25;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+
+  .drawer{
+    position:absolute;top:0;bottom:0;left:0;z-index:26;
+    width:82%;
+    background:var(--glass);
+    backdrop-filter:blur(34px) saturate(150%);
+    -webkit-backdrop-filter:blur(34px) saturate(150%);
+    border-right:1px solid var(--hair-strong);
+    box-shadow:24px 0 60px -20px rgba(0,0,0,.85);
+    display:flex;flex-direction:column;
+    padding-top:46px;
+  }
+  .drawer::before{content:"";position:absolute;top:0;left:0;bottom:0;width:1px;
+    background:linear-gradient(rgba(255,255,255,.2),transparent 40%)}
+
+  .dr-head{padding:14px 20px 14px}
+  .dr-title{font-size:21px;font-weight:700;letter-spacing:-.02em;margin-bottom:14px}
+  .dr-search{
+    display:flex;align-items:center;gap:9px;
+    height:40px;padding:0 13px;border-radius:14px;
+    background:rgba(255,255,255,.045);border:1px solid var(--hairline);
+    color:var(--faint);font-size:14px;
+  }
+
+  .dr-section{font-size:10.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--faint);padding:18px 22px 8px}
+
+  .dr-list{flex:1;overflow:hidden;padding:0 12px}
+  .proj{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 12px;border-radius:14px;
+    position:relative;cursor:pointer;margin-bottom:2px;
+  }
+  .proj .pico{
+    width:34px;height:34px;border-radius:11px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.05);border:1px solid var(--hairline);
+    font-size:15px;
+  }
+  .proj .pname{font-size:15px;font-weight:500;color:var(--ink2)}
+  .proj .pmeta{font-size:12px;color:var(--faint);margin-top:1px}
+  .proj.active{
+    background:linear-gradient(90deg, rgba(236,45,120,.16), rgba(236,45,120,.04));
+    border:1px solid rgba(236,45,120,.28);
+  }
+  .proj.active .pname{color:var(--ink)}
+  .proj.active .pico{
+    background:radial-gradient(circle at 38% 30%, var(--bright), var(--brand) 60%, var(--deep));
+    border-color:transparent;box-shadow:0 0 18px -2px rgba(255,77,148,.6);color:#fff;
+  }
+  .proj.active::before{ /* magenta accent bar */
+    content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;
+    background:linear-gradient(var(--bright),var(--brand));box-shadow:0 0 12px 1px rgba(255,77,148,.7);
+  }
+
+  .threads{padding:4px 0 10px 58px;display:flex;flex-direction:column;gap:2px}
+  .thread{
+    display:flex;align-items:center;gap:9px;
+    padding:8px 12px;border-radius:10px;
+    font-size:13.5px;color:var(--muted);cursor:pointer;
+  }
+  .thread .tdot{width:4px;height:4px;border-radius:50%;background:var(--faint);flex-shrink:0}
+  .thread.on{color:var(--ink2);background:rgba(255,255,255,.04)}
+  .thread.on .tdot{background:var(--soft);box-shadow:0 0 6px var(--soft)}
+
+  .dr-foot{padding:12px 16px 18px;border-top:1px solid var(--hairline);background:rgba(255,255,255,.015)}
+  .new-proj{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    height:46px;border-radius:15px;width:100%;
+    background:radial-gradient(circle at 30% 20%, var(--bright), var(--brand) 60%, var(--deep));
+    color:#fff;font-size:15px;font-weight:600;cursor:pointer;
+    box-shadow:0 8px 22px -8px rgba(236,45,120,.7), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:transform .14s;margin-bottom:12px;
+  }
+  .new-proj:active{transform:scale(.97)}
+  .profile-row{display:flex;align-items:center;gap:11px;padding:8px 6px;border-radius:13px;cursor:pointer}
+  .profile-row .av{
+    width:36px;height:36px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(135deg,#3a3a40,#1a1a1e);border:1px solid var(--hairline);
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ink2);
+  }
+  .profile-row .pn{font-size:14.5px;font-weight:500;color:var(--ink2)}
+  .profile-row .ps{font-size:12px;color:var(--faint)}
+  .gear{margin-left:auto;color:var(--muted)}
+
+  /* ===================================================== */
+  /* SECTION 3 — VOICE                                     */
+  /* ===================================================== */
+  .voice-screen{align-items:center;text-align:center}
+  .voice-top{
+    flex-shrink:0;height:60px;display:flex;align-items:center;justify-content:space-between;
+    width:100%;padding:0 22px;position:relative;z-index:20;
+  }
+  .voice-top .vt-left{font-size:13px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px}
+  .voice-top .vt-dot{width:7px;height:7px;border-radius:50%;background:var(--bright);box-shadow:0 0 9px var(--bright)}
+  .voice-top .vt-x{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.05);border:1px solid var(--hairline);color:var(--muted)}
+
+  .voice-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:0 30px;gap:0}
+
+  .orb-stage{position:relative;width:240px;height:240px;display:flex;align-items:center;justify-content:center;margin-bottom:48px}
+  .orb-glow{position:absolute;inset:-40px;border-radius:50%;
+    background:radial-gradient(circle, rgba(255,77,148,.42), rgba(196,24,106,.12) 50%, transparent 72%);
+    filter:blur(8px);animation:orbBreathe 4.5s ease-in-out infinite}
+  @keyframes orbBreathe{0%,100%{transform:scale(.92);opacity:.7}50%{transform:scale(1.08);opacity:1}}
+  .orb{
+    width:188px;height:188px;border-radius:50%;position:relative;
+    background:
+      radial-gradient(circle at 36% 28%, #ffe3f0 0%, var(--soft) 18%, var(--bright) 42%, var(--brand) 66%, var(--deep) 100%);
+    box-shadow:
+      inset 0 -22px 50px -14px rgba(120,8,52,.85),
+      inset 0 14px 30px -6px rgba(255,255,255,.55),
+      0 24px 60px -14px rgba(236,45,120,.6),
+      0 0 0 1px rgba(255,158,200,.25);
+    animation:orbFloat 6s ease-in-out infinite;
+  }
+  @keyframes orbFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.02)}}
+  .orb::before{ /* glossy highlight */
+    content:"";position:absolute;top:18px;left:30px;width:64px;height:46px;border-radius:50%;
+    background:radial-gradient(circle at 40% 40%, rgba(255,255,255,.85), transparent 70%);filter:blur(2px)}
+  .orb-ring{position:absolute;inset:-14px;border-radius:50%;border:1px solid rgba(255,158,200,.22);
+    animation:ringPulse 4.5s ease-out infinite}
+  .orb-ring.r2{inset:-30px;animation-delay:1.4s;border-color:rgba(255,158,200,.14)}
+  @keyframes ringPulse{0%{transform:scale(.85);opacity:.7}100%{transform:scale(1.25);opacity:0}}
+
+  .listening{display:flex;align-items:center;gap:11px;margin-bottom:18px}
+  .listening .ltxt{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+  .lwave{display:flex;align-items:center;gap:3px;height:20px}
+  .lwave i{width:3px;border-radius:3px;background:var(--soft);animation:eq 1.05s ease-in-out infinite;box-shadow:0 0 6px rgba(255,126,179,.6)}
+  .lwave i:nth-child(1){height:8px;animation-delay:0s}
+  .lwave i:nth-child(2){height:16px;animation-delay:.15s}
+  .lwave i:nth-child(3){height:11px;animation-delay:.32s}
+  .lwave i:nth-child(4){height:18px;animation-delay:.08s}
+  .lwave i:nth-child(5){height:9px;animation-delay:.26s}
+  .lwave i:nth-child(6){height:14px;animation-delay:.4s}
+
+  .vcaption{font-size:15px;line-height:1.55;color:var(--muted);max-width:300px;font-weight:450}
+  .vcaption .grad{color:var(--ink2)}
+
+  .voice-controls{flex-shrink:0;width:100%;display:flex;align-items:center;justify-content:center;gap:26px;padding:0 0 26px}
+  .vctl{display:flex;flex-direction:column;align-items:center;gap:9px}
+  .vbtn{
+    width:62px;height:62px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--hair-strong);color:var(--ink2);cursor:pointer;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 10px 26px -14px rgba(0,0,0,.8);
+    transition:transform .14s;
+  }
+  .vbtn:active{transform:scale(.92)}
+  .vbtn.end{
+    background:radial-gradient(circle at 35% 28%, #ff6b6b, #d63b3b 60%, #8f1f1f);
+    border-color:transparent;color:#fff;
+    box-shadow:0 10px 26px -8px rgba(214,59,59,.6), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .vlabel{font-size:11.5px;color:var(--muted);font-weight:500;letter-spacing:.01em}
+
+  @media (max-width:460px){
+    body{padding:40px 0 70px}
+    .caption{padding-left:18px}
+    .phone{width:100%;border-radius:0;height:100vh;min-height:760px}
+    .phone::after{border-radius:0}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================ SECTION 1 — CHAT ============================ -->
+<div class="stack">
+  <div class="caption">Section 1 · Chat</div>
+  <div class="phone">
+    <div class="aurora"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+    <div class="vignette"></div>
+    <div class="notch"></div>
+
+    <div class="screen">
+      <!-- status bar -->
+      <div class="statusbar">
+        <span class="time">9:41</span>
+        <span class="sb-right">
+          <!-- signal -->
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#f4f4f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#f4f4f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#f4f4f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#f4f4f6"/></svg>
+          <!-- wifi -->
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><path d="M8.5 11.2 10.6 8.6a3.3 3.3 0 0 0-4.2 0L8.5 11.2Z" fill="#f4f4f6"/><path d="M4.1 6.3a7 7 0 0 1 8.8 0l1.5-1.85a9.4 9.4 0 0 0-11.8 0L4.1 6.3Z" fill="#f4f4f6" opacity=".95"/><path d="M1.5 3.1a11.4 11.4 0 0 1 14 0L17 1.2a13.8 13.8 0 0 0-17 0L1.5 3.1Z" fill="#f4f4f6" opacity=".9"/></svg>
+          <!-- battery -->
+          <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="#f4f4f6" stroke-opacity=".5"/><rect x="2" y="2" width="16.5" height="8" rx="1.6" fill="#f4f4f6"/><rect x="23" y="3.5" width="2" height="5" rx="1" fill="#f4f4f6" fill-opacity=".5"/></svg>
+        </span>
+      </div>
+
+      <!-- top bar -->
+      <div class="topbar">
+        <div class="ham"><div><span></span><span></span><span></span></div></div>
+        <div class="identity">
+          <div class="id-dot"></div>
+          <div class="id-name">Sully</div>
+        </div>
+        <div class="model-pill">
+          <span class="mp-txt">Opus 4.8</span>
+          <span class="mp-caret">▾</span>
+        </div>
+      </div>
+
+      <!-- conversation -->
+      <div class="convo">
+        <div class="row-op"><div class="op-pill">hey, what's the plan for today?</div></div>
+
+        <div class="sully-block">
+          <div class="sully-tag"><span class="dot"></span><span class="nm">Sully</span></div>
+          <div class="sully-text">Hey — let's keep it simple. What's the <b>one thing</b> that'd make today feel handled?</div>
+        </div>
+
+        <div class="row-op"><div class="op-pill">probably finally shipping the avatar.</div></div>
+
+        <div class="sully-block">
+          <div class="sully-tag"><span class="dot"></span><span class="nm">Sully</span></div>
+          <div class="sully-text">Then that's the move. Want me to hand the build to <b>CC</b> while we talk it through?</div>
+        </div>
+
+        <div class="sys-row">
+          <div class="sys-pill"><span class="pulse"></span>Sully sent this to <b>&nbsp;CC&nbsp;</b> — watching it now</div>
+        </div>
+      </div>
+
+      <!-- composer -->
+      <div class="composer-wrap">
+        <div class="quick-row">
+          <div class="quick-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.4 11.05-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            Attach</div>
+          <div class="quick-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+            Image</div>
+          <div class="quick-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            Look up</div>
+        </div>
+
+        <div class="composer">
+          <div class="c-plus">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="c-input">Talk to Sully…</div>
+          <div class="c-mic">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>
+          </div>
+          <div class="c-voice">
+            <div class="wave"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+<!-- ============================ SECTION 2 — DRAWER ============================ -->
+<div class="stack">
+  <div class="caption">Section 2 · Project Sidebar</div>
+  <div class="phone">
+    <div class="aurora"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+    <div class="vignette"></div>
+    <div class="notch"></div>
+
+    <!-- dimmed chat underneath (faint hint) -->
+    <div class="screen" style="opacity:.5;filter:blur(.5px)">
+      <div class="statusbar"><span class="time" style="color:transparent">9:41</span></div>
+      <div class="topbar"></div>
+      <div class="convo">
+        <div class="row-op"><div class="op-pill">hey, what's the plan for today?</div></div>
+        <div class="sully-block"><div class="sully-tag"><span class="dot"></span><span class="nm">Sully</span></div><div class="sully-text">Hey — let's keep it simple…</div></div>
+      </div>
+    </div>
+
+    <div class="dim-backdrop"></div>
+
+    <!-- drawer -->
+    <div class="drawer">
+      <div class="dr-head">
+        <div class="dr-title">Projects</div>
+        <div class="dr-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          Search projects &amp; threads
+        </div>
+      </div>
+
+      <div class="dr-section">Spaces</div>
+      <div class="dr-list">
+        <div class="proj active">
+          <div class="pico">◆</div>
+          <div>
+            <div class="pname">Default Space</div>
+            <div class="pmeta">3 active threads</div>
+          </div>
+        </div>
+        <div class="threads">
+          <div class="thread on"><span class="tdot"></span>Avatar + facelift</div>
+          <div class="thread"><span class="tdot"></span>Voice tuning</div>
+          <div class="thread"><span class="tdot"></span>Dispatcher</div>
+        </div>
+
+        <div class="proj">
+          <div class="pico">🛠</div>
+          <div>
+            <div class="pname">Companion Build</div>
+            <div class="pmeta">Last opened 2h ago</div>
+          </div>
+        </div>
+        <div class="proj">
+          <div class="pico">✦</div>
+          <div>
+            <div class="pname">Personal</div>
+            <div class="pmeta">Notes &amp; planning</div>
+          </div>
+        </div>
+        <div class="proj">
+          <div class="pico">☠</div>
+          <div>
+            <div class="pname">NASDOOM</div>
+            <div class="pmeta">Dormant</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dr-foot">
+        <div class="new-proj">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New project
+        </div>
+        <div class="profile-row">
+          <div class="av">D7</div>
+          <div>
+            <div class="pn">Captain</div>
+            <div class="ps">dreighto · Max plan</div>
+          </div>
+          <div class="gear">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+<!-- ============================ SECTION 3 — VOICE ============================ -->
+<div class="stack">
+  <div class="caption">Section 3 · Voice Mode</div>
+  <div class="phone">
+    <div class="aurora"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+    <div class="vignette"></div>
+    <div class="notch"></div>
+
+    <div class="screen voice-screen">
+      <div class="statusbar">
+        <span class="time">9:41</span>
+        <span class="sb-right">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#f4f4f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#f4f4f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#f4f4f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#f4f4f6"/></svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><path d="M8.5 11.2 10.6 8.6a3.3 3.3 0 0 0-4.2 0L8.5 11.2Z" fill="#f4f4f6"/><path d="M4.1 6.3a7 7 0 0 1 8.8 0l1.5-1.85a9.4 9.4 0 0 0-11.8 0L4.1 6.3Z" fill="#f4f4f6" opacity=".95"/><path d="M1.5 3.1a11.4 11.4 0 0 1 14 0L17 1.2a13.8 13.8 0 0 0-17 0L1.5 3.1Z" fill="#f4f4f6" opacity=".9"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="#f4f4f6" stroke-opacity=".5"/><rect x="2" y="2" width="16.5" height="8" rx="1.6" fill="#f4f4f6"/><rect x="23" y="3.5" width="2" height="5" rx="1" fill="#f4f4f6" fill-opacity=".5"/></svg>
+        </span>
+      </div>
+
+      <div class="voice-top">
+        <div class="vt-left"><span class="vt-dot"></span>Voice mode · Sully</div>
+        <div class="vt-x">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </div>
+      </div>
+
+      <div class="voice-body">
+        <div class="orb-stage">
+          <div class="orb-glow"></div>
+          <div class="orb-ring"></div>
+          <div class="orb-ring r2"></div>
+          <div class="orb"></div>
+        </div>
+
+        <div class="listening">
+          <span class="ltxt">Listening</span>
+          <div class="lwave"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+
+        <div class="vcaption"><span class="grad">"Then that's the move — want me to loop CC in on the avatar build while we keep talking?"</span></div>
+      </div>
+
+      <div class="voice-controls">
+        <div class="vctl">
+          <div class="vbtn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.6M17 16.95A7 7 0 0 1 5 12M12 19v3"/></svg>
+          </div>
+          <span class="vlabel">Mute</span>
+        </div>
+        <div class="vctl">
+          <div class="vbtn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          </div>
+          <span class="vlabel">Interrupt</span>
+        </div>
+        <div class="vctl">
+          <div class="vbtn end">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" transform="rotate(135 12 12)"/></svg>
+          </div>
+          <span class="vlabel">End</span>
+        </div>
+      </div>
+    </div>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+</body>
+</html>

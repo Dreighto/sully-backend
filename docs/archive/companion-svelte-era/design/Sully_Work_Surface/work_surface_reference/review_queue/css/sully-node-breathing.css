@@ -1,0 +1,65 @@
+/* ==========================================================================
+   SULLY WORK SURFACE - NODE BREATHING ANIMATION MODULE
+   ========================================================================== */
+
+/* Breathing pulse triggers */
+.node-circle {
+  stroke-width: 1.25;
+  transition: stroke 0.4s ease, stroke-width 0.4s ease, filter 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+/* Active breathing pulse (subtle scale + soft glow) */
+.node-circle.active-worker {
+  stroke: var(--color-working, #3b82f6);
+  animation: activeBreathWorking 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.node-circle.active-worker-checking {
+  stroke: var(--color-checking, #8b5cf6);
+  animation: activeBreathChecking 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.node-circle.active-worker-blocked {
+  stroke: var(--color-blocked, #f43f5e);
+  animation: activeBreathBlocked 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Staggered pulse delays */
+.breath-delay-1 { animation-delay: 0.6s !important; }
+.breath-delay-2 { animation-delay: 1.2s !important; }
+.breath-delay-3 { animation-delay: 1.8s !important; }
+.breath-delay-4 { animation-delay: 2.4s !important; }
+
+/* Breathing Keyframes */
+@keyframes activeBreathWorking {
+  0%, 100% { stroke-width: 2; filter: drop-shadow(0 0 1px rgba(59, 130, 246, 0.25)); transform: scale(1.0); }
+  50% { stroke-width: 3; filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6)); transform: scale(1.06); }
+}
+
+@keyframes activeBreathChecking {
+  0%, 100% { stroke-width: 2; filter: drop-shadow(0 0 1px rgba(139, 92, 246, 0.25)); transform: scale(1.0); }
+  50% { stroke-width: 3; filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6)); transform: scale(1.06); }
+}
+
+@keyframes activeBreathBlocked {
+  0%, 100% { stroke-width: 2; filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.3)); transform: scale(1.0); }
+  50% { stroke-width: 3.2; filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.7)); transform: scale(1.06); }
+}
+
+/* Organic float movements */
+.node-group-animated {
+  animation: floatNode 6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes floatNode {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-1.2px); }
+}
+
+.stagger-1 { animation-delay: 0.5s; }
+.stagger-2 { animation-delay: 1.5s; }
+.stagger-3 { animation-delay: 2.5s; }
+.stagger-4 { animation-delay: 3.5s; }

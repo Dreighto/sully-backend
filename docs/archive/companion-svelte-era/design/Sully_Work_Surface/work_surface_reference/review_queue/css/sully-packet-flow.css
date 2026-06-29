@@ -1,0 +1,52 @@
+/* ==========================================================================
+   SULLY WORK SURFACE - DATA PACKET GLIDE FLOW MODULE
+   ========================================================================== */
+
+/* Active routing path glowing indicator */
+.edge-line.active-route {
+  stroke: var(--color-working, #3b82f6);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.35));
+}
+
+.edge-line.active-route-checking {
+  stroke: var(--color-checking, #8b5cf6);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 2px rgba(139, 92, 246, 0.35));
+}
+
+/* Base data packet settings */
+.data-packet {
+  fill: #fff;
+  opacity: 0;
+}
+
+.data-packet.active-packet-working {
+  fill: var(--color-working, #3b82f6);
+  filter: drop-shadow(0 0 4px var(--color-working, #3b82f6));
+}
+
+.data-packet.active-packet-checking {
+  fill: var(--color-checking, #8b5cf6);
+  filter: drop-shadow(0 0 4px var(--color-checking, #8b5cf6));
+}
+
+/* Glide keyframes mapping offset positions */
+.data-packet.animating {
+  animation: glidePacket 3.6s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+}
+
+@keyframes glidePacket {
+  0% { offset-distance: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+/* Reduced Motion Overrides */
+@media (prefers-reduced-motion: reduce) {
+  .data-packet.animating {
+    animation: none !important;
+    display: none !important;
+  }
+}

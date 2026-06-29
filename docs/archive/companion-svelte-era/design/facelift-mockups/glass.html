@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Sully — Glow &amp; Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* canvas */
+    --base: #050505;
+    --base-2: #0a0a0b;
+
+    /* neutrals */
+    --zinc-50:  #fafafa;
+    --zinc-200: #e4e4e7;
+    --zinc-300: #d4d4d8;
+    --zinc-400: #a1a1aa;
+    --zinc-500: #71717a;
+    --zinc-600: #52525b;
+    --zinc-700: #3f3f46;
+    --zinc-800: #27272a;
+    --zinc-900: #18181b;
+
+    /* magenta — identity only */
+    --m-deep:   #c4186a;
+    --m-brand:  #ec2d78;
+    --m-bright: #ff4d94;
+    --m-soft:   #ff7eb3;
+    --m-glow:   #ff8fc0;
+
+    --radius: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #0e0e10 0%, transparent 60%),
+      var(--base);
+    color: var(--zinc-200);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 34px;
+    padding: 34px 16px 60px;
+  }
+
+  .label {
+    width: 100%;
+    max-width: 420px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--zinc-600);
+    font-weight: 600;
+    padding-left: 6px;
+  }
+
+  /* ====== PHONE SHELL ====== */
+  .phone {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    height: 860px;
+    border-radius: 46px;
+    background:
+      radial-gradient(900px 480px at 50% -8%, #131316 0%, transparent 55%),
+      linear-gradient(180deg, #08080a 0%, #050505 40%, #050505 100%);
+    overflow: hidden;
+    box-shadow:
+      0 1px 0 0 rgba(255,255,255,0.05) inset,
+      0 50px 90px -30px rgba(0,0,0,0.85),
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 0 0 9px #0b0b0d,
+      0 0 0 10px rgba(255,255,255,0.03);
+    isolation: isolate;
+  }
+
+  /* ambient magenta bloom drifting at the top of the screen */
+  .ambient-top {
+    position: absolute;
+    top: -160px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 460px;
+    height: 360px;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(closest-side, rgba(236,45,120,0.30) 0%, rgba(236,45,120,0.12) 42%, transparent 72%);
+    filter: blur(8px);
+    opacity: 0.9;
+    animation: drift 14s ease-in-out infinite alternate;
+  }
+  .ambient-low {
+    position: absolute;
+    bottom: -40px;
+    left: 18%;
+    width: 320px;
+    height: 280px;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(closest-side, rgba(196,24,106,0.16) 0%, transparent 70%);
+    filter: blur(10px);
+  }
+  @keyframes drift {
+    0%   { transform: translateX(-54%) translateY(0); opacity: 0.85; }
+    100% { transform: translateX(-46%) translateY(14px); opacity: 1; }
+  }
+
+  /* faint top light source / vignette */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(255,255,255,0.05) 0%, transparent 50%),
+      radial-gradient(140% 100% at 50% 120%, rgba(0,0,0,0.5) 0%, transparent 55%);
+  }
+
+  /* notch / dynamic island */
+  .island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 116px;
+    height: 30px;
+    background: #000;
+    border-radius: 18px;
+    z-index: 40;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  .screen {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ====== TOP BAR (frosted glass) ====== */
+  .topbar {
+    position: relative;
+    z-index: 20;
+    flex: 0 0 auto;
+    padding: 52px 16px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(8,8,10,0.78) 0%, rgba(8,8,10,0.45) 70%, rgba(8,8,10,0) 100%);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    backdrop-filter: blur(22px) saturate(1.2);
+  }
+  .topbar::after {
+    content: "";
+    position: absolute;
+    left: 14px; right: 14px; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  }
+  .topbar::before {
+    content: "";
+    position: absolute;
+    top: 50px; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05) 30%, rgba(255,255,255,0.05) 70%, transparent);
+  }
+
+  .icon-btn {
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    border-radius: 13px;
+    color: var(--zinc-300);
+    background: rgba(255,255,255,0.025);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      inset 0 -1px 0 rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  .icon-btn:active { transform: scale(0.94); }
+  .icon-btn svg { width: 19px; height: 19px; }
+
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-left: 2px;
+  }
+  .sully-dot {
+    position: relative;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--m-glow), var(--m-brand) 70%);
+    box-shadow: 0 0 0 1px rgba(255,143,192,0.25);
+  }
+  /* soft glow behind the Sully name dot */
+  .sully-dot::before {
+    content: "";
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,148,0.55) 0%, transparent 70%);
+    filter: blur(3px);
+    z-index: -1;
+    animation: pulse 3.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 0.7; transform: scale(1); }
+    50%     { opacity: 1;   transform: scale(1.25); }
+  }
+  .identity .name {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--zinc-50);
+  }
+
+  .spacer { flex: 1; }
+
+  .model-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--zinc-300);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.03);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.07),
+      inset 0 -1px 0 rgba(0,0,0,0.4),
+      0 1px 3px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  .model-chip .feather { font-size: 13px; filter: saturate(0); opacity: 0.9; }
+  .model-chip .caret { color: var(--zinc-600); font-size: 11px; margin-left: 1px; }
+
+  /* ====== CONVERSATION ====== */
+  .conversation {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 22px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .conversation::-webkit-scrollbar { width: 0; }
+
+  /* assistant — flowing text under a name-tag, no bubble */
+  .msg-sully { max-width: 92%; }
+  .nametag {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 9px;
+  }
+  .nametag .dot {
+    position: relative;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--m-glow), var(--m-brand) 75%);
+  }
+  .nametag .dot::after {
+    content: "";
+    position: absolute; inset: -5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,148,0.5), transparent 70%);
+    filter: blur(2px);
+    z-index: -1;
+  }
+  .nametag span {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--m-soft);
+  }
+  .msg-sully p {
+    font-size: 15.5px;
+    line-height: 1.62;
+    color: var(--zinc-200);
+    letter-spacing: -0.006em;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+  }
+
+  /* operator — neutral rounded pill, right aligned, floating in lit space */
+  .msg-op {
+    align-self: flex-end;
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 20px 20px 6px 20px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--zinc-100);
+    background: linear-gradient(180deg, rgba(39,39,42,0.92) 0%, rgba(24,24,27,0.95) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 8px 20px -10px rgba(0,0,0,0.7),
+      0 1px 0 rgba(0,0,0,0.5);
+    letter-spacing: -0.006em;
+  }
+
+  /* system "working" pill */
+  .system-pill {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px 9px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    color: var(--zinc-400);
+    background: rgba(255,255,255,0.022);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      0 0 0 1px rgba(255,143,192,0.06),
+      0 6px 16px -10px rgba(196,24,106,0.4);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  .system-pill b { color: var(--zinc-200); font-weight: 600; }
+  .spinner {
+    position: relative;
+    width: 13px; height: 13px;
+    flex: 0 0 auto;
+  }
+  .spinner::before {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 1.6px solid rgba(255,126,179,0.2);
+    border-top-color: var(--m-bright);
+    animation: spin .8s linear infinite;
+  }
+  .spinner::after {
+    content: "";
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,148,0.4), transparent 70%);
+    filter: blur(2px);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ====== COMPOSER (frosted glass) ====== */
+  .composer-wrap {
+    position: relative;
+    z-index: 20;
+    flex: 0 0 auto;
+    padding: 14px 16px 30px;
+    background: linear-gradient(0deg, rgba(8,8,10,0.85) 0%, rgba(8,8,10,0.5) 65%, rgba(8,8,10,0) 100%);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    backdrop-filter: blur(22px) saturate(1.2);
+  }
+  .composer-wrap::before {
+    content: "";
+    position: absolute; top: 0; left: 14px; right: 14px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  }
+
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .plus-btn {
+    flex: 0 0 auto;
+    width: 42px; height: 42px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--zinc-300);
+    background: linear-gradient(180deg, rgba(39,39,42,0.85), rgba(24,24,27,0.9));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.07),
+      inset 0 -1px 0 rgba(0,0,0,0.5),
+      0 2px 6px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: transform .12s;
+  }
+  .plus-btn:active { transform: scale(0.92) rotate(45deg); }
+  .plus-btn svg { width: 20px; height: 20px; }
+
+  .input-pill {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    height: 50px;
+    padding: 0 18px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      inset 0 -1px 0 rgba(0,0,0,0.45),
+      0 6px 18px -12px rgba(0,0,0,0.8);
+    color: var(--zinc-500);
+    font-size: 15px;
+    letter-spacing: -0.005em;
+  }
+
+  /* magenta circular SEND with bloom behind it */
+  .send-wrap {
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .send-wrap::before {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,148,0.55) 0%, rgba(236,45,120,0.25) 40%, transparent 72%);
+    filter: blur(6px);
+    z-index: 0;
+    animation: pulse 3.2s ease-in-out infinite;
+  }
+  .send-btn {
+    position: relative;
+    z-index: 1;
+    width: 50px; height: 50px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 28%, var(--m-bright) 0%, var(--m-brand) 55%, var(--m-deep) 100%);
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,0.45),
+      inset 0 -3px 6px rgba(120,0,50,0.6),
+      0 6px 18px -4px rgba(236,45,120,0.6),
+      0 1px 2px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: transform .12s;
+  }
+  .send-btn:active { transform: scale(0.93); }
+  .send-btn svg { width: 21px; height: 21px; color: #fff; transform: translateX(1px); }
+
+  /* home indicator */
+  .home-bar {
+    position: absolute;
+    bottom: 9px; left: 50%;
+    transform: translateX(-50%);
+    width: 128px; height: 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.22);
+    z-index: 30;
+  }
+
+  /* ====== VOICE SCREEN ====== */
+  .voice .screen {
+    align-items: stretch;
+    justify-content: space-between;
+  }
+  .voice-top {
+    padding: 56px 20px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 20;
+  }
+  .voice-top .identity .name { font-size: 15px; }
+  .voice-close {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--zinc-400);
+    background: rgba(255,255,255,0.03);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .voice-close svg { width: 16px; height: 16px; }
+
+  .orb-stage {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+    z-index: 5;
+  }
+
+  .orb {
+    position: relative;
+    width: 196px; height: 196px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 38% 32%, var(--m-glow) 0%, var(--m-bright) 28%, var(--m-brand) 58%, var(--m-deep) 100%);
+    box-shadow:
+      inset 0 6px 16px rgba(255,255,255,0.4),
+      inset 0 -14px 30px rgba(110,0,46,0.7),
+      0 0 60px -6px rgba(255,77,148,0.55),
+      0 30px 80px -20px rgba(196,24,106,0.7);
+    animation: breathe 4.2s ease-in-out infinite;
+  }
+  /* inner glossy highlight */
+  .orb::before {
+    content: "";
+    position: absolute;
+    top: 18px; left: 30px;
+    width: 70px; height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.7), transparent 70%);
+    filter: blur(4px);
+    opacity: 0.8;
+  }
+  /* outer bloom halo */
+  .orb::after {
+    content: "";
+    position: absolute;
+    inset: -48px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,77,148,0.30) 0%, rgba(236,45,120,0.12) 40%, transparent 70%);
+    filter: blur(10px);
+    z-index: -1;
+    animation: pulse 4.2s ease-in-out infinite;
+  }
+  /* listening ripple ring */
+  .orb-ring {
+    position: absolute;
+    width: 196px; height: 196px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,126,179,0.4);
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    animation: ripple 3.2s ease-out infinite;
+  }
+  .orb-ring:nth-child(2) { animation-delay: 1.1s; }
+  @keyframes ripple {
+    0%   { width: 196px; height: 196px; opacity: 0.5; }
+    100% { width: 330px; height: 330px; opacity: 0; }
+  }
+  @keyframes breathe {
+    0%,100% { transform: scale(1); }
+    50%     { transform: scale(1.035); }
+  }
+
+  .voice-status {
+    margin-top: 52px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--zinc-100);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .listening-dots {
+    display: inline-flex;
+    gap: 4px;
+  }
+  .listening-dots i {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--m-soft);
+    display: inline-block;
+    animation: bob 1.2s ease-in-out infinite;
+  }
+  .listening-dots i:nth-child(2) { animation-delay: .18s; }
+  .listening-dots i:nth-child(3) { animation-delay: .36s; }
+  @keyframes bob {
+    0%,100% { opacity: 0.3; transform: translateY(0); }
+    50%     { opacity: 1; transform: translateY(-3px); }
+  }
+
+  .voice-caption {
+    margin-top: 16px;
+    max-width: 280px;
+    text-align: center;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--zinc-400);
+    letter-spacing: -0.005em;
+  }
+
+  .voice-controls {
+    padding: 0 20px 46px;
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    position: relative;
+    z-index: 20;
+  }
+  .vc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .vc-btn {
+    width: 60px; height: 60px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--zinc-200);
+    background: linear-gradient(180deg, rgba(39,39,42,0.8), rgba(24,24,27,0.92));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      inset 0 -2px 5px rgba(0,0,0,0.5),
+      0 8px 22px -10px rgba(0,0,0,0.8);
+    transition: transform .12s;
+  }
+  .vc:active .vc-btn { transform: scale(0.93); }
+  .vc-btn svg { width: 24px; height: 24px; }
+  .vc-end .vc-btn {
+    background: radial-gradient(circle at 35% 30%, var(--m-bright), var(--m-brand) 60%, var(--m-deep));
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,0.4),
+      inset 0 -3px 6px rgba(120,0,50,0.6),
+      0 0 30px -4px rgba(236,45,120,0.6);
+    color: #fff;
+  }
+  .vc label {
+    font-size: 11.5px;
+    color: var(--zinc-500);
+    letter-spacing: 0.02em;
+  }
+
+</style>
+</head>
+<body>
+
+  <!-- ============ SECTION 1 — CHAT ============ -->
+  <div class="label">Section 1 — Chat</div>
+  <div class="phone">
+    <div class="ambient-top"></div>
+    <div class="ambient-low"></div>
+    <div class="vignette"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+
+      <!-- TOP BAR -->
+      <header class="topbar">
+        <div class="icon-btn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+        </div>
+        <div class="identity">
+          <span class="sully-dot"></span>
+          <span class="name">Sully</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="model-chip">
+          <span class="feather">🪶</span>
+          <span>Auto</span>
+          <span class="caret">▾</span>
+        </div>
+      </header>
+
+      <!-- CONVERSATION -->
+      <main class="conversation">
+
+        <div class="msg-op">hey, what's the plan for today?</div>
+
+        <div class="msg-sully">
+          <div class="nametag"><span class="dot"></span><span>Sully</span></div>
+          <p>Hey — let's keep it simple. What's the one thing that'd make today feel handled?</p>
+        </div>
+
+        <div class="msg-op">probably finally shipping the avatar.</div>
+
+        <div class="msg-sully">
+          <div class="nametag"><span class="dot"></span><span>Sully</span></div>
+          <p>Then that's the move. Want me to hand the build to CC while we talk it through?</p>
+        </div>
+
+        <div class="system-pill">
+          <span class="spinner"></span>
+          <span>Sully sent this to <b>CC</b> — watching it now</span>
+        </div>
+
+      </main>
+
+      <!-- COMPOSER -->
+      <div class="composer-wrap">
+        <div class="composer">
+          <div class="plus-btn" aria-label="More actions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </div>
+          <div class="input-pill">Talk to Sully…</div>
+          <div class="send-wrap">
+            <div class="send-btn" aria-label="Send">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="home-bar"></div>
+  </div>
+
+  <!-- ============ SECTION 2 — VOICE ============ -->
+  <div class="label">Section 2 — Voice</div>
+  <div class="phone voice">
+    <div class="ambient-top"></div>
+    <div class="ambient-low"></div>
+    <div class="vignette"></div>
+    <div class="island"></div>
+
+    <div class="screen">
+
+      <!-- minimal top -->
+      <div class="voice-top">
+        <div class="identity">
+          <span class="sully-dot"></span>
+          <span class="name">Sully</span>
+        </div>
+        <div class="voice-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ORB STAGE -->
+      <div class="orb-stage">
+        <div style="position:relative; display:grid; place-items:center;">
+          <span class="orb-ring"></span>
+          <span class="orb-ring"></span>
+          <div class="orb"></div>
+        </div>
+
+        <div class="voice-status">
+          Listening
+          <span class="listening-dots"><i></i><i></i><i></i></span>
+        </div>
+
+        <div class="voice-caption">
+          "Take your time — I'm right here. Tell me what's on your mind."
+        </div>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="voice-controls">
+        <div class="vc">
+          <div class="vc-btn" aria-label="Mute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/>
+              <path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <label>Mute</label>
+        </div>
+
+        <div class="vc vc-end">
+          <div class="vc-btn" aria-label="Interrupt">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2.5"/>
+            </svg>
+          </div>
+          <label>Interrupt</label>
+        </div>
+      </div>
+
+    </div>
+    <div class="home-bar"></div>
+  </div>
+
+</body>
+</html>
