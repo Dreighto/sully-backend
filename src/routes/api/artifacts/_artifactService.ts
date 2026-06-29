@@ -359,10 +359,15 @@ export function findArtifactMetadata(
 	const meta = listing.artifacts.find((a) => a.original_path === requested);
 	if (!meta) return null;
 
+	// Resolve against the ACTUAL current store dir (findStoreDir), NOT the
+	// manifest's workspace_path — that field is STALE for artifacts migrated from
+	// a retired repo (e.g. LogueOS-Companion), so assertInsideWorkspace would
+	// throw on the nonexistent old path and 404 a file that's present in the new
+	// store. The bytes always live next to the manifest we just read.
+	const storeDir = getTraceWorkspacePath(traceId) ?? meta.workspace_path;
 	try {
-		// Resolve path within the store directory
-		const absolutePath = path.resolve(meta.workspace_path, meta.original_path);
-		assertInsideWorkspace(meta.workspace_path, absolutePath);
+		const absolutePath = path.resolve(storeDir, meta.original_path);
+		assertInsideWorkspace(storeDir, absolutePath);
 		return { meta, absolutePath };
 	} catch {
 		return null;
