@@ -13,10 +13,7 @@ import { serverConfig } from './config';
 // Same architectural pattern as src/lib/server/hermes.ts but pointed at
 // Google's Generative Language API instead of local Ollama.
 
-const GEMINI_API_KEY =
-	process.env.GEMINI_API_KEY ||
-	process.env.GOOGLE_API_KEY ||
-	'';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 // Chat-mode default = flash-lite (cheapest + fastest Gemini variant).
 // Operator chose this explicitly: chat-style brainstorming should burn
@@ -30,8 +27,7 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 //   flash       $0.30 in / $2.50 out
 //   pro         $1.25 in / $10.00 out
 const GEMINI_CHAT_MODEL = process.env.LOGUEOS_GEMINI_CHAT_MODEL || 'gemini-2.5-flash-lite';
-const GEMINI_IMAGE_MODEL =
-	process.env.LOGUEOS_GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const GEMINI_IMAGE_MODEL = process.env.LOGUEOS_GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 export interface GeminiTurn {
 	role: 'user' | 'model';
@@ -45,7 +41,7 @@ interface GeminiContent {
 
 interface GeminiResponse {
 	candidates?: {
-		content?: { parts?: ({ text?: string; inlineData?: { data: string; mimeType: string } })[] };
+		content?: { parts?: { text?: string; inlineData?: { data: string; mimeType: string } }[] };
 		finishReason?: string;
 	}[];
 	error?: { message: string };
@@ -165,9 +161,7 @@ export async function callGeminiChat(
  * the Hermes path — drop dispatch announcements, reset markers, system
  * symbols. Last N turns only.
  */
-export function chatRowsToGeminiHistory(
-	rows: { sender: string; message: string }[]
-): GeminiTurn[] {
+export function chatRowsToGeminiHistory(rows: { sender: string; message: string }[]): GeminiTurn[] {
 	const turns: GeminiTurn[] = [];
 	for (const r of rows) {
 		if (r.sender === 'system') {
@@ -253,7 +247,8 @@ export async function generateGeminiImage(prompt: string): Promise<{
 		if (reason && reason !== 'STOP') {
 			let hint = '';
 			if (reason === 'PROHIBITED_CONTENT' || reason === 'RECITATION') {
-				hint = ' — usually a copyrighted character or restricted subject; try an original description instead';
+				hint =
+					' — usually a copyrighted character or restricted subject; try an original description instead';
 			} else if (reason === 'SAFETY') {
 				hint = ' — the prompt tripped a safety filter; try rephrasing';
 			}
@@ -275,19 +270,43 @@ export async function generateGeminiImage(prompt: string): Promise<{
 		'image/jpeg': 'jpg',
 		'image/webp': 'webp'
 	};
-	const ext = extMap[mime] || 'png';
-	const filename = `${crypto.randomUUID()}.${ext}`;
-	const fullPath = path.join(serverConfig.chatUploadsDir, filename);
+	const rawBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
 
+	// Downsample for the inline chat surface. Gemini returns full-res images
+	// (~2 MB PNG); that size stalls over cellular before iOS AsyncImage finishes
+	// the transfer, so the reply renders "Image failed to load" even though the
+	// file serves fine. A 1280px JPEG (~200-400 KB) loads reliably on a phone and
+	// stays crisp inline (tap-through opens the same image). Fall back to the raw
+	// bytes if sharp can't process this payload.
+	let outBuffer: Buffer = rawBuffer;
+	let outMime = mime;
+	let outExt = extMap[mime] || 'png';
+	try {
+		// Dynamic import so vite leaves sharp (a native libvips module) external
+		// instead of bundling it into the ESM chunk, where its CommonJS loader
+		// breaks on __dirname. Same pattern the uploads route uses for heic-convert.
+		const sharp = (await import('sharp')).default;
+		outBuffer = await sharp(rawBuffer)
+			.rotate()
+			.resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+			.jpeg({ quality: 82 })
+			.toBuffer();
+		outMime = 'image/jpeg';
+		outExt = 'jpg';
+	} catch (e) {
+		console.error('[gemini] image downsample failed, serving raw:', e);
+	}
+
+	const filename = `${crypto.randomUUID()}.${outExt}`;
+	const fullPath = path.join(serverConfig.chatUploadsDir, filename);
 	fs.mkdirSync(serverConfig.chatUploadsDir, { recursive: true });
-	const buffer = Buffer.from(imagePart.inlineData.data, 'base64');
-	fs.writeFileSync(fullPath, buffer);
+	fs.writeFileSync(fullPath, outBuffer);
 
 	return {
 		url: `./api/chat/uploads/${filename}`,
 		filename,
-		mime,
-		bytes: buffer.length
+		mime: outMime,
+		bytes: outBuffer.length
 	};
 }
 

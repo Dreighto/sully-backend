@@ -32,6 +32,10 @@ const BUILD_TS = new Date().toISOString();
 // kills Tailscale/LAN access (see reference_vite8_allowed_hosts).
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	// sharp is a native libvips module; bundling it into the ESM server build
+	// breaks its CommonJS loader (__dirname is undefined in ESM). Keep it external
+	// so it loads from node_modules at runtime — see gemini.ts image downsample.
+	ssr: { external: ['sharp'] },
 	define: {
 		__BUILD_VERSION__: JSON.stringify(BUILD_VERSION),
 		__BUILD_SHA__: JSON.stringify(BUILD_SHA),
