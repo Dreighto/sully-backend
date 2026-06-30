@@ -182,6 +182,16 @@ Write like a person who knows the specifics, not a chatbot. Stay warm, but:
 - Don't pad with hedges ("may potentially", "can help to"). Say whether the thing happens.
 - Vary sentence length. Read it back before you send it; if a phrase sounds like marketing copy, rewrite it.`;
 
+// Code/command formatting — render scripts, code, and shell commands as fenced
+// code blocks so the app shows them in a proper code box (mono + copy), not prose.
+const CODE_FORMAT = `
+
+## Code and commands
+Put any script, code snippet, or shell command in a fenced code block with a
+language tag — \`\`\`bash, \`\`\`python, \`\`\`swift, \`\`\`json, and so on. Even a single
+command line goes in a fenced block, never loose in a sentence. Use inline
+\`backticks\` only for a short token (a filename, a flag, a variable) mid-sentence.`;
+
 export async function buildSystemPrompt(
 	ctx: SystemPromptCtx,
 	userMessage?: string
@@ -223,7 +233,9 @@ export async function buildSystemPrompt(
 	// task to a worker (the SULLY_GATE block, extracted + acted on post-stream).
 	// Text chat only — voice dispatch is handled on the voice path.
 	const gate = ctx.spoken ? '' : `\n\n${GATE_INSTRUCTION}`;
-	const head = `${base}${working}${semantic}${tools}${factClause(userMessage, ctx.allowSensitive)}${voice}${artifact}${WRITING_STYLE}${gate}`;
+	// Code-block formatting is text-chat only (spoken replies have no code box).
+	const code = ctx.spoken ? '' : CODE_FORMAT;
+	const head = `${base}${working}${semantic}${tools}${factClause(userMessage, ctx.allowSensitive)}${voice}${artifact}${WRITING_STYLE}${code}${gate}`;
 	if (!addendum) return head;
 	return `${head}
 
