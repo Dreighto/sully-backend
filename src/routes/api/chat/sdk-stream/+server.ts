@@ -181,8 +181,8 @@ async function finalizeReply(opts: {
 	rawText: string;
 	decision: TurnDecision;
 	threadId: string;
-	taskId: string | null;
-	targetRepo: string | null;
+	taskId: string;
+	targetRepo: string;
 	userText: string;
 	sender: 'cc' | 'agy' | 'local';
 	model: string;
