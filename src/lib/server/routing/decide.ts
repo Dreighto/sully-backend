@@ -31,6 +31,22 @@ export interface RouteDecision {
 	rejection?: { name: string; label: string; copy: string };
 }
 
+// A request to produce code/a command (write/show/give a function, script,
+// snippet, one-liner, command, regex, query, example).
+const CODE_GEN_RE =
+	/\b(write|show|give|gen(?:erate)?|create|make|build|code|need|want)\b[\s\S]{0,50}\b(function|method|script|snippet|one[\s-]?liner|command|regex|query|loop|class|component|cli|code|example)\b|\bhow (?:do|to|can) (?:i|you|we)\b[\s\S]{0,50}\b(?:write|code|script|function|command|reverse|sort|parse|format|convert)\b/i;
+
+// Repo/app-scoped work that genuinely wants a worker (touches real files, the
+// codebase, a ticket, a deploy, a fix/refactor/implement of existing things).
+const REPO_SIGNAL_RE =
+	/\b(?:the (?:codebase|repo(?:sitory)?|project|app|build|component|module|backend|frontend)|in [\w./-]+\.(?:swift|ts|tsx|js|jsx|py|go|rs|java|json|ya?ml|sh|svelte|css|html)|fix (?:the|this|a|that)|refactor|implement (?:the|a|this)|debug (?:the|this)|our (?:code|app|repo|backend|frontend)|the existing|deploy|wire (?:up|it|this|in)|[A-Z]{2,4}-\d{1,5})\b/i;
+
+/** Small self-contained code/command request that Sully should answer inline,
+ *  not dispatch: a code-gen ask with no repo/app/file signal. */
+function isInlineCodeRequest(text: string): boolean {
+	return CODE_GEN_RE.test(text) && !REPO_SIGNAL_RE.test(text);
+}
+
 export function decide(input: DecideInput): RouteDecision {
 	const { userText, fromTool, gateBlock } = input;
 
@@ -64,6 +80,14 @@ export function decide(input: DecideInput): RouteDecision {
 
 	// 3. Deterministic objective-signal gate.
 	if (!vg.qualifies) return { action: 'Talk', reason: vg.reason };
+
+	// 3b. Operator pref: a small self-contained code/command request (a snippet, a
+	//     function, a one-liner, a command) is something Sully writes inline. Only
+	//     code work scoped to the actual repo/app/files dispatches to a worker. An
+	//     explicit @cc/@agy above still forces a dispatch.
+	if (isInlineCodeRequest(userText)) {
+		return { action: 'Talk', reason: 'inline-code-snippet' };
+	}
 
 	// 4. Model-vote layer (CLI path only). A gate block that does NOT escalate is
 	//    the teacher saying "not real work" → Talk. (Tier no longer gates the
