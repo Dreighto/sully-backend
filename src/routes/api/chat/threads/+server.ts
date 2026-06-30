@@ -34,8 +34,16 @@ export const GET: RequestHandler = async () => {
 				latest_ts: raw?.latest_ts ?? meta.last_activity_at
 			};
 		};
+		// Hide 0-message "ghost" threads. A meta row can exist with no persisted
+		// message (a title minted before the first save, or messages later deleted),
+		// and tapping one opens the empty landing greeting instead of a conversation.
+		// The drawer should list only threads that actually have content.
+		const hasMessages = (t: { message_count: number }) => t.message_count > 0;
 
-		return json({ active: active.map(enrich), archived: archived.map(enrich) });
+		return json({
+			active: active.map(enrich).filter(hasMessages),
+			archived: archived.map(enrich).filter(hasMessages)
+		});
 	} catch (e: unknown) {
 		console.error('GET /api/chat/threads error:', e);
 		return json({ error: 'internal_server_error' }, { status: 500 });
