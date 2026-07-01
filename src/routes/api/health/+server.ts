@@ -9,6 +9,8 @@ export const GET: RequestHandler = async () => {
 		app: appIdentity.appName,
 		base_path: appIdentity.basePath,
 		route: `${appIdentity.basePath}/api/health`,
-		mode: runMode.mode
+		mode: runMode.mode,
+		version: __BUILD_VERSION__,
+		uptime_seconds: Math.round(process.uptime() * 10) / 10
 	});
 };

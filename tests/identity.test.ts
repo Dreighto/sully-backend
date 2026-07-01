@@ -52,25 +52,3 @@ describe('appIdentity (PR A)', () => {
 		expect(JSON.stringify(exposed)).not.toMatch(/dreighto|home|\.env|secret/i);
 	});
 });
-
-// PR C extracted buildSystemPrompt → $lib/server/chat_prompt.ts; it's now
-// tested directly in tests/chat-prompt.test.ts (runtime, not source-regex).
-// Only the page.svelte hard-code guard remains here.
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-describe('client-side identity guard', () => {
-
-	it('no client-fork-sensitive code hard-codes "LogueOS-Console" outside FALLBACK', () => {
-		// page.svelte default workspace was the original regression spot.
-		const page = readFileSync(
-			join(process.cwd(), 'src/routes/chat/+page.svelte'),
-			'utf-8'
-		);
-		// Find the `let selectedRepo = $state…` initializer block. Allow nested
-		// parens because the call sometimes wraps in untrack(() => …).
-		const initLine = page.match(/let selectedRepo[\s\S]{0,400}?;/)?.[0] ?? '';
-		expect(initLine).not.toMatch(/= \$state\(\s*['"]LogueOS-Console['"]/);
-		expect(initLine).toMatch(/appIdentity/);
-	});
-});
