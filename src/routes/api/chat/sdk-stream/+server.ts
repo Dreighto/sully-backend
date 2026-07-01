@@ -334,7 +334,14 @@ function generateImageReply(opts: {
 			let md: string;
 			try {
 				const { url } = await generateGeminiImage(prompt);
-				md = `![${prompt.slice(0, 80)}](${url})`;
+				// Sanitize the alt text: [, ], and newlines would break the image
+				// markdown so it never renders (a permanent failure after a paid
+				// ~7s generation). Strip them; the URL stays byte-exact.
+				const altText = prompt
+					.slice(0, 80)
+					.replace(/[\[\]\r\n]/g, ' ')
+					.trim();
+				md = `![${altText}](${url})`;
 			} catch (e) {
 				const msg = e instanceof Error ? e.message : 'unknown error';
 				md = `⚠️ No image generated. ${msg.slice(0, 300)}`;
