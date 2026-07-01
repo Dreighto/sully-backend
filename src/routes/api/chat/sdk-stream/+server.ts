@@ -39,7 +39,8 @@ import { touchLastActivity } from '$lib/server/thread_meta';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { logEscalation } from '$lib/server/escalation_telemetry';
-import { resolveChatModel } from '$lib/server/model_catalog';
+import { resolveChatModel, MODELS } from '$lib/server/model_catalog';
+import { serverConfig } from '$lib/server/config';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { extractAndPromoteArtifacts } from '$lib/server/chat/artifact_sentinel';
 import { maybeAutoTitle } from '$lib/server/auto_title';
@@ -108,6 +109,32 @@ function getGoogleKey(): string {
 	return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 }
 
+// A CLOUD (non-Ollama) chat id that must NEVER be handed to the local Ollama
+// OpenAI-compatible endpoint — doing so 404s on every message. Matches only
+// Gemini + Claude ids; real Ollama tags (colon-tagged, including the *-cloud
+// tags the local daemon proxies to ollama.com) never match.
+const isCloudChatId = (id: string): boolean => /^gemini[-/]|^models\/gemini|^claude/i.test(id);
+
+// Resolve the working cloud/companion default (provider + model) for a graceful
+// fallback when a "Local (Ollama)" pick can't be served locally (GPU reserved
+// for training). Uses the companion cloud default id when it IS a cloud id,
+// else the tier × Google matrix, and routes it to the right SDK client by id
+// shape (Haiku-over-API when a credential exists, otherwise Gemini).
+function pickCloudFallback(tier: Tier) {
+	const def = serverConfig.companionDefaultModel;
+	const fallbackId = isCloudChatId(def) ? def : resolveChatModel({ tier, provider: 'google' });
+	if (/^claude/i.test(fallbackId)) {
+		const auth = getAnthropicAuthForModel(fallbackId);
+		if (auth.authToken || auth.apiKey) {
+			return { model: createAnthropic(auth)(fallbackId), modelId: fallbackId };
+		}
+		// No Anthropic credential — fall through to Google below.
+	}
+	const apiKey = getGoogleKey();
+	if (!apiKey) throw new Error('Google credential unavailable for local fallback');
+	return { model: createGoogleGenerativeAI({ apiKey })(fallbackId), modelId: fallbackId };
+}
+
 function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 	const modelId = resolveChatModel({ tier, provider, requestedModel });
 	if (provider === 'anthropic') {
@@ -120,6 +147,44 @@ function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 		return { model: createAnthropic(auth)(modelId), modelId };
 	}
 	if (provider === 'local') {
+		// The operator explicitly picked "Local (Ollama)". Ollama can only serve
+		// real Ollama tags; two states would otherwise 404 on every message:
+		//   1. Local serving is OFF (COMPANION_LOCAL_DISABLED — the GPU is
+		//      reserved for QLoRA training). resolveChatModel then hands back the
+		//      companion cloud default id (a Google id today).
+		//   2. The resolved id is a cloud (Gemini/Claude) id for any other reason.
+		// Operator preference: the turn should still be ANSWERED, not error — so
+		// route to the working cloud default. Log once (no secrets).
+		//
+		// Gate on isCloudChatId(modelId) so this ONLY fires when the resolved id
+		// would actually 404 on Ollama (a Gemini/Claude id — e.g. the bare
+		// "Local (Ollama)" pick, whose companionDefaultModel is a Google id).
+		// The explicit Ollama-Cloud picks (gpt-oss:120b-cloud / qwen3-coder:480b-
+		// cloud / kimi-k2:1t-cloud) are real Ollama tags the local daemon proxies
+		// to ollama.com; they are NOT cloud ids, so they fall through to the local
+		// Ollama daemon path below unchanged, exactly as pre-fix (matches the
+		// fact-routing precedent that uses gpt-oss:120b-cloud through the same
+		// proxy regardless of companionLocalDisabled).
+		if (serverConfig.companionLocalDisabled && isCloudChatId(modelId)) {
+			const fb = pickCloudFallback(tier);
+			console.warn(
+				`[sdk-stream] Local (Ollama) disabled (COMPANION_LOCAL_DISABLED); ` +
+					`answering "${modelId}" via cloud default "${fb.modelId}".`
+			);
+			return fb;
+		}
+		// Local serving is ON. Guard against a non-Ollama id slipping through
+		// (companionDefaultModel may still be a cloud id): substitute a real
+		// Ollama chat tag from env/registry so the local turn still answers,
+		// never a Google id POSTed to Ollama.
+		let ollamaId = modelId;
+		if (isCloudChatId(ollamaId)) {
+			ollamaId = process.env.COMPANION_LOCAL_MODEL || MODELS[tier]?.local || 'qwen3:14b';
+			console.warn(
+				`[sdk-stream] Local pick resolved to non-Ollama id "${modelId}"; ` +
+					`serving real Ollama model "${ollamaId}" instead.`
+			);
+		}
 		// Ollama exposes an OpenAI-compatible interface; no auth required
 		// (binds to localhost only — exposed via Tailscale Serve if at all).
 		// Task #11 — eGPU local routing for the 5060 Ti.
@@ -128,7 +193,7 @@ function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 			baseURL: OLLAMA_V1,
 			apiKey: 'ollama' // placeholder, ignored by Ollama but required by SDK shape
 		});
-		return { model: localProvider(modelId), modelId };
+		return { model: localProvider(ollamaId), modelId: ollamaId };
 	}
 	const apiKey = getGoogleKey();
 	if (!apiKey) throw new Error('Google credential unavailable');
@@ -326,7 +391,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	const threadId =
 		typeof body.thread === 'string' && body.thread.trim() ? body.thread.trim() : 'default';
 	const userText = latestUserText(messages);
-	if (!userText) {
+	// Reject whitespace-only bodies ("   ") exactly like "". A blank operator turn
+	// otherwise persists a blank row, mints a task, and still evades the drawer's
+	// "hide 0-message threads" filter — a ghost thread that opens empty. Only the
+	// emptiness decision uses the trimmed copy: the raw userText (leading/interior
+	// whitespace intact) still flows to prepareStream, so a real message like
+	// "   const x = 1" reaches the model and is persisted verbatim.
+	if (!userText.trim()) {
 		return new Response(JSON.stringify({ error: 'no_text_content' }), {
 			status: 400,
 			headers: { 'Content-Type': 'application/json' }
@@ -639,10 +710,10 @@ export const POST: RequestHandler = async ({ request }) => {
 							.map((p) => (p as { type: 'text'; text: string }).text)
 							.join('');
 
-						// Capture tool errors that fired mid-stream. The streaming UI shows
-						// these as ephemeral chips that vanish when sdkChat.messages resets,
-						// so without persisting them here the operator never finds out a
-						// tool failed silently. Audit 2026-05-27.
+						// Capture tool errors that fired mid-stream so they stay observable —
+						// but NEVER concatenated into the visible reply. They are routed to the
+						// server log and the non-visible `error` metadata column below.
+						// Audit 2026-05-27 (capture); Fix 2026-06-30 (stop stapling onto text).
 						const toolErrors = parts
 							.filter((p) => {
 								const t = p as { type?: string; state?: string };
@@ -650,15 +721,33 @@ export const POST: RequestHandler = async ({ request }) => {
 							})
 							.map((p) => {
 								const t = p as { type?: string; errorText?: string };
-								return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
+								return `Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
 									t.errorText ?? 'unknown error'
 								}`;
 							});
 
+						// Keep tool errors observable in server logs.
+						if (toolErrors.length > 0) {
+							console.error(
+								`[sdk-stream] tool error(s) during reply (thread ${threadId}): ${toolErrors.join(
+									' | '
+								)}`
+							);
+						}
+
+						// The persisted + streamed reply must equal EXACTLY what the model
+						// produced. Stapling a "⚠️ Tool X failed" suffix here (a) shows a scary
+						// failure line on an otherwise-correct answer and (b) breaks the iOS
+						// content-dedup (ChatCoordinator), which re-renders the whole reply a
+						// second time. So rawFinalText is the model's text verbatim. Only when
+						// the model produced NO visible text at all (e.g. it emitted just a
+						// failed tool call) do we fall back to a neutral single line, so the
+						// operator isn't left with a silent/empty turn — never an empty row.
 						const rawFinalText =
-							toolErrors.length > 0
-								? [replyText, ...toolErrors].filter(Boolean).join('\n\n')
-								: replyText;
+							replyText ||
+							(toolErrors.length > 0
+								? 'Sorry, something went wrong while I was running a tool for that. Please try again.'
+								: '');
 						const senderLabel: 'cc' | 'agy' | 'local' =
 							provider === 'anthropic' ? 'cc' : provider === 'local' ? 'local' : 'agy';
 						// Best-effort token capture — result.usage is resolved by onFinish.
