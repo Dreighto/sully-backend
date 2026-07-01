@@ -5,7 +5,8 @@ import {
 	setArchived,
 	setTitle,
 	setRememberFlag,
-	deleteThread,
+	softDeleteThread,
+	hardDeleteThreadCascade,
 	getThreadMeta
 } from '$lib/server/thread_meta';
 import { getChatMessages } from '$lib/server/chat';
@@ -56,25 +57,29 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
 /**
  * DELETE /api/chat/threads/[thread_id]
- * Only allowed when the thread is already archived. Returns 409 otherwise.
- * Cascade-deletes chat_messages, chat_drafts, chat_thread_state, chat_thread_meta.
+ *
+ * Default = SOFT delete (Recently Deleted trash): stamps deleted_at=now, moving
+ * the thread out of the active list into recentlyDeleted. Restorable for 90 days,
+ * then lazily hard-purged. There is NO archived-first gate on the soft path — the
+ * operator pressing Delete always succeeds into the trash.
+ *
+ * ?permanent=true = Delete-Now: an immediate, FULL hard-delete cascade
+ * (chat_messages + chat_drafts + chat_thread_state + observations + pending_jobs
+ * + chat_thread_meta + on-disk artifacts) so nothing orphans.
  */
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, url }) => {
 	const { thread_id } = params;
 	if (!thread_id) return json({ error: 'missing thread_id' }, { status: 400 });
 
-	const result = deleteThread(thread_id);
+	const permanent = url.searchParams.get('permanent') === 'true';
+	const result = permanent ? hardDeleteThreadCascade(thread_id) : softDeleteThread(thread_id);
+
 	if (!result.ok) {
-		if (result.reason === 'not_archived') {
-			return json(
-				{ error: 'thread_not_archived', message: 'Archive the thread before deleting it.' },
-				{ status: 409 }
-			);
-		}
-		if (result.reason === 'thread_not_found') {
+		const reason = (result as { reason?: string }).reason;
+		if (reason === 'db_not_found' || reason === 'thread_not_found') {
 			return json({ error: 'thread_not_found' }, { status: 404 });
 		}
-		return json({ error: result.reason }, { status: 500 });
+		return json({ error: reason ?? 'internal_server_error' }, { status: 500 });
 	}
 
 	return json({ ok: true });

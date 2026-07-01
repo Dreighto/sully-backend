@@ -256,6 +256,13 @@ export function resolveInitialThread(
 /**
  * List distinct threads in chat_messages with a count + latest activity.
  * Used by the chat tab's thread switcher.
+ *
+ * Threads soft-deleted into Recently Deleted (chat_thread_meta.deleted_at set)
+ * are EXCLUDED so they never surface in the active switcher — restored/purged
+ * via the trash flow instead. Ghost threads with no meta row still appear
+ * (LEFT JOIN → deleted_at NULL). The guarded CREATE TABLE + ALTER mirror the
+ * lazy-migration pattern in searchChatMessages so the JOIN can't blow up on an
+ * older DB that predates chat_thread_meta / the deleted_at column.
  */
 export function listChatThreads(): {
 	thread_id: string;
@@ -265,11 +272,33 @@ export function listChatThreads(): {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];
 	const db = getDb();
 	try {
+		db.exec(`
+			CREATE TABLE IF NOT EXISTS chat_thread_meta (
+				thread_id TEXT PRIMARY KEY,
+				title TEXT NOT NULL DEFAULT 'New thread',
+				pinned BOOLEAN NOT NULL DEFAULT 0,
+				archived BOOLEAN NOT NULL DEFAULT 0,
+				summary TEXT NULL,
+				remember_flag BOOLEAN NOT NULL DEFAULT 0,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				last_activity_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				deleted_at TEXT NULL
+			)
+		`);
+		try {
+			db.exec('ALTER TABLE chat_thread_meta ADD COLUMN deleted_at TEXT NULL');
+		} catch {
+			/* column already exists — safe to ignore */
+		}
 		const rows = db
 			.prepare(
-				`SELECT thread_id, COUNT(*) AS message_count, MAX(timestamp) AS latest_ts
-				 FROM chat_messages
-				 GROUP BY thread_id
+				`SELECT m.thread_id AS thread_id,
+				        COUNT(*) AS message_count,
+				        MAX(m.timestamp) AS latest_ts
+				 FROM chat_messages m
+				 LEFT JOIN chat_thread_meta tm ON tm.thread_id = m.thread_id
+				 WHERE tm.deleted_at IS NULL
+				 GROUP BY m.thread_id
 				 ORDER BY latest_ts DESC`
 			)
 			.all() as any[];

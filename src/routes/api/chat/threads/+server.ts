@@ -1,11 +1,26 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listChatThreads } from '$lib/server/chat';
-import { listThreadMeta, upsertThreadMeta } from '$lib/server/thread_meta';
+import {
+	listThreadMeta,
+	upsertThreadMeta,
+	listRecentlyDeleted,
+	purgeExpiredDeleted
+} from '$lib/server/thread_meta';
 
 export const GET: RequestHandler = async () => {
 	try {
+		// Lazy 90-day trash purge on access: hard-delete anything past the retention
+		// window BEFORE reading the lists, so expired threads never surface. Guarded
+		// so a purge hiccup can't take down the whole thread list.
+		try {
+			purgeExpiredDeleted();
+		} catch (e) {
+			console.error('purgeExpiredDeleted failed (non-fatal):', e);
+		}
+
 		// Raw message-based thread list (gives us message counts + latest ts).
+		// listChatThreads already EXCLUDES soft-deleted threads (deleted_at set).
 		// We used to force-insert a `default` thread when missing — that made
 		// "delete default" feel broken (it'd reappear on next refresh). The
 		// client now creates a fresh thread on demand instead, so the list
@@ -40,9 +55,15 @@ export const GET: RequestHandler = async () => {
 		// The drawer should list only threads that actually have content.
 		const hasMessages = (t: { message_count: number }) => t.message_count > 0;
 
+		// active/archived explicitly drop soft-deleted rows (deleted_at set) so a
+		// thread only ever lives in ONE of active / archived / recentlyDeleted.
+		// recentlyDeleted is additive — existing clients read active/archived only.
+		const notDeleted = (m: { deleted_at: string | null }) => !m.deleted_at;
+
 		return json({
-			active: active.map(enrich).filter(hasMessages),
-			archived: archived.map(enrich).filter(hasMessages)
+			active: active.filter(notDeleted).map(enrich).filter(hasMessages),
+			archived: archived.filter(notDeleted).map(enrich).filter(hasMessages),
+			recentlyDeleted: listRecentlyDeleted()
 		});
 	} catch (e: unknown) {
 		console.error('GET /api/chat/threads error:', e);
