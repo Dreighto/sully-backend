@@ -1,20 +1,29 @@
-// SDK-native streaming chat endpoint — Vercel AI SDK 6 / streamText, wrapped in a
-// createUIMessageStream writer so the server can push custom data events mid-reply
-// (data-sully-artifact for the Claude-style artifact card; data-sully-routing on the
-// CLI bridge). THE chat path the iOS app uses.
+// SDK-native streaming endpoint — Vercel AI SDK 6 / `streamText` +
+// `toUIMessageStreamResponse()`. Feature-parity replacement for the legacy
+// custom-SSE `/api/chat/stream` route, ready for PR 2b client cutover.
 //
-// Accepts { messages: UIMessage[], thread, target_repo, provider?, model? } and:
+// PR 2b.1 (this file): the endpoint accepts the SDK 6 client shape
+// (`{ messages: UIMessage[], thread, target_repo, provider?, model? }`)
+// AND handles all the legacy responsibilities:
 //   - persist operator message + assistant reply to chat_messages
-//   - upsert chat_thread_meta + chat_thread_state, classify tier from latest user msg
-//   - pick provider (thread_state override OR body), default Gemini for chat tier
-//   - short-circuit image requests to the direct Gemini image model (isImageRequest)
-//   - run the dispatch decision after replying (applyTurnDecision + SULLY_GATE escalation)
+//   - upsert chat_thread_meta + chat_thread_state
+//   - classify tier from the latest user message
+//   - pick provider via thread_state.provider_override OR explicit body
+//   - default to Gemini for chat tier (matches legacy AGY-chat-lock UX)
 //   - emit the SDK Data Stream Protocol so useChat() consumes natively
 //
-// Shared preamble (persist → classify → hot-window → provider/model → CLI-vs-direct →
-// tool gating → system prompt) lives in $lib/server/chat/stream_prepare.ts; the
-// dispatch decision in $lib/server/chat/autonomous_dispatch.ts. Thin orchestrator:
-// parse → prepare → branch (image short-circuit / CLI bridge / streamText).
+// The shared preamble (persist → classify → hot-window → provider/model
+// resolution → CLI-vs-direct decision → tool gating → system prompt) lives in
+// $lib/server/chat/stream_prepare.ts. The autonomous-dispatch decision both
+// paths run after replying lives in $lib/server/chat/autonomous_dispatch.ts.
+// This handler stays a thin orchestrator: parse → prepare → branch.
+//
+// What's intentionally NOT here yet (PR 2b.2 / 2b.3 / PR 4):
+//   - multi-provider fall-forward (SDK middleware can add later)
+//   - image-gen mode (separate dispatch path)
+//   - @cc / @agy dispatch routing (separate non-streaming path)
+//   - slash commands (client-side intercept before send)
+//   - Ollama / local routing (task #11)
 //
 // Auth: no app-level gate. The Tailscale Funnel + undisclosed *.ts.net
 // hostname is the security boundary; the cookie gate was removed (broken on
@@ -38,23 +47,13 @@ import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
-import { markSelfHandled } from '$lib/server/dispatchJobs';
-import { logTaskEvent } from '$lib/server/chatActivity';
-import { logEscalation } from '$lib/server/escalation_telemetry';
-import { resolveChatModel, MODELS } from '$lib/server/model_catalog';
-import { serverConfig } from '$lib/server/config';
+import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
-import {
-	extractAndPromoteArtifacts,
-	hasLiveArtifactSignal
-} from '$lib/server/chat/artifact_sentinel';
-import { maybeAutoTitle } from '$lib/server/auto_title';
-import { extractGateBlock, validateGate } from '$lib/server/decisionGate';
-import type { TurnDecision } from '$lib/server/routing/turn_decision';
-import { generateGeminiImage } from '$lib/server/gemini';
-import { mintTeacherTraceId } from '$lib/server/artifactStore';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { factGate } from '$lib/server/routing/factGate';
+import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
+import { logEscalation, updateEscalationCloudOutput } from '$lib/server/escalation_log';
+import { preTurnRoute } from '$lib/server/routing/pre_turn_router';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 
@@ -114,32 +113,6 @@ function getGoogleKey(): string {
 	return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 }
 
-// A CLOUD (non-Ollama) chat id that must NEVER be handed to the local Ollama
-// OpenAI-compatible endpoint — doing so 404s on every message. Matches only
-// Gemini + Claude ids; real Ollama tags (colon-tagged, including the *-cloud
-// tags the local daemon proxies to ollama.com) never match.
-const isCloudChatId = (id: string): boolean => /^gemini[-/]|^models\/gemini|^claude/i.test(id);
-
-// Resolve the working cloud/companion default (provider + model) for a graceful
-// fallback when a "Local (Ollama)" pick can't be served locally (GPU reserved
-// for training). Uses the companion cloud default id when it IS a cloud id,
-// else the tier × Google matrix, and routes it to the right SDK client by id
-// shape (Haiku-over-API when a credential exists, otherwise Gemini).
-function pickCloudFallback(tier: Tier) {
-	const def = serverConfig.companionDefaultModel;
-	const fallbackId = isCloudChatId(def) ? def : resolveChatModel({ tier, provider: 'google' });
-	if (/^claude/i.test(fallbackId)) {
-		const auth = getAnthropicAuthForModel(fallbackId);
-		if (auth.authToken || auth.apiKey) {
-			return { model: createAnthropic(auth)(fallbackId), modelId: fallbackId };
-		}
-		// No Anthropic credential — fall through to Google below.
-	}
-	const apiKey = getGoogleKey();
-	if (!apiKey) throw new Error('Google credential unavailable for local fallback');
-	return { model: createGoogleGenerativeAI({ apiKey })(fallbackId), modelId: fallbackId };
-}
-
 function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 	const modelId = resolveChatModel({ tier, provider, requestedModel });
 	if (provider === 'anthropic') {
@@ -152,44 +125,6 @@ function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 		return { model: createAnthropic(auth)(modelId), modelId };
 	}
 	if (provider === 'local') {
-		// The operator explicitly picked "Local (Ollama)". Ollama can only serve
-		// real Ollama tags; two states would otherwise 404 on every message:
-		//   1. Local serving is OFF (COMPANION_LOCAL_DISABLED — the GPU is
-		//      reserved for QLoRA training). resolveChatModel then hands back the
-		//      companion cloud default id (a Google id today).
-		//   2. The resolved id is a cloud (Gemini/Claude) id for any other reason.
-		// Operator preference: the turn should still be ANSWERED, not error — so
-		// route to the working cloud default. Log once (no secrets).
-		//
-		// Gate on isCloudChatId(modelId) so this ONLY fires when the resolved id
-		// would actually 404 on Ollama (a Gemini/Claude id — e.g. the bare
-		// "Local (Ollama)" pick, whose companionDefaultModel is a Google id).
-		// The explicit Ollama-Cloud picks (gpt-oss:120b-cloud / qwen3-coder:480b-
-		// cloud / kimi-k2:1t-cloud) are real Ollama tags the local daemon proxies
-		// to ollama.com; they are NOT cloud ids, so they fall through to the local
-		// Ollama daemon path below unchanged, exactly as pre-fix (matches the
-		// fact-routing precedent that uses gpt-oss:120b-cloud through the same
-		// proxy regardless of companionLocalDisabled).
-		if (serverConfig.companionLocalDisabled && isCloudChatId(modelId)) {
-			const fb = pickCloudFallback(tier);
-			console.warn(
-				`[sdk-stream] Local (Ollama) disabled (COMPANION_LOCAL_DISABLED); ` +
-					`answering "${modelId}" via cloud default "${fb.modelId}".`
-			);
-			return fb;
-		}
-		// Local serving is ON. Guard against a non-Ollama id slipping through
-		// (companionDefaultModel may still be a cloud id): substitute a real
-		// Ollama chat tag from env/registry so the local turn still answers,
-		// never a Google id POSTed to Ollama.
-		let ollamaId = modelId;
-		if (isCloudChatId(ollamaId)) {
-			ollamaId = process.env.COMPANION_LOCAL_MODEL || MODELS[tier]?.local || 'qwen3:14b';
-			console.warn(
-				`[sdk-stream] Local pick resolved to non-Ollama id "${modelId}"; ` +
-					`serving real Ollama model "${ollamaId}" instead.`
-			);
-		}
 		// Ollama exposes an OpenAI-compatible interface; no auth required
 		// (binds to localhost only — exposed via Tailscale Serve if at all).
 		// Task #11 — eGPU local routing for the 5060 Ti.
@@ -198,7 +133,7 @@ function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
 			baseURL: OLLAMA_V1,
 			apiKey: 'ollama' // placeholder, ignored by Ollama but required by SDK shape
 		});
-		return { model: localProvider(ollamaId), modelId: ollamaId };
+		return { model: localProvider(modelId), modelId };
 	}
 	const apiKey = getGoogleKey();
 	if (!apiKey) throw new Error('Google credential unavailable');
@@ -222,169 +157,6 @@ function latestUserText(messages: UIMessage[]): string {
 	return '';
 }
 
-// Pull the teacher's SULLY_GATE self-assessment out of the reply: strip the block
-// from the displayed prose, and if it validates with escalate:true, return a
-// DISPATCH decision that OVERRIDES the deterministic decision (the teacher raising
-// its hand to send a codable task to a worker). Otherwise keep the base decision.
-function applyGateEscalation(
-	replyText: string,
-	baseDecision: TurnDecision
-): { visible: string; decision: TurnDecision } {
-	const { visible, block } = extractGateBlock(replyText);
-	const gate = validateGate(block);
-	if (gate.ok && gate.gate.escalate) {
-		return {
-			visible,
-			decision: {
-				kind: 'DISPATCH',
-				worker: gate.gate.worker,
-				category: gate.gate.category,
-				brief: gate.gate.brief,
-				reason: `gate: ${gate.gate.brief}`
-			}
-		};
-	}
-	return { visible, decision: baseDecision };
-}
-
-async function finalizeReply(opts: {
-	rawText: string;
-	decision: TurnDecision;
-	threadId: string;
-	taskId: string;
-	targetRepo: string;
-	userText: string;
-	sender: 'cc' | 'agy' | 'local';
-	model: string;
-	tier: Tier;
-	provider: Provider;
-	forcedTraceId?: string;
-	promptTokens?: number | null;
-	completionTokens?: number | null;
-	latencyMs?: number | null;
-	error?: string | null;
-}): Promise<TurnDecision> {
-	let effectiveDecision = opts.decision;
-	if (opts.rawText) {
-		const { strippedText, artifacts } = extractAndPromoteArtifacts(
-			opts.rawText,
-			{ threadId: opts.threadId, taskId: opts.taskId ?? undefined },
-			opts.forcedTraceId
-		);
-		const gateResult = applyGateEscalation(strippedText, opts.decision);
-		effectiveDecision = gateResult.decision;
-		persistAssistantTurn({
-			text: gateResult.visible || strippedText || opts.rawText,
-			sender: opts.sender,
-			threadId: opts.threadId,
-			model: opts.model,
-			tier: opts.tier,
-			taskId: opts.taskId ?? undefined,
-			traceId: artifacts[0]?.trace_id ?? null,
-			provider: opts.provider,
-			promptTokens: opts.promptTokens ?? null,
-			completionTokens: opts.completionTokens ?? null,
-			latencyMs: opts.latencyMs ?? null,
-			error: opts.error ?? null
-		});
-		void maybeAutoTitle(opts.threadId);
-	} else {
-		upsertThreadTier(opts.threadId, opts.tier, opts.model);
-		touchLastActivity(opts.threadId);
-	}
-
-	await applyTurnDecision(effectiveDecision, {
-		taskId: opts.taskId,
-		threadId: opts.threadId,
-		targetRepo: opts.targetRepo,
-		userText: opts.userText
-	});
-	return effectiveDecision;
-}
-
-// "generate an image of X" → the direct Gemini image model, NOT a coding-worker
-// dispatch. Requires a generation verb AND an image noun close together so it
-// doesn't fire on "I have an image problem in my code".
-const IMAGE_INTENT_RE =
-	/\b(generate|create|make|draw|render|paint|design|sketch|illustrate|whip up|cook up)\b[\s\S]{0,30}\b(image|picture|photo|pic|illustration|drawing|artwork|logo|icon|portrait|wallpaper|painting)\b/i;
-
-function isImageRequest(text: string): boolean {
-	return IMAGE_INTENT_RE.test(text);
-}
-
-// Strip a worker-routing prefix ("@agy ", "dispatch agy to ") so it doesn't
-// pollute the image prompt; keep the actual description.
-function imagePromptFrom(text: string): string {
-	return text
-		.replace(/^\s*@\w+[\s,:]+/i, '')
-		.replace(/^\s*dispatch\s+\w+\s+to\s+/i, '')
-		.replace(/^\s*(please|hey|can you|could you)\b[\s,]*/i, '')
-		.trim();
-}
-
-// Generate the image directly (~7s) and stream it back as an inline markdown
-// image the app renders. Persists the reply as an 'agy' turn. Opens the stream
-// immediately so the app shows a thinking row during generation.
-function generateImageReply(opts: {
-	prompt: string;
-	threadId: string;
-	taskId: string | null;
-}): Response {
-	const { prompt, threadId, taskId } = opts;
-	const stream = createUIMessageStream({
-		execute: async ({ writer }) => {
-			const messageId = generateId();
-			const textId = '0';
-			writer.write({ type: 'start', messageId });
-			let md: string;
-			try {
-				const { url } = await generateGeminiImage(prompt);
-				// Sanitize the alt text: [, ], and newlines would break the image
-				// markdown so it never renders (a permanent failure after a paid
-				// ~7s generation). Strip them; the URL stays byte-exact.
-				const altText = prompt
-					.slice(0, 80)
-					.replace(/[\[\]\r\n]/g, ' ')
-					.trim();
-				md = `![${altText}](${url})`;
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : 'unknown error';
-				md = `⚠️ No image generated. ${msg.slice(0, 300)}`;
-			}
-			persistAssistantTurn({
-				text: md,
-				sender: 'agy',
-				threadId,
-				model: 'gemini-2.5-flash-image',
-				tier: 'chat',
-				taskId: taskId ?? undefined,
-				provider: 'gemini'
-			});
-			// Close the turn's ledger arc as self-handled. The image short-circuit
-			// never runs applyTurnDecision, so without this the pending_jobs row
-			// (proposed→classified) would stall at 'classified' forever. markSelfHandled
-			// is status-guarded to proposed/classified (no-op if already advanced) and
-			// links the just-persisted 'agy' image reply as synthesis_message_id.
-			if (taskId) {
-				markSelfHandled(taskId);
-				logTaskEvent(taskId, 'gate_evaluated', {
-					action: 'Talk',
-					reason: 'image-generation',
-					dispatched: false
-				});
-			}
-			void maybeAutoTitle(threadId);
-			writer.write({ type: 'start-step' });
-			writer.write({ type: 'text-start', id: textId });
-			writer.write({ type: 'text-delta', id: textId, delta: md });
-			writer.write({ type: 'text-end', id: textId });
-			writer.write({ type: 'finish-step' });
-			writer.write({ type: 'finish', finishReason: 'stop' });
-		}
-	});
-	return createUIMessageStreamResponse({ stream });
-}
-
 export const POST: RequestHandler = async ({ request }) => {
 	let body: {
 		messages?: UIMessage[];
@@ -392,9 +164,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		target_repo?: string;
 		provider?: Provider;
 		model?: string;
-		/** True when the reply will be SPOKEN aloud — dictation/voice turns.
-		 * Forwarded to buildSystemPrompt as a voice-mode addendum. */
-		spoken?: boolean;
 	};
 	try {
 		body = await request.json();
@@ -416,13 +185,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const threadId =
 		typeof body.thread === 'string' && body.thread.trim() ? body.thread.trim() : 'default';
 	const userText = latestUserText(messages);
-	// Reject whitespace-only bodies ("   ") exactly like "". A blank operator turn
-	// otherwise persists a blank row, mints a task, and still evades the drawer's
-	// "hide 0-message threads" filter — a ghost thread that opens empty. Only the
-	// emptiness decision uses the trimmed copy: the raw userText (leading/interior
-	// whitespace intact) still flows to prepareStream, so a real message like
-	// "   const x = 1" reaches the model and is persisted verbatim.
-	if (!userText.trim()) {
+	if (!userText) {
 		return new Response(JSON.stringify({ error: 'no_text_content' }), {
 			status: 400,
 			headers: { 'Content-Type': 'application/json' }
@@ -439,8 +202,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		provider: body.provider,
 		model: body.model,
 		targetRepoHint: body.target_repo,
-		headers: request.headers,
-		spoken: body.spoken === true
+		headers: request.headers
 	});
 	const {
 		taskId,
@@ -455,18 +217,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		userText: userMessageText,
 		shadowDecision
 	} = ctx;
-
-	// Image generation short-circuit: route "generate an image of X" straight to
-	// the direct Gemini image model (~7s) instead of the AGY coding worker
-	// (minutes, often aborts). Runs BEFORE the dispatch gate, so even
-	// "@agy generate an image" takes the fast path.
-	if (isImageRequest(userMessageText)) {
-		return generateImageReply({
-			prompt: imagePromptFrom(userMessageText),
-			threadId,
-			taskId
-		});
-	}
 
 	// D2.1: Classify-before-answer gate. A work turn produces NO conversational
 	// reply — applyTurnDecision writes the proposal/dispatch/routing-ask and the
@@ -491,25 +241,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		// D2.1: decision is now ctx.shadowDecision (deterministic). No GATE_INSTRUCTION
 		// injected — the model emits a plain reply; stream + persist it directly.
 		const cliSystemPrompt = systemPrompt;
-		const escalationStartedAt = Date.now();
 		const stream = createUIMessageStream({
 			execute: async ({ writer }) => {
 				const messageId = generateId();
 				const textId = '0';
 				writer.write({ type: 'start', messageId });
-				// Specialist lane signal — Sonnet/Opus via CLI bridge IS the SDK
-				// escalation path. Client uses this to flip the model-pill +
-				// voice-orb chrome to the Warm Sand accent. Emitted BEFORE any
-				// text-delta so the UI flips before the reply starts landing.
-				//
-				// Uses the `data-${string}` custom channel that the Vercel AI SDK
-				// stream protocol reserves for app-specific metadata — clients
-				// that don't know the type can safely ignore. iOS UIPart enum
-				// has an `.unknown(type:)` fallback so old builds won't crash.
-				writer.write({
-					type: 'data-sully-routing',
-					data: { handled_by: 'sdk', model: resolvedModelId }
-				});
 				writer.write({ type: 'start-step' });
 				writer.write({ type: 'text-start', id: textId });
 
@@ -552,45 +288,32 @@ export const POST: RequestHandler = async ({ request }) => {
 				writer.write({ type: 'finish-step' });
 				writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
 
-				// Specialist-lane telemetry — append-only escalation corpus.
-				// Captures the prompt/reply pair plus latency so the next pass
-				// (model-selection learner / Hermes shadow) can reason about
-				// the heavy-lane firing without touching chat_messages.
-				logEscalation({
-					at: new Date().toISOString(),
-					thread_id: threadId,
-					task_id: taskId ?? null,
-					user_prompt: userMessageText,
-					system_prompt_head: cliSystemPrompt.slice(0, 800),
-					provider,
-					model: resolvedModelId,
-					current_tier: currentTier,
-					target_repo: targetRepo,
-					reply_text: collected,
-					latency_ms: Date.now() - escalationStartedAt,
-					error: errored ? 'cli_stream_error' : undefined
-				});
-
-				if (!errored) {
-					// Persist the full reply and run the (possibly gate-escalated)
-					// decision: DISPATCH a worker, PROPOSE, or journal Talk + markSelfHandled.
-					// FIRE-AND-FORGET: same pattern as the direct path — the 'finish'
-					// frame is already written above, so the client has the full reply
-					// and finish signal. Don't couple SSE stream close to finalizeReply's
-					// persist + dispatch-listener roundtrip (it holds the iOS reveal drip).
-					// Observable via next pollMessages.
-					void finalizeReply({
-						rawText: collected,
-						decision,
-						threadId,
-						taskId,
-						targetRepo,
-						userText: userMessageText,
+				// Persist the full reply — never a half/failed gen.
+				if (collected && !errored) {
+					persistAssistantTurn({
+						text: collected,
 						sender: senderLabel,
+						threadId,
 						model: resolvedModelId,
 						tier: currentTier,
+						taskId,
 						provider
-					}).catch((e) => console.error('[sdk-stream] cli finalize failed', e));
+					});
+				} else if (!errored) {
+					upsertThreadTier(threadId, currentTier, resolvedModelId);
+					touchLastActivity(threadId);
+				}
+
+				// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
+				// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+				// short-circuited above) → journals Talk + markSelfHandled.
+				if (!errored) {
+					await applyTurnDecision(decision, {
+						taskId,
+						threadId,
+						targetRepo,
+						userText: userMessageText
+					});
 				}
 			},
 			onError: (error: unknown) => {
@@ -634,192 +357,429 @@ export const POST: RequestHandler = async ({ request }) => {
 	// only on the operator's own devices; public Funnel requests get baseTools only.
 	const tools = allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
 
-	// Turn start — used to stamp latency_ms on the assistant row's forensics.
-	const turnStartedAt = Date.now();
-	const artifactTrace = mintTeacherTraceId();
-	const stream = createUIMessageStream({
-		execute: async ({ writer }) => {
-			let artifactAcc = '';
-			let artifactSignaled = false;
-			const result = streamText({
-				model: modelHandle.model,
-				system: systemPrompt,
-				messages: await convertToModelMessages(modelMessages),
-				tools,
-				// Cap multi-step tool loops — keeps a runaway "call → reflect → call"
-				// chain from consuming Max quota / API budget. Raised to 8 so a
-				// search → fetch → read → answer chain has room.
-				stopWhen: ({ steps }) => steps.length >= 8,
-				onChunk: ({ chunk }) => {
-					const ck = chunk as { type?: string; text?: string; textDelta?: string; delta?: string };
-					if (ck.type === 'text-delta') {
-						artifactAcc += ck.text ?? ck.textDelta ?? ck.delta ?? '';
-						if (!artifactSignaled && hasLiveArtifactSignal(artifactAcc)) {
-							artifactSignaled = true;
-							writer.write({ type: 'data-sully-artifact', data: { traceId: artifactTrace } });
-						}
-					}
-				}
+	// ─── Local path ──────────────────────────────────────────────────────
+	// Phase 2A: pre-turn router — skip local entirely for turns that are
+	// obviously cloud-territory (debugging, multi-file analysis, live facts,
+	// long threads). Saves 3–8s round-trip vs. letting local try and escalate.
+	//
+	// Phase 2B: progressive streaming — instead of buffering the full local
+	// response (Phase 1 behaviour), accumulate only until we're confident
+	// no <<<ESCALATE sentinel will appear (SENTINEL_BUFFER_CHARS), then
+	// stream the rest live. Eliminates silence lag on normal local turns.
+	if (provider === 'local') {
+		const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6-20250930';
+
+		// ── 2A: Pre-turn routing ───────────────────────────────────────────
+		const preTurn = preTurnRoute(userMessageText, messages.length);
+		if (preTurn.path === 'cloud') {
+			// Log the pre-turn routing decision so it feeds the same corpus as
+			// model-initiated escalations. source='pre_turn' discriminates it.
+			logEscalation({
+				taskId,
+				threadId,
+				localModel: resolvedModelId,
+				localOutputPreview: '',
+				escalationReason: preTurn.reason,
+				cloudModel: escalationModel,
+				source: 'pre_turn'
 			});
 
-			writer.merge(
-				result.toUIMessageStream({
-					originalMessages: messages,
-					generateMessageId: () => generateId(),
-					// Convert SDK error objects to actionable strings so the client can
-					// classify them. Without this, the stream emits
-					// `{"type":"error","errorText":"Failed after 3 attempts. Last error: Error"}`
-					// for everything — operator can't tell rate-limit from outage from auth.
-					// Audit 2026-05-27 caught Sonnet rate_limit_error surfacing as "Error".
-					//
-					// AI_RetryError wraps the final AI_APICallError; the upstream HTTP
-					// response body lives on `errors[last].responseBody`. Walk the chain
-					// to find it.
-					onError: (error: unknown) => {
-						type ApiCallError = {
-							message?: string;
-							responseBody?: string;
-							statusCode?: number;
-							url?: string;
-						};
-						type RetryError = ApiCallError & {
-							errors?: ApiCallError[];
-							lastError?: ApiCallError;
-							cause?: ApiCallError;
-						};
-						const err = error as RetryError;
-						// Surface the deepest API error we can find.
-						const apiErr: ApiCallError =
-							(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
-							err.lastError ??
-							err.cause ??
-							err;
+			// Fall through to the CLI bridge path by running the same
+			// stream block inline. structuredClone(ctx) would be cleanest, but
+			// to avoid branching the CLI block, we inline it here.
+			const transcript = modelMessages
+				.map((m) => {
+					const role = m.role === 'assistant' ? 'assistant' : 'user';
+					const text = (m.parts || [])
+						.filter((p) => p.type === 'text')
+						.map((p) => (p as { type: 'text'; text: string }).text)
+						.join('');
+					return text ? `[${role}]: ${text}` : '';
+				})
+				.filter(Boolean)
+				.join('\n\n');
 
-						const body = apiErr.responseBody;
-						if (body) {
-							try {
-								const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
-								if (parsed.error?.type) {
-									const t = parsed.error.type;
-									const m = parsed.error.message;
-									if (t === 'rate_limit_error') {
-										return `Rate limited on ${modelHandle.modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`;
-									}
-									if (t === 'invalid_request_error') {
-										return `Invalid request to ${modelHandle.modelId}: ${m || t}`;
-									}
-									if (t === 'authentication_error' || t === 'permission_error') {
-										return `Auth failed for ${modelHandle.modelId} (${t}). Token expired or lacks access. ${m || ''}`;
-									}
-									if (t === 'not_found_error') {
-										return `Model not found: ${modelHandle.modelId}. ${m || ''}`;
-									}
-									if (t === 'overloaded_error') {
-										return `Provider overloaded (${modelHandle.modelId}). Try again in a moment or switch model.`;
-									}
-									return `${t}${m ? ': ' + m : ''} (${modelHandle.modelId})`;
-								}
-							} catch {
-								/* fall through */
-							}
+			const preTurnStream = createUIMessageStream({
+				execute: async ({ writer }) => {
+					const messageId = generateId();
+					const textId = '0';
+					writer.write({ type: 'start', messageId });
+					writer.write({
+						type: 'data-sully-routing',
+						data: { handled_by: 'sdk', model: escalationModel }
+					});
+					writer.write({ type: 'start-step' });
+					writer.write({ type: 'text-start', id: textId });
+
+					let cloudCollected = '';
+					let errored = false;
+					for await (const chunk of streamViaClaudeCLI({
+						model: escalationModel,
+						systemPrompt,
+						userPrompt: transcript || userMessageText,
+						signal: request.signal
+					})) {
+						if (chunk.type === 'text-delta') {
+							cloudCollected += chunk.delta;
+							writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						} else if (chunk.type === 'error') {
+							errored = true;
+							writer.write({ type: 'error', errorText: chunk.message });
 						}
-						if (apiErr.statusCode) {
-							return `HTTP ${apiErr.statusCode} from ${modelHandle.modelId}: ${apiErr.message || 'no detail'}`;
-						}
-						return (
-							apiErr.message || (err as { message?: string }).message || 'unknown_stream_error'
-						);
-					},
-					onFinish: async ({ responseMessage }) => {
-						// Concatenate every text part of the response into a single string
-						// for the chat_messages row. Matches the legacy `addChatMessage`
-						// call shape for backwards compatibility with existing readers.
-						const parts = responseMessage.parts || [];
-						const replyText = parts
-							.filter((p) => p.type === 'text')
-							.map((p) => (p as { type: 'text'; text: string }).text)
-							.join('');
+					}
 
-						// Capture tool errors that fired mid-stream so they stay observable —
-						// but NEVER concatenated into the visible reply. They are routed to the
-						// server log and the non-visible `error` metadata column below.
-						// Audit 2026-05-27 (capture); Fix 2026-06-30 (stop stapling onto text).
-						const toolErrors = parts
-							.filter((p) => {
-								const t = p as { type?: string; state?: string };
-								return t.type?.startsWith('tool-') && t.state === 'output-error';
-							})
-							.map((p) => {
-								const t = p as { type?: string; errorText?: string };
-								return `Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
-									t.errorText ?? 'unknown error'
-								}`;
-							});
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
 
-						// Keep tool errors observable in server logs.
-						if (toolErrors.length > 0) {
-							console.error(
-								`[sdk-stream] tool error(s) during reply (thread ${threadId}): ${toolErrors.join(
-									' | '
-								)}`
-							);
-						}
-
-						// The persisted + streamed reply must equal EXACTLY what the model
-						// produced. Stapling a "⚠️ Tool X failed" suffix here (a) shows a scary
-						// failure line on an otherwise-correct answer and (b) breaks the iOS
-						// content-dedup (ChatCoordinator), which re-renders the whole reply a
-						// second time. So rawFinalText is the model's text verbatim. Only when
-						// the model produced NO visible text at all (e.g. it emitted just a
-						// failed tool call) do we fall back to a neutral single line, so the
-						// operator isn't left with a silent/empty turn — never an empty row.
-						const rawFinalText =
-							replyText ||
-							(toolErrors.length > 0
-								? 'Sorry, something went wrong while I was running a tool for that. Please try again.'
-								: '');
-						const senderLabel: 'cc' | 'agy' | 'local' =
-							provider === 'anthropic' ? 'cc' : provider === 'local' ? 'local' : 'agy';
-						// Best-effort token capture — result.usage is resolved by onFinish.
-						// Never block or throw on it; forensic columns are nullable.
-						let promptTokens: number | null = null;
-						let completionTokens: number | null = null;
-						if (rawFinalText) {
-							try {
-								const usage = await result.usage;
-								promptTokens = usage?.inputTokens ?? null;
-								completionTokens = usage?.outputTokens ?? null;
-							} catch {
-								/* usage unavailable — leave null */
-							}
-						}
-
-						// FIRE-AND-FORGET: same pattern as before — avoids coupling stream close
-						// to the dispatch listener's roundtrip. Observable via next pollMessages.
-						void finalizeReply({
-							rawText: rawFinalText,
-							decision,
+					if (cloudCollected && !errored) {
+						updateEscalationCloudOutput(taskId, cloudCollected);
+						persistAssistantTurn({
+							text: cloudCollected,
+							sender: 'cc',
 							threadId,
-							taskId,
-							targetRepo,
-							userText: userMessageText,
-							sender: senderLabel,
-							model: modelHandle.modelId,
+							model: escalationModel,
 							tier: currentTier,
-							provider,
-							forcedTraceId: artifactTrace,
-							promptTokens,
-							completionTokens,
-							latencyMs: rawFinalText ? Date.now() - turnStartedAt : null,
-							error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null
-						}).catch((e) => {
-							console.error('[sdk-stream] autonomous-dispatch failed', e);
+							taskId,
+							provider: 'anthropic'
+						});
+						await applyTurnDecision(decision, {
+							taskId,
+							threadId,
+							targetRepo,
+							userText: userMessageText
 						});
 					}
-				})
-			);
+				},
+				onError: (error: unknown) =>
+					`Cloud model: ${(error as { message?: string }).message || 'stream_error'}`
+			});
+			return createUIMessageStreamResponse({ stream: preTurnStream });
 		}
+
+		// ── 2B: Progressive streaming with sentinel detection ─────────────
+		// We need to see the first SENTINEL_BUFFER_CHARS of text before
+		// deciding whether to escalate. The sentinel (`<<<ESCALATE reason="…">`)
+		// is at most ~45 chars. 120 gives a comfortable margin and means any
+		// normal response longer than that streams live without further delay.
+		const SENTINEL_BUFFER_CHARS = 120;
+		const escalationSystemPrompt = systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
+
+		const localStream = createUIMessageStream({
+			execute: async ({ writer }) => {
+				const messageId = generateId();
+				const textId = '0';
+				writer.write({ type: 'start', messageId });
+				writer.write({ type: 'start-step' });
+				writer.write({ type: 'text-start', id: textId });
+
+				let sentinelBuf = '';
+				let streaming = false; // true once we've started forwarding live chunks
+				let fullText = ''; // complete local text for persistence
+				let errored = false;
+
+				try {
+					const localResult = streamText({
+						model: modelHandle.model,
+						system: escalationSystemPrompt,
+						messages: await convertToModelMessages(modelMessages),
+						tools,
+						stopWhen: ({ steps }) => steps.length >= 8
+					});
+
+					for await (const chunk of localResult.textStream) {
+						fullText += chunk;
+
+						if (streaming) {
+							// Already past the buffer window — stream live.
+							writer.write({ type: 'text-delta', id: textId, delta: chunk });
+						} else {
+							sentinelBuf += chunk;
+
+							// Early escalation check inside the buffer window.
+							if (parseEscalation(sentinelBuf)) {
+								// Sentinel found — stop reading and escalate.
+								// (The outer escalation block below handles it.)
+								break;
+							}
+
+							if (sentinelBuf.length >= SENTINEL_BUFFER_CHARS) {
+								// Buffer full, no sentinel — flush and go live.
+								streaming = true;
+								writer.write({ type: 'text-delta', id: textId, delta: sentinelBuf });
+							}
+						}
+					}
+				} catch (err) {
+					errored = true;
+					writer.write({
+						type: 'error',
+						errorText: `Local model: ${(err as Error).message || 'stream_error'}`
+					});
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: 'error' });
+					return;
+				}
+
+				// If we never crossed the buffer threshold (short response or escalation),
+				// localText is whatever ended up in sentinelBuf.
+				const localText = streaming ? fullText : sentinelBuf;
+				const escalation = parseEscalation(localText);
+
+				if (escalation) {
+					logEscalation({
+						taskId,
+						threadId,
+						localModel: resolvedModelId,
+						localOutputPreview: localText,
+						escalationReason: escalation.reason,
+						cloudModel: escalationModel
+					});
+
+					writer.write({ type: 'text-delta', id: textId, delta: '_thinking harder…_\n\n' });
+
+					const transcript = modelMessages
+						.map((m) => {
+							const role = m.role === 'assistant' ? 'assistant' : 'user';
+							const text = (m.parts || [])
+								.filter((p) => p.type === 'text')
+								.map((p) => (p as { type: 'text'; text: string }).text)
+								.join('');
+							return text ? `[${role}]: ${text}` : '';
+						})
+						.filter(Boolean)
+						.join('\n\n');
+
+					let cloudCollected = '';
+					for await (const chunk of streamViaClaudeCLI({
+						model: escalationModel,
+						systemPrompt,
+						userPrompt: transcript || userMessageText,
+						signal: request.signal
+					})) {
+						if (chunk.type === 'text-delta') {
+							cloudCollected += chunk.delta;
+							writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						} else if (chunk.type === 'error') {
+							errored = true;
+							writer.write({ type: 'error', errorText: chunk.message });
+						}
+					}
+
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+
+					if (cloudCollected && !errored) {
+						updateEscalationCloudOutput(taskId, cloudCollected);
+						persistAssistantTurn({
+							text: cloudCollected,
+							sender: 'cc',
+							threadId,
+							model: escalationModel,
+							tier: currentTier,
+							taskId,
+							provider: 'anthropic'
+						});
+						await applyTurnDecision(decision, {
+							taskId,
+							threadId,
+							targetRepo,
+							userText: userMessageText
+						});
+					}
+					return;
+				}
+
+				// No escalation. If we never went live (short response), flush now.
+				if (!streaming && localText) {
+					writer.write({ type: 'text-delta', id: textId, delta: localText });
+				}
+				writer.write({ type: 'text-end', id: textId });
+				writer.write({ type: 'finish-step' });
+				writer.write({ type: 'finish', finishReason: 'stop' });
+
+				if (localText) {
+					persistAssistantTurn({
+						text: localText,
+						sender: 'local',
+						threadId,
+						model: resolvedModelId,
+						tier: currentTier,
+						taskId,
+						provider
+					});
+				} else {
+					upsertThreadTier(threadId, currentTier, resolvedModelId);
+					touchLastActivity(threadId);
+				}
+				await applyTurnDecision(decision, {
+					taskId,
+					threadId,
+					targetRepo,
+					userText: userMessageText
+				});
+			},
+			onError: (error: unknown) =>
+				`Local model: ${(error as { message?: string }).message || 'local_stream_error'}`
+		});
+		return createUIMessageStreamResponse({ stream: localStream });
+	}
+
+	// Turn start — used to stamp latency_ms on the assistant row's forensics.
+	const turnStartedAt = Date.now();
+	const result = streamText({
+		model: modelHandle.model,
+		system: systemPrompt,
+		messages: await convertToModelMessages(modelMessages),
+		tools,
+		// Cap multi-step tool loops — keeps a runaway "call → reflect → call"
+		// chain from consuming Max quota / API budget. Raised to 8 so a
+		// search → fetch → read → answer chain has room.
+		stopWhen: ({ steps }) => steps.length >= 8
 	});
 
-	return createUIMessageStreamResponse({ stream });
+	return result.toUIMessageStreamResponse({
+		originalMessages: messages,
+		generateMessageId: () => generateId(),
+		// Convert SDK error objects to actionable strings so the client can
+		// classify them. Without this, the stream emits
+		// `{"type":"error","errorText":"Failed after 3 attempts. Last error: Error"}`
+		// for everything — operator can't tell rate-limit from outage from auth.
+		// Audit 2026-05-27 caught Sonnet rate_limit_error surfacing as "Error".
+		//
+		// AI_RetryError wraps the final AI_APICallError; the upstream HTTP
+		// response body lives on `errors[last].responseBody`. Walk the chain
+		// to find it.
+		onError: (error: unknown) => {
+			type ApiCallError = {
+				message?: string;
+				responseBody?: string;
+				statusCode?: number;
+				url?: string;
+			};
+			type RetryError = ApiCallError & {
+				errors?: ApiCallError[];
+				lastError?: ApiCallError;
+				cause?: ApiCallError;
+			};
+			const err = error as RetryError;
+			// Surface the deepest API error we can find.
+			const apiErr: ApiCallError =
+				(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
+				err.lastError ??
+				err.cause ??
+				err;
+
+			const body = apiErr.responseBody;
+			if (body) {
+				try {
+					const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
+					if (parsed.error?.type) {
+						const t = parsed.error.type;
+						const m = parsed.error.message;
+						if (t === 'rate_limit_error') {
+							return `Rate limited on ${modelHandle.modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`;
+						}
+						if (t === 'invalid_request_error') {
+							return `Invalid request to ${modelHandle.modelId}: ${m || t}`;
+						}
+						if (t === 'authentication_error' || t === 'permission_error') {
+							return `Auth failed for ${modelHandle.modelId} (${t}). Token expired or lacks access. ${m || ''}`;
+						}
+						if (t === 'not_found_error') {
+							return `Model not found: ${modelHandle.modelId}. ${m || ''}`;
+						}
+						if (t === 'overloaded_error') {
+							return `Provider overloaded (${modelHandle.modelId}). Try again in a moment or switch model.`;
+						}
+						return `${t}${m ? ': ' + m : ''} (${modelHandle.modelId})`;
+					}
+				} catch {
+					/* fall through */
+				}
+			}
+			if (apiErr.statusCode) {
+				return `HTTP ${apiErr.statusCode} from ${modelHandle.modelId}: ${apiErr.message || 'no detail'}`;
+			}
+			return apiErr.message || (err as { message?: string }).message || 'unknown_stream_error';
+		},
+		onFinish: async ({ responseMessage }) => {
+			// Concatenate every text part of the response into a single string
+			// for the chat_messages row. Matches the legacy `addChatMessage`
+			// call shape for backwards compatibility with existing readers.
+			const parts = responseMessage.parts || [];
+			const replyText = parts
+				.filter((p) => p.type === 'text')
+				.map((p) => (p as { type: 'text'; text: string }).text)
+				.join('');
+
+			// Capture tool errors that fired mid-stream. The streaming UI shows
+			// these as ephemeral chips that vanish when sdkChat.messages resets,
+			// so without persisting them here the operator never finds out a
+			// tool failed silently. Audit 2026-05-27.
+			const toolErrors = parts
+				.filter((p) => {
+					const t = p as { type?: string; state?: string };
+					return t.type?.startsWith('tool-') && t.state === 'output-error';
+				})
+				.map((p) => {
+					const t = p as { type?: string; errorText?: string };
+					return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
+						t.errorText ?? 'unknown error'
+					}`;
+				});
+
+			const finalText =
+				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
+
+			if (finalText) {
+				const senderLabel: 'cc' | 'agy' | 'local' = provider === 'anthropic' ? 'cc' : 'agy'; // 'local' path returns early above
+				// Best-effort token capture — result.usage is resolved by onFinish.
+				// Never block or throw on it; forensic columns are nullable.
+				let promptTokens: number | null = null;
+				let completionTokens: number | null = null;
+				try {
+					const usage = await result.usage;
+					promptTokens = usage?.inputTokens ?? null;
+					completionTokens = usage?.outputTokens ?? null;
+				} catch {
+					/* usage unavailable — leave null */
+				}
+				persistAssistantTurn({
+					text: finalText,
+					sender: senderLabel,
+					threadId,
+					model: modelHandle.modelId,
+					tier: currentTier,
+					taskId,
+					provider,
+					promptTokens,
+					completionTokens,
+					latencyMs: Date.now() - turnStartedAt,
+					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null
+				});
+			} else {
+				// No reply text but the SDK call still finished — advance state so
+				// the picker chip can show "Claude Haiku 4.5" instead of "Auto".
+				upsertThreadTier(threadId, currentTier, modelHandle.modelId);
+				touchLastActivity(threadId);
+			}
+
+			// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
+			// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+			// short-circuited above) → journals Talk + markSelfHandled.
+			// FIRE-AND-FORGET: same pattern as before — avoids coupling stream close
+			// to the dispatch listener's roundtrip. Observable via next pollMessages.
+			void applyTurnDecision(decision, {
+				taskId,
+				threadId,
+				targetRepo,
+				userText: userMessageText
+			}).catch((e) => {
+				console.error('[sdk-stream] autonomous-dispatch failed', e);
+			});
+		}
+	});
 };
