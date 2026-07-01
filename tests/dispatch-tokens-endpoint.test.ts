@@ -6,6 +6,7 @@ const DB = '/tmp/sully-dispatch-tokens-test.db';
 const ENV = {
 	LOGUEOS_APP_MODE: 'companion',
 	LOGUEOS_MEMORY_DB_PATH: DB,
+	LOGUEOS_KERNEL_DB_PATH: DB,
 	COMPANION_DISPATCH_ENABLED: 'true'
 };
 vi.mock('$env/dynamic/private', () => ({ env: ENV }));

@@ -28,7 +28,7 @@ async function listenOnRandomPort(server: Server): Promise<number> {
 	return address.port;
 }
 
-async function loadVoiceServices(sttPort: number, ttsUrl = 'http://127.0.0.1:18771') {
+async function loadVoiceServices(sttPort: number, ttsUrl = 'http://127.0.0.1:18772') {
 	vi.resetModules();
 	process.env.COMPANION_STT_PORT = String(sttPort);
 	process.env.COMPANION_TTS_URL = ttsUrl;

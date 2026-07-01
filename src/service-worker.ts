@@ -1,5 +1,6 @@
 /// <reference types="@sveltejs/kit" />
 /// <reference lib="webworker" />
+declare const self: ServiceWorkerGlobalScope;
 import { build, files, version } from '$service-worker';
 
 const CACHE_NAME = `cache-${version}`;
