@@ -51,6 +51,8 @@ import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { factGate } from '$lib/server/routing/factGate';
+import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
+import { logEscalation, updateEscalationCloudOutput } from '$lib/server/escalation_log';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 
@@ -354,6 +356,156 @@ export const POST: RequestHandler = async ({ request }) => {
 	// only on the operator's own devices; public Funnel requests get baseTools only.
 	const tools = allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
 
+	// ─── Local path: buffer output, parse escalation gate ────────────────
+	// companion-v1 (Qwen 3 14B Q4) handles most turns fine. When it signals
+	// uncertainty via LOCAL_GATE_INSTRUCTION, we hand off to the cloud
+	// specialist (Sonnet via CLI bridge) and log the pair as training data.
+	if (provider === 'local') {
+		const escalationSystemPrompt = systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
+		const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6-20250930';
+
+		const stream = createUIMessageStream({
+			execute: async ({ writer }) => {
+				const messageId = generateId();
+				const textId = '0';
+				writer.write({ type: 'start', messageId });
+				writer.write({ type: 'start-step' });
+				writer.write({ type: 'text-start', id: textId });
+
+				// Buffer the full local response so we can check for the
+				// escalation sentinel before anything reaches the client.
+				let localText = '';
+				let errored = false;
+				try {
+					const localResult = streamText({
+						model: modelHandle.model,
+						system: escalationSystemPrompt,
+						messages: await convertToModelMessages(modelMessages),
+						tools,
+						stopWhen: ({ steps }) => steps.length >= 8
+					});
+					localText = await localResult.text;
+				} catch (err) {
+					errored = true;
+					writer.write({
+						type: 'error',
+						errorText: `Local model: ${(err as Error).message || 'stream_error'}`
+					});
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: 'error' });
+					return;
+				}
+
+				const escalation = parseEscalation(localText);
+
+				if (escalation) {
+					// Log the local signal and cloud model name — cloud output
+					// preview is filled in after the CLI bridge finishes.
+					logEscalation({
+						taskId,
+						threadId,
+						localModel: resolvedModelId,
+						localOutputPreview: localText,
+						escalationReason: escalation.reason,
+						cloudModel: escalationModel
+					});
+
+					writer.write({
+						type: 'text-delta',
+						id: textId,
+						delta: '_thinking harder…_\n\n'
+					});
+
+					const transcript = modelMessages
+						.map((m) => {
+							const role = m.role === 'assistant' ? 'assistant' : 'user';
+							const text = (m.parts || [])
+								.filter((p) => p.type === 'text')
+								.map((p) => (p as { type: 'text'; text: string }).text)
+								.join('');
+							return text ? `[${role}]: ${text}` : '';
+						})
+						.filter(Boolean)
+						.join('\n\n');
+
+					let cloudCollected = '';
+					for await (const chunk of streamViaClaudeCLI({
+						model: escalationModel,
+						systemPrompt,
+						userPrompt: transcript || userMessageText,
+						signal: request.signal
+					})) {
+						if (chunk.type === 'text-delta') {
+							cloudCollected += chunk.delta;
+							writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						} else if (chunk.type === 'error') {
+							errored = true;
+							writer.write({ type: 'error', errorText: chunk.message });
+						}
+					}
+
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+
+					if (cloudCollected && !errored) {
+						updateEscalationCloudOutput(taskId, cloudCollected);
+						persistAssistantTurn({
+							text: cloudCollected,
+							sender: 'cc',
+							threadId,
+							model: escalationModel,
+							tier: currentTier,
+							taskId,
+							provider: 'anthropic'
+						});
+						await applyTurnDecision(decision, {
+							taskId,
+							threadId,
+							targetRepo,
+							userText: userMessageText
+						});
+					}
+					return;
+				}
+
+				// No escalation — stream the buffered local text to the client.
+				if (localText) {
+					writer.write({ type: 'text-delta', id: textId, delta: localText });
+				}
+				writer.write({ type: 'text-end', id: textId });
+				writer.write({ type: 'finish-step' });
+				writer.write({ type: 'finish', finishReason: 'stop' });
+
+				if (localText) {
+					persistAssistantTurn({
+						text: localText,
+						sender: 'local',
+						threadId,
+						model: resolvedModelId,
+						tier: currentTier,
+						taskId,
+						provider
+					});
+				} else {
+					upsertThreadTier(threadId, currentTier, resolvedModelId);
+					touchLastActivity(threadId);
+				}
+				await applyTurnDecision(decision, {
+					taskId,
+					threadId,
+					targetRepo,
+					userText: userMessageText
+				});
+			},
+			onError: (error: unknown) => {
+				return `Local model: ${(error as { message?: string }).message || 'local_stream_error'}`;
+			}
+		});
+		return createUIMessageStreamResponse({ stream });
+	}
+
 	// Turn start — used to stamp latency_ms on the assistant row's forensics.
 	const turnStartedAt = Date.now();
 	const result = streamText({
@@ -462,8 +614,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
 
 			if (finalText) {
-				const senderLabel: 'cc' | 'agy' | 'local' =
-					provider === 'anthropic' ? 'cc' : provider === 'local' ? 'local' : 'agy';
+				const senderLabel: 'cc' | 'agy' | 'local' = provider === 'anthropic' ? 'cc' : 'agy'; // 'local' path returns early above
 				// Best-effort token capture — result.usage is resolved by onFinish.
 				// Never block or throw on it; forensic columns are nullable.
 				let promptTokens: number | null = null;
