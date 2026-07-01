@@ -205,6 +205,14 @@ export interface PreparedStreamContext {
 	 * always consumed the space-joined value.
 	 */
 	userText: string;
+	/**
+	 * chat_messages.id of THIS turn's own operator row (persisted in
+	 * prepareTurnLifecycle). Surfaced so the route can roll it back on a
+	 * zero-token orphan turn (pre-stream credential 503, or a stream that
+	 * errored having emitted no reply text + written no assistant row). Scoped
+	 * to this exact row — never thread-wide.
+	 */
+	operatorRowId: number;
 	currentTier: Tier;
 	threadState: ThreadState;
 	targetRepo: string;
@@ -383,6 +391,7 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		threadId,
 		taskId,
 		userText: userMessageText,
+		operatorRowId,
 		currentTier,
 		threadState,
 		targetRepo,

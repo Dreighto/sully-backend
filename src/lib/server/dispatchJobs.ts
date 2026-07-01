@@ -500,6 +500,34 @@ export function expireProposalsForThread(threadId: string): number {
 	}
 }
 
+/**
+ * Orphan rollback (Stage 1): abort a SINGLE turn's own Task by trace_id when the
+ * turn terminated having emitted zero reply tokens and written no assistant row
+ * (a pre-stream credential 503, or a stream that errored empty). Scoped to the
+ * exact task and GUARDED to a pre-dispatch state ('proposed'/'classified') so it
+ * can NEVER abort a task that went on to dispatch, gate a proposal ('gated'), or
+ * synthesize — those own their own terminal path. Idempotent: a no-op (returns
+ * false) if the row is missing or already past pre-dispatch. Direct UPDATE (not
+ * transition()) — proposed/classified→aborted are both legal sinks and we never
+ * want to throw into the turn pipeline. Returns true iff it aborted a row.
+ */
+export function expireTaskById(taskId: string): boolean {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return false;
+	const db = getDb();
+	try {
+		const info = db
+			.prepare(
+				`UPDATE pending_jobs SET status = 'aborted',
+				   current_activity = 'turn rolled back (zero-token orphan)', ended_at = ?
+				 WHERE trace_id = ? AND status IN ('proposed', 'classified')`
+			)
+			.run(new Date().toISOString(), taskId);
+		return info.changes > 0;
+	} finally {
+		db.close();
+	}
+}
+
 export function getPendingProposal(threadId: string, maxAgeMinutes = 10): PendingProposal | null {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
 	const db = getDb();

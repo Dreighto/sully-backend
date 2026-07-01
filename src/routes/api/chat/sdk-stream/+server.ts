@@ -47,6 +47,8 @@ import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
+import { deleteChatMessage } from '$lib/server/chat';
+import { expireTaskById } from '$lib/server/dispatchJobs';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
@@ -157,6 +159,29 @@ function latestUserText(messages: UIMessage[]): string {
 	return '';
 }
 
+// Orphan rollback (Stage 1). prepareTurnLifecycle persists the operator row +
+// mints a 'proposed' Task BEFORE the model runs. When a turn terminates having
+// emitted ZERO reply tokens AND written NO assistant row (a pre-stream
+// credential 503, or a stream that errored with empty collected text), that
+// operator row + proposed Task are orphaned — a lone "Hey Sully" with no reply
+// (DB thread rows 1673/1674/1675). Undo BOTH, scoped to THIS turn's exact ids.
+//
+// Idempotent + best-effort: deleteChatMessage no-ops on an already-gone row;
+// expireTaskById is guarded to a pre-dispatch state so it can't touch a task
+// that dispatched. NEVER call this on a turn that emitted a token, wrote an
+// assistant row, or made a dispatch/proposal — those either persist (so
+// finalText/collected is non-empty) or short-circuit (D2.1 work-turn) before
+// reaching any call site here.
+function rollbackOrphanTurn(operatorRowId: number, taskId: string): void {
+	try {
+		// Guard: only touch a row that was in fact persisted this turn.
+		if (operatorRowId) deleteChatMessage(operatorRowId);
+		expireTaskById(taskId);
+	} catch (e) {
+		console.error('[sdk-stream] orphan rollback failed', e);
+	}
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	let body: {
 		messages?: UIMessage[];
@@ -206,6 +231,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 	const {
 		taskId,
+		operatorRowId,
 		currentTier,
 		targetRepo,
 		provider,
@@ -302,6 +328,12 @@ export const POST: RequestHandler = async ({ request }) => {
 				} else if (!errored) {
 					upsertThreadTier(threadId, currentTier, resolvedModelId);
 					touchLastActivity(threadId);
+				} else if (!collected) {
+					// Orphan rollback (Stage 1): the CLI bridge errored before emitting
+					// a single reply token and wrote no assistant row. Undo THIS turn's
+					// operator row + proposed Task. (An errored turn that DID emit text
+					// falls through — a token was shown, so it is not rolled back.)
+					rollbackOrphanTurn(operatorRowId, taskId);
 				}
 
 				// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
@@ -347,6 +379,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			modelHandle = pickModel(provider, currentTier, body.model);
 		}
 	} catch (err) {
+		// Orphan rollback (Stage 1): pickModel threw (missing credential) — the
+		// model NEVER ran, zero tokens emitted, no assistant row written. The
+		// operator row + 'proposed' Task minted in prepareStream would otherwise
+		// dangle. Undo BOTH before returning the 503; best-effort, never masks it.
+		rollbackOrphanTurn(operatorRowId, taskId);
 		return new Response(
 			JSON.stringify({ error: 'credential_unavailable', detail: (err as Error).message }),
 			{ status: 503, headers: { 'Content-Type': 'application/json' } }
@@ -449,6 +486,12 @@ export const POST: RequestHandler = async ({ request }) => {
 							targetRepo,
 							userText: userMessageText
 						});
+					} else if (errored && !cloudCollected) {
+						// Orphan rollback (Stage 1): the cloud model errored before
+						// emitting a reply token and wrote no assistant row. Undo THIS
+						// turn's operator row + proposed Task (only routing data-parts
+						// were sent, never a reply token).
+						rollbackOrphanTurn(operatorRowId, taskId);
 					}
 				},
 				onError: (error: unknown) =>
@@ -519,6 +562,12 @@ export const POST: RequestHandler = async ({ request }) => {
 					writer.write({ type: 'text-end', id: textId });
 					writer.write({ type: 'finish-step' });
 					writer.write({ type: 'finish', finishReason: 'error' });
+					// Orphan rollback (Stage 1): the local stream threw before the model
+					// produced ANY text and wrote no assistant row. Undo THIS turn's
+					// operator row + proposed Task. Gated on fullText (every chunk lands
+					// there before the buffer/stream split) so a turn where the model DID
+					// emit tokens is never rolled back.
+					if (!fullText) rollbackOrphanTurn(operatorRowId, taskId);
 					return;
 				}
 
@@ -629,6 +678,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Turn start — used to stamp latency_ms on the assistant row's forensics.
 	const turnStartedAt = Date.now();
+	// Orphan-rollback signal (Stage 1): the onError formatter below sets this when
+	// the stream surfaces an error. Read in onFinish to distinguish a real
+	// zero-token FAILURE (roll back the operator row + Task) from a benign empty
+	// finish (advance state as before).
+	let directErrored = false;
 	const result = streamText({
 		model: modelHandle.model,
 		system: systemPrompt,
@@ -653,6 +707,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		// response body lives on `errors[last].responseBody`. Walk the chain
 		// to find it.
 		onError: (error: unknown) => {
+			// Mark the turn errored so onFinish can roll back an empty-output orphan.
+			// Runs before onFinish (error chunk is processed before stream flush).
+			directErrored = true;
 			type ApiCallError = {
 				message?: string;
 				responseBody?: string;
@@ -705,7 +762,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 			return apiErr.message || (err as { message?: string }).message || 'unknown_stream_error';
 		},
-		onFinish: async ({ responseMessage }) => {
+		onFinish: async ({ responseMessage, finishReason }) => {
 			// Concatenate every text part of the response into a single string
 			// for the chat_messages row. Matches the legacy `addChatMessage`
 			// call shape for backwards compatibility with existing readers.
@@ -760,8 +817,17 @@ export const POST: RequestHandler = async ({ request }) => {
 					latencyMs: Date.now() - turnStartedAt,
 					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null
 				});
+			} else if (directErrored || finishReason === 'error') {
+				// Orphan rollback (Stage 1): the stream errored with ZERO reply text
+				// and wrote no assistant row. The operator row + 'proposed' Task minted
+				// in prepareStream would otherwise dangle. Undo BOTH, scoped to this
+				// turn, and SKIP the dispatch decision below (an errored turn makes no
+				// routing decision). A turn that emitted a token lands in the finalText
+				// branch above and is never rolled back.
+				rollbackOrphanTurn(operatorRowId, taskId);
+				return;
 			} else {
-				// No reply text but the SDK call still finished — advance state so
+				// No reply text but the SDK call finished cleanly — advance state so
 				// the picker chip can show "Claude Haiku 4.5" instead of "Auto".
 				upsertThreadTier(threadId, currentTier, modelHandle.modelId);
 				touchLastActivity(threadId);
