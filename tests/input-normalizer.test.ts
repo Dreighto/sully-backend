@@ -12,9 +12,17 @@ function normalize(text: string, mode: NormalizationMode): string {
 }
 
 describe('input_normalizer', () => {
-	it('applies light-touch cleanup for typed chat', () => {
-		expect(normalize('hey can you check logue os on the jet son', 'chat')).toBe(
-			'Hey can you check LogueOS on the Jetson.'
+	it('preserves typed chat input verbatim (trim only)', () => {
+		// Typed chat must NOT be run through the dictation normalizer: pasted
+		// multi-line code, loop variables / lowercase 'i', deliberately repeated
+		// words, and the absence of terminal punctuation must all survive intact.
+		const raw = 'for (let i = 0; i < 3; i++) {\n  go go go\n}\ni think i can';
+		expect(normalize(raw, 'chat')).toBe(raw);
+	});
+
+	it('only trims surrounding whitespace for typed chat, never inner text', () => {
+		expect(normalize('  keep  the   inner spacing and the newlines\n\nverbatim  ', 'chat')).toBe(
+			'keep  the   inner spacing and the newlines\n\nverbatim'
 		);
 	});
 

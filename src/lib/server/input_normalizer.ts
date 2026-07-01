@@ -3,6 +3,7 @@ import type { UIMessage, TextUIPart } from 'ai';
 export type NormalizationMode = 'chat' | 'voice' | 'walkie';
 
 type ModeRuleSet = {
+	transform: boolean;
 	stripFillers: boolean;
 	insertSentenceBreaks: boolean;
 };
@@ -13,9 +14,9 @@ type TermCorrection = {
 };
 
 const MODE_RULES: Record<NormalizationMode, ModeRuleSet> = {
-	chat: { stripFillers: false, insertSentenceBreaks: false },
-	voice: { stripFillers: true, insertSentenceBreaks: false },
-	walkie: { stripFillers: true, insertSentenceBreaks: false }
+	chat: { transform: false, stripFillers: false, insertSentenceBreaks: false },
+	voice: { transform: true, stripFillers: true, insertSentenceBreaks: false },
+	walkie: { transform: true, stripFillers: true, insertSentenceBreaks: false }
 };
 
 const DOMAIN_CORRECTIONS: TermCorrection[] = [
@@ -30,8 +31,7 @@ const DOMAIN_CORRECTIONS: TermCorrection[] = [
 	{ pattern: /\bsulli\b/gi, replacement: 'Sully' }
 ];
 
-const LEADING_FILLERS =
-	/^(?:\s*(?:um+|uh+|erm+|ah+|mm+|hmm+)\b(?:\s|,|\.|!|\?)*)+/i;
+const LEADING_FILLERS = /^(?:\s*(?:um+|uh+|erm+|ah+|mm+|hmm+)\b(?:\s|,|\.|!|\?)*)+/i;
 const REPEATED_PHRASES = [
 	/\b(i need you to)\s+\1\b/gi,
 	/\b(can you)\s+\1\b/gi,
@@ -62,6 +62,13 @@ export function normalizeInputText(text: string, mode: NormalizationMode): strin
 	const rules = MODE_RULES[mode];
 	let next = text.trim();
 	if (!next) return '';
+
+	// Typed chat is preserved verbatim (trim only). The STT cleanup chain below
+	// runs ONLY for voice/walkie dictation. Applying it to typed chat corrupts
+	// pasted multi-line code (newlines flattened), loop variables and lowercase
+	// 'i', deliberately repeated words, and appends a stray terminal period —
+	// all silently, both in the persisted message and what the model reads.
+	if (!rules.transform) return next;
 
 	next = normalizeWhitespace(next);
 	if (rules.stripFillers) next = next.replace(LEADING_FILLERS, '');
