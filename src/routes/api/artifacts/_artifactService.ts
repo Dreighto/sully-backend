@@ -496,10 +496,19 @@ export function buildBundleZip(traceId: string): Buffer | null {
 		{ path: 'manifest.json', data: Buffer.from(JSON.stringify(listing.artifacts, null, 2), 'utf8') }
 	];
 
+	// Resolve bytes against the ACTUAL current store dir (findStoreDir), NOT the
+	// manifest's workspace_path — that field is STALE for artifacts migrated from
+	// a retired repo (e.g. LogueOS-Companion), so the old path no longer exists and
+	// the bundle would ship manifest-only with zero file bytes. Mirror the
+	// single-file route (findArtifactMetadata): prefer the trace's real store dir,
+	// fall back to workspace_path only when it can't be resolved.
+	const storeDir = getTraceWorkspacePath(traceId);
+
 	for (const meta of listing.artifacts) {
+		const baseDir = storeDir ?? meta.workspace_path;
 		try {
-			const absolutePath = path.resolve(meta.workspace_path, meta.original_path);
-			assertInsideWorkspace(meta.workspace_path, absolutePath);
+			const absolutePath = path.resolve(baseDir, meta.original_path);
+			assertInsideWorkspace(baseDir, absolutePath);
 			if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) continue;
 			zipEntries.push({
 				path: meta.original_path.replace(/\\/g, '/'),
