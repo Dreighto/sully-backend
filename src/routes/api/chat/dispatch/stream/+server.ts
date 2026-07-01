@@ -14,6 +14,27 @@ const HIDDEN_PLACEHOLDERS = HIDDEN_ACTIONS.map(() => '?').join(',');
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 1_000;
 
+// The terminal gate mirrors the poll route (dispatch/[trace]/+server.ts): a job
+// flips status→'done' then →'verified' ~45s BEFORE Sully writes the synthesized
+// reply row, so those two are NON-terminal progress. Closing the stream there
+// would drop an SSE-consuming card (Console/web) ~45s before the answer exists.
+// Only a genuine sink terminates the stream: 'synthesized' (reply row written),
+// 'failed', or 'aborted'. Safety cap: markVerified does not bump ended_at, so if
+// closeOutTask stalls after markDone, 'done'/'verified' still terminate 90s after
+// ended_at (measured from markDone) — the stream can't hang open forever. Same
+// guard the poll route applies (which coerces to 'working' only while < 90s).
+const SYNTH_SAFETY_CAP_MS = 90_000;
+
+function shouldTerminate(status: string, endedAt: string | null | undefined): boolean {
+	if (isTerminalStatus(status)) return true; // synthesized / failed / aborted
+	if (status === 'done' || status === 'verified') {
+		const ended = endedAt ? Date.parse(String(endedAt)) : 0;
+		const sinceMs = ended ? Date.now() - ended : Number.POSITIVE_INFINITY;
+		return sinceMs >= SYNTH_SAFETY_CAP_MS;
+	}
+	return false;
+}
+
 export const GET: RequestHandler = async ({ url, request }) => {
 	if (!runMode.companionDispatchEnabled) {
 		return new Response('dispatch disabled', { status: 404 });
@@ -63,7 +84,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
 						cursor = r.id;
 					}
 					const job = getJob(traceId);
-					if (job && isTerminalStatus(job.status)) {
+					if (job && shouldTerminate(job.status, job.ended_at)) {
 						controller.enqueue(
 							encoder.encode(
 								sseEvent(traceId, cursor + 1, {

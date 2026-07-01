@@ -55,10 +55,22 @@ describe('friendlyStep', () => {
 });
 
 describe('isTerminalStatus / isSuccessStatus', () => {
-	it('treats synthesized + verified as terminal (the P1 stuck-timer fix)', () => {
-		for (const s of ['done', 'failed', 'aborted', 'synthesized', 'verified'])
-			expect(isTerminalStatus(s)).toBe(true);
-		for (const s of ['working', 'dispatched', 'decided', 'gated', 'proposed', 'classified'])
+	it('holds done/verified as pre-synthesis progress; only synthesized/failed/aborted are terminal (the P1 premature-close fix)', () => {
+		// A genuine SINK terminates: success ('synthesized' = reply row written) or
+		// failure ('failed'/'aborted'). 'done'/'verified' are worker-finished-but-
+		// PRE-synthesis, so they are NON-terminal here — the SSE terminal gate holds
+		// (mirroring the poll route) until 'synthesized', or the 90s safety cap fires.
+		for (const s of ['synthesized', 'failed', 'aborted']) expect(isTerminalStatus(s)).toBe(true);
+		for (const s of [
+			'done',
+			'verified',
+			'working',
+			'dispatched',
+			'decided',
+			'gated',
+			'proposed',
+			'classified'
+		])
 			expect(isTerminalStatus(s)).toBe(false);
 	});
 	it('classifies success vs failure terminals', () => {

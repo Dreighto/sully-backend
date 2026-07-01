@@ -10,10 +10,15 @@
 //      the KNOWN-finite internal set (vs allow-listing worker verbs) is robust
 //      to worker vocabulary drift — e.g. the worker emits 'running', not 'ran'.
 //      (Fixes the raw-JSON leak: P2.)
-//   2. isTerminalStatus — a job is finished when it reaches ANY terminal state,
-//      including 'synthesized'/'verified', which the old hard-coded
-//      ['done','failed','aborted'] check missed → the card span "working"
-//      forever. (Fixes the stuck timer: P1.)
+//   2. isTerminalStatus — the SSE stream's terminal gate. A dispatch job only
+//      genuinely FINISHES at a sink: 'synthesized' (Sully's reply row is
+//      written) for success, or 'failed'/'aborted'. 'done' and 'verified' are
+//      the worker-finished-but-PRE-synthesis states: the worker's output exists
+//      but the synthesized reply row isn't written yet (~45s later). Treating
+//      those as terminal closes the card ~45s BEFORE the answer surfaces, so
+//      they are NON-terminal progress here — mirroring the poll route's hold in
+//      dispatch/[trace]/+server.ts (with the same 90s-from-ended_at safety cap
+//      applied by the stream route). (Fixes the premature card-close: P1.)
 
 /** Internal events + terminal markers that must never appear as a card step. */
 export const HIDDEN_ACTIONS = [
@@ -35,10 +40,19 @@ export const HIDDEN_ACTIONS = [
 	'failed'
 ] as const;
 
-const SUCCESS_TERMINAL = ['done', 'verified', 'synthesized'] as const;
+/** Genuine SUCCESS sink — Sully's synthesized reply row exists on-thread. */
+const SUCCESS_TERMINAL = ['synthesized'] as const;
+/** Genuine FAILURE sinks. */
 const FAIL_TERMINAL = ['failed', 'aborted'] as const;
+/** Worker finished but the synthesized reply row isn't written yet — NON-terminal
+ *  progress. The card must keep streaming/polling until 'synthesized'; the stream
+ *  route only forces these terminal via the 90s-from-ended_at safety cap. */
+const PRE_SYNTH_PROGRESS = ['done', 'verified'] as const;
 
-/** True once a job has reached any terminal state (success OR failure). */
+/** True once a job has reached a genuine terminal SINK (success OR failure).
+ *  'done'/'verified' are deliberately excluded — they are pre-synthesis progress
+ *  (the reply row isn't written yet), so the SSE terminal gate must NOT fire on
+ *  them (it holds, mirroring the poll route). */
 export function isTerminalStatus(s: string): boolean {
 	return (
 		(SUCCESS_TERMINAL as readonly string[]).includes(s) ||
@@ -46,9 +60,14 @@ export function isTerminalStatus(s: string): boolean {
 	);
 }
 
-/** True for a clean finish (vs failed/aborted). Drives the ✓ vs ✗ treatment. */
+/** True for a clean finish (vs failed/aborted). Includes the pre-synthesis
+ *  worker-success states so that a safety-cap terminal on 'done'/'verified'
+ *  (stalled synthesis) still gets the ✓ (not ✗) treatment. */
 export function isSuccessStatus(s: string): boolean {
-	return (SUCCESS_TERMINAL as readonly string[]).includes(s);
+	return (
+		(SUCCESS_TERMINAL as readonly string[]).includes(s) ||
+		(PRE_SYNTH_PROGRESS as readonly string[]).includes(s)
+	);
 }
 
 /** True if this raw activity action may be shown to the operator at all. */
