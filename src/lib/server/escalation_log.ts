@@ -24,9 +24,17 @@ function ensureTable(db: Database.Database): void {
 			escalation_reason    TEXT    NOT NULL,
 			cloud_model          TEXT    NOT NULL,
 			cloud_output_preview TEXT,
+			-- 'model_initiated' = companion-v1 emitted <<<ESCALATE
+			-- 'pre_turn'        = pre-turn router decided before local ran
+			source               TEXT    NOT NULL DEFAULT 'model_initiated',
 			ts                   TEXT    NOT NULL DEFAULT (datetime('now'))
 		)
 	`);
+	// Migrate existing tables that lack the source column (idempotent).
+	const cols = db.prepare(`PRAGMA table_info(escalation_log)`).all() as { name: string }[];
+	if (!cols.some((c) => c.name === 'source')) {
+		db.exec(`ALTER TABLE escalation_log ADD COLUMN source TEXT NOT NULL DEFAULT 'model_initiated'`);
+	}
 }
 
 export interface EscalationLogParams {
@@ -36,6 +44,8 @@ export interface EscalationLogParams {
 	localOutputPreview: string;
 	escalationReason: string;
 	cloudModel: string;
+	/** Discriminates how the escalation was triggered. Default: 'model_initiated'. */
+	source?: 'model_initiated' | 'pre_turn';
 }
 
 export function logEscalation(params: EscalationLogParams): void {
@@ -45,8 +55,8 @@ export function logEscalation(params: EscalationLogParams): void {
 		db.prepare(
 			`
 			INSERT INTO escalation_log
-				(task_id, thread_id, local_model, local_output_preview, escalation_reason, cloud_model)
-			VALUES (?, ?, ?, ?, ?, ?)
+				(task_id, thread_id, local_model, local_output_preview, escalation_reason, cloud_model, source)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`
 		).run(
 			params.taskId,
@@ -54,7 +64,8 @@ export function logEscalation(params: EscalationLogParams): void {
 			params.localModel,
 			params.localOutputPreview.slice(0, 500),
 			params.escalationReason,
-			params.cloudModel
+			params.cloudModel,
+			params.source ?? 'model_initiated'
 		);
 	} finally {
 		db.close();

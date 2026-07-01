@@ -53,6 +53,7 @@ import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { factGate } from '$lib/server/routing/factGate';
 import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
 import { logEscalation, updateEscalationCloudOutput } from '$lib/server/escalation_log';
+import { preTurnRoute } from '$lib/server/routing/pre_turn_router';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 
@@ -356,15 +357,115 @@ export const POST: RequestHandler = async ({ request }) => {
 	// only on the operator's own devices; public Funnel requests get baseTools only.
 	const tools = allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
 
-	// ─── Local path: buffer output, parse escalation gate ────────────────
-	// companion-v1 (Qwen 3 14B Q4) handles most turns fine. When it signals
-	// uncertainty via LOCAL_GATE_INSTRUCTION, we hand off to the cloud
-	// specialist (Sonnet via CLI bridge) and log the pair as training data.
+	// ─── Local path ──────────────────────────────────────────────────────
+	// Phase 2A: pre-turn router — skip local entirely for turns that are
+	// obviously cloud-territory (debugging, multi-file analysis, live facts,
+	// long threads). Saves 3–8s round-trip vs. letting local try and escalate.
+	//
+	// Phase 2B: progressive streaming — instead of buffering the full local
+	// response (Phase 1 behaviour), accumulate only until we're confident
+	// no <<<ESCALATE sentinel will appear (SENTINEL_BUFFER_CHARS), then
+	// stream the rest live. Eliminates silence lag on normal local turns.
 	if (provider === 'local') {
-		const escalationSystemPrompt = systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
 		const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6-20250930';
 
-		const stream = createUIMessageStream({
+		// ── 2A: Pre-turn routing ───────────────────────────────────────────
+		const preTurn = preTurnRoute(userMessageText, messages.length);
+		if (preTurn.path === 'cloud') {
+			// Log the pre-turn routing decision so it feeds the same corpus as
+			// model-initiated escalations. source='pre_turn' discriminates it.
+			logEscalation({
+				taskId,
+				threadId,
+				localModel: resolvedModelId,
+				localOutputPreview: '',
+				escalationReason: preTurn.reason,
+				cloudModel: escalationModel,
+				source: 'pre_turn'
+			});
+
+			// Fall through to the CLI bridge path by running the same
+			// stream block inline. structuredClone(ctx) would be cleanest, but
+			// to avoid branching the CLI block, we inline it here.
+			const transcript = modelMessages
+				.map((m) => {
+					const role = m.role === 'assistant' ? 'assistant' : 'user';
+					const text = (m.parts || [])
+						.filter((p) => p.type === 'text')
+						.map((p) => (p as { type: 'text'; text: string }).text)
+						.join('');
+					return text ? `[${role}]: ${text}` : '';
+				})
+				.filter(Boolean)
+				.join('\n\n');
+
+			const preTurnStream = createUIMessageStream({
+				execute: async ({ writer }) => {
+					const messageId = generateId();
+					const textId = '0';
+					writer.write({ type: 'start', messageId });
+					writer.write({
+						type: 'data-sully-routing',
+						data: { handled_by: 'sdk', model: escalationModel }
+					});
+					writer.write({ type: 'start-step' });
+					writer.write({ type: 'text-start', id: textId });
+
+					let cloudCollected = '';
+					let errored = false;
+					for await (const chunk of streamViaClaudeCLI({
+						model: escalationModel,
+						systemPrompt,
+						userPrompt: transcript || userMessageText,
+						signal: request.signal
+					})) {
+						if (chunk.type === 'text-delta') {
+							cloudCollected += chunk.delta;
+							writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						} else if (chunk.type === 'error') {
+							errored = true;
+							writer.write({ type: 'error', errorText: chunk.message });
+						}
+					}
+
+					writer.write({ type: 'text-end', id: textId });
+					writer.write({ type: 'finish-step' });
+					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+
+					if (cloudCollected && !errored) {
+						updateEscalationCloudOutput(taskId, cloudCollected);
+						persistAssistantTurn({
+							text: cloudCollected,
+							sender: 'cc',
+							threadId,
+							model: escalationModel,
+							tier: currentTier,
+							taskId,
+							provider: 'anthropic'
+						});
+						await applyTurnDecision(decision, {
+							taskId,
+							threadId,
+							targetRepo,
+							userText: userMessageText
+						});
+					}
+				},
+				onError: (error: unknown) =>
+					`Cloud model: ${(error as { message?: string }).message || 'stream_error'}`
+			});
+			return createUIMessageStreamResponse({ stream: preTurnStream });
+		}
+
+		// ── 2B: Progressive streaming with sentinel detection ─────────────
+		// We need to see the first SENTINEL_BUFFER_CHARS of text before
+		// deciding whether to escalate. The sentinel (`<<<ESCALATE reason="…">`)
+		// is at most ~45 chars. 120 gives a comfortable margin and means any
+		// normal response longer than that streams live without further delay.
+		const SENTINEL_BUFFER_CHARS = 120;
+		const escalationSystemPrompt = systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
+
+		const localStream = createUIMessageStream({
 			execute: async ({ writer }) => {
 				const messageId = generateId();
 				const textId = '0';
@@ -372,10 +473,11 @@ export const POST: RequestHandler = async ({ request }) => {
 				writer.write({ type: 'start-step' });
 				writer.write({ type: 'text-start', id: textId });
 
-				// Buffer the full local response so we can check for the
-				// escalation sentinel before anything reaches the client.
-				let localText = '';
+				let sentinelBuf = '';
+				let streaming = false; // true once we've started forwarding live chunks
+				let fullText = ''; // complete local text for persistence
 				let errored = false;
+
 				try {
 					const localResult = streamText({
 						model: modelHandle.model,
@@ -384,7 +486,30 @@ export const POST: RequestHandler = async ({ request }) => {
 						tools,
 						stopWhen: ({ steps }) => steps.length >= 8
 					});
-					localText = await localResult.text;
+
+					for await (const chunk of localResult.textStream) {
+						fullText += chunk;
+
+						if (streaming) {
+							// Already past the buffer window — stream live.
+							writer.write({ type: 'text-delta', id: textId, delta: chunk });
+						} else {
+							sentinelBuf += chunk;
+
+							// Early escalation check inside the buffer window.
+							if (parseEscalation(sentinelBuf)) {
+								// Sentinel found — stop reading and escalate.
+								// (The outer escalation block below handles it.)
+								break;
+							}
+
+							if (sentinelBuf.length >= SENTINEL_BUFFER_CHARS) {
+								// Buffer full, no sentinel — flush and go live.
+								streaming = true;
+								writer.write({ type: 'text-delta', id: textId, delta: sentinelBuf });
+							}
+						}
+					}
 				} catch (err) {
 					errored = true;
 					writer.write({
@@ -397,11 +522,12 @@ export const POST: RequestHandler = async ({ request }) => {
 					return;
 				}
 
+				// If we never crossed the buffer threshold (short response or escalation),
+				// localText is whatever ended up in sentinelBuf.
+				const localText = streaming ? fullText : sentinelBuf;
 				const escalation = parseEscalation(localText);
 
 				if (escalation) {
-					// Log the local signal and cloud model name — cloud output
-					// preview is filled in after the CLI bridge finishes.
 					logEscalation({
 						taskId,
 						threadId,
@@ -411,11 +537,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						cloudModel: escalationModel
 					});
 
-					writer.write({
-						type: 'text-delta',
-						id: textId,
-						delta: '_thinking harder…_\n\n'
-					});
+					writer.write({ type: 'text-delta', id: textId, delta: '_thinking harder…_\n\n' });
 
 					const transcript = modelMessages
 						.map((m) => {
@@ -470,8 +592,8 @@ export const POST: RequestHandler = async ({ request }) => {
 					return;
 				}
 
-				// No escalation — stream the buffered local text to the client.
-				if (localText) {
+				// No escalation. If we never went live (short response), flush now.
+				if (!streaming && localText) {
 					writer.write({ type: 'text-delta', id: textId, delta: localText });
 				}
 				writer.write({ type: 'text-end', id: textId });
@@ -499,11 +621,10 @@ export const POST: RequestHandler = async ({ request }) => {
 					userText: userMessageText
 				});
 			},
-			onError: (error: unknown) => {
-				return `Local model: ${(error as { message?: string }).message || 'local_stream_error'}`;
-			}
+			onError: (error: unknown) =>
+				`Local model: ${(error as { message?: string }).message || 'local_stream_error'}`
 		});
-		return createUIMessageStreamResponse({ stream });
+		return createUIMessageStreamResponse({ stream: localStream });
 	}
 
 	// Turn start — used to stamp latency_ms on the assistant row's forensics.
