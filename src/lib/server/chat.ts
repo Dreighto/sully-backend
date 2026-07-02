@@ -29,7 +29,8 @@ function parseRow(row: any): ChatMessage {
 		quality_signal:
 			row.quality_signal === null || row.quality_signal === undefined
 				? null
-				: Number(row.quality_signal)
+				: Number(row.quality_signal),
+		client_turn_id: row.client_turn_id ?? null
 	};
 }
 

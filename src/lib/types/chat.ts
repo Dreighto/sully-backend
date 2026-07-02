@@ -18,4 +18,7 @@ export interface ChatMessage {
 	thread_id: string;
 	// +1 thumbs-up, -1 thumbs-down, null = no operator signal.
 	quality_signal: number | null;
+	// Stage 2 per-turn idempotency key. Exposed on history so the client can
+	// reuse the REAL turn key on regenerate/retry instead of a display id.
+	client_turn_id: string | null;
 }
