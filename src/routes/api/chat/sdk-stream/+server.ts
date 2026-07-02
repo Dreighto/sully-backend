@@ -41,7 +41,13 @@
 //   Google:    GEMINI_API_KEY → GOOGLE_API_KEY
 
 import type { RequestHandler } from './$types';
-import { streamText, convertToModelMessages, generateId, type UIMessage } from 'ai';
+import {
+	streamText,
+	convertToModelMessages,
+	generateId,
+	type UIMessage,
+	type FinishReason
+} from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
@@ -941,161 +947,223 @@ export const POST: RequestHandler = async ({ request }) => {
 		stopWhen: ({ steps }) => steps.length >= 8
 	});
 
-	return result.toUIMessageStreamResponse({
-		originalMessages: messages,
-		generateMessageId: () => generateId(),
-		// Convert SDK error objects to actionable strings so the client can
-		// classify them. Without this, the stream emits
-		// `{"type":"error","errorText":"Failed after 3 attempts. Last error: Error"}`
-		// for everything — operator can't tell rate-limit from outage from auth.
-		// Audit 2026-05-27 caught Sonnet rate_limit_error surfacing as "Error".
-		//
-		// AI_RetryError wraps the final AI_APICallError; the upstream HTTP
-		// response body lives on `errors[last].responseBody`. Walk the chain
-		// to find it.
-		onError: (error: unknown) => {
-			// Mark the turn errored so onFinish can roll back an empty-output orphan.
-			// Runs before onFinish (error chunk is processed before stream flush).
-			directErrored = true;
-			type ApiCallError = {
-				message?: string;
-				responseBody?: string;
-				statusCode?: number;
-				url?: string;
-			};
-			type RetryError = ApiCallError & {
-				errors?: ApiCallError[];
-				lastError?: ApiCallError;
-				cause?: ApiCallError;
-			};
-			const err = error as RetryError;
-			// Surface the deepest API error we can find.
-			const apiErr: ApiCallError =
-				(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
-				err.lastError ??
-				err.cause ??
-				err;
+	const stream = createUIMessageStream({
+		execute: async ({ writer }) => {
+			// Stage 2 (server-owned reply-id): the default direct path was the ONLY reply
+			// path still on result.toUIMessageStreamResponse — persist ran inside onFinish
+			// AFTER the SDK had already flushed its finish frame, leaving no seam to inject a
+			// pre-finish reply-id. Restructure onto createUIMessageStream like the four
+			// manual-writer paths: merge the SDK UIMessageStream with sendFinish:false so every
+			// start/text/tool/multi-step frame is forwarded UNCHANGED but the SDK finish is
+			// suppressed. handleUIMessageStream runs our onFinish in the stream flush() — after
+			// every data chunk has been read into this writer — so persist → data-sully-reply-id
+			// → our own finish are guaranteed terminal, with every prior behavior intact.
+			writer.merge(
+				result.toUIMessageStream({
+					// Suppress the SDK's own finish so we emit persist -> reply-id -> finish ourselves.
+					sendFinish: false,
+					originalMessages: messages,
+					generateMessageId: () => generateId(),
+					// Convert SDK error objects to actionable strings so the client can
+					// classify them. Without this, the stream emits
+					// `{"type":"error","errorText":"Failed after 3 attempts. Last error: Error"}`
+					// for everything — operator can't tell rate-limit from outage from auth.
+					// Audit 2026-05-27 caught Sonnet rate_limit_error surfacing as "Error".
+					//
+					// AI_RetryError wraps the final AI_APICallError; the upstream HTTP
+					// response body lives on `errors[last].responseBody`. Walk the chain
+					// to find it.
+					onError: (error: unknown) => {
+						// Mark the turn errored so onFinish can roll back an empty-output orphan.
+						// Runs before onFinish (error chunk is processed before stream flush).
+						directErrored = true;
+						type ApiCallError = {
+							message?: string;
+							responseBody?: string;
+							statusCode?: number;
+							url?: string;
+						};
+						type RetryError = ApiCallError & {
+							errors?: ApiCallError[];
+							lastError?: ApiCallError;
+							cause?: ApiCallError;
+						};
+						const err = error as RetryError;
+						// Surface the deepest API error we can find.
+						const apiErr: ApiCallError =
+							(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
+							err.lastError ??
+							err.cause ??
+							err;
 
-			const body = apiErr.responseBody;
-			if (body) {
-				try {
-					const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
-					if (parsed.error?.type) {
-						const t = parsed.error.type;
-						const m = parsed.error.message;
-						if (t === 'rate_limit_error') {
-							return `Rate limited on ${modelHandle.modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`;
+						const body = apiErr.responseBody;
+						if (body) {
+							try {
+								const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
+								if (parsed.error?.type) {
+									const t = parsed.error.type;
+									const m = parsed.error.message;
+									if (t === 'rate_limit_error') {
+										return `Rate limited on ${modelHandle.modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`;
+									}
+									if (t === 'invalid_request_error') {
+										return `Invalid request to ${modelHandle.modelId}: ${m || t}`;
+									}
+									if (t === 'authentication_error' || t === 'permission_error') {
+										return `Auth failed for ${modelHandle.modelId} (${t}). Token expired or lacks access. ${m || ''}`;
+									}
+									if (t === 'not_found_error') {
+										return `Model not found: ${modelHandle.modelId}. ${m || ''}`;
+									}
+									if (t === 'overloaded_error') {
+										return `Provider overloaded (${modelHandle.modelId}). Try again in a moment or switch model.`;
+									}
+									return `${t}${m ? ': ' + m : ''} (${modelHandle.modelId})`;
+								}
+							} catch {
+								/* fall through */
+							}
 						}
-						if (t === 'invalid_request_error') {
-							return `Invalid request to ${modelHandle.modelId}: ${m || t}`;
+						if (apiErr.statusCode) {
+							return `HTTP ${apiErr.statusCode} from ${modelHandle.modelId}: ${apiErr.message || 'no detail'}`;
 						}
-						if (t === 'authentication_error' || t === 'permission_error') {
-							return `Auth failed for ${modelHandle.modelId} (${t}). Token expired or lacks access. ${m || ''}`;
+						return (
+							apiErr.message || (err as { message?: string }).message || 'unknown_stream_error'
+						);
+					},
+					onFinish: async ({ responseMessage }) => {
+						// The destructured `finishReason` param is PERMANENTLY undefined on this
+						// path: sendFinish:false suppresses the SDK's UI finish chunk before it
+						// reaches processUIMessageStream, and state.finishReason (createStreamingUIMessageState)
+						// has no default — its sole assignment reads that now-suppressed chunk. Source
+						// the real reason from result.finishReason (a PromiseLike<FinishReason>, resolved
+						// from the model output — unaffected by sendFinish) so the rollback guard can fire
+						// on an errored zero-text turn AND our finish frames carry the model's real reason
+						// (byte-parity with the finish toUIMessageStreamResponse used to emit).
+						// result.finishReason REJECTS (NoOutputGeneratedError) on a zero-step total
+						// failure in ai@6 — the dominant error case (retry-exhausted / rate-limit /
+						// auth / overloaded). Guard so a rejection cannot skip the Stage-1 rollback
+						// below: on rejection treat the turn as errored.
+						let finalReason: FinishReason | undefined;
+						try {
+							finalReason = await result.finishReason;
+						} catch {
+							finalReason = 'error';
 						}
-						if (t === 'not_found_error') {
-							return `Model not found: ${modelHandle.modelId}. ${m || ''}`;
+
+						// Concatenate every text part of the response into a single string
+						// for the chat_messages row. Matches the legacy `addChatMessage`
+						// call shape for backwards compatibility with existing readers.
+						const parts = responseMessage.parts || [];
+						const replyText = parts
+							.filter((p) => p.type === 'text')
+							.map((p) => (p as { type: 'text'; text: string }).text)
+							.join('');
+
+						// Capture tool errors that fired mid-stream. The streaming UI shows
+						// these as ephemeral chips that vanish when sdkChat.messages resets,
+						// so without persisting them here the operator never finds out a
+						// tool failed silently. Audit 2026-05-27.
+						const toolErrors = parts
+							.filter((p) => {
+								const t = p as { type?: string; state?: string };
+								return t.type?.startsWith('tool-') && t.state === 'output-error';
+							})
+							.map((p) => {
+								const t = p as { type?: string; errorText?: string };
+								return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
+									t.errorText ?? 'unknown error'
+								}`;
+							});
+
+						const finalText =
+							toolErrors.length > 0
+								? [replyText, ...toolErrors].filter(Boolean).join('\n\n')
+								: replyText;
+
+						// Stage 2: capture the persisted chat_messages.id so it can be emitted on a
+						// terminal data-sully-reply-id frame BEFORE our finish (below). Undefined on a
+						// rolled-back / zero-token turn → no frame, matching the other four paths.
+						let replyId: number | undefined;
+						if (finalText) {
+							const senderLabel: 'cc' | 'agy' | 'local' = provider === 'anthropic' ? 'cc' : 'agy'; // 'local' path returns early above
+							// Best-effort token capture — result.usage is resolved by onFinish.
+							// Never block or throw on it; forensic columns are nullable.
+							let promptTokens: number | null = null;
+							let completionTokens: number | null = null;
+							try {
+								const usage = await result.usage;
+								promptTokens = usage?.inputTokens ?? null;
+								completionTokens = usage?.outputTokens ?? null;
+							} catch {
+								/* usage unavailable — leave null */
+							}
+							replyId = persistAssistantTurn({
+								text: finalText,
+								sender: senderLabel,
+								threadId,
+								model: modelHandle.modelId,
+								tier: currentTier,
+								taskId,
+								provider,
+								promptTokens,
+								completionTokens,
+								latencyMs: Date.now() - turnStartedAt,
+								error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
+								reused
+							});
+						} else if (directErrored || finalReason === 'error') {
+							// Orphan rollback (Stage 1): the stream errored with ZERO reply text
+							// and wrote no assistant row. The operator row + 'proposed' Task minted
+							// in prepareStream would otherwise dangle. Undo BOTH, scoped to this
+							// turn, and SKIP the dispatch decision below (an errored turn makes no
+							// routing decision). A turn that emitted a token lands in the finalText
+							// branch above and is never rolled back.
+							// reused===true short-circuits inside — never nuke a reused row/task.
+							rollbackOrphanTurn(operatorRowId, taskId, reused);
+							// Stage 2: the classified error frame was already forwarded by the merged
+							// SDK stream (onError above). Close with our OWN finish (sendFinish was
+							// suppressed) carrying the model's finishReason — byte-parity with the
+							// finish toUIMessageStreamResponse used to emit — then bail: no reply-id,
+							// no dispatch decision on an errored turn.
+							writer.write({ type: 'finish', finishReason: finalReason });
+							return;
+						} else {
+							// No reply text but the SDK call finished cleanly — advance state so
+							// the picker chip can show "Claude Haiku 4.5" instead of "Auto".
+							upsertThreadTier(threadId, currentTier, modelHandle.modelId);
+							touchLastActivity(threadId);
 						}
-						if (t === 'overloaded_error') {
-							return `Provider overloaded (${modelHandle.modelId}). Try again in a moment or switch model.`;
+
+						// Stage 2 (server-owned reply-id): persist happened above; emit the stored
+						// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
+						// reconciles the streamed reply to its row without polling history. Guard:
+						// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
+						if (typeof replyId === 'number' && replyId > 0) {
+							writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
 						}
-						return `${t}${m ? ': ' + m : ''} (${modelHandle.modelId})`;
+						// Suppressed-SDK finish: emit our own terminal finish carrying the model's
+						// finishReason (byte-parity with the frame toUIMessageStreamResponse sent).
+						writer.write({ type: 'finish', finishReason: finalReason });
+
+						// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
+						// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
+						// short-circuited above) → journals Talk + markSelfHandled.
+						// FIRE-AND-FORGET: same pattern as before — avoids coupling stream close
+						// to the dispatch listener's roundtrip. Observable via next pollMessages.
+						void applyTurnDecision(decision, {
+							taskId,
+							threadId,
+							targetRepo,
+							userText: userMessageText,
+							reused
+						}).catch((e) => {
+							console.error('[sdk-stream] autonomous-dispatch failed', e);
+						});
 					}
-				} catch {
-					/* fall through */
-				}
-			}
-			if (apiErr.statusCode) {
-				return `HTTP ${apiErr.statusCode} from ${modelHandle.modelId}: ${apiErr.message || 'no detail'}`;
-			}
-			return apiErr.message || (err as { message?: string }).message || 'unknown_stream_error';
-		},
-		onFinish: async ({ responseMessage, finishReason }) => {
-			// Concatenate every text part of the response into a single string
-			// for the chat_messages row. Matches the legacy `addChatMessage`
-			// call shape for backwards compatibility with existing readers.
-			const parts = responseMessage.parts || [];
-			const replyText = parts
-				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text)
-				.join('');
-
-			// Capture tool errors that fired mid-stream. The streaming UI shows
-			// these as ephemeral chips that vanish when sdkChat.messages resets,
-			// so without persisting them here the operator never finds out a
-			// tool failed silently. Audit 2026-05-27.
-			const toolErrors = parts
-				.filter((p) => {
-					const t = p as { type?: string; state?: string };
-					return t.type?.startsWith('tool-') && t.state === 'output-error';
 				})
-				.map((p) => {
-					const t = p as { type?: string; errorText?: string };
-					return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
-						t.errorText ?? 'unknown error'
-					}`;
-				});
-
-			const finalText =
-				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
-
-			if (finalText) {
-				const senderLabel: 'cc' | 'agy' | 'local' = provider === 'anthropic' ? 'cc' : 'agy'; // 'local' path returns early above
-				// Best-effort token capture — result.usage is resolved by onFinish.
-				// Never block or throw on it; forensic columns are nullable.
-				let promptTokens: number | null = null;
-				let completionTokens: number | null = null;
-				try {
-					const usage = await result.usage;
-					promptTokens = usage?.inputTokens ?? null;
-					completionTokens = usage?.outputTokens ?? null;
-				} catch {
-					/* usage unavailable — leave null */
-				}
-				persistAssistantTurn({
-					text: finalText,
-					sender: senderLabel,
-					threadId,
-					model: modelHandle.modelId,
-					tier: currentTier,
-					taskId,
-					provider,
-					promptTokens,
-					completionTokens,
-					latencyMs: Date.now() - turnStartedAt,
-					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
-					reused
-				});
-			} else if (directErrored || finishReason === 'error') {
-				// Orphan rollback (Stage 1): the stream errored with ZERO reply text
-				// and wrote no assistant row. The operator row + 'proposed' Task minted
-				// in prepareStream would otherwise dangle. Undo BOTH, scoped to this
-				// turn, and SKIP the dispatch decision below (an errored turn makes no
-				// routing decision). A turn that emitted a token lands in the finalText
-				// branch above and is never rolled back.
-				// reused===true short-circuits inside — never nuke a reused row/task.
-				rollbackOrphanTurn(operatorRowId, taskId, reused);
-				return;
-			} else {
-				// No reply text but the SDK call finished cleanly — advance state so
-				// the picker chip can show "Claude Haiku 4.5" instead of "Auto".
-				upsertThreadTier(threadId, currentTier, modelHandle.modelId);
-				touchLastActivity(threadId);
-			}
-
-			// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
-			// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
-			// short-circuited above) → journals Talk + markSelfHandled.
-			// FIRE-AND-FORGET: same pattern as before — avoids coupling stream close
-			// to the dispatch listener's roundtrip. Observable via next pollMessages.
-			void applyTurnDecision(decision, {
-				taskId,
-				threadId,
-				targetRepo,
-				userText: userMessageText,
-				reused
-			}).catch((e) => {
-				console.error('[sdk-stream] autonomous-dispatch failed', e);
-			});
+			);
 		}
 	});
+	return createUIMessageStreamResponse({ stream });
 };
