@@ -18,9 +18,14 @@
 // paths run after replying lives in $lib/server/chat/autonomous_dispatch.ts.
 // This handler stays a thin orchestrator: parse → prepare → branch.
 //
+// Image requests short-circuit BEFORE the dispatch gate and the local pre-turn
+// router: isImageRequest → generateImageReply streams the direct Gemini image
+// model's markdown inline (restored post hybrid-brain merge, which had dropped
+// it — DB rows 2136-2139). The CLI bridge also pushes a data-sully-artifact
+// frame mid-reply when a SULLY_ARTIFACT sentinel promotes (restored likewise).
+//
 // What's intentionally NOT here yet (PR 2b.2 / 2b.3 / PR 4):
 //   - multi-provider fall-forward (SDK middleware can add later)
-//   - image-gen mode (separate dispatch path)
 //   - @cc / @agy dispatch routing (separate non-streaming path)
 //   - slash commands (client-side intercept before send)
 //   - Ollama / local routing (task #11)
@@ -48,9 +53,17 @@ import { touchLastActivity } from '$lib/server/thread_meta';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { deleteChatMessage } from '$lib/server/chat';
-import { expireTaskById } from '$lib/server/dispatchJobs';
+import { expireTaskById, markSelfHandled } from '$lib/server/dispatchJobs';
+import { logTaskEvent } from '$lib/server/chatActivity';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
+import {
+	extractAndPromoteArtifacts,
+	hasLiveArtifactSignal
+} from '$lib/server/chat/artifact_sentinel';
+import { maybeAutoTitle } from '$lib/server/auto_title';
+import { generateGeminiImage } from '$lib/server/gemini';
+import { mintTeacherTraceId } from '$lib/server/artifactStore';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { factGate } from '$lib/server/routing/factGate';
 import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
@@ -192,6 +205,108 @@ function rollbackOrphanTurn(operatorRowId: number, taskId: string, reused: boole
 	}
 }
 
+// "generate an image of X" → the direct Gemini image model, NOT a coding-worker
+// dispatch. Requires a generation verb AND an image noun close together so it
+// doesn't fire on "I have an image problem in my code".
+const IMAGE_INTENT_RE =
+	/\b(generate|create|make|draw|render|paint|design|sketch|illustrate|whip up|cook up)\b[\s\S]{0,30}\b(image|picture|photo|pic|illustration|drawing|artwork|logo|icon|portrait|wallpaper|painting)\b/i;
+
+function isImageRequest(text: string): boolean {
+	return IMAGE_INTENT_RE.test(text);
+}
+
+// Strip a worker-routing prefix ("@agy ", "dispatch agy to ") so it doesn't
+// pollute the image prompt; keep the actual description.
+function imagePromptFrom(text: string): string {
+	return text
+		.replace(/^\s*@\w+[\s,:]+/i, '')
+		.replace(/^\s*dispatch\s+\w+\s+to\s+/i, '')
+		.replace(/^\s*(please|hey|can you|could you)\b[\s,]*/i, '')
+		.trim();
+}
+
+// Generate the image directly (~7s) and stream it back as an inline markdown
+// image the app renders. Persists the reply as an 'agy' turn. Opens the stream
+// immediately so the app shows a thinking row during generation.
+//
+// Failure semantics (Stage 1): generateGeminiImage throwing means ZERO bytes
+// streamed and no assistant row written — surface an error frame (same channel
+// the other stream paths use) and roll THIS turn's operator row + proposed Task
+// back. `reused` rides through to persistAssistantTurn so a keyed retry of an
+// image turn REPLACES the prior image reply (Stage 3a), and through
+// rollbackOrphanTurn so a reused row is never rolled back (Stage 2 guard
+// lives inside the chokepoint).
+function generateImageReply(opts: {
+	prompt: string;
+	threadId: string;
+	taskId: string;
+	operatorRowId: number;
+	reused: boolean;
+}): Response {
+	const { prompt, threadId, taskId, operatorRowId, reused } = opts;
+	const stream = createUIMessageStream({
+		execute: async ({ writer }) => {
+			const messageId = generateId();
+			const textId = '0';
+			writer.write({ type: 'start', messageId });
+			let md: string;
+			try {
+				const { url } = await generateGeminiImage(prompt);
+				// Sanitize the alt text: [, ], and newlines would break the image
+				// markdown so it never renders (a permanent failure after a paid
+				// ~7s generation). Strip them; the URL stays byte-exact.
+				const altText = prompt
+					.slice(0, 80)
+					.replace(/[\[\]\r\n]/g, ' ')
+					.trim();
+				md = `![${altText}](${url})`;
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : 'unknown error';
+				// Orphan rollback (Stage 1): the image model failed before a single
+				// byte streamed and no assistant row exists. Undo THIS turn's operator
+				// row + proposed Task, then surface a friendly error frame.
+				// reused===true short-circuits inside — never nuke a reused row/task.
+				rollbackOrphanTurn(operatorRowId, taskId, reused);
+				writer.write({
+					type: 'error',
+					errorText: `Image generation failed (gemini-2.5-flash-image): ${msg.slice(0, 300)}`
+				});
+				writer.write({ type: 'finish', finishReason: 'error' });
+				return;
+			}
+			persistAssistantTurn({
+				text: md,
+				sender: 'agy',
+				threadId,
+				model: 'gemini-2.5-flash-image',
+				tier: 'chat',
+				taskId,
+				provider: 'gemini',
+				reused
+			});
+			// Close the turn's ledger arc as self-handled. The image short-circuit
+			// never runs applyTurnDecision, so without this the pending_jobs row
+			// (proposed→classified) would stall at 'classified' forever. markSelfHandled
+			// is status-guarded to proposed/classified (no-op if already advanced) and
+			// links the just-persisted 'agy' image reply as synthesis_message_id.
+			markSelfHandled(taskId);
+			logTaskEvent(taskId, 'gate_evaluated', {
+				action: 'Talk',
+				reason: 'image-generation',
+				dispatched: false
+			});
+			void maybeAutoTitle(threadId);
+			writer.write({ type: 'start-step' });
+			writer.write({ type: 'text-start', id: textId });
+			writer.write({ type: 'text-delta', id: textId, delta: md });
+			writer.write({ type: 'text-end', id: textId });
+			writer.write({ type: 'finish-step' });
+			writer.write({ type: 'finish', finishReason: 'stop' });
+		}
+	});
+	return createUIMessageStreamResponse({ stream });
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	let body: {
 		messages?: UIMessage[];
@@ -266,6 +381,21 @@ export const POST: RequestHandler = async ({ request }) => {
 		shadowDecision
 	} = ctx;
 
+	// Image generation short-circuit: route "generate an image of X" straight to
+	// the direct Gemini image model (~7s) instead of the plain text model or the
+	// AGY coding worker (minutes, often aborts). Runs BEFORE the D2.1 dispatch
+	// gate AND the local pre-turn router, so even "@agy generate an image"
+	// takes the fast path and an image ask never reaches the text model.
+	if (isImageRequest(userMessageText)) {
+		return generateImageReply({
+			prompt: imagePromptFrom(userMessageText),
+			threadId,
+			taskId,
+			operatorRowId,
+			reused
+		});
+	}
+
 	// D2.1: Classify-before-answer gate. A work turn produces NO conversational
 	// reply — applyTurnDecision writes the proposal/dispatch/routing-ask and the
 	// operator sees it via the 3s poll. Return a valid-but-empty UIMessage stream
@@ -289,6 +419,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		// D2.1: decision is now ctx.shadowDecision (deterministic). No GATE_INSTRUCTION
 		// injected — the model emits a plain reply; stream + persist it directly.
 		const cliSystemPrompt = systemPrompt;
+		// Pre-mint the teacher artifact trace so the mid-reply data-sully-artifact
+		// frame and the post-stream promote share ONE id — the live card the iOS
+		// app snaps in resolves against the promoted store entry (see the
+		// mintTeacherTraceId contract in artifactStore.ts).
+		const artifactTrace = mintTeacherTraceId();
 		const stream = createUIMessageStream({
 			execute: async ({ writer }) => {
 				const messageId = generateId();
@@ -313,6 +448,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 				let collected = '';
 				let errored = false;
+				let artifactSignaled = false;
 				for await (const chunk of streamViaClaudeCLI({
 					model: resolvedModelId,
 					systemPrompt: cliSystemPrompt,
@@ -325,6 +461,16 @@ export const POST: RequestHandler = async ({ request }) => {
 						collected += chunk.delta;
 						// Stream each delta directly — no gate suppression needed.
 						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+						// Artifact card push: the moment the accumulating reply holds a
+						// PROMOTABLE SULLY_ARTIFACT sentinel (complete header + content —
+						// mirrors promote eligibility, so no ghost cards), announce the
+						// pre-minted trace on the data-sully-artifact channel. The iOS app
+						// decodes the frame and snaps the artifact card in mid-reply; it
+						// resolves once the promote below lands under the SAME trace id.
+						if (!artifactSignaled && hasLiveArtifactSignal(collected)) {
+							artifactSignaled = true;
+							writer.write({ type: 'data-sully-artifact', data: { traceId: artifactTrace } });
+						}
 					} else if (chunk.type === 'error') {
 						errored = true;
 						writer.write({ type: 'error', errorText: chunk.message });
@@ -338,13 +484,23 @@ export const POST: RequestHandler = async ({ request }) => {
 
 				// Persist the full reply — never a half/failed gen.
 				if (collected && !errored) {
+					// SULLY_ARTIFACT promote flow: strip the sentinel block(s) from the
+					// persisted prose and promote them to the durable store under the
+					// SAME pre-minted trace announced mid-reply above, so the live card
+					// resolves. No sentinel → strippedText === collected, artifacts [].
+					const { strippedText, artifacts } = extractAndPromoteArtifacts(
+						collected,
+						{ threadId, taskId },
+						artifactTrace
+					);
 					persistAssistantTurn({
-						text: collected,
+						text: strippedText || collected,
 						sender: senderLabel,
 						threadId,
 						model: resolvedModelId,
 						tier: currentTier,
 						taskId,
+						traceId: artifacts[0]?.trace_id ?? null,
 						provider,
 						reused
 					});
