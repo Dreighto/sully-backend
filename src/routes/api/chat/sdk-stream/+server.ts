@@ -43,6 +43,7 @@
 import type { RequestHandler } from './$types';
 import {
 	streamText,
+	stepCountIs,
 	convertToModelMessages,
 	generateId,
 	type UIMessage,
@@ -63,6 +64,7 @@ import { expireTaskById, markSelfHandled } from '$lib/server/dispatchJobs';
 import { logTaskEvent } from '$lib/server/chatActivity';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { baseTools } from '$lib/server/chat/base_tools';
+import { systemReadTools } from '$lib/server/chat/system_read_tools';
 import {
 	extractAndPromoteArtifacts,
 	hasLiveArtifactSignal
@@ -931,6 +933,20 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Turn start — used to stamp latency_ms on the assistant row's forensics.
 	const turnStartedAt = Date.now();
+
+	// Phase 1 system-inspection tools (READ ONLY): give the DEFAULT direct path
+	// (Haiku / Gemini / fact-model) the ability to look at the REAL state of the
+	// LogueOS services on ROOM mid-turn — service up/enabled, recent journal
+	// logs, disk/memory/port reachability — so the model reasons over ground
+	// truth instead of hallucinating "everything's fine". Constrained by
+	// z.enum(SERVICE_WHITELIST) at the schema layer + a whitelist re-check + no-
+	// shell exec inside. Attached ONLY here — NOT on the CLI-bridge, local, or
+	// image short-circuit paths (those return earlier).
+	const directTools = { ...tools, ...systemReadTools };
+	const systemToolsNote =
+		'\n\n[System inspection] You have READ-ONLY tools to check the REAL state of the LogueOS services on this machine (ROOM): list_services, service_status, service_logs, system_health. When the operator asks whether a service is up/enabled/healthy, why one failed or restarted, or about disk/memory/reachability, CALL the relevant tool and reason over the actual result — do NOT guess or state service status from memory. Only the nine whitelisted units can be inspected; these tools cannot start, stop, or restart anything.';
+	const directSystemPrompt = systemPrompt + systemToolsNote;
+
 	// Orphan-rollback signal (Stage 1): the onError formatter below sets this when
 	// the stream surfaces an error. Read in onFinish to distinguish a real
 	// zero-token FAILURE (roll back the operator row + Task) from a benign empty
@@ -938,13 +954,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	let directErrored = false;
 	const result = streamText({
 		model: modelHandle.model,
-		system: systemPrompt,
+		system: directSystemPrompt,
 		messages: await convertToModelMessages(modelMessages),
-		tools,
+		tools: directTools,
 		// Cap multi-step tool loops — keeps a runaway "call → reflect → call"
 		// chain from consuming Max quota / API budget. Raised to 8 so a
 		// search → fetch → read → answer chain has room.
-		stopWhen: ({ steps }) => steps.length >= 8
+		stopWhen: stepCountIs(8)
 	});
 
 	const stream = createUIMessageStream({
