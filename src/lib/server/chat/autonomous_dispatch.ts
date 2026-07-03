@@ -379,7 +379,9 @@ export async function applyTurnDecision(
 				role: pin ? undefined : deriveRole(targetRepo, userText),
 				pinWorker: pin
 			});
-			const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
+			const ask = pin
+				? `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`
+				: `That looks like a job I can hand off — "${brief}". Want me to run it? I'll route it to the best-fit worker. Tap below, or just say "yes".`;
 			if (writeSpokenRow) {
 				addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, {
 					taskId
