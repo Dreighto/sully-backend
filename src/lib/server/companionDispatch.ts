@@ -146,7 +146,10 @@ export async function dispatchToWorker(input: DispatchInput): Promise<DispatchRe
 	// listener (loopback, same machine) reads it directly.
 	let promptPath: string;
 	try {
-		const dir = path.join(path.dirname(serverConfig.memoryDbPath), 'dispatch-prompts');
+		// MUST resolve under the orchestrator repo root or the listener rejects the
+		// dispatch (prompt_path_outside_repo). dispatchPromptDir points there — NOT
+		// the relocated sully-backend data dir.
+		const dir = serverConfig.dispatchPromptDir;
 		fs.mkdirSync(dir, { recursive: true });
 		// The listener JSON.parses the prompt file and reads `.prompt` (dispatch
 		// listener index.js ~L365) — it wants an envelope, not raw text. Write

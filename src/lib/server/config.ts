@@ -106,6 +106,15 @@ export const serverConfig = {
 		'LOGUEOS_TRACE_LOG_DIR',
 		'/home/dreighto/dev/LogueOS-Orchestrator/logs/dispatch_listener_traces'
 	),
+	// Worker-prompt files MUST resolve under the orchestrator repo root — the
+	// dispatch_listener rejects any prompt_path outside it (prompt_path_outside_repo
+	// gate, index.js). Write them to the orchestrator's own data/dispatch-prompts/,
+	// NOT the (relocated) sully-backend data dir. Same machine, co-located listener
+	// reads them directly. Regressed when the backend moved to ~/dev/sully-backend.
+	dispatchPromptDir: getEnv(
+		'LOGUEOS_DISPATCH_PROMPT_DIR',
+		'/home/dreighto/dev/LogueOS-Orchestrator/data/dispatch-prompts'
+	),
 	adoptedLessonsPath: getEnv(
 		'LOGUEOS_ADOPTED_LESSONS_PATH',
 		'/home/dreighto/dev/LogueOS-Orchestrator/.logueos/overlays/adopted-lessons.md'
