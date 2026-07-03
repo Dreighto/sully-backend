@@ -433,6 +433,13 @@ export interface ProposalPayload {
 	brief: string;
 	targetRepo: string;
 	task: string;
+	/** Role-dispatch (LOS role-dispatch): 'backend' | 'frontend'. Set on the auto/
+	 *  default path so the confirm turn can role-route via dispatchToWorker. */
+	role?: string;
+	/** True = pin the concrete worker (explicit @worker override). False/undefined
+	 *  with a role set = let the kernel rotate by role. Stashed in result_ref JSON
+	 *  (no schema change) alongside the rest of the payload. */
+	pinWorker?: boolean;
 }
 export interface PendingProposal extends ProposalPayload {
 	taskId: string;

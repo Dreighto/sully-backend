@@ -79,6 +79,30 @@ export interface AutonomousDispatchArgs {
 	mutationGate?: MutationGateResult;
 }
 
+// ── Role-dispatch derivation (LOS role-dispatch) ────────────────────────────
+// The auto/default path (operator named no worker, gate named no worker → the
+// resolved worker falls to DEFAULT_ROUTED_WORKER) routes by ROLE so the kernel
+// rotates workers by role + trust, instead of always pinning claude-code. An
+// explicit @worker (or a model-gate/teacher-named worker) still PINS that worker.
+const FRONTEND_REPO_RE = /logueos-sully|sully-ios/i;
+const FRONTEND_SIGNAL_RE =
+	/swift|ios|swiftui|xcode|\.svelte|frontend|\bUI\b|component|screen|view|layout|mobile/i;
+
+/** FRONTEND when the target is the iOS app repo or the task reads frontend; else BACKEND. */
+function deriveRole(targetRepo: string, task: string): 'frontend' | 'backend' {
+	if (FRONTEND_REPO_RE.test(targetRepo) || FRONTEND_SIGNAL_RE.test(task)) return 'frontend';
+	return 'backend';
+}
+
+/** Pin when the operator explicitly named a dispatchable worker, OR the resolved
+ *  worker is anything other than the routed default (i.e. a gate/model vote named
+ *  one). Only the pure auto/default fallthrough → role-route. */
+function shouldPinWorker(userText: string, worker: string): boolean {
+	return resolveDispatchableWorker(userText) != null || worker !== DEFAULT_ROUTED_WORKER;
+}
+
+const ROLE_ROUTED_MSG = `On it — routing that to the best-fit worker now. I'll drop the answer right here when it's ready.`;
+
 export interface ApplyTurnDecisionCtx {
 	taskId: string;
 	threadId: string;
@@ -161,7 +185,9 @@ export async function applyTurnDecision(
 					brief: pendingRoutingAsk.brief,
 					targetRepo: pendingRoutingAsk.targetRepo,
 					task: pendingRoutingAsk.task,
-					threadId
+					threadId,
+					role: pendingRoutingAsk.role,
+					pinWorker: pendingRoutingAsk.pinWorker
 				});
 				logTaskEvent(pendingRoutingAsk.taskId, 'gate_evaluated', {
 					action: 'Dispatch',
@@ -210,16 +236,21 @@ export async function applyTurnDecision(
 
 		case 'RUNNING_WORK_INTENT': {
 			const { activeTaskId } = decision;
+			// Honor a worker the operator named in the held request; otherwise the
+			// registry's single routed default (never a local literal). When neither
+			// named one, role-route so the kernel rotates when this held work runs.
+			const heldWorker = resolveDispatchableWorker(userText) ?? DEFAULT_ROUTED_WORKER;
+			const heldPin = shouldPinWorker(userText, heldWorker);
 			markGatedProposal(
 				taskId,
 				{
-					// Honor a worker the operator named in the held request; otherwise
-					// the registry's single routed default (never a local literal).
-					worker: resolveDispatchableWorker(userText) ?? DEFAULT_ROUTED_WORKER,
+					worker: heldWorker,
 					category: 'code',
 					brief: userText.slice(0, 200),
 					targetRepo,
-					task: userText
+					task: userText,
+					role: heldPin ? undefined : deriveRole(targetRepo, userText),
+					pinWorker: heldPin
 				},
 				'routing_ask'
 			);
@@ -256,7 +287,9 @@ export async function applyTurnDecision(
 				brief: pending.brief,
 				targetRepo: pending.targetRepo,
 				task: pending.task,
-				threadId
+				threadId,
+				role: pending.role,
+				pinWorker: pending.pinWorker
 			});
 			logTaskEvent(pending.taskId, 'gate_evaluated', {
 				action: 'Dispatch',
@@ -265,8 +298,12 @@ export async function applyTurnDecision(
 				dispatched: res.ok,
 				held_reason: res.ok ? null : res.reason
 			});
+			// Role-routed (pinWorker === false): don't name a worker — LOS-191 names
+			// the actual worker later. Legacy/pinned proposals keep naming the worker.
 			const msg = res.ok
-				? `On it — handing that to ${workerLabel(pending.worker)} now. I'll drop the answer right here when it's ready.`
+				? pending.pinWorker === false
+					? ROLE_ROUTED_MSG
+					: `On it — handing that to ${workerLabel(pending.worker)} now. I'll drop the answer right here when it's ready.`
 				: `⚠️ Dispatch held: ${res.reason}.`;
 			if (writeSpokenRow)
 				addChatMessage(
@@ -288,6 +325,10 @@ export async function applyTurnDecision(
 
 		case 'DISPATCH': {
 			const { worker, category, brief } = decision;
+			// DISPATCH fires on an explicit @worker rule-mention, so this normally
+			// pins. Compute defensively anyway: if a future gate ever routes DISPATCH
+			// to the bare default with no named worker, role-route it.
+			const pin = shouldPinWorker(userText, worker);
 			const res = await dispatchToWorker({
 				traceId: taskId,
 				worker,
@@ -295,7 +336,9 @@ export async function applyTurnDecision(
 				brief,
 				targetRepo,
 				task: userText,
-				threadId
+				threadId,
+				role: pin ? undefined : deriveRole(targetRepo, userText),
+				pinWorker: pin
 			});
 			logTaskEvent(taskId, 'gate_evaluated', {
 				action: 'Dispatch',
@@ -306,9 +349,12 @@ export async function applyTurnDecision(
 				held_reason: res.ok ? null : res.reason
 			});
 			// Correct attribution (LOS-191): the reply names the worker actually
-			// dispatched ("DPSK is on it"), never a hardcoded persona.
+			// dispatched ("DPSK is on it"), never a hardcoded persona. Role-routed
+			// dispatches stay soft — the actual worker is named later via LOS-191.
 			const msg = res.ok
-				? `${workerLabel(worker)} is on it — I'll drop the answer right here the moment it's ready.`
+				? pin
+					? `${workerLabel(worker)} is on it — I'll drop the answer right here the moment it's ready.`
+					: ROLE_ROUTED_MSG
 				: `⚠️ Dispatch held: ${res.reason}.`;
 			if (writeSpokenRow)
 				addChatMessage('system', msg, res.ok ? taskId : null, null, null, 'sent', threadId, {
@@ -320,7 +366,19 @@ export async function applyTurnDecision(
 
 		case 'PROPOSE': {
 			const { worker, category, brief } = decision;
-			markGatedProposal(taskId, { worker, category, brief, targetRepo, task: userText });
+			// Persist role + pinWorker on the proposal so the later confirm turn can
+			// role-route (auto path) or pin (explicit @worker). No schema change —
+			// they ride in the result_ref JSON via markGatedProposal.
+			const pin = shouldPinWorker(userText, worker);
+			markGatedProposal(taskId, {
+				worker,
+				category,
+				brief,
+				targetRepo,
+				task: userText,
+				role: pin ? undefined : deriveRole(targetRepo, userText),
+				pinWorker: pin
+			});
 			const ask = `That looks like a job for ${workerLabel(worker)} — "${brief}". Want me to run it? Tap below, or just say "yes".`;
 			if (writeSpokenRow) {
 				addChatMessage('local', ask, taskId, null, null, 'pending_approval', threadId, {

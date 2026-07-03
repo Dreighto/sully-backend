@@ -74,7 +74,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		brief: proposal.brief,
 		targetRepo: proposal.targetRepo,
 		task: proposal.task,
-		threadId: proposal.threadId
+		threadId: proposal.threadId,
+		role: proposal.role,
+		pinWorker: proposal.pinWorker
 	});
 	resolveProposalMessage(proposal.taskId, res.ok ? 'approved' : 'denied');
 	logTaskEvent(proposal.taskId, 'gate_evaluated', {
@@ -84,8 +86,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		dispatched: res.ok,
 		held_reason: res.ok ? null : res.reason
 	});
+	// Role-routed (pinWorker === false): don't name a worker — LOS-191 names the
+	// actual worker later. Legacy/pinned proposals keep naming the worker.
 	const msg = res.ok
-		? `On it — handing that to ${workerLabel(proposal.worker)} now. I'll drop the answer right here when it's ready.`
+		? proposal.pinWorker === false
+			? `On it — routing that to the best-fit worker now. I'll drop the answer right here when it's ready.`
+			: `On it — handing that to ${workerLabel(proposal.worker)} now. I'll drop the answer right here when it's ready.`
 		: `⚠️ Dispatch held: ${res.reason}.`;
 	addChatMessage(
 		'system',

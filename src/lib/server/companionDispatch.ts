@@ -27,6 +27,17 @@ export interface DispatchInput {
 	targetRepo: string;
 	task: string;
 	threadId: string;
+	/**
+	 * Role-based routing (LOS role-dispatch). When set AND pinWorker is not true,
+	 * the kernel handoff sends `role` and OMITS `worker`, letting the dispatch
+	 * listener rotate workers by role + trust (kernel precedence: explicit worker
+	 * > role > default_role). Values: 'backend' | 'frontend'. When absent, or when
+	 * pinWorker is true, we pin `worker` as before (explicit @worker override).
+	 */
+	role?: string;
+	/** True = pin the concrete `worker` (explicit override). False/undefined with a
+	 *  `role` set = let the kernel rotate by role. */
+	pinWorker?: boolean;
 }
 export interface DispatchResult {
 	ok: boolean;
@@ -147,12 +158,28 @@ export async function dispatchToWorker(input: DispatchInput): Promise<DispatchRe
 		jobs.markFailed(input.traceId, `prompt write failed: ${why}`);
 		return { ok: false, reason: `prompt write failed: ${why}` };
 	}
-	const body = JSON.stringify({
-		trace_id: input.traceId,
-		worker: input.worker,
-		target_repo: input.targetRepo,
-		prompt_path: promptPath
-	});
+	// Role-dispatch (kernel precedence: explicit worker > role > default_role).
+	// When a role is set AND we're NOT pinning a concrete worker, send `role` and
+	// OMIT `worker` so the listener rotates by role + trust. Otherwise pin `worker`
+	// exactly as before (explicit @worker override / legacy path). createJob above
+	// still stores input.worker as the expected/fallback attribution — the real
+	// worker overwrites it via its LOS-191 callback marker.
+	const roleRoute = !!input.role && input.pinWorker !== true;
+	const body = JSON.stringify(
+		roleRoute
+			? {
+					trace_id: input.traceId,
+					role: input.role,
+					target_repo: input.targetRepo,
+					prompt_path: promptPath
+				}
+			: {
+					trace_id: input.traceId,
+					worker: input.worker,
+					target_repo: input.targetRepo,
+					prompt_path: promptPath
+				}
+	);
 	try {
 		const resp = await fetch(url, {
 			method: 'POST',
