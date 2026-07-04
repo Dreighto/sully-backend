@@ -27,6 +27,7 @@ import {
 	resolveDirectModel,
 	sullyErrorFrame
 } from '$lib/server/chat/sdk_direct_reply';
+import { shadowObserve } from '$lib/server/brains/shadow_router';
 
 function latestUserText(messages: UIMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
@@ -82,6 +83,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		typeof body.client_turn_id === 'string' && body.client_turn_id.trim()
 			? body.client_turn_id.trim()
 			: null;
+
+	// Hybrid brain Phase 2 (shadow): classify LOCAL/ESCALATE and log the decision
+	// WITHOUT acting — the SDK still answers everything. Fire-and-forget by
+	// contract (shadowObserve never throws). Fidelity gets measured against a
+	// week of real traffic before any cutover (build-plan step 2 gate).
+	shadowObserve(threadId, userText, 'sdk-stream');
 
 	const ctx = await prepareStream({
 		messages,
