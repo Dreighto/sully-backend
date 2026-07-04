@@ -69,7 +69,7 @@ async function runTurn(opts: {
 		completionTokens: 7,
 		latencyMs: 123
 	});
-	return { operatorMessageId: op.id };
+	return { operatorMessageId: op.row.id };
 }
 
 describe('turn_replay — non-dispatched (pure chat) turn', () => {

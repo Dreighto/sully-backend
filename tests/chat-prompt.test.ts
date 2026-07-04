@@ -55,7 +55,7 @@ describe('buildSystemPrompt — companion mode', () => {
 			currentTier: 'chat',
 			threadId: 't1'
 		});
-		expect(out).toMatch(/do NOT do the work yourself/);
+		expect(out).toMatch(/do NOT do yourself is the heavy WORK/);
 		expect(out).toMatch(/unless a worker was ACTUALLY dispatched/);
 		expect(out).toMatch(/invent progress/);
 	});
