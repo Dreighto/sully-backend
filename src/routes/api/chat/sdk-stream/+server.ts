@@ -22,7 +22,11 @@ import {
 } from '$lib/server/chat/sdk_image_reply';
 import { handleCliReply } from '$lib/server/chat/sdk_cli_reply';
 import { handleLocalReply } from '$lib/server/chat/sdk_local_reply';
-import { handleDirectReply, resolveDirectModel } from '$lib/server/chat/sdk_direct_reply';
+import {
+	handleDirectReply,
+	resolveDirectModel,
+	sullyErrorFrame
+} from '$lib/server/chat/sdk_direct_reply';
 
 function latestUserText(messages: UIMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
@@ -126,8 +130,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		modelHandle = resolveDirectModel({ ctx, requestedModel: body.model });
 	} catch (err) {
 		rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+		// Typed error frame (same shape as the streamed data-sully-error part),
+		// alongside the legacy error/detail keys for existing callers.
+		const frame = sullyErrorFrame('credential_unavailable', (err as Error).message);
 		return new Response(
-			JSON.stringify({ error: 'credential_unavailable', detail: (err as Error).message }),
+			JSON.stringify({ error: 'credential_unavailable', detail: frame.message, ...frame }),
 			{ status: 503, headers: { 'Content-Type': 'application/json' } }
 		);
 	}

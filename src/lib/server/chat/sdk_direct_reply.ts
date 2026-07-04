@@ -1,12 +1,11 @@
 import {
 	convertToModelMessages,
-	createUIMessageStream,
-	createUIMessageStreamResponse,
 	generateId,
 	stepCountIs,
 	streamText,
 	type FinishReason,
-	type ToolSet
+	type ToolSet,
+	type UIMessageChunk
 } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -20,11 +19,171 @@ import { touchLastActivity } from '$lib/server/thread_meta';
 import { factGate } from '$lib/server/routing/factGate';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { systemReadTools } from '$lib/server/chat/system_read_tools';
-import { finishWithReplyId, rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import {
+	beginActiveStream,
+	finishWithReplyId,
+	rollbackOrphanTurn,
+	streamResponseFromBuffer
+} from '$lib/server/chat/sdk_stream_common';
 
 const OLLAMA_BASE_URL =
 	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
+
+// ---------------------------------------------------------------------------
+// Typed error frames. Every sdk-stream error path emits a `data-sully-error`
+// data part {code, message, recovery} IN ADDITION to the SDK-standard error
+// part, so the client can render an actionable recovery hint instead of a raw
+// provider string. Shared by sdk_cli_reply / sdk_local_reply / +server.ts
+// (this module is the one scope-shared home for the helpers).
+// ---------------------------------------------------------------------------
+
+export type SullyErrorCode =
+	| 'credential_unavailable'
+	| 'rate_limit'
+	| 'timeout'
+	| 'provider_error'
+	| 'context_overflow'
+	| 'unknown';
+
+export type SullyErrorFrame = {
+	code: SullyErrorCode;
+	message: string;
+	recovery: string;
+};
+
+const SULLY_ERROR_RECOVERY: Record<SullyErrorCode, string> = {
+	credential_unavailable: 'Switch model — this one is missing a working credential.',
+	rate_limit: 'Retry in ~30s or switch model.',
+	timeout: 'Retry — the provider did not answer in time.',
+	provider_error: 'Retry, or switch model if it keeps failing.',
+	context_overflow: 'Start a new thread — this one exceeds the model context window.',
+	unknown: 'Retry, or switch model if it persists.'
+};
+
+export function sullyErrorFrame(code: SullyErrorCode, message: string): SullyErrorFrame {
+	return { code, message, recovery: SULLY_ERROR_RECOVERY[code] };
+}
+
+export function classifySullyError(message: string, statusCode?: number): SullyErrorFrame {
+	const msg = message || 'unknown_stream_error';
+	const m = msg.toLowerCase();
+	let code: SullyErrorCode = 'unknown';
+	if (
+		statusCode === 401 ||
+		statusCode === 403 ||
+		/credential unavailable|authentication|permission|api key|unauthorized|token expired|auth failed/.test(
+			m
+		)
+	) {
+		code = 'credential_unavailable';
+	} else if (statusCode === 429 || /rate.?limit|too many requests|quota exceeded/.test(m)) {
+		code = 'rate_limit';
+	} else if (/timed? ?out|etimedout|abort|deadline exceeded/.test(m)) {
+		code = 'timeout';
+	} else if (
+		/context.{0,24}(window|length|overflow)|prompt is too long|too many tokens|maximum context|token limit exceeded/.test(
+			m
+		)
+	) {
+		code = 'context_overflow';
+	} else if (
+		(statusCode !== undefined && statusCode >= 500) ||
+		/overloaded|internal server|bad gateway|service unavailable|econnrefused|econnreset|fetch failed|socket hang up/.test(
+			m
+		)
+	) {
+		code = 'provider_error';
+	}
+	return sullyErrorFrame(code, msg);
+}
+
+// Structural writer type (same pattern as ReplyIdWriter in sdk_stream_common)
+// so any UIMessageStream writer satisfies it without dragging generics around.
+export type SullyErrorWriter = {
+	write: (chunk: { type: 'data-sully-error'; data: SullyErrorFrame }) => void;
+};
+
+export function emitSullyError(writer: SullyErrorWriter, frame: SullyErrorFrame): void {
+	try {
+		writer.write({ type: 'data-sully-error', data: frame });
+	} catch {
+		/* stream already closed — the SDK-standard error part remains the fallback */
+	}
+}
+
+type ApiCallError = {
+	message?: string;
+	responseBody?: string;
+	statusCode?: number;
+	url?: string;
+};
+type RetryError = ApiCallError & {
+	errors?: ApiCallError[];
+	lastError?: ApiCallError;
+	cause?: ApiCallError;
+};
+
+function describeDirectError(
+	error: unknown,
+	modelId: string
+): { text: string; statusCode?: number } {
+	const err = error as RetryError;
+	const apiErr: ApiCallError =
+		(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
+		err.lastError ??
+		err.cause ??
+		err;
+	const statusCode = apiErr.statusCode;
+
+	const body = apiErr.responseBody;
+	if (body) {
+		try {
+			const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
+			if (parsed.error?.type) {
+				const t = parsed.error.type;
+				const m = parsed.error.message;
+				if (t === 'rate_limit_error') {
+					return {
+						text: `Rate limited on ${modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`,
+						statusCode
+					};
+				}
+				if (t === 'invalid_request_error') {
+					return { text: `Invalid request to ${modelId}: ${m || t}`, statusCode };
+				}
+				if (t === 'authentication_error' || t === 'permission_error') {
+					return {
+						text: `Auth failed for ${modelId} (${t}). Token expired or lacks access. ${m || ''}`,
+						statusCode
+					};
+				}
+				if (t === 'not_found_error') {
+					return { text: `Model not found: ${modelId}. ${m || ''}`, statusCode };
+				}
+				if (t === 'overloaded_error') {
+					return {
+						text: `Provider overloaded (${modelId}). Try again in a moment or switch model.`,
+						statusCode
+					};
+				}
+				return { text: `${t}${m ? ': ' + m : ''} (${modelId})`, statusCode };
+			}
+		} catch {
+			/* fall through */
+		}
+	}
+	if (statusCode) {
+		return {
+			text: `HTTP ${statusCode} from ${modelId}: ${apiErr.message || 'no detail'}`,
+			statusCode
+		};
+	}
+	return {
+		text: apiErr.message || (err as { message?: string }).message || 'unknown_stream_error',
+		statusCode
+	};
+}
 
 function getAnthropicApiKey(): string {
 	return (
@@ -117,149 +276,122 @@ export async function handleDirectReply(opts: {
 		stopWhen: stepCountIs(8)
 	});
 
-	const stream = createUIMessageStream({
-		execute: async ({ writer }) => {
-			writer.merge(
-				result.toUIMessageStream({
-					sendFinish: false,
-					originalMessages: ctx.messages,
-					generateMessageId: () => generateId(),
-					onError: (error: unknown) => {
-						directErrored = true;
-						type ApiCallError = {
-							message?: string;
-							responseBody?: string;
-							statusCode?: number;
-							url?: string;
-						};
-						type RetryError = ApiCallError & {
-							errors?: ApiCallError[];
-							lastError?: ApiCallError;
-							cause?: ApiCallError;
-						};
-						const err = error as RetryError;
-						const apiErr: ApiCallError =
-							(err.errors && err.errors.length ? err.errors[err.errors.length - 1] : undefined) ??
-							err.lastError ??
-							err.cause ??
-							err;
+	// Resumable-stream plumbing: every UIMessage chunk of this turn is recorded
+	// into the per-thread ring buffer (sdk_stream_common), and the model stream
+	// is pumped independently of the HTTP response. The POST response below —
+	// and any later GET /api/chat/sdk-stream/resume — are just subscribers of
+	// that buffer, so a dropped client connection neither stalls generation nor
+	// loses the turn.
+	const streamHandle = beginActiveStream(ctx.threadId);
+	const bufferWriter = {
+		write: (chunk: UIMessageChunk) => streamHandle.record(chunk)
+	};
 
-						const body = apiErr.responseBody;
-						if (body) {
-							try {
-								const parsed = JSON.parse(body) as { error?: { type?: string; message?: string } };
-								if (parsed.error?.type) {
-									const t = parsed.error.type;
-									const m = parsed.error.message;
-									if (t === 'rate_limit_error') {
-										return `Rate limited on ${modelHandle.modelId}. Wait ~30s or switch model (Haiku, Gemini, Local).`;
-									}
-									if (t === 'invalid_request_error') {
-										return `Invalid request to ${modelHandle.modelId}: ${m || t}`;
-									}
-									if (t === 'authentication_error' || t === 'permission_error') {
-										return `Auth failed for ${modelHandle.modelId} (${t}). Token expired or lacks access. ${m || ''}`;
-									}
-									if (t === 'not_found_error') {
-										return `Model not found: ${modelHandle.modelId}. ${m || ''}`;
-									}
-									if (t === 'overloaded_error') {
-										return `Provider overloaded (${modelHandle.modelId}). Try again in a moment or switch model.`;
-									}
-									return `${t}${m ? ': ' + m : ''} (${modelHandle.modelId})`;
-								}
-							} catch {
-								/* fall through */
-							}
-						}
-						if (apiErr.statusCode) {
-							return `HTTP ${apiErr.statusCode} from ${modelHandle.modelId}: ${apiErr.message || 'no detail'}`;
-						}
-						return (
-							apiErr.message || (err as { message?: string }).message || 'unknown_stream_error'
-						);
-					},
-					onFinish: async ({ responseMessage }) => {
-						let finalReason: FinishReason | undefined;
-						try {
-							finalReason = await result.finishReason;
-						} catch {
-							finalReason = 'error';
-						}
+	const uiStream = result.toUIMessageStream({
+		sendFinish: false,
+		originalMessages: ctx.messages,
+		generateMessageId: () => generateId(),
+		onError: (error: unknown) => {
+			directErrored = true;
+			const { text, statusCode } = describeDirectError(error, modelHandle.modelId);
+			emitSullyError(bufferWriter, classifySullyError(text, statusCode));
+			return text;
+		},
+		onFinish: async ({ responseMessage }) => {
+			let finalReason: FinishReason | undefined;
+			try {
+				finalReason = await result.finishReason;
+			} catch {
+				finalReason = 'error';
+			}
 
-						const parts = responseMessage.parts || [];
-						const replyText = parts
-							.filter((p) => p.type === 'text')
-							.map((p) => (p as { type: 'text'; text: string }).text)
-							.join('');
-						const toolErrors = parts
-							.filter((p) => {
-								const t = p as { type?: string; state?: string };
-								return t.type?.startsWith('tool-') && t.state === 'output-error';
-							})
-							.map((p) => {
-								const t = p as { type?: string; errorText?: string };
-								return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
-									t.errorText ?? 'unknown error'
-								}`;
-							});
-
-						const finalText =
-							toolErrors.length > 0
-								? [replyText, ...toolErrors].filter(Boolean).join('\n\n')
-								: replyText;
-
-						let replyId: number | undefined;
-						if (finalText) {
-							const senderLabel: 'cc' | 'agy' | 'local' =
-								ctx.provider === 'anthropic' ? 'cc' : 'agy';
-							let promptTokens: number | null = null;
-							let completionTokens: number | null = null;
-							try {
-								const usage = await result.usage;
-								promptTokens = usage?.inputTokens ?? null;
-								completionTokens = usage?.outputTokens ?? null;
-							} catch {
-								/* usage unavailable */
-							}
-							replyId = persistAssistantTurn({
-								text: finalText,
-								sender: senderLabel,
-								threadId: ctx.threadId,
-								model: modelHandle.modelId,
-								tier: ctx.currentTier,
-								taskId: ctx.taskId,
-								provider: ctx.provider,
-								promptTokens,
-								completionTokens,
-								latencyMs: Date.now() - turnStartedAt,
-								error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
-								reused: ctx.reused
-							});
-						} else if (directErrored || finalReason === 'error') {
-							rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
-							writer.write({ type: 'finish', finishReason: finalReason });
-							return;
-						} else {
-							upsertThreadTier(ctx.threadId, ctx.currentTier, modelHandle.modelId);
-							touchLastActivity(ctx.threadId);
-						}
-
-						finishWithReplyId(writer, replyId, finalReason);
-
-						void applyTurnDecision(ctx.shadowDecision, {
-							taskId: ctx.taskId,
-							threadId: ctx.threadId,
-							targetRepo: ctx.targetRepo,
-							userText: ctx.userText,
-							reused: ctx.reused
-						}).catch((e) => {
-							console.error('[sdk-stream] autonomous-dispatch failed', e);
-						});
-					}
+			const parts = responseMessage.parts || [];
+			const replyText = parts
+				.filter((p) => p.type === 'text')
+				.map((p) => (p as { type: 'text'; text: string }).text)
+				.join('');
+			const toolErrors = parts
+				.filter((p) => {
+					const t = p as { type?: string; state?: string };
+					return t.type?.startsWith('tool-') && t.state === 'output-error';
 				})
-			);
+				.map((p) => {
+					const t = p as { type?: string; errorText?: string };
+					return `⚠️ Tool '${t.type?.replace(/^tool-/, '') ?? 'unknown'}' failed: ${
+						t.errorText ?? 'unknown error'
+					}`;
+				});
+
+			const finalText =
+				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
+
+			let replyId: number | undefined;
+			if (finalText) {
+				const senderLabel: 'cc' | 'agy' | 'local' = ctx.provider === 'anthropic' ? 'cc' : 'agy';
+				let promptTokens: number | null = null;
+				let completionTokens: number | null = null;
+				try {
+					const usage = await result.usage;
+					promptTokens = usage?.inputTokens ?? null;
+					completionTokens = usage?.outputTokens ?? null;
+				} catch {
+					/* usage unavailable */
+				}
+				replyId = persistAssistantTurn({
+					text: finalText,
+					sender: senderLabel,
+					threadId: ctx.threadId,
+					model: modelHandle.modelId,
+					tier: ctx.currentTier,
+					taskId: ctx.taskId,
+					provider: ctx.provider,
+					promptTokens,
+					completionTokens,
+					latencyMs: Date.now() - turnStartedAt,
+					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
+					reused: ctx.reused
+				});
+			} else if (directErrored || finalReason === 'error') {
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+				bufferWriter.write({ type: 'finish', finishReason: finalReason });
+				return;
+			} else {
+				upsertThreadTier(ctx.threadId, ctx.currentTier, modelHandle.modelId);
+				touchLastActivity(ctx.threadId);
+			}
+
+			finishWithReplyId(bufferWriter, replyId, finalReason);
+
+			void applyTurnDecision(ctx.shadowDecision, {
+				taskId: ctx.taskId,
+				threadId: ctx.threadId,
+				targetRepo: ctx.targetRepo,
+				userText: ctx.userText,
+				reused: ctx.reused
+			}).catch((e) => {
+				console.error('[sdk-stream] autonomous-dispatch failed', e);
+			});
 		}
 	});
-	return createUIMessageStreamResponse({ stream });
+
+	// Pump the model stream into the buffer detached from the response. The
+	// finally-clause covers finish, error, AND rollback: the active stream is
+	// always cleared when the turn terminates, so resume returns 204 after.
+	void (async () => {
+		try {
+			const reader = uiStream.getReader();
+			for (;;) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				streamHandle.record(value);
+			}
+		} catch (e) {
+			console.error('[sdk-stream] direct stream pump failed', e);
+		} finally {
+			streamHandle.end();
+		}
+	})();
+
+	// The POST response itself is a resume-from-0 subscription over the buffer.
+	return streamResponseFromBuffer(ctx.threadId, 0);
 }

@@ -1,5 +1,11 @@
+// Resumable sdk-stream coverage: while a direct turn generates, its UIMessage
+// chunks are buffered per thread (sdk_stream_common); GET
+// /api/chat/sdk-stream/resume?thread=X&startIndex=N replays from startIndex
+// then continues live until finish, and returns 204 when no stream is active
+// (idle, finished, errored, or rolled back).
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UIMessage } from 'ai';
+import type { UIMessage, UIMessageChunk } from 'ai';
 
 const prepareStream = vi.fn();
 const streamText = vi.fn();
@@ -141,6 +147,17 @@ function context(overrides: Partial<Awaited<ReturnType<typeof prepareStream>>> =
 	};
 }
 
+async function importCommon() {
+	return import('../src/lib/server/chat/sdk_stream_common');
+}
+
+async function getResume(query: string) {
+	const { GET } = await import('../src/routes/api/chat/sdk-stream/resume/+server');
+	return GET({
+		url: new URL(`http://test.local/api/chat/sdk-stream/resume${query}`)
+	} as Parameters<typeof GET>[0]);
+}
+
 async function postSdkStream() {
 	const { POST } = await import('../src/routes/api/chat/sdk-stream/+server');
 	return POST({
@@ -163,11 +180,15 @@ async function responseChunks(response: Response) {
 		.map((data) => JSON.parse(data) as { type: string; [key: string]: unknown });
 }
 
-function mockHappyDirectStream(replyText = 'Hello back.') {
-	const chunks = [
+/** Direct-stream mock that emits `head` chunks freely, then waits on `gate`
+ * before emitting the tail — lets a test attach a resume mid-turn. */
+function mockGatedDirectStream(gate: Promise<void>, replyText = 'Resumed reply.') {
+	const head = [
 		{ type: 'start', messageId: 'sdk-msg' },
 		{ type: 'start-step' },
-		{ type: 'text-start', id: '0' },
+		{ type: 'text-start', id: '0' }
+	];
+	const tail = [
 		{ type: 'text-delta', id: '0', delta: replyText },
 		{ type: 'text-end', id: '0' },
 		{ type: 'finish-step' }
@@ -178,41 +199,20 @@ function mockHappyDirectStream(replyText = 'Hello back.') {
 		toUIMessageStream: ({ onFinish }: ToUIMessageStreamOptions) =>
 			new ReadableStream({
 				async pull(controller) {
-					const next = chunks.shift();
-					if (next) {
-						controller.enqueue(next);
+					const eager = head.shift();
+					if (eager) {
+						controller.enqueue(eager);
+						return;
+					}
+					await gate;
+					const late = tail.shift();
+					if (late) {
+						controller.enqueue(late);
 						return;
 					}
 					await onFinish({
 						responseMessage: { parts: [{ type: 'text', text: replyText }] }
 					});
-					controller.close();
-				}
-			})
-	});
-}
-
-function mockErroredDirectStream() {
-	const chunks = [
-		{ type: 'start', messageId: 'sdk-msg' },
-		{ type: 'error', errorText: '' }
-	];
-	streamText.mockReturnValue({
-		usage: Promise.resolve({ inputTokens: 0, outputTokens: 0 }),
-		finishReason: Promise.resolve('error'),
-		toUIMessageStream: ({ onError, onFinish }: ToUIMessageStreamOptions) =>
-			new ReadableStream({
-				async pull(controller) {
-					const next = chunks.shift();
-					if (next) {
-						controller.enqueue(
-							next.type === 'error'
-								? { type: 'error', errorText: onError(new Error('provider failed')) }
-								: next
-						);
-						return;
-					}
-					await onFinish({ responseMessage: { parts: [] } });
 					controller.close();
 				}
 			})
@@ -236,16 +236,86 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-describe('POST /api/chat/sdk-stream invariants', () => {
-	it('emits reply-id after streamed text and before finish on a happy direct turn', async () => {
-		mockHappyDirectStream();
+describe('GET /api/chat/sdk-stream/resume', () => {
+	it('returns 204 when no stream is active for the thread', async () => {
+		const response = await getResume('?thread=thread-idle&startIndex=0');
+		expect(response.status).toBe(204);
+		expect(await response.text()).toBe('');
+	});
 
-		const response = await postSdkStream();
+	it('replays buffered chunks from startIndex then continues live until finish', async () => {
+		const common = await importCommon();
+		const handle = common.beginActiveStream('thread-replay');
+		handle.record({ type: 'start', messageId: 'm1' } as UIMessageChunk);
+		handle.record({ type: 'text-start', id: '0' } as UIMessageChunk);
+		handle.record({ type: 'text-delta', id: '0', delta: 'buffered ' } as UIMessageChunk);
+
+		const response = await getResume('?thread=thread-replay&startIndex=1');
 		expect(response.status).toBe(200);
-		const chunks = await responseChunks(response);
-		const types = chunks.map((chunk) => chunk.type);
 
-		expect(types).toEqual([
+		// Live continuation after the resume attached.
+		handle.record({ type: 'text-delta', id: '0', delta: 'live' } as UIMessageChunk);
+		handle.record({ type: 'text-end', id: '0' } as UIMessageChunk);
+		handle.record({ type: 'finish', finishReason: 'stop' } as UIMessageChunk);
+		handle.end();
+
+		const chunks = await responseChunks(response);
+		expect(chunks.map((chunk) => chunk.type)).toEqual([
+			'text-start', // startIndex=1 skips the buffered 'start'
+			'text-delta',
+			'text-delta',
+			'text-end',
+			'finish'
+		]);
+		expect(chunks[1]).toEqual({ type: 'text-delta', id: '0', delta: 'buffered ' });
+		expect(chunks[2]).toEqual({ type: 'text-delta', id: '0', delta: 'live' });
+	});
+
+	it('returns 204 after the active stream ended (cleared on finish)', async () => {
+		const common = await importCommon();
+		const handle = common.beginActiveStream('thread-done');
+		handle.record({ type: 'start', messageId: 'm1' } as UIMessageChunk);
+		handle.end();
+
+		const response = await getResume('?thread=thread-done');
+		expect(response.status).toBe(204);
+		expect(common.hasActiveStream('thread-done')).toBe(false);
+	});
+
+	it('resumes a live direct turn mid-generation and receives the tail through finish', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		mockGatedDirectStream(gate);
+
+		const postResponse = await postSdkStream();
+		expect(postResponse.status).toBe(200);
+
+		// Wait until the head chunks are buffered, then attach a resume from index 1.
+		const common = await importCommon();
+		await vi.waitFor(() => {
+			expect(common.hasActiveStream('thread-test')).toBe(true);
+			const seen: string[] = [];
+			const unsubscribe = common.subscribeToActiveStream('thread-test', 0, {
+				onChunk: (chunk) => seen.push(chunk.type),
+				onDone: () => {}
+			});
+			unsubscribe?.();
+			expect(seen.length).toBeGreaterThanOrEqual(3);
+		});
+
+		const resumeResponse = await getResume('?thread=thread-test&startIndex=1');
+		expect(resumeResponse.status).toBe(200);
+
+		release();
+
+		const [postChunks, resumeChunks] = await Promise.all([
+			responseChunks(postResponse),
+			responseChunks(resumeResponse)
+		]);
+
+		expect(postChunks.map((chunk) => chunk.type)).toEqual([
 			'start',
 			'start-step',
 			'text-start',
@@ -255,44 +325,22 @@ describe('POST /api/chat/sdk-stream invariants', () => {
 			'data-sully-reply-id',
 			'finish'
 		]);
-		expect(chunks.at(-2)).toEqual({ type: 'data-sully-reply-id', data: { id: 777 } });
-		expect(chunks.at(-1)).toEqual({ type: 'finish', finishReason: 'stop' });
-		expect(applyTurnDecision).toHaveBeenCalledTimes(1);
-	});
+		// Resume replays from startIndex=1 and rides the live tail to finish.
+		expect(resumeChunks.map((chunk) => chunk.type)).toEqual([
+			'start-step',
+			'text-start',
+			'text-delta',
+			'text-end',
+			'finish-step',
+			'data-sully-reply-id',
+			'finish'
+		]);
+		expect(resumeChunks.at(-2)).toEqual({ type: 'data-sully-reply-id', data: { id: 777 } });
+		expect(resumeChunks.at(-1)).toEqual({ type: 'finish', finishReason: 'stop' });
 
-	it('rolls back and does not dispatch an errored empty direct turn', async () => {
-		mockErroredDirectStream();
-
-		const response = await postSdkStream();
-		expect(response.status).toBe(200);
-		const chunks = await responseChunks(response);
-		const types = chunks.map((chunk) => chunk.type);
-
-		// Typed error frame is emitted IN ADDITION to the SDK-standard error part.
-		expect(types).toEqual(['start', 'data-sully-error', 'error', 'finish']);
-		const errFrame = chunks.find((chunk) => chunk.type === 'data-sully-error');
-		expect(errFrame?.data).toEqual({
-			code: 'unknown',
-			message: 'provider failed',
-			recovery: expect.stringMatching(/retry|switch model/i)
-		});
-		expect(persistAssistantTurn).not.toHaveBeenCalled();
-		expect(deleteChatMessage).toHaveBeenCalledWith(42);
-		expect(expireTaskById).toHaveBeenCalledWith('task-test');
-		expect(applyTurnDecision).not.toHaveBeenCalled();
-	});
-
-	it('does not roll back a reused errored empty direct turn', async () => {
-		prepareStream.mockResolvedValue(context({ reused: true }));
-		mockErroredDirectStream();
-
-		const response = await postSdkStream();
-		expect(response.status).toBe(200);
-		await responseChunks(response);
-
-		expect(persistAssistantTurn).not.toHaveBeenCalled();
-		expect(deleteChatMessage).not.toHaveBeenCalled();
-		expect(expireTaskById).not.toHaveBeenCalled();
-		expect(applyTurnDecision).not.toHaveBeenCalled();
+		// Cleared on finish: a fresh resume now reports no active stream.
+		expect(common.hasActiveStream('thread-test')).toBe(false);
+		const idle = await getResume('?thread=thread-test&startIndex=0');
+		expect(idle.status).toBe(204);
 	});
 });

@@ -63,6 +63,64 @@ export function getChatMessages(limit = 100, threadId = 'default'): ChatMessage[
 	}
 }
 
+/**
+ * Delta fetch result for the thread short-circuit (Tier-1 detached recovery).
+ * `latest_id` is the highest message id currently in the thread (0 when the
+ * thread is empty) and `thread_updated` is the timestamp of its most recent
+ * message (null when empty) — enough for a client holding a stale window to
+ * cheaply confirm whether it is caught up.
+ */
+export interface ChatThreadDelta {
+	messages: ChatMessage[];
+	latest_id: number;
+	thread_updated: string | null;
+}
+
+/**
+ * Rows NEWER than `sinceId` (the last message id the client holds), ascending
+ * by id, plus the thread's latest-id / latest-timestamp meta. When `limit` is
+ * provided the OLDEST `limit` delta rows are returned so a client can page
+ * forward by advancing `sinceId`; omitted means the full delta.
+ */
+export function getChatMessagesSince(
+	sinceId: number,
+	threadId = 'default',
+	limit?: number
+): ChatThreadDelta {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) {
+		return { messages: [], latest_id: 0, thread_updated: null };
+	}
+	const db = getDb();
+	try {
+		const meta = db
+			.prepare(
+				'SELECT MAX(id) AS latest_id, MAX(timestamp) AS thread_updated FROM chat_messages WHERE thread_id = ?'
+			)
+			.get(threadId) as { latest_id: number | null; thread_updated: string | null } | undefined;
+		const rows = (
+			limit !== undefined && Number.isFinite(limit)
+				? db
+						.prepare(
+							'SELECT * FROM chat_messages WHERE thread_id = ? AND id > ? ORDER BY id ASC LIMIT ?'
+						)
+						.all(threadId, sinceId, limit)
+				: db
+						.prepare('SELECT * FROM chat_messages WHERE thread_id = ? AND id > ? ORDER BY id ASC')
+						.all(threadId, sinceId)
+		) as any[];
+		return {
+			messages: rows.map(parseRow),
+			latest_id: meta?.latest_id ?? 0,
+			thread_updated: meta?.thread_updated ?? null
+		};
+	} catch (e: unknown) {
+		console.error('getChatMessagesSince error:', e);
+		return { messages: [], latest_id: 0, thread_updated: null };
+	} finally {
+		db.close();
+	}
+}
+
 export function getChatMessageCount(threadId = 'default'): number {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return 0;
 	const db = getDb();

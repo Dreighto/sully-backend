@@ -4,6 +4,7 @@ import { runMode } from '$lib/server/config';
 import { getJob } from '$lib/server/dispatchJobs';
 import { getActivityForTrace } from '$lib/server/chatActivity';
 import { isDisplayableAction } from '$lib/dispatchActivityView';
+import { buildVerificationView } from '$lib/server/surfaceAdapter';
 
 export const GET: RequestHandler = async ({ params }) => {
 	if (!runMode.companionDispatchEnabled) return json({ job: null });
@@ -27,5 +28,9 @@ export const GET: RequestHandler = async ({ params }) => {
 	// Only real worker steps reach the UI — internal pipeline events (gate_evaluated,
 	// synthesis_completed, …) stay server-side (P2 leak fix).
 	const activity = getActivityForTrace(traceId, 200).filter((a) => isDisplayableAction(a.action));
-	return json({ job, activity });
+	// READ-ONLY verification exposure: per-channel {name, verdict} + overall
+	// posture, sourced from the verification_* columns verifyPoll/completionClose
+	// already stored on the job row. Undefined until the Go/No-Go poll has run.
+	const verification = buildVerificationView(job);
+	return json({ job, activity, verification });
 };

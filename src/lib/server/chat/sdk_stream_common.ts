@@ -1,4 +1,9 @@
-import type { FinishReason } from 'ai';
+import {
+	createUIMessageStream,
+	createUIMessageStreamResponse,
+	type FinishReason,
+	type UIMessageChunk
+} from 'ai';
 import { deleteChatMessage } from '$lib/server/chat';
 import { expireTaskById } from '$lib/server/dispatchJobs';
 
@@ -27,6 +32,98 @@ export function finishWithReplyId(
 ): void {
 	emitReplyId(writer, replyId);
 	finishWriter(writer, finishReason);
+}
+
+// ---------------------------------------------------------------------------
+// Resumable streams (AI SDK v6 pattern, single-user in-memory variant).
+// While an sdk-stream turn generates, its UIMessage chunks are buffered in a
+// per-thread ring buffer so a client that dropped the POST response can
+// reattach via GET /api/chat/sdk-stream/resume?thread=X&startIndex=N.
+// The buffer is cleared on finish/error/rollback; resume then returns 204.
+
+type StreamListener = {
+	onChunk: (chunk: UIMessageChunk) => void;
+	onDone: () => void;
+};
+
+type ActiveStream = {
+	chunks: UIMessageChunk[];
+	baseIndex: number; // global index of chunks[0] (ring buffer may have dropped earlier chunks)
+	listeners: Set<StreamListener>;
+};
+
+const MAX_BUFFERED_CHUNKS = 4096;
+const activeStreams = new Map<string, ActiveStream>();
+
+export type ActiveStreamHandle = {
+	record: (chunk: UIMessageChunk) => void;
+	end: () => void;
+};
+
+/** Registers a new active stream for the thread and returns a handle bound to
+ * it. If a newer turn supersedes this one, the stale handle's record/end
+ * become no-ops instead of corrupting the newer buffer. */
+export function beginActiveStream(threadId: string): ActiveStreamHandle {
+	const stream: ActiveStream = { chunks: [], baseIndex: 0, listeners: new Set() };
+	activeStreams.set(threadId, stream);
+	return {
+		record(chunk) {
+			if (activeStreams.get(threadId) !== stream) return;
+			stream.chunks.push(chunk);
+			const overflow = stream.chunks.length - MAX_BUFFERED_CHUNKS;
+			if (overflow > 0) {
+				stream.chunks.splice(0, overflow);
+				stream.baseIndex += overflow;
+			}
+			for (const listener of stream.listeners) listener.onChunk(chunk);
+		},
+		end() {
+			if (activeStreams.get(threadId) !== stream) return;
+			activeStreams.delete(threadId);
+			for (const listener of stream.listeners) listener.onDone();
+			stream.listeners.clear();
+		}
+	};
+}
+
+export function hasActiveStream(threadId: string): boolean {
+	return activeStreams.has(threadId);
+}
+
+/** Synchronously replays buffered chunks from startIndex, then registers the
+ * listener for live chunks. Returns an unsubscribe fn, or null when no stream
+ * is active for the thread. */
+export function subscribeToActiveStream(
+	threadId: string,
+	startIndex: number,
+	listener: StreamListener
+): (() => void) | null {
+	const stream = activeStreams.get(threadId);
+	if (!stream) return null;
+	const from = Math.max(Math.floor(startIndex), stream.baseIndex);
+	for (let i = from - stream.baseIndex; i < stream.chunks.length; i++) {
+		const chunk = stream.chunks[i];
+		if (chunk) listener.onChunk(chunk);
+	}
+	stream.listeners.add(listener);
+	return () => stream.listeners.delete(listener);
+}
+
+/** SSE UIMessage-stream Response fed from the per-thread buffer: replays from
+ * startIndex, then continues live until the turn ends. The generating turn is
+ * pumped independently, so a dropped consumer never stalls generation. */
+export function streamResponseFromBuffer(threadId: string, startIndex: number): Response {
+	const stream = createUIMessageStream({
+		execute: ({ writer }) =>
+			new Promise<void>((resolve) => {
+				const unsubscribe = subscribeToActiveStream(threadId, startIndex, {
+					onChunk: (chunk) => writer.write(chunk),
+					onDone: () => resolve()
+				});
+				if (!unsubscribe) resolve();
+			})
+	});
+	return createUIMessageStreamResponse({ stream });
 }
 
 // Orphan rollback (Stage 1). prepareTurnLifecycle persists the operator row +

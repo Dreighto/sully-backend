@@ -18,6 +18,11 @@ import { preTurnRoute } from '$lib/server/routing/pre_turn_router';
 import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { finishWithReplyId, rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import {
+	classifySullyError,
+	emitSullyError,
+	type SullyErrorWriter
+} from '$lib/server/chat/sdk_direct_reply';
 
 function transcriptFrom(modelMessages: UIMessage[]): string {
 	return modelMessages
@@ -56,8 +61,10 @@ export function handleLocalReply(opts: {
 		});
 
 		const transcript = transcriptFrom(ctx.modelMessages);
+		let preTurnErrWriter: SullyErrorWriter | null = null;
 		const preTurnStream = createUIMessageStream({
 			execute: async ({ writer }) => {
+				preTurnErrWriter = writer;
 				const messageId = generateId();
 				const textId = '0';
 				writer.write({ type: 'start', messageId });
@@ -81,6 +88,7 @@ export function handleLocalReply(opts: {
 						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
 					} else if (chunk.type === 'error') {
 						errored = true;
+						emitSullyError(writer, classifySullyError(chunk.message));
 						writer.write({ type: 'error', errorText: chunk.message });
 					}
 				}
@@ -117,16 +125,21 @@ export function handleLocalReply(opts: {
 					});
 				}
 			},
-			onError: (error: unknown) =>
-				`Cloud model: ${(error as { message?: string }).message || 'stream_error'}`
+			onError: (error: unknown) => {
+				const text = `Cloud model: ${(error as { message?: string }).message || 'stream_error'}`;
+				if (preTurnErrWriter) emitSullyError(preTurnErrWriter, classifySullyError(text));
+				return text;
+			}
 		});
 		return createUIMessageStreamResponse({ stream: preTurnStream });
 	}
 
 	const SENTINEL_BUFFER_CHARS = 120;
 	const escalationSystemPrompt = ctx.systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
+	let localErrWriter: SullyErrorWriter | null = null;
 	const localStream = createUIMessageStream({
 		execute: async ({ writer }) => {
+			localErrWriter = writer;
 			const messageId = generateId();
 			const textId = '0';
 			writer.write({ type: 'start', messageId });
@@ -162,10 +175,9 @@ export function handleLocalReply(opts: {
 				}
 			} catch (err) {
 				errored = true;
-				writer.write({
-					type: 'error',
-					errorText: `Local model: ${(err as Error).message || 'stream_error'}`
-				});
+				const errText = `Local model: ${(err as Error).message || 'stream_error'}`;
+				emitSullyError(writer, classifySullyError(errText));
+				writer.write({ type: 'error', errorText: errText });
 				writer.write({ type: 'text-end', id: textId });
 				writer.write({ type: 'finish-step' });
 				writer.write({ type: 'finish', finishReason: 'error' });
@@ -200,6 +212,7 @@ export function handleLocalReply(opts: {
 						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
 					} else if (chunk.type === 'error') {
 						errored = true;
+						emitSullyError(writer, classifySullyError(chunk.message));
 						writer.write({ type: 'error', errorText: chunk.message });
 					}
 				}
@@ -269,8 +282,11 @@ export function handleLocalReply(opts: {
 				reused: ctx.reused
 			});
 		},
-		onError: (error: unknown) =>
-			`Local model: ${(error as { message?: string }).message || 'local_stream_error'}`
+		onError: (error: unknown) => {
+			const text = `Local model: ${(error as { message?: string }).message || 'local_stream_error'}`;
+			if (localErrWriter) emitSullyError(localErrWriter, classifySullyError(text));
+			return text;
+		}
 	});
 	return createUIMessageStreamResponse({ stream: localStream });
 }

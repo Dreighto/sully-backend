@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getChatMessages, deleteChatMessage } from '$lib/server/chat';
+import { getChatMessages, getChatMessagesSince, deleteChatMessage } from '$lib/server/chat';
 import { runMode } from '$lib/server/config';
 import { buildChatPostContext } from '$lib/server/chat/legacy_context';
 import { handleCompanionDispatch } from '$lib/server/chat/legacy_companion_dispatch';
@@ -18,6 +18,30 @@ export const GET: RequestHandler = async ({ url }) => {
 		const limitParam = url.searchParams.get('limit');
 		const limit = limitParam ? Number.parseInt(limitParam, 10) : 50;
 		const thread = (url.searchParams.get('thread') || 'default').trim() || 'default';
+
+		// Delta short-circuit (Tier-1 detached recovery): `since` is the last
+		// message id the client holds. When provided, return only rows id > since
+		// plus {latest_id, thread_updated} meta so a stale window can cheaply
+		// confirm it is caught up. Omitting `since` keeps the original full-window
+		// response shape — fully backward compatible.
+		const sinceParam = url.searchParams.get('since');
+		if (sinceParam !== null) {
+			const since = Number.parseInt(sinceParam, 10);
+			if (!Number.isFinite(since) || since < 0) {
+				return json({ error: 'invalid since' }, { status: 400 });
+			}
+			const delta = getChatMessagesSince(
+				since,
+				thread,
+				limitParam && Number.isFinite(limit) ? limit : undefined
+			);
+			return json({
+				messages: delta.messages,
+				latest_id: delta.latest_id,
+				thread_updated: delta.thread_updated
+			});
+		}
+
 		const messages = getChatMessages(limit, thread);
 		return json({ messages });
 	} catch (e: unknown) {

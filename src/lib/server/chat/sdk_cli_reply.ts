@@ -16,6 +16,11 @@ import {
 import { mintTeacherTraceId } from '$lib/server/artifactStore';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { finishWithReplyId, rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import {
+	classifySullyError,
+	emitSullyError,
+	type SullyErrorWriter
+} from '$lib/server/chat/sdk_direct_reply';
 
 function transcriptFrom(modelMessages: UIMessage[]): string {
 	return modelMessages
@@ -36,8 +41,10 @@ export function handleCliReply(ctx: PreparedStreamContext, request: Request): Re
 	const cliSystemPrompt = ctx.systemPrompt;
 	const artifactTrace = mintTeacherTraceId();
 	const decision = ctx.shadowDecision;
+	let errWriter: SullyErrorWriter | null = null;
 	const stream = createUIMessageStream({
 		execute: async ({ writer }) => {
+			errWriter = writer;
 			const messageId = generateId();
 			const textId = '0';
 			writer.write({ type: 'start', messageId });
@@ -63,6 +70,7 @@ export function handleCliReply(ctx: PreparedStreamContext, request: Request): Re
 					}
 				} else if (chunk.type === 'error') {
 					errored = true;
+					emitSullyError(writer, classifySullyError(chunk.message));
 					writer.write({ type: 'error', errorText: chunk.message });
 				}
 			}
@@ -109,7 +117,9 @@ export function handleCliReply(ctx: PreparedStreamContext, request: Request): Re
 		},
 		onError: (error: unknown) => {
 			const m = (error as { message?: string })?.message || 'cli_stream_error';
-			return `Claude CLI bridge: ${m}`;
+			const text = `Claude CLI bridge: ${m}`;
+			if (errWriter) emitSullyError(errWriter, classifySullyError(text));
+			return text;
 		}
 	});
 	return createUIMessageStreamResponse({ stream });
