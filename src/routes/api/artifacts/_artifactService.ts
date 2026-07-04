@@ -11,26 +11,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from '$lib/server/config';
 import { resolveWorkerTemplate } from '$lib/work-surface/chatBridge.svelte';
-import { findStoreDir, readManifest, artifactRepoRoot, storeRoot } from '$lib/server/artifactStore';
+import {
+	findStoreDir,
+	readManifest,
+	artifactRepoRoot,
+	storeRoot,
+	classifyArtifactType
+} from '$lib/server/artifactStore';
+import type { ArtifactMetadata } from '$lib/server/artifactStore';
 
 const FILE_ACTIONS = new Set(['wrote_file', 'created_artifact', 'write_file']);
-
-export interface ArtifactMetadata {
-	created_by: string;
-	task_id: string;
-	trace_id: string;
-	timestamp: string;
-	source_worker: string;
-	workspace_path: string;
-	artifact_type: string;
-	original_path: string;
-	artifact_url: string;
-	thumb_url?: string | null;
-	preview_text?: string | null;
-	language?: string | null;
-	thread_id?: string | null;
-	thread_title?: string | null;
-}
 
 export interface ArtifactListResponse {
 	trace_id: string;
@@ -68,36 +58,6 @@ const MIME: Record<string, string> = {
 	patch: 'text/plain; charset=utf-8'
 };
 
-const ARTIFACT_TYPE: Record<string, string> = {
-	md: 'doc',
-	txt: 'doc',
-	rst: 'doc',
-	html: 'mockup',
-	svg: 'mockup',
-	png: 'screenshot',
-	jpg: 'screenshot',
-	jpeg: 'screenshot',
-	webp: 'screenshot',
-	ts: 'code',
-	js: 'code',
-	svelte: 'code',
-	py: 'code',
-	go: 'code',
-	rs: 'code',
-	java: 'code',
-	c: 'code',
-	cpp: 'code',
-	sh: 'code',
-	json: 'data',
-	yaml: 'data',
-	yml: 'data',
-	csv: 'data',
-	toml: 'data',
-	log: 'log',
-	diff: 'log',
-	patch: 'log'
-};
-
 const THUMBABLE_EXT = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
 
 /** Lazily generate (and cache) a 240px webp thumbnail next to an image/svg
@@ -129,10 +89,6 @@ const APP_BASE = '/companion';
 function workerShortCode(workerId: string): string {
 	// LOS-205: alias-aware; an unknown id renders itself (≤4 chars), never CC.
 	return resolveWorkerTemplate(workerId).shortCode;
-}
-
-export function classifyArtifactType(ext: string): string {
-	return ARTIFACT_TYPE[ext.toLowerCase()] ?? 'other';
 }
 
 export function mimeFromExtension(ext: string): string {
@@ -246,7 +202,7 @@ export function buildArtifactMetadata(
 		artifact_type: classifyArtifactType(ext),
 		original_path: originalPath,
 		artifact_url: artifactUrl(job.trace_id, originalPath)
-	};
+	} as ArtifactMetadata;
 }
 
 export function getTraceWorkspacePath(traceId: string): string | null {

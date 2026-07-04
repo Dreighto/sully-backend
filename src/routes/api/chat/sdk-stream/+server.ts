@@ -132,6 +132,33 @@ function getAnthropicAuthForModel(modelId: string): { authToken?: string; apiKey
 	return {};
 }
 
+type ReplyIdWriter = {
+	write: (
+		chunk:
+			| { type: 'data-sully-reply-id'; data: { id: number } }
+			| { type: 'finish'; finishReason: FinishReason }
+	) => void;
+};
+
+function emitReplyId(writer: ReplyIdWriter, replyId: number | undefined): void {
+	if (typeof replyId === 'number' && replyId > 0) {
+		writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
+	}
+}
+
+function finishWriter(writer: ReplyIdWriter, finishReason: FinishReason): void {
+	writer.write({ type: 'finish', finishReason });
+}
+
+function finishWithReplyId(
+	writer: ReplyIdWriter,
+	replyId: number | undefined,
+	finishReason: FinishReason
+): void {
+	emitReplyId(writer, replyId);
+	finishWriter(writer, finishReason);
+}
+
 function getGoogleKey(): string {
 	return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 }
@@ -313,10 +340,7 @@ function generateImageReply(opts: {
 			// data-sully-reply-id frame BEFORE finish so the client reconciles the
 			// streamed reply to its stored row without polling history. Guard: only a
 			// valid persisted id (>0) — never on a rolled-back / zero-token turn.
-			if (typeof replyId === 'number' && replyId > 0) {
-				writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-			}
-			writer.write({ type: 'finish', finishReason: 'stop' });
+			finishWithReplyId(writer, replyId, 'stop');
 		}
 	});
 	return createUIMessageStreamResponse({ stream });
@@ -542,10 +566,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
 				// reconciles the streamed reply to its row without polling history. Guard:
 				// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
-				if (typeof replyId === 'number' && replyId > 0) {
-					writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-				}
-				writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+				finishWithReplyId(writer, replyId, errored ? 'error' : 'stop');
 
 				// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
 				// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
@@ -707,10 +728,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
 					// reconciles the streamed reply to its row without polling history. Guard:
 					// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
-					if (typeof replyId === 'number' && replyId > 0) {
-						writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-					}
-					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+					finishWithReplyId(writer, replyId, errored ? 'error' : 'stop');
 
 					if (cloudCollected && !errored) {
 						await applyTurnDecision(decision, {
@@ -867,10 +885,7 @@ export const POST: RequestHandler = async ({ request }) => {
 					// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
 					// reconciles the streamed reply to its row without polling history. Guard:
 					// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
-					if (typeof replyId === 'number' && replyId > 0) {
-						writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-					}
-					writer.write({ type: 'finish', finishReason: errored ? 'error' : 'stop' });
+					finishWithReplyId(writer, replyId, errored ? 'error' : 'stop');
 
 					if (cloudCollected && !errored) {
 						await applyTurnDecision(decision, {
@@ -912,10 +927,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
 				// reconciles the streamed reply to its row without polling history. Guard:
 				// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
-				if (typeof replyId === 'number' && replyId > 0) {
-					writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-				}
-				writer.write({ type: 'finish', finishReason: 'stop' });
+				finishWithReplyId(writer, replyId, 'stop');
 
 				await applyTurnDecision(decision, {
 					taskId,
@@ -1155,12 +1167,7 @@ export const POST: RequestHandler = async ({ request }) => {
 						// row id on a terminal data-sully-reply-id frame BEFORE finish so the client
 						// reconciles the streamed reply to its row without polling history. Guard:
 						// only a valid persisted id (>0) — never on a rolled-back / zero-token turn.
-						if (typeof replyId === 'number' && replyId > 0) {
-							writer.write({ type: 'data-sully-reply-id', data: { id: replyId } });
-						}
-						// Suppressed-SDK finish: emit our own terminal finish carrying the model's
-						// finishReason (byte-parity with the frame toUIMessageStreamResponse sent).
-						writer.write({ type: 'finish', finishReason: finalReason });
+						finishWithReplyId(writer, replyId, finalReason);
 
 						// D2.1: Replace maybeAutonomousDispatch with applyTurnDecision.
 						// decision is ANSWER_NOW/CONVERSATIONAL_ONLY here (work turns already
