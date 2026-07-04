@@ -24,6 +24,7 @@ import { classifyTier, type Tier } from './phase_classifier';
 import { getThreadState, upsertThreadTier, type ThreadState } from './thread_state';
 import { touchLastActivity, upsertThreadMeta } from './thread_meta';
 import { maybeUpdateThreadSummary } from './working_memory';
+import { maybeAutoTitle } from './auto_title';
 import { proposeTask, markClassified, expireProposalsForThread } from './dispatchJobs';
 import { isAffirmation, isRoutingAnswer } from './routing/confirm';
 import { logTaskEvent } from './chatActivity';
@@ -287,6 +288,12 @@ export function persistAssistantTurn(args: {
 	// Layer 1 (working memory): refresh the pre-hot-window summary in the
 	// background. Fire-and-forget — never block the reply.
 	void maybeUpdateThreadSummary(args.threadId).catch(() => {});
+
+	// Auto-name the thread from its first exchange. Fire-and-forget; self-skips
+	// once titled or operator-renamed. Was only wired into the image-reply path,
+	// so text conversations stayed "New thread" — this covers every reply path
+	// that persists an assistant turn (direct/CLI/local/voice).
+	void maybeAutoTitle(args.threadId).catch(() => {});
 
 	// Stage 1 (server-owned reply-id): return the persisted chat_messages.id so the
 	// manual-writer stream paths can emit a terminal data-sully-reply-id frame,
