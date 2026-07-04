@@ -151,7 +151,7 @@ export interface ArtifactMetadata {
 	thread_title?: string | null;
 }
 
-const ARTIFACT_TYPE: Record<string, string> = {
+export const ARTIFACT_TYPE: Record<string, string> = {
 	md: 'doc',
 	txt: 'doc',
 	rst: 'doc',

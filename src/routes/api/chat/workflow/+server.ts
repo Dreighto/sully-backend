@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import Database from 'better-sqlite3';
 import { serverConfig, runMode } from '$lib/server/config';
-import { addChatMessage, getChatMessages } from '$lib/server/chat';
+import { addChatMessage } from '$lib/server/chat';
+import { getHistorySinceReset } from '$lib/server/chat/history';
 
 const GATEWAY_TIMEOUT_MS = 10_000;
 
@@ -74,24 +75,9 @@ function findOperatorAncestor(sourceId: number): ChatMessageRow | null {
 }
 
 function buildHistoryContext(threadId = 'default'): string {
-	// Same convention as /api/chat: replay the last 30 messages, sliced at
-	// the most recent "--- NEW CONVERSATION ---" marker. Workers benefit
-	// from the same conversational context their parent dispatches used.
-	// Scoped to the source message's thread so cross-thread context doesn't
-	// leak into the worker's prompt.
-	const all = getChatMessages(30, threadId);
-	let lastResetIdx = -1;
-	for (let i = all.length - 1; i >= 0; i--) {
-		if (
-			all[i].sender === 'system' &&
-			all[i].message.startsWith('--- NEW CONVERSATION ---')
-		) {
-			lastResetIdx = i;
-			break;
-		}
-	}
-	const slice = lastResetIdx >= 0 ? all.slice(lastResetIdx + 1) : all;
-	return slice.map((m) => `[${m.sender} - ${m.timestamp}]: ${m.message}`).join('\n');
+	// Same convention as /api/chat, scoped to the source message's thread so
+	// cross-thread context doesn't leak into the worker's prompt.
+	return getHistorySinceReset(threadId, 30).formattedText;
 }
 
 function buildWorkflowPrompt(

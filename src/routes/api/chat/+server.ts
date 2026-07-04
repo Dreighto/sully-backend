@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getChatMessages, addChatMessage, deleteChatMessage } from '$lib/server/chat';
-import { serverConfig, runMode, appIdentity } from '$lib/server/config';
+import { serverConfig, runMode } from '$lib/server/config';
 import { callHermes, chatRowsToHermesHistory } from '$lib/server/hermes';
 import { generateGeminiImage } from '$lib/server/gemini';
 import { upsertThreadTier } from '$lib/server/thread_state';
@@ -19,6 +19,8 @@ import {
 import { buildSystemPrompt } from '$lib/server/chat_prompt';
 import { dispatchToWorker } from '$lib/server/companionDispatch';
 import { normalizeInputText } from '$lib/server/input_normalizer';
+import { detectTargetRepo } from '$lib/server/chat/stream_prepare';
+import { getHistorySinceReset } from '$lib/server/chat/history';
 
 const GATEWAY_TIMEOUT_MS = 10_000;
 
@@ -160,24 +162,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		// config" or "the cc_completion_log path". Operators that want a
 		// specific worker either use @cc / @agy explicitly or pick the pill.
 
-		// Heuristic 2: Repository/Project selection. Default is the active fork's
-		// workspace (companion mode → 'companion', wired → 'LogueOS-Console'); the
-		// keyword branches still resolve named projects when the operator mentions
-		// them, even in companion mode (they're kernel projects with shared names).
-		let targetRepo: string = appIdentity.defaultWorkspace;
-		if (text.includes('miru')) {
-			targetRepo = 'project-miru';
-		} else if (
-			text.includes('orchestrator') ||
-			text.includes('kernel') ||
-			text.includes('logueos-orchestrator')
-		) {
-			targetRepo = 'LogueOS-Orchestrator';
-		} else if (text.includes('nasdoom')) {
-			targetRepo = 'NASDOOM';
-		} else if (text.includes('console') || text.includes('dashboard') || text.includes('ui')) {
-			targetRepo = 'LogueOS-Console';
-		}
+		// Heuristic 2: Repository/Project selection. Use the canonical SDK-stream
+		// detector so the legacy route honors the same Sully workspace/artifact rules.
+		const targetRepo = detectTargetRepo(normalizedMessage);
 
 		// Dispatch policy (revised 2026-05-26): default to CONVERSATIONAL reply
 		// via the LLM router. Worker dispatch fires ONLY when the operator
@@ -294,26 +281,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		// profile loaded as its system prompt.
 		if (isHermes && sender !== 'system') {
 			try {
-				const allHistory = getChatMessages(30, threadId);
 				// Slice at the most recent NEW CONVERSATION marker, same as the
 				// gateway-worker prompt builder. Hermes deserves the same fresh-
 				// thread semantics.
-				let lastResetIdx = -1;
-				for (let i = allHistory.length - 1; i >= 0; i--) {
-					if (
-						allHistory[i].sender === 'system' &&
-						allHistory[i].message.startsWith('--- NEW CONVERSATION ---')
-					) {
-						lastResetIdx = i;
-						break;
-					}
-				}
+				const { rows } = getHistorySinceReset(threadId, 30);
 				// Exclude the operator message we JUST inserted (it's the
 				// userMessage we pass separately to callHermes).
-				const slice = (lastResetIdx >= 0 ? allHistory.slice(lastResetIdx + 1) : allHistory).slice(
-					0,
-					-1
-				);
+				const slice = rows.slice(0, -1);
 				const history = chatRowsToHermesHistory(slice);
 				const reply = await callHermes(history, normalizedMessage.trim());
 				addChatMessage('hermes', reply, null, null, null, 'sent', threadId);
@@ -341,21 +315,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		// real file/code work — that path is unchanged.
 		if (shouldRouteChat) {
 			try {
-				const allHistory = getChatMessages(30, threadId);
-				let lastResetIdx = -1;
-				for (let i = allHistory.length - 1; i >= 0; i--) {
-					if (
-						allHistory[i].sender === 'system' &&
-						allHistory[i].message.startsWith('--- NEW CONVERSATION ---')
-					) {
-						lastResetIdx = i;
-						break;
-					}
-				}
-				const slice = (lastResetIdx >= 0 ? allHistory.slice(lastResetIdx + 1) : allHistory).slice(
-					0,
-					-1
-				);
+				const { rows } = getHistorySinceReset(threadId, 30);
+				const slice = rows.slice(0, -1);
 				const routerMessages: RouterMessage[] = slice
 					.filter((r) => r.sender !== 'system')
 					.map((r) => ({
@@ -434,22 +395,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// recent "--- NEW CONVERSATION ---" system marker so operator-initiated
 			// resets actually clear worker context (instead of leaking older
 			// threads into the new one).
-			const allHistory = getChatMessages(30, threadId);
-			const lastResetIdx = (() => {
-				for (let i = allHistory.length - 1; i >= 0; i--) {
-					if (
-						allHistory[i].sender === 'system' &&
-						allHistory[i].message.startsWith('--- NEW CONVERSATION ---')
-					) {
-						return i;
-					}
-				}
-				return -1;
-			})();
-			const history = lastResetIdx >= 0 ? allHistory.slice(lastResetIdx + 1) : allHistory;
-			const historyContext = history
-				.map((m) => `[${m.sender} - ${m.timestamp}]: ${m.message}`)
-				.join('\n');
+			const { formattedText: historyContext } = getHistorySinceReset(threadId, 30);
 
 			const workerPrompt = `You are a background agent in a co-working chat with the Operator (Captain).
 Here is the recent conversation history for context:
