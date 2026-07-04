@@ -78,7 +78,7 @@ export function denyReason(real: string): string | null {
 		(real.endsWith('.jsonl') || real.endsWith('.db'))
 	)
 		return 'kernel audit log / database';
-	if (real.startsWith('/home/dreighto/dev/LogueOS-Companion/data/') && real.endsWith('.db'))
+	if (real.startsWith('/home/dreighto/dev/sully-backend/data/') && real.endsWith('.db'))
 		return 'companion database';
 	for (const p of DENY_PREFIXES) {
 		if (real === p || real.startsWith(p + path.sep)) return 'protected path';

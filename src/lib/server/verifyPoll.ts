@@ -98,10 +98,14 @@ const WORKTREES_BASE = process.env.LOGUEOS_WORKTREES_BASE || '/home/dreighto/dev
 // = 'companion'; chat routing emits 'project-miru' / 'NASDOOM' / 'LogueOS-*'), each
 // mapped to its on-disk root + its GitHub <owner>/<name>. Aliases included for safety.
 const REPOS: Record<string, { root: string; gh: string }> = {
-	companion: { root: '/home/dreighto/dev/LogueOS-Companion', gh: 'Dreighto/LogueOS-Companion' },
+	// 'companion' + legacy aliases all resolve to the relocated backend repo
+	// (~/dev/sully-backend, GitHub Dreighto/sully-backend). The old
+	// LogueOS-Companion checkout was retired 2026-06-28 (backend unification).
+	companion: { root: '/home/dreighto/dev/sully-backend', gh: 'Dreighto/sully-backend' },
+	'sully-backend': { root: '/home/dreighto/dev/sully-backend', gh: 'Dreighto/sully-backend' },
 	'LogueOS-Companion': {
-		root: '/home/dreighto/dev/LogueOS-Companion',
-		gh: 'Dreighto/LogueOS-Companion'
+		root: '/home/dreighto/dev/sully-backend',
+		gh: 'Dreighto/sully-backend'
 	},
 	'project-miru': { root: '/home/dreighto/dev/miru', gh: 'Dreighto/project-miru' },
 	miru: { root: '/home/dreighto/dev/miru', gh: 'Dreighto/project-miru' },
