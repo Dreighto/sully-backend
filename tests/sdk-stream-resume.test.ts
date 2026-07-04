@@ -219,6 +219,31 @@ function mockGatedDirectStream(gate: Promise<void>, replyText = 'Resumed reply.'
 	});
 }
 
+function mockNeverFinishingDirectStream() {
+	streamText.mockImplementation((options) => ({
+		usage: Promise.resolve({ inputTokens: 0, outputTokens: 0 }),
+		finishReason: Promise.resolve('error'),
+		toUIMessageStream: ({ onError, onFinish }: ToUIMessageStreamOptions) =>
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue({ type: 'start', messageId: 'sdk-msg' });
+					options.abortSignal?.addEventListener(
+						'abort',
+						async () => {
+							controller.enqueue({
+								type: 'error',
+								errorText: onError(new Error('superseded'))
+							});
+							await onFinish({ responseMessage: { parts: [] } });
+							controller.close();
+						},
+						{ once: true }
+					);
+				}
+			})
+	}));
+}
+
 beforeEach(() => {
 	vi.resetModules();
 	process.env.GEMINI_API_KEY = 'test-gemini-key';
@@ -342,5 +367,85 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 		expect(common.hasActiveStream('thread-test')).toBe(false);
 		const idle = await getResume('?thread=thread-test&startIndex=0');
 		expect(idle.status).toBe(204);
+	});
+
+	it('keeps generating when the original response listener is gone, then resume replays the full buffered reply', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const replyText = 'Complete durable reply.';
+		mockGatedDirectStream(gate, replyText);
+
+		const postResponse = await postSdkStream();
+		expect(postResponse.status).toBe(200);
+
+		const common = await importCommon();
+		await vi.waitFor(() => {
+			expect(common.hasActiveStream('thread-test')).toBe(true);
+		});
+
+		// Simulate adapter-node throwing while writing to the original POST after
+		// the client socket disappeared. The listener must be detached, not allowed
+		// to throw back into the model pump.
+		common.subscribeToActiveStream('thread-test', 0, {
+			onChunk: () => {
+				throw new Error('client socket closed');
+			},
+			onDone: () => {
+				throw new Error('client socket closed');
+			}
+		});
+
+		const resumeResponse = await getResume('?thread=thread-test&startIndex=0');
+		expect(resumeResponse.status).toBe(200);
+
+		release();
+
+		const chunks = await responseChunks(resumeResponse);
+		expect(chunks.map((chunk) => chunk.type)).toEqual([
+			'start',
+			'start-step',
+			'text-start',
+			'text-delta',
+			'text-end',
+			'finish-step',
+			'data-sully-reply-id',
+			'finish'
+		]);
+		expect(chunks.find((chunk) => chunk.type === 'text-delta')).toEqual({
+			type: 'text-delta',
+			id: '0',
+			delta: replyText
+		});
+		expect(persistAssistantTurn).toHaveBeenCalledWith(
+			expect.objectContaining({ text: replyText })
+		);
+		expect(common.hasActiveStream('thread-test')).toBe(false);
+		const idle = await getResume('?thread=thread-test&startIndex=0');
+		expect(idle.status).toBe(204);
+
+		await postResponse.body?.cancel().catch(() => {});
+	});
+
+	it('aborts the server-side model controller when a new turn supersedes the same thread', async () => {
+		mockNeverFinishingDirectStream();
+
+		const postResponse = await postSdkStream();
+		expect(postResponse.status).toBe(200);
+
+		const common = await importCommon();
+		await vi.waitFor(() => {
+			expect(common.hasActiveStream('thread-test')).toBe(true);
+		});
+		const firstCall = streamText.mock.calls[0]?.[0];
+		expect(firstCall?.abortSignal).toBeInstanceOf(AbortSignal);
+		expect(firstCall.abortSignal.aborted).toBe(false);
+
+		const superseding = common.beginActiveStream('thread-test');
+		expect(firstCall.abortSignal.aborted).toBe(true);
+		superseding.end();
+
+		await postResponse.body?.cancel().catch(() => {});
 	});
 });

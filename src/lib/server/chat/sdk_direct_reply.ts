@@ -268,12 +268,17 @@ export async function handleDirectReply(opts: {
 		'\n\n[System inspection] You have READ-ONLY tools to check the REAL state of the LogueOS services on this machine (ROOM): list_services, service_status, service_logs, system_health. When the operator asks whether a service is up/enabled/healthy, why one failed or restarted, or about disk/memory/reachability, CALL the relevant tool and reason over the actual result — do NOT guess or state service status from memory. Only the nine whitelisted units can be inspected; these tools cannot start, stop, or restart anything.';
 	const directSystemPrompt = ctx.systemPrompt + systemToolsNote;
 	let directErrored = false;
+	const turnAbort = new AbortController();
+	const streamHandle = beginActiveStream(ctx.threadId, {
+		onSupersede: () => turnAbort.abort('superseded')
+	});
 	const result = streamText({
 		model: modelHandle.model,
 		system: directSystemPrompt,
 		messages: await convertToModelMessages(ctx.modelMessages),
 		tools: directTools,
-		stopWhen: stepCountIs(8)
+		stopWhen: stepCountIs(8),
+		abortSignal: turnAbort.signal
 	});
 
 	// Resumable-stream plumbing: every UIMessage chunk of this turn is recorded
@@ -282,7 +287,6 @@ export async function handleDirectReply(opts: {
 	// and any later GET /api/chat/sdk-stream/resume — are just subscribers of
 	// that buffer, so a dropped client connection neither stalls generation nor
 	// loses the turn.
-	const streamHandle = beginActiveStream(ctx.threadId);
 	const bufferWriter = {
 		write: (chunk: UIMessageChunk) => streamHandle.record(chunk)
 	};
@@ -298,6 +302,7 @@ export async function handleDirectReply(opts: {
 			return text;
 		},
 		onFinish: async ({ responseMessage }) => {
+			if (!streamHandle.isCurrent()) return;
 			let finalReason: FinishReason | undefined;
 			try {
 				finalReason = await result.finishReason;
