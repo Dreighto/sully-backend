@@ -50,21 +50,52 @@ type ActiveStream = {
 	chunks: UIMessageChunk[];
 	baseIndex: number; // global index of chunks[0] (ring buffer may have dropped earlier chunks)
 	listeners: Set<StreamListener>;
+	onSupersede?: () => void;
 };
 
 const MAX_BUFFERED_CHUNKS = 4096;
 const activeStreams = new Map<string, ActiveStream>();
 
+function closeListeners(stream: ActiveStream): void {
+	for (const listener of Array.from(stream.listeners)) {
+		try {
+			listener.onDone();
+		} catch {
+			/* client already disconnected */
+		}
+	}
+	stream.listeners.clear();
+}
+
 export type ActiveStreamHandle = {
 	record: (chunk: UIMessageChunk) => void;
 	end: () => void;
+	isCurrent: () => boolean;
+};
+
+type BeginActiveStreamOptions = {
+	onSupersede?: () => void;
 };
 
 /** Registers a new active stream for the thread and returns a handle bound to
  * it. If a newer turn supersedes this one, the stale handle's record/end
  * become no-ops instead of corrupting the newer buffer. */
-export function beginActiveStream(threadId: string): ActiveStreamHandle {
-	const stream: ActiveStream = { chunks: [], baseIndex: 0, listeners: new Set() };
+export function beginActiveStream(
+	threadId: string,
+	options: BeginActiveStreamOptions = {}
+): ActiveStreamHandle {
+	const previous = activeStreams.get(threadId);
+	try {
+		previous?.onSupersede?.();
+	} finally {
+		if (previous) closeListeners(previous);
+	}
+	const stream: ActiveStream = {
+		chunks: [],
+		baseIndex: 0,
+		listeners: new Set(),
+		onSupersede: options.onSupersede
+	};
 	activeStreams.set(threadId, stream);
 	return {
 		record(chunk) {
@@ -75,13 +106,21 @@ export function beginActiveStream(threadId: string): ActiveStreamHandle {
 				stream.chunks.splice(0, overflow);
 				stream.baseIndex += overflow;
 			}
-			for (const listener of stream.listeners) listener.onChunk(chunk);
+			for (const listener of Array.from(stream.listeners)) {
+				try {
+					listener.onChunk(chunk);
+				} catch {
+					stream.listeners.delete(listener);
+				}
+			}
 		},
 		end() {
 			if (activeStreams.get(threadId) !== stream) return;
 			activeStreams.delete(threadId);
-			for (const listener of stream.listeners) listener.onDone();
-			stream.listeners.clear();
+			closeListeners(stream);
+		},
+		isCurrent() {
+			return activeStreams.get(threadId) === stream;
 		}
 	};
 }
@@ -103,7 +142,12 @@ export function subscribeToActiveStream(
 	const from = Math.max(Math.floor(startIndex), stream.baseIndex);
 	for (let i = from - stream.baseIndex; i < stream.chunks.length; i++) {
 		const chunk = stream.chunks[i];
-		if (chunk) listener.onChunk(chunk);
+		if (!chunk) continue;
+		try {
+			listener.onChunk(chunk);
+		} catch {
+			return () => {};
+		}
 	}
 	stream.listeners.add(listener);
 	return () => stream.listeners.delete(listener);
