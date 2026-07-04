@@ -4,7 +4,6 @@
 //
 // Stickiness rule: once a thread escalates to planning or deep, it stays
 // there until the operator explicitly resets via the tier override.
-// L2 LLM classifier hook is scaffolded but not wired live.
 
 export type Tier = 'chat' | 'planning' | 'deep' | 'local';
 
@@ -99,12 +98,4 @@ function classifyFromChatTier(
 	}
 
 	return 'chat';
-}
-
-// L2 scaffolding: async LLM classifier for the ambiguous middle band.
-// Called when L1 returns 'chat' but message is 200-280 chars (uncertain zone).
-// Not wired live. Set LOGUEOS_CLASSIFIER_L2_ENABLED=1 and provide a Qwen
-// endpoint to activate.
-export async function classifyTierL2(_userMessage: string, _currentTier: Tier): Promise<Tier | null> {
-	return null;
 }
