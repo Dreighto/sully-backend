@@ -34,7 +34,7 @@ const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
 // Fallback model chain when Claude is unavailable. These route through Ollama
 // Cloud (ollama.com) using the existing local daemon + sign-in, no separate
 // API key needed. Tried in order: strongest → fastest.
-const FALLBACK_MODELS = ['deepseek-v4:671b-cloud', 'qwen3-coder:480b-cloud'];
+const FALLBACK_MODELS = ['deepseek-v4-pro:671b-cloud', 'qwen3-coder:480b-cloud'];
 
 // ---------------------------------------------------------------------------
 // Typed error frames. Every sdk-stream error path emits a `data-sully-error`

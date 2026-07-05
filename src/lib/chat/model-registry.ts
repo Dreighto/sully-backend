@@ -99,6 +99,22 @@ export const MODEL_REGISTRY: ModelChoice[] = [
 		tier: 'local',
 		provider: 'local',
 		model: 'kimi-k2:1t-cloud'
+	},
+	{
+		id: 'cloud-deepseek-pro',
+		label: 'DeepSeek v4 Pro',
+		sublabel: 'cloud · reasoning · tools',
+		tier: 'local',
+		provider: 'local',
+		model: 'deepseek-v4-pro:671b-cloud'
+	},
+	{
+		id: 'cloud-deepseek-flash',
+		label: 'DeepSeek v4 Flash',
+		sublabel: 'cloud · fast · tools',
+		tier: 'local',
+		provider: 'local',
+		model: 'deepseek-v4-flash:671b-cloud'
 	}
 ];
 
