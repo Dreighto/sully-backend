@@ -258,7 +258,7 @@ export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
 			const raw = localProvider(modelId);
 			const model = wrapLanguageModel({
 				model: raw,
-				middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+				middleware: extractReasoningMiddleware({ tagName: 'think' })
 			});
 			return { model, modelId };
 		} catch {
@@ -292,7 +292,7 @@ export function pickModel(provider: Provider, tier: Tier, requestedModel?: strin
 		const raw = localProvider(modelId);
 		const model = wrapLanguageModel({
 			model: raw,
-			middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+			middleware: extractReasoningMiddleware({ tagName: 'think' })
 		});
 		return { model, modelId };
 	}
@@ -317,7 +317,11 @@ export function resolveDirectModel(opts: {
 			baseURL: OLLAMA_V1,
 			apiKey: 'ollama'
 		});
-		return { model: cloud(factModel), modelId: factModel };
+		const factModelHandle = wrapLanguageModel({
+			model: cloud(factModel),
+			middleware: extractReasoningMiddleware({ tagName: 'think' })
+		});
+		return { model: factModelHandle, modelId: factModel };
 	}
 	return pickModel(ctx.provider, ctx.currentTier, requestedModel);
 }
