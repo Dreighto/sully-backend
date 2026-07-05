@@ -1,8 +1,10 @@
 import {
 	convertToModelMessages,
+	extractReasoningMiddleware,
 	generateId,
 	stepCountIs,
 	streamText,
+	wrapLanguageModel,
 	type FinishReason,
 	type ToolSet,
 	type UIMessageChunk
@@ -253,7 +255,12 @@ export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
 	});
 	for (const modelId of FALLBACK_MODELS) {
 		try {
-			return { model: localProvider(modelId), modelId };
+			const raw = localProvider(modelId);
+			const model = wrapLanguageModel({
+				model: raw,
+				middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+			});
+			return { model, modelId };
 		} catch {
 			continue;
 		}
@@ -282,7 +289,12 @@ export function pickModel(provider: Provider, tier: Tier, requestedModel?: strin
 			baseURL: OLLAMA_V1,
 			apiKey: 'ollama'
 		});
-		return { model: localProvider(modelId), modelId };
+		const raw = localProvider(modelId);
+		const model = wrapLanguageModel({
+			model: raw,
+			middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+		});
+		return { model, modelId };
 	}
 	const apiKey = getGoogleKey();
 	if (!apiKey) throw new Error('Google credential unavailable');
@@ -363,6 +375,7 @@ export async function runDirectStreamAttempt(opts: {
 	});
 
 	const uiStream = result.toUIMessageStream({
+		sendReasoning: true,
 		sendFinish: false,
 		originalMessages: ctx.messages,
 		generateMessageId: () => generateId(),
