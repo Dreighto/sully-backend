@@ -27,6 +27,10 @@ import {
 	streamResponseFromBuffer,
 	type SullyRoutingFrame
 } from '$lib/server/chat/sdk_stream_common';
+import {
+	listOllamaCloudAutoModels,
+	normalizeOllamaCloudModelId
+} from '$lib/server/chat/ollama_cloud_chain';
 
 const OLLAMA_BASE_URL =
 	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
@@ -35,7 +39,7 @@ const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
 // Fallback model chain when Claude is unavailable. These route through Ollama
 // Cloud (ollama.com) using the existing local daemon + sign-in, no separate
 // API key needed. Tried in order: strongest → fastest.
-const FALLBACK_MODELS = ['qwen3-coder:480b-cloud', 'gpt-oss:20b-cloud'];
+const FALLBACK_MODELS = listOllamaCloudAutoModels('chat');
 
 // ---------------------------------------------------------------------------
 // Typed error frames. Every sdk-stream error path emits a `data-sully-error`

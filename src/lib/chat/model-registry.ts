@@ -106,7 +106,7 @@ export const MODEL_REGISTRY: ModelChoice[] = [
 		sublabel: 'cloud · reasoning · tools',
 		tier: 'local',
 		provider: 'local',
-		model: 'deepseek-v4-pro:671b-cloud'
+		model: 'deepseek-v4-pro:cloud'
 	},
 	{
 		id: 'cloud-deepseek-flash',
@@ -114,7 +114,7 @@ export const MODEL_REGISTRY: ModelChoice[] = [
 		sublabel: 'cloud · fast · tools',
 		tier: 'local',
 		provider: 'local',
-		model: 'deepseek-v4-flash:671b-cloud'
+		model: 'deepseek-v4-flash:cloud'
 	}
 ];
 

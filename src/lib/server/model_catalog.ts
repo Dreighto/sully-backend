@@ -7,6 +7,7 @@
 // remember three places. The catalog owns the matrix now; the three callers
 // resolve through it.
 
+import { normalizeOllamaCloudModelId } from '$lib/server/chat/ollama_cloud_chain';
 import { runMode, serverConfig } from './config';
 import type { Tier } from './phase_classifier';
 import { TIER_PROVIDER_MODELS, type CatalogProvider } from '$lib/chat/model-registry';
@@ -43,7 +44,7 @@ export function resolveChatModel(args: {
 	provider: Provider;
 	requestedModel?: string;
 }): string {
-	if (args.requestedModel) return args.requestedModel;
+	if (args.requestedModel) return normalizeOllamaCloudModelId(args.requestedModel);
 	if (runMode.companion && args.provider === 'local') {
 		return serverConfig.companionDefaultModel;
 	}

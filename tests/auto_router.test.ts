@@ -95,14 +95,14 @@ describe('resolveAutoModel', () => {
 			if (provider === 'google') throw new Error('no google key');
 			return {
 				model: {} as never,
-				modelId: requested ?? 'qwen3-coder:480b-cloud'
+				modelId: requested ?? 'deepseek-v4-flash:cloud'
 			};
 		});
 		const result = resolveAutoModel(baseCtx({ currentTier: 'chat' }));
 		expect(result.kind).toBe('direct');
 		if (result.kind === 'direct') {
 			expect(result.route.provider).toBe('local');
-			expect(result.route.model).toContain('qwen3-coder');
+			expect(result.route.model).toContain('deepseek-v4-flash');
 		}
 	});
 
@@ -115,7 +115,7 @@ describe('resolveAutoModel', () => {
 		const result = resolveAutoModel(baseCtx({ currentTier: 'planning' }));
 		expect(result.kind).toBe('direct');
 		if (result.kind === 'direct') {
-			expect(result.route.model).toContain('qwen3-coder');
+			expect(result.route.model).toContain('deepseek-v4-pro');
 		}
 	});
 
