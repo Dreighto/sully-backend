@@ -105,20 +105,27 @@ export function handleLocalReply(opts: {
 
 			let cloudCollected = '';
 			let errored = false;
-			for await (const chunk of streamViaClaudeCLI({
-				model: escalationModel,
-				systemPrompt: ctx.systemPrompt,
-				userPrompt: transcript || ctx.userText,
-				signal
-			})) {
-				if (chunk.type === 'text-delta') {
-					cloudCollected += chunk.delta;
-					writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
-				} else if (chunk.type === 'error') {
-					errored = true;
-					emitSullyError(writer as SullyErrorWriter, classifySullyError(chunk.message));
-					writer.write({ type: 'error', errorText: chunk.message });
+			try {
+				for await (const chunk of streamViaClaudeCLI({
+					model: escalationModel,
+					systemPrompt: ctx.systemPrompt,
+					userPrompt: transcript || ctx.userText,
+					signal
+				})) {
+					if (chunk.type === 'text-delta') {
+						cloudCollected += chunk.delta;
+						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+					} else if (chunk.type === 'error') {
+						errored = true;
+						emitSullyError(writer as SullyErrorWriter, classifySullyError(chunk.message));
+						writer.write({ type: 'error', errorText: chunk.message });
+					}
 				}
+			} catch (error) {
+				errored = true;
+				const errText = `Cloud model: ${(error as { message?: string })?.message || 'stream_error'}`;
+				emitSullyError(writer as SullyErrorWriter, classifySullyError(errText));
+				writer.write({ type: 'error', errorText: errText });
 			}
 
 			writer.write({ type: 'text-end', id: textId });
@@ -303,20 +310,27 @@ export function handleLocalReply(opts: {
 			writer.write({ type: 'text-delta', id: textId, delta: '_thinking harder…_\n\n' });
 			const transcript = transcriptFrom(ctx.modelMessages);
 			let cloudCollected = '';
-			for await (const chunk of streamViaClaudeCLI({
-				model: escalationModel,
-				systemPrompt: ctx.systemPrompt,
-				userPrompt: transcript || ctx.userText,
-				signal
-			})) {
-				if (chunk.type === 'text-delta') {
-					cloudCollected += chunk.delta;
-					writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
-				} else if (chunk.type === 'error') {
-					errored = true;
-					emitSullyError(writer as SullyErrorWriter, classifySullyError(chunk.message));
-					writer.write({ type: 'error', errorText: chunk.message });
+			try {
+				for await (const chunk of streamViaClaudeCLI({
+					model: escalationModel,
+					systemPrompt: ctx.systemPrompt,
+					userPrompt: transcript || ctx.userText,
+					signal
+				})) {
+					if (chunk.type === 'text-delta') {
+						cloudCollected += chunk.delta;
+						writer.write({ type: 'text-delta', id: textId, delta: chunk.delta });
+					} else if (chunk.type === 'error') {
+						errored = true;
+						emitSullyError(writer as SullyErrorWriter, classifySullyError(chunk.message));
+						writer.write({ type: 'error', errorText: chunk.message });
+					}
 				}
+			} catch (error) {
+				errored = true;
+				const errText = `Cloud model: ${(error as { message?: string })?.message || 'stream_error'}`;
+				emitSullyError(writer as SullyErrorWriter, classifySullyError(errText));
+				writer.write({ type: 'error', errorText: errText });
 			}
 
 			writer.write({ type: 'text-end', id: textId });
