@@ -361,8 +361,13 @@ export async function handleDirectReply(opts: {
 				bufferWriter.write({ type: 'finish', finishReason: finalReason });
 				return;
 			} else {
-				upsertThreadTier(ctx.threadId, ctx.currentTier, modelHandle.modelId);
-				touchLastActivity(ctx.threadId);
+				// Model finished without emitting reply text (tool-only abort, empty
+				// synthesis, etc.). Roll back the orphan operator row + task so the
+				// thread does not show a question with no answer forever.
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+				emitSullyError(bufferWriter, classifySullyError('No reply was generated.', undefined));
+				bufferWriter.write({ type: 'finish', finishReason: finalReason ?? 'error' });
+				return;
 			}
 
 			finishWithReplyId(bufferWriter, replyId, finalReason);

@@ -192,6 +192,26 @@ function mockHappyDirectStream(replyText = 'Hello back.') {
 	});
 }
 
+function mockEmptySuccessfulDirectStream() {
+	const chunks = [{ type: 'start', messageId: 'sdk-msg' }, { type: 'finish-step' }];
+	streamText.mockReturnValue({
+		usage: Promise.resolve({ inputTokens: 0, outputTokens: 0 }),
+		finishReason: Promise.resolve('stop'),
+		toUIMessageStream: ({ onFinish }: ToUIMessageStreamOptions) =>
+			new ReadableStream({
+				async pull(controller) {
+					const next = chunks.shift();
+					if (next) {
+						controller.enqueue(next);
+						return;
+					}
+					await onFinish({ responseMessage: { parts: [] } });
+					controller.close();
+				}
+			})
+	});
+}
+
 function mockErroredDirectStream() {
 	const chunks = [
 		{ type: 'start', messageId: 'sdk-msg' },
@@ -293,6 +313,26 @@ describe('POST /api/chat/sdk-stream invariants', () => {
 		expect(persistAssistantTurn).not.toHaveBeenCalled();
 		expect(deleteChatMessage).not.toHaveBeenCalled();
 		expect(expireTaskById).not.toHaveBeenCalled();
+		expect(applyTurnDecision).not.toHaveBeenCalled();
+	});
+
+	it('rolls back a successful-looking empty direct turn with no reply text', async () => {
+		mockEmptySuccessfulDirectStream();
+
+		const response = await postSdkStream();
+		expect(response.status).toBe(200);
+		const chunks = await responseChunks(response);
+		const types = chunks.map((chunk) => chunk.type);
+
+		expect(types).toEqual(['start', 'finish-step', 'data-sully-error', 'finish']);
+		expect(chunks.find((chunk) => chunk.type === 'data-sully-error')?.data).toEqual({
+			code: 'unknown',
+			message: 'No reply was generated.',
+			recovery: expect.stringMatching(/retry|switch model/i)
+		});
+		expect(persistAssistantTurn).not.toHaveBeenCalled();
+		expect(deleteChatMessage).toHaveBeenCalledWith(42);
+		expect(expireTaskById).toHaveBeenCalledWith('task-test');
 		expect(applyTurnDecision).not.toHaveBeenCalled();
 	});
 });
