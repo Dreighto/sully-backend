@@ -26,6 +26,13 @@ export interface SpendProviderRow {
 	costUsd: number;
 }
 
+export interface SpendModelRow {
+	model: string;
+	provider: string;
+	tokens: number;
+	costUsd: number;
+}
+
 export interface SpendCap {
 	provider: string;
 	/** Daily token limit. 0 = unlimited. */
@@ -44,6 +51,7 @@ export interface SpendReport {
 	total: number;
 	categories: { chatLlm: number; research: number; voice: number };
 	providers: SpendProviderRow[];
+	models: SpendModelRow[];
 	dailyTrend: Array<{ date: string; cost: number }>;
 	caps: SpendCap[];
 	note: string;
@@ -137,6 +145,120 @@ function getTokensForProvider(provider: string): number {
 	}
 }
 
+// ── Alerts ───────────────────────────────────────────────────────────────────
+
+export interface SpendAlert {
+	severity: 'info' | 'warning' | 'critical';
+	provider: string;
+	message: string;
+	pct: number;
+}
+
+export function getAlerts(): SpendAlert[] {
+	const report = getSpend(30);
+	const alerts: SpendAlert[] = [];
+
+	for (const cap of report.caps) {
+		if (cap.dailyTokenCap > 0) {
+			const pct = cap.todayTokens / cap.dailyTokenCap;
+			if (pct >= 1) {
+				alerts.push({
+					severity: 'critical',
+					provider: cap.provider,
+					message: `${cap.provider} daily token cap reached (${formatTokens(cap.todayTokens)} / ${formatTokens(cap.dailyTokenCap)})`,
+					pct: 1
+				});
+			} else if (pct >= 0.85) {
+				alerts.push({
+					severity: 'warning',
+					provider: cap.provider,
+					message: `${cap.provider} at ${Math.round(pct * 100)}% of daily token cap (${formatTokens(cap.todayTokens)} / ${formatTokens(cap.dailyTokenCap)})`,
+					pct
+				});
+			} else if (pct >= 0.7) {
+				alerts.push({
+					severity: 'info',
+					provider: cap.provider,
+					message: `${cap.provider} at ${Math.round(pct * 100)}% of daily token cap`,
+					pct
+				});
+			}
+		}
+		if (cap.monthlySpendCap > 0) {
+			const pct = cap.monthToDate / cap.monthlySpendCap;
+			if (pct >= 1) {
+				alerts.push({
+					severity: 'critical',
+					provider: cap.provider,
+					message: `${cap.provider} monthly spend cap reached ($${cap.monthToDate.toFixed(2)} / $${cap.monthlySpendCap.toFixed(2)})`,
+					pct: 1
+				});
+			} else if (pct >= 0.85) {
+				alerts.push({
+					severity: 'warning',
+					provider: cap.provider,
+					message: `${cap.provider} at ${Math.round(pct * 100)}% of monthly spend cap`,
+					pct
+				});
+			}
+		}
+	}
+
+	return alerts;
+}
+
+function formatTokens(t: number): string {
+	if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M`;
+	if (t >= 1_000) return `${(t / 1_000).toFixed(0)}K`;
+	return `${t}`;
+}
+
+// ── Server-side budget ───────────────────────────────────────────────────────
+
+const BUDGET_TABLE = `
+	CREATE TABLE IF NOT EXISTS chat_spend_budget (
+		id INTEGER PRIMARY KEY CHECK (id = 1),
+		amount REAL NOT NULL DEFAULT 0,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+`;
+
+export function getBudget(): number {
+	try {
+		const db = new Database(serverConfig.memoryDbPath, { readonly: true });
+		try {
+			const row = db.prepare('SELECT amount FROM chat_spend_budget WHERE id = 1').get() as
+				| { amount: number }
+				| undefined;
+			return row?.amount ?? 0;
+		} catch {
+			// Table may not exist yet — return 0.
+			return 0;
+		} finally {
+			db.close();
+		}
+	} catch {
+		return 0;
+	}
+}
+
+export function setBudget(amount: number): void {
+	try {
+		const db = new Database(serverConfig.memoryDbPath);
+		try {
+			db.exec(BUDGET_TABLE);
+			db.prepare(
+				`INSERT INTO chat_spend_budget (id, amount) VALUES (1, ?)
+				 ON CONFLICT(id) DO UPDATE SET amount = excluded.amount, updated_at = CURRENT_TIMESTAMP`
+			).run(amount);
+		} finally {
+			db.close();
+		}
+	} catch (e) {
+		console.error('setBudget error:', e);
+	}
+}
+
 function emptyReport(days: number): SpendReport {
 	const n = normalizeDays(days);
 	const today = todayDate();
@@ -149,6 +271,7 @@ function emptyReport(days: number): SpendReport {
 		total: 0,
 		categories: { chatLlm: 0, research: 0, voice: 0 },
 		providers: [],
+		models: [],
 		dailyTrend,
 		caps: [],
 		note: NOTE
@@ -205,6 +328,8 @@ export function getSpend(days = 30): SpendReport {
 
 		// Provider rollup is scoped to the trend window (last `days`).
 		const providerTotals = new Map<string, { tokens: number; costUsd: number }>();
+		// Per-model rollup (model column added 2026-07-04; older rows have null).
+		const modelTotals = new Map<string, { model: string; provider: string; tokens: number; costUsd: number }>();
 
 		for (const r of tokenRows) {
 			const cost = tokenCostUsd(r.provider, r.tokens_used);
@@ -214,6 +339,13 @@ export function getSpend(days = 30): SpendReport {
 				cur.tokens += Number.isFinite(r.tokens_used) ? r.tokens_used : 0;
 				cur.costUsd += cost;
 				providerTotals.set(r.provider, cur);
+
+				// Per-model: key on model name or fall back to provider.
+				const modelKey = r.model || r.provider;
+				const mc = modelTotals.get(modelKey) ?? { model: modelKey, provider: r.provider, tokens: 0, costUsd: 0 };
+				mc.tokens += Number.isFinite(r.tokens_used) ? r.tokens_used : 0;
+				mc.costUsd += cost;
+				modelTotals.set(modelKey, mc);
 			}
 		}
 		for (const r of webRows) {
@@ -254,6 +386,10 @@ export function getSpend(days = 30): SpendReport {
 			.map(([provider, v]) => ({ provider, tokens: v.tokens, costUsd: round2(v.costUsd) }))
 			.sort((a, b) => b.costUsd - a.costUsd);
 
+		const models: SpendModelRow[] = Array.from(modelTotals.entries())
+			.map(([, v]) => ({ model: v.model, provider: v.provider, tokens: v.tokens, costUsd: round2(v.costUsd) }))
+			.sort((a, b) => b.costUsd - a.costUsd);
+
 		const caps = readCaps(providers);
 
 		return {
@@ -266,6 +402,7 @@ export function getSpend(days = 30): SpendReport {
 				voice: round2(windowVoice)
 			},
 			providers,
+			models,
 			dailyTrend,
 			caps,
 			note: NOTE

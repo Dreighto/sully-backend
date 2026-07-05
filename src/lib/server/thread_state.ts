@@ -45,6 +45,7 @@ function ensureTables(db: Database.Database): void {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			date TEXT NOT NULL,
 			provider TEXT NOT NULL,
+			model TEXT NULL,
 			tokens_used INTEGER NOT NULL DEFAULT 0,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(date, provider)
@@ -55,6 +56,12 @@ function ensureTables(db: Database.Database): void {
 	// exists; swallow that one specific error.
 	try {
 		db.exec(`ALTER TABLE chat_thread_state ADD COLUMN provider_override TEXT NULL`);
+	} catch (e) {
+		if (!(e instanceof Error && /duplicate column/i.test(e.message))) throw e;
+	}
+	// Idempotent column add for model — older DBs predate this column.
+	try {
+		db.exec(`ALTER TABLE chat_token_usage ADD COLUMN model TEXT NULL`);
 	} catch (e) {
 		if (!(e instanceof Error && /duplicate column/i.test(e.message))) throw e;
 	}
@@ -212,7 +219,7 @@ export function getTokenUsage(provider: string): number {
 	}
 }
 
-export function addTokenUsage(provider: string, tokens: number): void {
+export function addTokenUsage(provider: string, tokens: number, model?: string): void {
 	if (tokens <= 0 || !dbExists()) return;
 	const today = todayDate();
 	const db = getDb();
@@ -220,13 +227,14 @@ export function addTokenUsage(provider: string, tokens: number): void {
 		ensureTables(db);
 		db.prepare(
 			`
-			INSERT INTO chat_token_usage (date, provider, tokens_used)
-			VALUES (?, ?, ?)
+			INSERT INTO chat_token_usage (date, provider, model, tokens_used)
+			VALUES (?, ?, ?, ?)
 			ON CONFLICT(date, provider) DO UPDATE SET
 				tokens_used = tokens_used + excluded.tokens_used,
+				model = COALESCE(excluded.model, model),
 				updated_at = CURRENT_TIMESTAMP
 		`
-		).run(today, provider, tokens);
+		).run(today, provider, model ?? null, tokens);
 	} catch (e) {
 		console.error('addTokenUsage error:', e);
 	} finally {

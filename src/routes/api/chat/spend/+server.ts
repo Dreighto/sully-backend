@@ -1,6 +1,5 @@
 // GET /api/chat/spend — read-only USD spend rollup for the Ops dashboard.
 // Aggregates the four usage tables over the last 30 days. See spend.ts.
-// Mirrors the error handling of GET /api/chat/usage.
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
