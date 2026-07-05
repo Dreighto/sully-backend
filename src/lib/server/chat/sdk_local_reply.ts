@@ -215,7 +215,7 @@ export function handleLocalReply(opts: {
 							emitTextDelta(part.text);
 							break;
 						case 'tool-call':
-							writer.write({
+							(writer.write as (chunk: Record<string, unknown>) => void)({
 								type: 'tool-call-start',
 								toolCallId: part.toolCallId,
 								toolName: part.toolName

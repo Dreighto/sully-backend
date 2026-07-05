@@ -300,9 +300,9 @@ export function getSpend(days = 30): SpendReport {
 
 	const db = new Database(serverConfig.memoryDbPath, { readonly: true });
 	try {
-		const tokenRows = safeAll<{ date: string; provider: string; tokens_used: number }>(
+		const tokenRows = safeAll<{ date: string; provider: string; model: string | null; tokens_used: number }>(
 			db,
-			'SELECT date, provider, tokens_used FROM chat_token_usage WHERE date >= ?',
+			'SELECT date, provider, model, tokens_used FROM chat_token_usage WHERE date >= ?',
 			queryStart
 		);
 		const webRows = safeAll<{ date: string; cents_spent: number }>(
