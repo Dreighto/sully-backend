@@ -358,7 +358,7 @@ export async function runDirectStreamAttempt(opts: {
 		system: directSystemPrompt,
 		messages: await convertToModelMessages(ctx.modelMessages),
 		tools: directTools,
-		stopWhen: stepCountIs(8),
+		stopWhen: stepCountIs(15),
 		abortSignal: turnAbort
 	});
 
