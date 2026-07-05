@@ -74,6 +74,13 @@ export function normalizeProvider(provider: string): SpendProvider | undefined {
 //   LOGUEOS_PRICE_OLLAMA_CLOUD_PER_M  (default 1.5)
 const OLLAMA_CLOUD_PER_M = envNum('LOGUEOS_PRICE_OLLAMA_CLOUD_PER_M', 1.5);
 
+// DeepSeek-v4 models now ride the operator's per-token DeepSeek API as PRIMARY
+// (deepseek_api.ts; Ollama Cloud is only the fallback), so price them at the
+// API's blended $/1M rates instead of the coarse Ollama-Cloud estimate:
+//   v4-flash $0.14 in / $0.28 out -> ~0.2 blended; v4-pro $1.74/$3.48 -> ~1.3.
+const DEEPSEEK_FLASH_PER_M = envNum('LOGUEOS_PRICE_DEEPSEEK_FLASH_PER_M', 0.2);
+const DEEPSEEK_PRO_PER_M = envNum('LOGUEOS_PRICE_DEEPSEEK_PRO_PER_M', 1.3);
+
 /** True when a model label names an Ollama Cloud (paid-quota) model. */
 export function isOllamaCloudModel(model: string | null | undefined): boolean {
 	return !!model && /(^|[:\-_/])cloud\b/i.test(model);
@@ -85,6 +92,12 @@ export function isOllamaCloudModel(model: string | null | undefined): boolean {
 export function tokenCostUsd(provider: string, tokens: number, model?: string | null): number {
 	if (!Number.isFinite(tokens) || tokens <= 0) return 0;
 	const key = normalizeProvider(provider);
+	if (key === 'local' && model && /^deepseek-v4-flash/i.test(model)) {
+		return (tokens / 1_000_000) * DEEPSEEK_FLASH_PER_M;
+	}
+	if (key === 'local' && model && /^deepseek-v4-pro/i.test(model)) {
+		return (tokens / 1_000_000) * DEEPSEEK_PRO_PER_M;
+	}
 	if (key === 'local' && isOllamaCloudModel(model)) {
 		return (tokens / 1_000_000) * OLLAMA_CLOUD_PER_M;
 	}
