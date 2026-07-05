@@ -304,13 +304,11 @@ export function persistAssistantTurn(args: {
 	// that persists an assistant turn (direct/CLI/local/voice).
 	void maybeAutoTitle(args.threadId).catch(() => {});
 
-	// Honesty shadow observation: when tool call data is provided, audit the
-	// reply for fabricated action claims and log any flags to the honesty corpus.
-	// Fire-and-forget — never blocks the reply stream. Deliberately runs AFTER
-	// the reply is persisted so the corpus has the final text.
-	if (args.toolCallsThisTurn) {
-		honestyObserve(args.text, args.toolCallsThisTurn, args.threadId);
-	}
+	// Honesty shadow observation: audit every reply for fabricated tool syntax
+	// and (when tool call data is available) unbacked action claims. Logs flags
+	// to the honesty corpus. Fire-and-forget — never blocks the reply stream.
+	// Runs AFTER the reply is persisted so the corpus has the final text.
+	honestyObserve(args.text, args.toolCallsThisTurn ?? [], args.threadId);
 
 	// Stage 1 (server-owned reply-id): return the persisted chat_messages.id so the
 	// manual-writer stream paths can emit a terminal data-sully-reply-id frame,
