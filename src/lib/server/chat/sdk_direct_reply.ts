@@ -14,7 +14,7 @@ import type { Tier } from '$lib/server/phase_classifier';
 import type { PreparedStreamContext, Provider } from '$lib/server/chat/stream_prepare';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
-import { getTokenUsage } from '$lib/server/thread_state';
+import { addTokenUsage, getTokenUsage } from '$lib/server/thread_state';
 import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { factGate } from '$lib/server/routing/factGate';
@@ -390,6 +390,17 @@ export async function handleDirectReply(opts: {
 					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
 					reused: ctx.reused
 				});
+				// Track real token usage from the provider response so the spend
+				// dashboard has actual counts (not just estimates from llm_router).
+				// Fire-and-forget: never block the reply stream.
+				try {
+					const totalTokens = (promptTokens ?? 0) + (completionTokens ?? 0);
+					if (totalTokens > 0) {
+						addTokenUsage(ctx.provider, totalTokens, modelHandle.modelId);
+					}
+				} catch {
+					/* token tracking must never break the reply */
+				}
 			} else if (directErrored || finalReason === 'error') {
 				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
 				bufferWriter.write({ type: 'finish', finishReason: finalReason });
