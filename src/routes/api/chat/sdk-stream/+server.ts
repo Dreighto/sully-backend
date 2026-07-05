@@ -31,7 +31,7 @@ import {
 	sullyErrorFrame
 } from '$lib/server/chat/sdk_direct_reply';
 import { handleAutoReply } from '$lib/server/chat/sdk_auto_reply';
-import { shadowObserve } from '$lib/server/brains/shadow_router';
+import { classifyShadow, logEscalation, shadowObserve } from '$lib/server/brains/shadow_router';
 
 function latestUserText(messages: UIMessage[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
@@ -88,10 +88,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			? body.client_turn_id.trim()
 			: null;
 
-	// Hybrid brain Phase 2 (shadow): classify LOCAL/ESCALATE and log the decision
-	// WITHOUT acting — the SDK still answers everything. Fire-and-forget by
-	// contract (shadowObserve never throws). Fidelity gets measured against a
-	// week of real traffic before any cutover (build-plan step 2 gate).
+	// Hybrid brain Phase 2 → Phase 4: classify the turn and log it. The
+	// verdict is now used to influence routing (LOCAL → local model,
+	// ESCALATE → Claude). Phase 5 sends ESCALATE decisions to the training
+	// corpus telemetry so the local model can learn from specialist
+	// interventions.
+	const hybridVerdict = classifyShadow(userText);
 	shadowObserve(threadId, userText, 'sdk-stream');
 
 	const ctx = await prepareStream({
@@ -147,6 +149,20 @@ export const POST: RequestHandler = async ({ request }) => {
 	let routing: SullyRoutingFrame | undefined;
 	let fallbackReason: string | undefined;
 
+	// Phase 4: hybrid brain routing — when the shadow router classifies a
+	// message as LOCAL and the operator hasn't pinned an explicit provider,
+	// route to the local model (qwen3:14b on Ollama). ESCALATE keeps the
+	// anthropic path. unsure defaults to the usual provider (anthropic).
+	// Phase 5: ESCALATE decisions are logged to the escalation corpus for
+	// the apprentice→teacher training loop.
+	if (!body.provider && hybridVerdict.decision === 'LOCAL') {
+		(ctx as { provider: string; currentTier: string }).provider = 'local';
+		(ctx as { provider: string; currentTier: string }).currentTier = 'local';
+		fallbackReason = `hybrid: local (${hybridVerdict.source} / ${hybridVerdict.why})`;
+	} else if (hybridVerdict.decision === 'ESCALATE') {
+		fallbackReason = `hybrid: escalate (${hybridVerdict.source} / ${hybridVerdict.why})`;
+	}
+
 	// Pre-flight cap check for explicit Anthropic picks.
 	if (ctx.provider === 'anthropic') {
 		const fallback = pickFallbackModel();
@@ -189,6 +205,19 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const tools = ctx.allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
+
+	// Phase 5: log ESCALATE decisions to the training corpus so the local
+	// model can learn from what the specialist handles.
+	if (hybridVerdict.decision === 'ESCALATE') {
+		logEscalation({
+			ts: new Date().toISOString(),
+			thread: threadId,
+			text_head: userText.slice(0, 200),
+			reason: `${hybridVerdict.source}: ${hybridVerdict.why}`,
+			model_used: modelHandle.modelId
+		});
+	}
+
 	if (ctx.provider === 'local') {
 		return handleLocalReply({ ctx, request, model: modelHandle.model, tools, routing });
 	}

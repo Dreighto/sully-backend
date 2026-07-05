@@ -136,3 +136,30 @@ export function shadowObserve(thread: string, userText: string, actualPath: stri
 		/* never break chat */
 	}
 }
+
+// ── Phase 5: escalation telemetry — apprentice→teacher training loop ──────────
+// Every ESCALATE decision is the local model's gap. Logging these lets us
+// feed them back into fine-tuning so the local model absorbs what it couldn't
+// handle. Fire-and-forget — never blocks the reply.
+
+export interface EscalationLogEntry {
+	ts: string;
+	thread: string;
+	text_head: string;
+	reason: string;
+	model_used: string;
+}
+
+function escalationCorpusPath(): string {
+	return path.join(process.cwd(), 'data', 'hybrid_escalation_corpus.jsonl');
+}
+
+export function logEscalation(entry: EscalationLogEntry): void {
+	try {
+		const p = escalationCorpusPath();
+		fs.mkdirSync(path.dirname(p), { recursive: true });
+		fs.appendFileSync(p, JSON.stringify(entry) + '\n');
+	} catch {
+		/* best-effort — never break chat */
+	}
+}
