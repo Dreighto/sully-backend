@@ -42,7 +42,7 @@ describe('resolveAutoModel', () => {
 			}
 			return {
 				model: {} as never,
-				modelId: requested ?? 'deepseek-v4-flash:671b-cloud'
+				modelId: requested ?? 'qwen3-coder:480b-cloud'
 			};
 		});
 	});
@@ -69,7 +69,7 @@ describe('resolveAutoModel', () => {
 			if (provider === 'google') {
 				return { model: {} as never, modelId: 'gemini-2.5-flash' };
 			}
-			return { model: {} as never, modelId: requested ?? 'deepseek-v4-pro:671b-cloud' };
+			return { model: {} as never, modelId: requested ?? 'qwen3-coder:480b-cloud' };
 		});
 		const result = resolveAutoModel(baseCtx({ currentTier: 'planning' }));
 		expect(result.kind).toBe('cli');
@@ -95,14 +95,14 @@ describe('resolveAutoModel', () => {
 			if (provider === 'google') throw new Error('no google key');
 			return {
 				model: {} as never,
-				modelId: requested ?? 'deepseek-v4-flash:671b-cloud'
+				modelId: requested ?? 'qwen3-coder:480b-cloud'
 			};
 		});
 		const result = resolveAutoModel(baseCtx({ currentTier: 'chat' }));
 		expect(result.kind).toBe('direct');
 		if (result.kind === 'direct') {
 			expect(result.route.provider).toBe('local');
-			expect(result.route.model).toContain('deepseek-v4-flash');
+			expect(result.route.model).toContain('qwen3-coder');
 		}
 	});
 
@@ -115,7 +115,7 @@ describe('resolveAutoModel', () => {
 		const result = resolveAutoModel(baseCtx({ currentTier: 'planning' }));
 		expect(result.kind).toBe('direct');
 		if (result.kind === 'direct') {
-			expect(result.route.model).toContain('deepseek-v4-pro');
+			expect(result.route.model).toContain('qwen3-coder');
 		}
 	});
 

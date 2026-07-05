@@ -222,8 +222,18 @@ export function handleAutoReply(ctx: PreparedStreamContext, request: Request): R
 
 				const code = attempt.errorFrame?.code;
 				const family = familyFromCandidate(candidate);
+				const hasMoreSameFamily = candidates
+					.slice(i + 1)
+					.some((c) => familyFromCandidate(c) === family);
 				if (code && isAutoFallbackableError(code)) {
-					recordAutoProviderFailure(family, code, attempt.errorFrame?.message);
+					const recordCooldown =
+						!canRetry ||
+						code === 'rate_limit' ||
+						code === 'credential_unavailable' ||
+						!hasMoreSameFamily;
+					if (recordCooldown) {
+						recordAutoProviderFailure(family, code, attempt.errorFrame?.message);
+					}
 				}
 
 				if (canRetry && code && isAutoFallbackableError(code)) {

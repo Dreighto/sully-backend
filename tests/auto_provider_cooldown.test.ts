@@ -46,7 +46,7 @@ describe('listAutoModelCandidates with provider cooldown', () => {
 			if (provider === 'google') {
 				return { model: {} as never, modelId: 'gemini-2.5-flash-lite' };
 			}
-			return { model: {} as never, modelId: requested ?? 'deepseek-v4-flash:671b-cloud' };
+			return { model: {} as never, modelId: requested ?? 'qwen3-coder:480b-cloud' };
 		});
 	});
 
@@ -71,10 +71,10 @@ describe('listAutoModelCandidates with provider cooldown', () => {
 			baseCtx({
 				threadState: {
 					...baseCtx().threadState,
-					last_model_used: 'deepseek-v4-flash:671b-cloud'
+					last_model_used: 'qwen3-coder:480b-cloud'
 				}
 			})
 		);
-		expect(list[0].route.model).toContain('deepseek-v4-flash');
+		expect(list[0].route.model).toContain('qwen3-coder');
 	});
 });

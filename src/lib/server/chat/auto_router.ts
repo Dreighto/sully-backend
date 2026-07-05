@@ -2,7 +2,7 @@
 //
 // When the client omits `provider` (picker = Auto), classify the turn tier
 // (already done in stream_prepare) then try providers in cost/capability order:
-//   anthropic (tier matrix) → google (tier matrix) → Ollama Cloud DeepSeek
+//   anthropic (tier matrix) → google (tier matrix) → Ollama Cloud (qwen3-coder, gpt-oss, …)
 //
 // Ollama Cloud uses the local daemon + OLLAMA_API_KEY / `ollama signin` — same
 // path as the explicit DeepSeek picker entries (`*-cloud` tags). No direct
@@ -23,13 +23,7 @@ import {
 	syncAnthropicCapCooldown,
 	type AutoProviderFamily
 } from '$lib/server/chat/auto_provider_cooldown';
-
-const OLLAMA_FLASH = process.env.SULLY_AUTO_OLLAMA_FLASH || 'deepseek-v4-flash:671b-cloud';
-const OLLAMA_PRO = process.env.SULLY_AUTO_OLLAMA_PRO || 'deepseek-v4-pro:671b-cloud';
-
-function ollamaCloudModelForTier(tier: Tier): string {
-	return tier === 'chat' ? OLLAMA_FLASH : OLLAMA_PRO;
-}
+import { listOllamaCloudAutoModels } from '$lib/server/chat/ollama_cloud_chain';
 
 function anthropicCredentialAvailable(modelId: string): boolean {
 	try {
@@ -163,21 +157,22 @@ export function listAutoModelCandidates(ctx: PreparedStreamContext): AutoResolve
 		});
 	}
 
-	// 3) Ollama Cloud DeepSeek — flash for chat tier, pro for planning/deep
+	// 3) Ollama Cloud — try each registered *-cloud model on this host
 	if (!isAutoProviderCooling('local')) {
-		const cloudModel = ollamaCloudModelForTier(tier);
-		const cloudHandle = pickModel('local', tier, cloudModel);
-		candidates.push({
-			kind: 'direct',
-			modelHandle: cloudHandle,
-			route: buildRoute({
-				provider: 'local',
-				modelId: cloudHandle.modelId,
-				tier,
-				reason: 'auto_ollama_cloud',
-				fell_forward: true
-			})
-		});
+		for (const cloudModel of listOllamaCloudAutoModels(tier)) {
+			const cloudHandle = pickModel('local', tier, cloudModel);
+			candidates.push({
+				kind: 'direct',
+				modelHandle: cloudHandle,
+				route: buildRoute({
+					provider: 'local',
+					modelId: cloudHandle.modelId,
+					tier,
+					reason: 'auto_ollama_cloud',
+					fell_forward: true
+				})
+			});
+		}
 	}
 
 	const anthropicInList = candidates.some((c) => familyFromCandidate(c) === 'anthropic');
@@ -213,8 +208,8 @@ export function resolveAutoFallback(tier: Tier): {
 			})
 		};
 	}
-	const cloudModel = ollamaCloudModelForTier(tier);
-	const modelHandle = pickModel('local', tier, cloudModel);
+	const cloudModels = listOllamaCloudAutoModels(tier);
+	const modelHandle = pickModel('local', tier, cloudModels[0]);
 	return {
 		modelHandle,
 		route: buildRoute({

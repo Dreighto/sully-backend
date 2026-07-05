@@ -35,7 +35,7 @@ const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
 // Fallback model chain when Claude is unavailable. These route through Ollama
 // Cloud (ollama.com) using the existing local daemon + sign-in, no separate
 // API key needed. Tried in order: strongest → fastest.
-const FALLBACK_MODELS = ['deepseek-v4-pro:671b-cloud', 'qwen3-coder:480b-cloud'];
+const FALLBACK_MODELS = ['qwen3-coder:480b-cloud', 'gpt-oss:20b-cloud'];
 
 // ---------------------------------------------------------------------------
 // Typed error frames. Every sdk-stream error path emits a `data-sully-error`
@@ -87,7 +87,9 @@ export function classifySullyError(message: string, statusCode?: number): SullyE
 	const msg = message || 'unknown_stream_error';
 	const m = msg.toLowerCase();
 	let code: SullyErrorCode = 'unknown';
-	if (
+	if (statusCode === 404 || /not.?found|model.*not found|does not exist|unknown model/.test(m)) {
+		code = 'provider_error';
+	} else if (
 		statusCode === 401 ||
 		statusCode === 403 ||
 		/credential unavailable|authentication|permission|api key|unauthorized|token expired|auth failed/.test(
@@ -152,7 +154,7 @@ function describeDirectError(
 		err.lastError ??
 		err.cause ??
 		err;
-	const statusCode = apiErr.statusCode;
+	const statusCode = apiErr.statusCode ?? (err as { statusCode?: number }).statusCode;
 
 	const body = apiErr.responseBody;
 	if (body) {
