@@ -56,6 +56,7 @@ const PROVIDER_ALIASES: Record<string, SpendProvider> = {
 	gpt: 'openai',
 	gemini: 'gemini',
 	google: 'gemini',
+	deepseek: 'local',
 	local: 'local',
 	ollama: 'local'
 };

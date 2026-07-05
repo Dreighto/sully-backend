@@ -30,6 +30,9 @@ const OLLAMA_BASE_URL =
 	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
 
+const DEEPSEEK_BASE = 'https://api.deepseek.com';
+const DEEPSEEK_MODELS = ['deepseek-v4-pro', 'deepseek-v4-flash'];
+
 // ---------------------------------------------------------------------------
 // Typed error frames. Every sdk-stream error path emits a `data-sully-error`
 // data part {code, message, recovery} IN ADDITION to the SDK-standard error
@@ -207,6 +210,29 @@ function getAnthropicAuthForModel(modelId: string): { authToken?: string; apiKey
 	if (apiKey) return { apiKey };
 	if (oauth) return { authToken: oauth };
 	return {};
+}
+
+function getDeepSeekKey(): string | undefined {
+	return process.env.DEEPSEEK_API_KEY || undefined;
+}
+
+export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
+	const apiKey = getDeepSeekKey();
+	if (!apiKey) return null;
+	// Try pro first (stronger), fall back to flash within DeepSeek.
+	for (const modelId of DEEPSEEK_MODELS) {
+		try {
+			const provider = createOpenAICompatible({
+				name: 'deepseek',
+				baseURL: `${DEEPSEEK_BASE}/v1`,
+				apiKey
+			});
+			return { model: provider(modelId), modelId };
+		} catch {
+			continue;
+		}
+	}
+	return null;
 }
 
 function getGoogleKey(): string {
