@@ -248,6 +248,13 @@ export function persistAssistantTurn(args: {
 	 * reply paths without blocking anything.
 	 */
 	toolCallsThisTurn?: string[];
+	/**
+	 * WI-7 (durable reasoning): the model's accumulated reasoning/thinking trace
+	 * for this turn. Persisted to chat_messages.reasoning so the client can
+	 * rehydrate the "Thought process" disclosure after a thread reload instead of
+	 * losing it when the live stream ends. Absent/empty → column stays NULL.
+	 */
+	reasoning?: string | null;
 }): number {
 	// Stage 3a: on a keyed REUSE, this new reply REPLACES the prior one — delete the
 	// stale chat reply(ies) for this reused Task BEFORE writing the new row (so we
@@ -270,7 +277,8 @@ export function persistAssistantTurn(args: {
 		promptTokens: args.promptTokens ?? null,
 		completionTokens: args.completionTokens ?? null,
 		latencyMs: args.latencyMs ?? null,
-		error: args.error ?? null
+		error: args.error ?? null,
+		reasoning: args.reasoning && args.reasoning.trim() ? args.reasoning : null
 	};
 	const insertedReply = addChatMessage(
 		args.sender,

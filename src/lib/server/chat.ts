@@ -30,7 +30,8 @@ function parseRow(row: any): ChatMessage {
 			row.quality_signal === null || row.quality_signal === undefined
 				? null
 				: Number(row.quality_signal),
-		client_turn_id: row.client_turn_id ?? null
+		client_turn_id: row.client_turn_id ?? null,
+		reasoning: row.reasoning ?? null
 	};
 }
 
@@ -462,6 +463,8 @@ export interface MessageForensics {
 	 * Null on every non-operator row and on untagged operator turns.
 	 */
 	clientTurnId?: string | null;
+	// WI-7: assistant reasoning/thinking trace to persist alongside the reply.
+	reasoning?: string | null;
 }
 
 export function addChatMessage(
@@ -482,8 +485,8 @@ export function addChatMessage(
 				`INSERT INTO chat_messages
 				 (sender, message, trace_id, ticket_id, interactive_action, status, thread_id,
 				  task_id, model, provider, prompt_tokens, completion_tokens, latency_ms, error,
-				  client_turn_id)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+				  client_turn_id, reasoning)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 			)
 			.run(
 				sender,
@@ -500,7 +503,8 @@ export function addChatMessage(
 				forensics.completionTokens ?? null,
 				forensics.latencyMs ?? null,
 				forensics.error ?? null,
-				forensics.clientTurnId ?? null
+				forensics.clientTurnId ?? null,
+				forensics.reasoning ?? null
 			);
 
 		const insertedId = info.lastInsertRowid;

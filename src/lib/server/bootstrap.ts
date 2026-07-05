@@ -127,7 +127,13 @@ export function bootstrapCompanionDb(): void {
 			// lets the re-POST reuse the original row instead of minting a duplicate.
 			// Additive + nullable — absent on every pre-Stage-2 row (and on any turn
 			// the client doesn't tag), so existing history is untouched.
-			client_turn_id: 'TEXT'
+			client_turn_id: 'TEXT',
+			// WI-7 (durable reasoning): the model's thinking/reasoning trace for an
+			// assistant turn, so the "Thought process" disclosure survives a thread
+			// reload instead of vanishing the moment the live stream ends. Only ever
+			// set on assistant rows whose model emitted reasoning; NULL everywhere
+			// else. Additive + nullable — pre-migration history is untouched.
+			reasoning: 'TEXT'
 		};
 		for (const [col, type] of Object.entries(messageMigrations)) {
 			if (!have.has(col)) {
