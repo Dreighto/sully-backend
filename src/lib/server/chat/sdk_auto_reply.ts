@@ -48,13 +48,13 @@ function transcriptFrom(modelMessages: UIMessage[]): string {
 
 async function runCliStreamAttempt(opts: {
 	ctx: PreparedStreamContext;
-	request: Request;
 	modelId: string;
 	routing: SullyRoutingFrame;
 	record: (chunk: UIMessageChunk) => void;
+	turnAbort: AbortSignal;
 	suppressErrorFrames?: boolean;
 }): Promise<DirectStreamAttemptResult> {
-	const { ctx, request, modelId, routing, record, suppressErrorFrames } = opts;
+	const { ctx, modelId, routing, record, turnAbort, suppressErrorFrames } = opts;
 	let textEmitted = false;
 	let errorFrame: SullyErrorFrame | undefined;
 
@@ -73,7 +73,7 @@ async function runCliStreamAttempt(opts: {
 		model: modelId,
 		systemPrompt: ctx.systemPrompt,
 		userPrompt: transcript || 'hello',
-		signal: request.signal
+		signal: turnAbort
 	})) {
 		if (chunk.type === 'text-delta') {
 			textEmitted = true;
@@ -154,7 +154,7 @@ function applyCandidateToCtx(ctx: PreparedStreamContext, candidate: AutoResolveR
 	(ctx as { resolvedModelId: string }).resolvedModelId = candidate.modelHandle.modelId;
 }
 
-export function handleAutoReply(ctx: PreparedStreamContext, request: Request): Response {
+export function handleAutoReply(ctx: PreparedStreamContext, _request: Request): Response {
 	const candidates = listAutoModelCandidates(ctx);
 	if (candidates.length === 0) {
 		rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
@@ -189,10 +189,10 @@ export function handleAutoReply(ctx: PreparedStreamContext, request: Request): R
 				if (candidate.kind === 'cli') {
 					attempt = await runCliStreamAttempt({
 						ctx,
-						request,
 						modelId: candidate.modelId,
 						routing: route,
 						record,
+						turnAbort: turnAbort.signal,
 						suppressErrorFrames: canRetry
 					});
 				} else {
