@@ -294,7 +294,10 @@ export function resolveDirectModel(opts: {
 	requestedModel?: string;
 }): ReturnType<typeof pickModel> {
 	const { ctx, requestedModel } = opts;
-	const factTurn = ctx.allowSensitive && factGate(ctx.userText).category === 'world_fact';
+	const explicitPick = Boolean(requestedModel?.trim());
+	// Honor explicit picker choices — fact-gate override is for Auto/default routing only.
+	const factTurn =
+		!explicitPick && ctx.allowSensitive && factGate(ctx.userText).category === 'world_fact';
 	if (factTurn) {
 		const factModel = process.env.COMPANION_FACT_MODEL || 'gpt-oss:120b-cloud';
 		const cloud = createOpenAICompatible({
