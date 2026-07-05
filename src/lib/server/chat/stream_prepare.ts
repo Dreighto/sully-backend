@@ -261,6 +261,8 @@ export interface PreparedStreamContext {
 	currentTier: Tier;
 	threadState: ThreadState;
 	targetRepo: string;
+	/** True when the client omitted `provider` (picker = Auto). */
+	autoMode: boolean;
 	provider: Provider;
 	resolvedModelId: string;
 	useClaudeCLI: boolean;
@@ -383,8 +385,14 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 	// args.provider='local' which takes priority over this default.
 	const companionDefault: Provider | null =
 		runMode.companion && !serverConfig.companionLocalDisabled ? 'local' : null;
-	const provider: Provider =
-		args.provider ?? overrideFromState ?? tierImpliesLocal ?? companionDefault ?? 'google';
+	const autoMode = args.provider === undefined || args.provider === null;
+	// Auto mode resolves provider/model dynamically in auto_router.ts (tier →
+	// anthropic → google → Ollama Cloud DeepSeek). The placeholder here is only
+	// used for system-prompt assembly and CLI-bridge hints until +server.ts
+	// overwrites it with the resolved lane.
+	const provider: Provider = autoMode
+		? 'anthropic'
+		: (args.provider ?? overrideFromState ?? tierImpliesLocal ?? companionDefault ?? 'google');
 
 	// Resolve the model id up-front so we can decide between the direct API
 	// route and the Claude CLI bridge. Anthropic's Claude Max OAuth only
@@ -443,6 +451,7 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		currentTier,
 		threadState,
 		targetRepo,
+		autoMode,
 		provider,
 		resolvedModelId,
 		useClaudeCLI,

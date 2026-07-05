@@ -24,7 +24,8 @@ import {
 	beginActiveStream,
 	finishWithReplyId,
 	rollbackOrphanTurn,
-	streamResponseFromBuffer
+	streamResponseFromBuffer,
+	type SullyRoutingFrame
 } from '$lib/server/chat/sdk_stream_common';
 
 const OLLAMA_BASE_URL =
@@ -294,8 +295,9 @@ export async function handleDirectReply(opts: {
 	request: Request;
 	modelHandle: ReturnType<typeof pickModel>;
 	tools: ToolSet;
+	routing?: SullyRoutingFrame;
 }): Promise<Response> {
-	const { ctx, modelHandle, tools } = opts;
+	const { ctx, modelHandle, tools, routing } = opts;
 	const turnStartedAt = Date.now();
 	const directTools = { ...tools, ...systemReadTools };
 	const systemToolsNote =
@@ -306,6 +308,9 @@ export async function handleDirectReply(opts: {
 	const streamHandle = beginActiveStream(ctx.threadId, {
 		onSupersede: () => turnAbort.abort('superseded')
 	});
+	if (routing) {
+		streamHandle.record({ type: 'data-sully-routing', data: routing });
+	}
 	const result = streamText({
 		model: modelHandle.model,
 		system: directSystemPrompt,

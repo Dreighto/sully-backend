@@ -14,7 +14,12 @@ import { baseTools } from '$lib/server/chat/base_tools';
 import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
-import { rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import { rollbackOrphanTurn, type SullyRoutingFrame } from '$lib/server/chat/sdk_stream_common';
+import {
+	resolveAutoModel,
+	resolveAutoFallback,
+	routingFrameForExplicitPick
+} from '$lib/server/chat/auto_router';
 import {
 	generateImageReply,
 	imagePromptFrom,
@@ -24,6 +29,7 @@ import { handleCliReply } from '$lib/server/chat/sdk_cli_reply';
 import { handleLocalReply } from '$lib/server/chat/sdk_local_reply';
 import {
 	handleDirectReply,
+	isAnthropicCapExceeded,
 	pickFallbackModel,
 	resolveDirectModel,
 	sullyErrorFrame
@@ -131,16 +137,54 @@ export const POST: RequestHandler = async ({ request }) => {
 		return createUIMessageStreamResponse({ stream });
 	}
 
-	if (ctx.useClaudeCLI) return handleCliReply(ctx, request);
+	if (ctx.autoMode) {
+		try {
+			const auto = resolveAutoModel(ctx);
+			if (auto.kind === 'cli') {
+				(ctx as { provider: string }).provider = 'anthropic';
+				(ctx as { resolvedModelId: string }).resolvedModelId = auto.modelId;
+				return handleCliReply(ctx, request, { routing: auto.route });
+			}
+			(ctx as { provider: string }).provider = auto.route.provider ?? 'google';
+			(ctx as { resolvedModelId: string }).resolvedModelId = auto.modelHandle.modelId;
+			const tools = ctx.allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
+			if (auto.route.provider === 'local') {
+				return handleLocalReply({
+					ctx,
+					request,
+					model: auto.modelHandle.model,
+					tools,
+					routing: auto.route
+				});
+			}
+			return handleDirectReply({
+				ctx,
+				request,
+				modelHandle: auto.modelHandle,
+				tools,
+				routing: auto.route
+			});
+		} catch (err) {
+			rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+			const frame = sullyErrorFrame('credential_unavailable', (err as Error).message);
+			return new Response(
+				JSON.stringify({ error: 'credential_unavailable', detail: frame.message, ...frame }),
+				{ status: 503, headers: { 'Content-Type': 'application/json' } }
+			);
+		}
+	}
+
+	if (ctx.useClaudeCLI) {
+		const routing = routingFrameForExplicitPick({ ctx, modelId: ctx.resolvedModelId });
+		return handleCliReply(ctx, request, { routing });
+	}
 
 	let modelHandle: ReturnType<typeof resolveDirectModel> | undefined;
+	let routing: SullyRoutingFrame | undefined;
 	let fallbackReason: string | undefined;
 
-	// Pre-flight cap check: when the anthropic daily token limit is exhausted,
-	// skip directly to the fallback model instead of starting a stream that
-	// will fail mid-flight (the depletion error surfaces after the 200 response
-	// is sent, so we can't retry cleanly after that point).
-	if (ctx.provider === 'anthropic' && !body.provider) {
+	// Pre-flight cap check for explicit Anthropic picks.
+	if (ctx.provider === 'anthropic') {
 		const fallback = pickFallbackModel();
 		if (fallback && isAnthropicCapExceeded()) {
 			modelHandle = fallback;
@@ -153,16 +197,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		try {
 			modelHandle = resolveDirectModel({ ctx, requestedModel: body.model });
 		} catch (err) {
-			// When anthropic credentials are unavailable (subscription depleted, key
-			// exhausted, etc.), try fallback models through Ollama Cloud
-			// (ollama.com) using the existing local daemon + OLLAMA_API_KEY.
-			// No separate API key needed.
 			if (ctx.provider === 'anthropic') {
-				const fb = pickFallbackModel();
-				if (fb) {
-					modelHandle = fb;
-					(ctx as { provider: string }).provider = 'local';
-				}
+				const fb = resolveAutoFallback(ctx.currentTier);
+				modelHandle = fb.modelHandle;
+				(ctx as { provider: string }).provider = 'local';
+				routing = fb.route;
+				fallbackReason = 'anthropic credential unavailable';
 			}
 			if (!modelHandle) {
 				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
@@ -175,9 +215,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
+	if (!routing) {
+		routing = routingFrameForExplicitPick({
+			ctx,
+			modelId: modelHandle.modelId,
+			fell_forward: Boolean(fallbackReason),
+			fallbackReason
+		});
+	}
+
 	const tools = ctx.allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
 	if (ctx.provider === 'local') {
-		return handleLocalReply({ ctx, request, model: modelHandle.model, tools });
+		return handleLocalReply({ ctx, request, model: modelHandle.model, tools, routing });
 	}
-	return handleDirectReply({ ctx, request, modelHandle, tools });
+	return handleDirectReply({ ctx, request, modelHandle, tools, routing });
 };

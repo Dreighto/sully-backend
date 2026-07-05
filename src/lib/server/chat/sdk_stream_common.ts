@@ -7,6 +7,28 @@ import {
 import { deleteChatMessage } from '$lib/server/chat';
 import { expireTaskById } from '$lib/server/dispatchJobs';
 
+export type SullyRoutingFrame = {
+	handled_by: 'sdk' | 'cli';
+	model: string;
+	provider?: string;
+	tier?: string;
+	reason?: string;
+	fell_forward?: boolean;
+	source?: 'auto' | 'picker' | 'voice';
+};
+
+export type RoutingWriter = {
+	write: (chunk: { type: 'data-sully-routing'; data: SullyRoutingFrame }) => void;
+};
+
+export function emitRoutingFrame(writer: RoutingWriter, data: SullyRoutingFrame): void {
+	try {
+		writer.write({ type: 'data-sully-routing', data });
+	} catch {
+		/* stream already closed */
+	}
+}
+
 export type ReplyIdWriter = {
 	write: (
 		chunk:

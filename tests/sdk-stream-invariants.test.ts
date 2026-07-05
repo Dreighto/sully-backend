@@ -129,6 +129,7 @@ function context(overrides: Partial<Awaited<ReturnType<typeof prepareStream>>> =
 		currentTier: 'chat',
 		threadState: {},
 		targetRepo: 'companion',
+		autoMode: false,
 		provider: 'google',
 		resolvedModelId: 'gemini-test',
 		useClaudeCLI: false,
@@ -266,6 +267,7 @@ describe('POST /api/chat/sdk-stream invariants', () => {
 		const types = chunks.map((chunk) => chunk.type);
 
 		expect(types).toEqual([
+			'data-sully-routing',
 			'start',
 			'start-step',
 			'text-start',
@@ -289,7 +291,7 @@ describe('POST /api/chat/sdk-stream invariants', () => {
 		const types = chunks.map((chunk) => chunk.type);
 
 		// Typed error frame is emitted IN ADDITION to the SDK-standard error part.
-		expect(types).toEqual(['start', 'data-sully-error', 'error', 'finish']);
+		expect(types).toEqual(['data-sully-routing', 'start', 'data-sully-error', 'error', 'finish']);
 		const errFrame = chunks.find((chunk) => chunk.type === 'data-sully-error');
 		expect(errFrame?.data).toEqual({
 			code: 'unknown',
@@ -324,7 +326,13 @@ describe('POST /api/chat/sdk-stream invariants', () => {
 		const chunks = await responseChunks(response);
 		const types = chunks.map((chunk) => chunk.type);
 
-		expect(types).toEqual(['start', 'finish-step', 'data-sully-error', 'finish']);
+		expect(types).toEqual([
+			'data-sully-routing',
+			'start',
+			'finish-step',
+			'data-sully-error',
+			'finish'
+		]);
 		expect(chunks.find((chunk) => chunk.type === 'data-sully-error')?.data).toEqual({
 			code: 'unknown',
 			message: 'No reply was generated.',

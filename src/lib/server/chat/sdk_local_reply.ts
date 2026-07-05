@@ -17,7 +17,12 @@ import { logEscalation, updateEscalationCloudOutput } from '$lib/server/escalati
 import { preTurnRoute } from '$lib/server/routing/pre_turn_router';
 import { LOCAL_GATE_INSTRUCTION, parseEscalation } from '$lib/server/routing/local_gate';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
-import { finishWithReplyId, rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import {
+	finishWithReplyId,
+	rollbackOrphanTurn,
+	emitRoutingFrame,
+	type SullyRoutingFrame
+} from '$lib/server/chat/sdk_stream_common';
 import {
 	classifySullyError,
 	emitSullyError,
@@ -43,8 +48,9 @@ export function handleLocalReply(opts: {
 	request: Request;
 	model: LanguageModel;
 	tools: ToolSet;
+	routing?: SullyRoutingFrame;
 }): Response {
-	const { ctx, request, model, tools } = opts;
+	const { ctx, request, model, tools, routing } = opts;
 	const decision = ctx.shadowDecision;
 	const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6-20250930';
 	const preTurn = preTurnRoute(ctx.userText, ctx.messages.length);
@@ -143,6 +149,9 @@ export function handleLocalReply(opts: {
 			const messageId = generateId();
 			const textId = '0';
 			writer.write({ type: 'start', messageId });
+			if (routing) {
+				emitRoutingFrame(writer, routing);
+			}
 			writer.write({ type: 'start-step' });
 			writer.write({ type: 'text-start', id: textId });
 

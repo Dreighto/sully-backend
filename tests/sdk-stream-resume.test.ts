@@ -135,6 +135,7 @@ function context(overrides: Partial<Awaited<ReturnType<typeof prepareStream>>> =
 		currentTier: 'chat',
 		threadState: {},
 		targetRepo: 'companion',
+		autoMode: false,
 		provider: 'google',
 		resolvedModelId: 'gemini-test',
 		useClaudeCLI: false,
@@ -341,6 +342,7 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 		]);
 
 		expect(postChunks.map((chunk) => chunk.type)).toEqual([
+			'data-sully-routing',
 			'start',
 			'start-step',
 			'text-start',
@@ -350,8 +352,9 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 			'data-sully-reply-id',
 			'finish'
 		]);
-		// Resume replays from startIndex=1 and rides the live tail to finish.
+		// Resume replays from startIndex=1 (skips routing) and rides the live tail to finish.
 		expect(resumeChunks.map((chunk) => chunk.type)).toEqual([
+			'start',
 			'start-step',
 			'text-start',
 			'text-delta',
@@ -404,6 +407,7 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 
 		const chunks = await responseChunks(resumeResponse);
 		expect(chunks.map((chunk) => chunk.type)).toEqual([
+			'data-sully-routing',
 			'start',
 			'start-step',
 			'text-start',
@@ -418,9 +422,7 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 			id: '0',
 			delta: replyText
 		});
-		expect(persistAssistantTurn).toHaveBeenCalledWith(
-			expect.objectContaining({ text: replyText })
-		);
+		expect(persistAssistantTurn).toHaveBeenCalledWith(expect.objectContaining({ text: replyText }));
 		expect(common.hasActiveStream('thread-test')).toBe(false);
 		const idle = await getResume('?thread=thread-test&startIndex=0');
 		expect(idle.status).toBe(204);

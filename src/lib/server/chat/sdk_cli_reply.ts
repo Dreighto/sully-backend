@@ -15,7 +15,12 @@ import {
 } from '$lib/server/chat/artifact_sentinel';
 import { mintTeacherTraceId } from '$lib/server/artifactStore';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
-import { finishWithReplyId, rollbackOrphanTurn } from '$lib/server/chat/sdk_stream_common';
+import {
+	finishWithReplyId,
+	rollbackOrphanTurn,
+	emitRoutingFrame,
+	type SullyRoutingFrame
+} from '$lib/server/chat/sdk_stream_common';
 import {
 	classifySullyError,
 	emitSullyError,
@@ -36,7 +41,11 @@ function transcriptFrom(modelMessages: UIMessage[]): string {
 		.join('\n\n');
 }
 
-export function handleCliReply(ctx: PreparedStreamContext, request: Request): Response {
+export function handleCliReply(
+	ctx: PreparedStreamContext,
+	request: Request,
+	opts: { routing?: SullyRoutingFrame } = {}
+): Response {
 	const senderLabel = 'cc' as const;
 	const cliSystemPrompt = ctx.systemPrompt;
 	const artifactTrace = mintTeacherTraceId();
@@ -48,6 +57,9 @@ export function handleCliReply(ctx: PreparedStreamContext, request: Request): Re
 			const messageId = generateId();
 			const textId = '0';
 			writer.write({ type: 'start', messageId });
+			if (opts.routing) {
+				emitRoutingFrame(writer, opts.routing);
+			}
 			writer.write({ type: 'start-step' });
 			writer.write({ type: 'text-start', id: textId });
 
