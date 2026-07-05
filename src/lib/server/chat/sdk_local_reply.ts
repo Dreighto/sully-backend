@@ -153,12 +153,39 @@ export function handleLocalReply(opts: {
 				emitRoutingFrame(writer, routing);
 			}
 			writer.write({ type: 'start-step' });
-			writer.write({ type: 'text-start', id: textId });
 
 			let sentinelBuf = '';
 			let streaming = false;
 			let fullText = '';
+			let textStarted = false;
 			let errored = false;
+			let sawEscalation = false;
+
+			const ensureTextStarted = () => {
+				if (!textStarted) {
+					writer.write({ type: 'text-start', id: textId });
+					textStarted = true;
+				}
+			};
+
+			const emitTextDelta = (delta: string) => {
+				fullText += delta;
+				if (streaming) {
+					ensureTextStarted();
+					writer.write({ type: 'text-delta', id: textId, delta });
+					return;
+				}
+				sentinelBuf += delta;
+				if (parseEscalation(sentinelBuf)) {
+					sawEscalation = true;
+					return;
+				}
+				if (sentinelBuf.length >= SENTINEL_BUFFER_CHARS) {
+					streaming = true;
+					ensureTextStarted();
+					writer.write({ type: 'text-delta', id: textId, delta: sentinelBuf });
+				}
+			};
 
 			try {
 				const localResult = streamText({
@@ -169,17 +196,33 @@ export function handleLocalReply(opts: {
 					stopWhen: ({ steps }) => steps.length >= 8
 				});
 
-				for await (const chunk of localResult.textStream) {
-					fullText += chunk;
-					if (streaming) {
-						writer.write({ type: 'text-delta', id: textId, delta: chunk });
-					} else {
-						sentinelBuf += chunk;
-						if (parseEscalation(sentinelBuf)) break;
-						if (sentinelBuf.length >= SENTINEL_BUFFER_CHARS) {
-							streaming = true;
-							writer.write({ type: 'text-delta', id: textId, delta: sentinelBuf });
-						}
+				// fullStream (not textStream) so Ollama native `delta.reasoning` reaches
+				// the client as reasoning-* UI frames. text-start is deferred until the
+				// first answer token is actually emitted (after reasoning, if any).
+				for await (const part of localResult.fullStream) {
+					if (sawEscalation) break;
+					switch (part.type) {
+						case 'reasoning-start':
+							writer.write({ type: 'reasoning-start', id: part.id });
+							break;
+						case 'reasoning-delta':
+							writer.write({ type: 'reasoning-delta', id: part.id, delta: part.text });
+							break;
+						case 'reasoning-end':
+							writer.write({ type: 'reasoning-end', id: part.id });
+							break;
+						case 'text-delta':
+							emitTextDelta(part.text);
+							break;
+						case 'tool-call':
+							writer.write({
+								type: 'tool-call-start',
+								toolCallId: part.toolCallId,
+								toolName: part.toolName
+							});
+							break;
+						default:
+							break;
 					}
 				}
 			} catch (err) {
@@ -207,6 +250,7 @@ export function handleLocalReply(opts: {
 					cloudModel: escalationModel
 				});
 
+				ensureTextStarted();
 				writer.write({ type: 'text-delta', id: textId, delta: '_thinking harder…_\n\n' });
 				const transcript = transcriptFrom(ctx.modelMessages);
 				let cloudCollected = '';
@@ -259,9 +303,12 @@ export function handleLocalReply(opts: {
 			}
 
 			if (!streaming && localText) {
+				ensureTextStarted();
 				writer.write({ type: 'text-delta', id: textId, delta: localText });
 			}
-			writer.write({ type: 'text-end', id: textId });
+			if (textStarted) {
+				writer.write({ type: 'text-end', id: textId });
+			}
 			writer.write({ type: 'finish-step' });
 
 			let replyId: number | undefined;
