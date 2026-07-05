@@ -9,6 +9,9 @@ import type { UIMessage, UIMessageChunk } from 'ai';
 
 const prepareStream = vi.fn();
 const streamText = vi.fn();
+const streamViaClaudeCLI = vi.fn();
+const extractAndPromoteArtifacts = vi.fn(() => ({ strippedText: '', artifacts: [] }));
+const hasLiveArtifactSignal = vi.fn(() => false);
 const persistAssistantTurn = vi.fn();
 const applyTurnDecision = vi.fn();
 const deleteChatMessage = vi.fn();
@@ -75,11 +78,11 @@ vi.mock('$lib/server/thread_meta', () => ({
 	touchLastActivity: vi.fn()
 }));
 vi.mock('$lib/server/claude_cli_stream', () => ({
-	streamViaClaudeCLI: vi.fn()
+	streamViaClaudeCLI
 }));
 vi.mock('$lib/server/chat/artifact_sentinel', () => ({
-	extractAndPromoteArtifacts: vi.fn(),
-	hasLiveArtifactSignal: vi.fn()
+	extractAndPromoteArtifacts,
+	hasLiveArtifactSignal
 }));
 vi.mock('$lib/server/auto_title', () => ({
 	maybeAutoTitle: vi.fn()
@@ -170,6 +173,13 @@ async function postSdkStream() {
 	} as Parameters<typeof POST>[0]);
 }
 
+async function postSdkStreamWithContext(
+	ctxOverrides: Partial<Awaited<ReturnType<typeof prepareStream>>>
+) {
+	prepareStream.mockResolvedValue(context(ctxOverrides));
+	return postSdkStream();
+}
+
 async function responseChunks(response: Response) {
 	const text = await response.text();
 	return text
@@ -220,6 +230,39 @@ function mockGatedDirectStream(gate: Promise<void>, replyText = 'Resumed reply.'
 	});
 }
 
+function mockGatedCliStream(gate: Promise<void>, replyText = 'Complete durable CLI reply.') {
+	streamViaClaudeCLI.mockImplementation(async function* () {
+		yield { type: 'text-delta', delta: 'CLI head. ' };
+		await gate;
+		yield { type: 'text-delta', delta: replyText.replace(/^CLI head\. /, '') };
+	});
+}
+
+function mockGatedLocalStream(gate: Promise<void>, replyText: string) {
+	const parts = [
+		{ type: 'text-delta', text: replyText.slice(0, 130) },
+		{ type: 'text-delta', text: replyText.slice(130) }
+	];
+	streamText.mockReturnValue({
+		fullStream: (async function* () {
+			const first = parts.shift();
+			if (first) yield first;
+			await gate;
+			const second = parts.shift();
+			if (second) yield second;
+		})()
+	});
+}
+
+function mockErroredLocalStreamAfterText(replyText: string) {
+	streamText.mockReturnValue({
+		fullStream: (async function* () {
+			yield { type: 'text-delta', text: replyText };
+			throw new Error('local socket reset');
+		})()
+	});
+}
+
 function mockNeverFinishingDirectStream() {
 	streamText.mockImplementation((options) => ({
 		usage: Promise.resolve({ inputTokens: 0, outputTokens: 0 }),
@@ -254,6 +297,11 @@ beforeEach(() => {
 	deleteChatMessage.mockReset();
 	expireTaskById.mockReset();
 	streamText.mockReset();
+	streamViaClaudeCLI.mockReset();
+	extractAndPromoteArtifacts.mockReset();
+	extractAndPromoteArtifacts.mockReturnValue({ strippedText: '', artifacts: [] });
+	hasLiveArtifactSignal.mockReset();
+	hasLiveArtifactSignal.mockReturnValue(false);
 	persistAssistantTurn.mockClear();
 	applyTurnDecision.mockClear();
 });
@@ -428,6 +476,113 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 		expect(idle.status).toBe(204);
 
 		await postResponse.body?.cancel().catch(() => {});
+	});
+
+	it('keeps a CLI turn generating after the original client disconnects, then resume replays and clears on finish', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		mockGatedCliStream(gate);
+
+		const postResponse = await postSdkStreamWithContext({
+			useClaudeCLI: true,
+			provider: 'anthropic',
+			resolvedModelId: 'claude-cli-test'
+		});
+		expect(postResponse.status).toBe(200);
+
+		const common = await importCommon();
+		await vi.waitFor(() => {
+			expect(common.hasActiveStream('thread-test')).toBe(true);
+		});
+		await postResponse.body?.cancel().catch(() => {});
+
+		const resumeResponse = await getResume('?thread=thread-test&startIndex=0');
+		expect(resumeResponse.status).toBe(200);
+		release();
+
+		const chunks = await responseChunks(resumeResponse);
+		const text = chunks
+			.filter((chunk) => chunk.type === 'text-delta')
+			.map((chunk) => chunk.delta)
+			.join('');
+		expect(text).toBe('CLI head. Complete durable CLI reply.');
+		expect(chunks.at(-2)).toEqual({ type: 'data-sully-reply-id', data: { id: 777 } });
+		expect(chunks.at(-1)).toEqual({ type: 'finish', finishReason: 'stop' });
+		expect(persistAssistantTurn).toHaveBeenCalledWith(
+			expect.objectContaining({ text: 'CLI head. Complete durable CLI reply.' })
+		);
+		expect(common.hasActiveStream('thread-test')).toBe(false);
+		expect((await getResume('?thread=thread-test&startIndex=0')).status).toBe(204);
+	});
+
+	it('keeps a Local turn generating after the original client disconnects, then resume replays and clears on finish', async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const replyText =
+			'Local durable reply '.repeat(8) + 'tail that arrives after the socket disconnects.';
+		mockGatedLocalStream(gate, replyText);
+
+		const postResponse = await postSdkStreamWithContext({
+			provider: 'local',
+			currentTier: 'local',
+			resolvedModelId: 'qwen-local-test'
+		});
+		expect(postResponse.status).toBe(200);
+
+		const common = await importCommon();
+		await vi.waitFor(() => {
+			expect(common.hasActiveStream('thread-test')).toBe(true);
+		});
+		await postResponse.body?.cancel().catch(() => {});
+
+		const resumeResponse = await getResume('?thread=thread-test&startIndex=0');
+		expect(resumeResponse.status).toBe(200);
+		release();
+
+		const chunks = await responseChunks(resumeResponse);
+		const text = chunks
+			.filter((chunk) => chunk.type === 'text-delta')
+			.map((chunk) => chunk.delta)
+			.join('');
+		expect(text).toBe(replyText);
+		expect(chunks.at(-2)).toEqual({ type: 'data-sully-reply-id', data: { id: 777 } });
+		expect(chunks.at(-1)).toEqual({ type: 'finish', finishReason: 'stop' });
+		expect(persistAssistantTurn).toHaveBeenCalledWith(
+			expect.objectContaining({ text: replyText, sender: 'local' })
+		);
+		expect(common.hasActiveStream('thread-test')).toBe(false);
+		expect((await getResume('?thread=thread-test&startIndex=0')).status).toBe(204);
+	});
+
+	it('persists partial Local text as truncated on a mid-stream error instead of leaving an orphan task', async () => {
+		const partialText = 'Partial local reply before failure.';
+		mockErroredLocalStreamAfterText(partialText);
+
+		const response = await postSdkStreamWithContext({
+			provider: 'local',
+			currentTier: 'local',
+			resolvedModelId: 'qwen-local-test'
+		});
+		expect(response.status).toBe(200);
+
+		const chunks = await responseChunks(response);
+		expect(chunks.at(-2)).toEqual({ type: 'data-sully-reply-id', data: { id: 777 } });
+		expect(chunks.at(-1)).toEqual({ type: 'finish', finishReason: 'error' });
+		expect(persistAssistantTurn).toHaveBeenCalledWith(
+			expect.objectContaining({
+				text: partialText,
+				sender: 'local',
+				status: 'truncated',
+				error: expect.stringContaining('local socket reset')
+			})
+		);
+		expect(deleteChatMessage).not.toHaveBeenCalled();
+		expect(expireTaskById).not.toHaveBeenCalled();
+		expect(applyTurnDecision).not.toHaveBeenCalled();
 	});
 
 	it('aborts the server-side model controller when a new turn supersedes the same thread', async () => {
