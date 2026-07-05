@@ -100,7 +100,10 @@ function readCaps(providers: SpendProviderRow[]): SpendCap[] {
 	};
 	// Per-provider daily token caps (from llm_router.ts env vars).
 	const dailyCaps: Record<string, { tokenCap: number; monthlyCap: number }> = {
-		anthropic: { tokenCap: envNum('ANTHROPIC_DAILY_TOKEN_CAP', 1_000_000), monthlyCap: envNum('ANTHROPIC_MONTHLY_SPEND_CAP', 0) },
+		anthropic: {
+			tokenCap: envNum('ANTHROPIC_DAILY_TOKEN_CAP', 1_000_000),
+			monthlyCap: envNum('ANTHROPIC_MONTHLY_SPEND_CAP', 0)
+		},
 		google: { tokenCap: envNum('GEMINI_DAILY_TOKEN_CAP', 2_000_000), monthlyCap: 0 },
 		openai: { tokenCap: envNum('OPENAI_DAILY_TOKEN_CAP', 200_000), monthlyCap: 0 },
 		local: { tokenCap: 0, monthlyCap: 0 }
@@ -300,7 +303,12 @@ export function getSpend(days = 30): SpendReport {
 
 	const db = new Database(serverConfig.memoryDbPath, { readonly: true });
 	try {
-		const tokenRows = safeAll<{ date: string; provider: string; model: string | null; tokens_used: number }>(
+		const tokenRows = safeAll<{
+			date: string;
+			provider: string;
+			model: string | null;
+			tokens_used: number;
+		}>(
 			db,
 			'SELECT date, provider, model, tokens_used FROM chat_token_usage WHERE date >= ?',
 			queryStart
@@ -329,10 +337,13 @@ export function getSpend(days = 30): SpendReport {
 		// Provider rollup is scoped to the trend window (last `days`).
 		const providerTotals = new Map<string, { tokens: number; costUsd: number }>();
 		// Per-model rollup (model column added 2026-07-04; older rows have null).
-		const modelTotals = new Map<string, { model: string; provider: string; tokens: number; costUsd: number }>();
+		const modelTotals = new Map<
+			string,
+			{ model: string; provider: string; tokens: number; costUsd: number }
+		>();
 
 		for (const r of tokenRows) {
-			const cost = tokenCostUsd(r.provider, r.tokens_used);
+			const cost = tokenCostUsd(r.provider, r.tokens_used, r.model);
 			llmByDate.set(r.date, (llmByDate.get(r.date) ?? 0) + cost);
 			if (r.date >= windowStart) {
 				const cur = providerTotals.get(r.provider) ?? { tokens: 0, costUsd: 0 };
@@ -342,7 +353,12 @@ export function getSpend(days = 30): SpendReport {
 
 				// Per-model: key on model name or fall back to provider.
 				const modelKey = r.model || r.provider;
-				const mc = modelTotals.get(modelKey) ?? { model: modelKey, provider: r.provider, tokens: 0, costUsd: 0 };
+				const mc = modelTotals.get(modelKey) ?? {
+					model: modelKey,
+					provider: r.provider,
+					tokens: 0,
+					costUsd: 0
+				};
 				mc.tokens += Number.isFinite(r.tokens_used) ? r.tokens_used : 0;
 				mc.costUsd += cost;
 				modelTotals.set(modelKey, mc);
@@ -387,7 +403,12 @@ export function getSpend(days = 30): SpendReport {
 			.sort((a, b) => b.costUsd - a.costUsd);
 
 		const models: SpendModelRow[] = Array.from(modelTotals.entries())
-			.map(([, v]) => ({ model: v.model, provider: v.provider, tokens: v.tokens, costUsd: round2(v.costUsd) }))
+			.map(([, v]) => ({
+				model: v.model,
+				provider: v.provider,
+				tokens: v.tokens,
+				costUsd: round2(v.costUsd)
+			}))
 			.sort((a, b) => b.costUsd - a.costUsd);
 
 		const caps = readCaps(providers);

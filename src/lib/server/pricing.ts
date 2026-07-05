@@ -65,11 +65,31 @@ export function normalizeProvider(provider: string): SpendProvider | undefined {
 	return PROVIDER_ALIASES[provider.trim().toLowerCase()];
 }
 
-/** Estimated USD cost of `tokens` for `provider` (alias-normalized). Unknown -> 0. */
-export function tokenCostUsd(provider: string, tokens: number): number {
+// Ollama CLOUD models (name carries a "cloud" tag, e.g. deepseek-v3.1:671b-cloud)
+// are NOT free — they burn the Ollama Cloud subscription's GPU-time quota and
+// then the operator's prepaid extra-usage balance ($5 top-ups). Ollama bills
+// GPU-time, not tokens, so this is an INDICATIVE blended $/1M-token equivalent
+// (default ~ DeepInfra's V4-class blended rate) so heavy cloud driving shows a
+// real number on the dashboard instead of $0. Override to tune:
+//   LOGUEOS_PRICE_OLLAMA_CLOUD_PER_M  (default 1.5)
+const OLLAMA_CLOUD_PER_M = envNum('LOGUEOS_PRICE_OLLAMA_CLOUD_PER_M', 1.5);
+
+/** True when a model label names an Ollama Cloud (paid-quota) model. */
+export function isOllamaCloudModel(model: string | null | undefined): boolean {
+	return !!model && /(^|[:\-_/])cloud\b/i.test(model);
+}
+
+/** Estimated USD cost of `tokens` for `provider` (alias-normalized). Unknown -> 0.
+ *  Pass `model` when available: local-provider tokens from a `:cloud` model are
+ *  priced at the Ollama-Cloud indicative rate instead of $0. */
+export function tokenCostUsd(provider: string, tokens: number, model?: string | null): number {
+	if (!Number.isFinite(tokens) || tokens <= 0) return 0;
 	const key = normalizeProvider(provider);
+	if (key === 'local' && isOllamaCloudModel(model)) {
+		return (tokens / 1_000_000) * OLLAMA_CLOUD_PER_M;
+	}
 	const rate = key ? TOKEN_PRICE_PER_M[key] : undefined;
-	if (rate === undefined || !Number.isFinite(tokens) || tokens <= 0) return 0;
+	if (rate === undefined) return 0;
 	return (tokens / 1_000_000) * rate;
 }
 
