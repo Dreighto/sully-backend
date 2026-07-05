@@ -25,10 +25,23 @@ import { VOICE_OLLAMA_URL, resolveTtsUrl } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
+import { composeTimeout, readWithIdle } from './voice_seam_timeout';
 import type { SentenceLogEntry } from './voice_turn_registry';
 
 const OLLAMA = VOICE_OLLAMA_URL;
 const TTS_URL = resolveTtsUrl();
+
+// WI-8 (voice seam timeouts): bound each Jetson seam so a wedged bridge can't
+// hang the mic forever. A fired timeout surfaces as a TimeoutError, which the
+// catch below routes to HARD FAILURE (the barge-in/abort path stays keyed on the
+// client signal). Helpers live in ./voice_seam_timeout so they're shared with
+// the tool loop and unit-testable. All deadlines env-overridable for the field.
+const VOICE_TTS_TIMEOUT_MS = Number(process.env.VOICE_TTS_TIMEOUT_MS) || 15000;
+// Total ceiling on the streaming generation fetch (a backstop; the idle
+// watchdog is the fast-fail for a mid-stream wedge).
+const VOICE_OLLAMA_MAX_MS = Number(process.env.VOICE_OLLAMA_MAX_MS) || 120000;
+// Fast-fail: no chunk from the model stream for this long → the bridge is wedged.
+const VOICE_IDLE_READ_MS = Number(process.env.VOICE_IDLE_READ_MS) || 20000;
 
 // No-punctuation runaway guard: flush a pending fragment as a "sentence" once it
 // exceeds this many chars, so a model that forgets punctuation can't starve TTS.
@@ -218,7 +231,7 @@ export async function runVoiceStreamingSpeak(
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ text: speakableText(text), voice: opts.voice ?? 'am_fenrir' }),
-			signal: opts.signal
+			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS)
 		});
 		if (!r.ok) throw new Error(`kokoro /tts HTTP ${r.status}`);
 		return Buffer.from(await r.arrayBuffer());
@@ -313,7 +326,7 @@ export async function runVoiceStreamingSpeak(
 			method: 'POST',
 			headers,
 			body: JSON.stringify(body),
-			signal: opts.signal
+			signal: composeTimeout(opts.signal, VOICE_OLLAMA_MAX_MS)
 		});
 		if (!resp.ok || !resp.body) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
 
@@ -324,7 +337,7 @@ export async function runVoiceStreamingSpeak(
 		let decided: 'speak' | null = null;
 
 		readLoop: for (;;) {
-			const { value, done } = await reader.read();
+			const { value, done } = await readWithIdle(reader, VOICE_IDLE_READ_MS);
 			if (done) break;
 			lineBuf += dec.decode(value, { stream: true });
 			let nl: number;
