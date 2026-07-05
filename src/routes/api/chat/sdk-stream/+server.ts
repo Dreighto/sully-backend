@@ -138,15 +138,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		modelHandle = resolveDirectModel({ ctx, requestedModel: body.model });
 	} catch (err) {
 		// When anthropic credentials are unavailable (subscription depleted, key
-		// exhausted, etc.), try DeepSeek-v4-pro/flash before giving up. The
-		// fallback requires DEEPSEEK_API_KEY to be set in the environment.
-		// Override ctx.provider so sender labels and persist metadata reflect
-		// the actual provider used.
+		// exhausted, etc.), try fallback models through Ollama Cloud
+		// (ollama.com) using the existing local daemon + OLLAMA_API_KEY.
+		// No separate API key needed. Override ctx.provider so sender labels
+		// and persist metadata reflect the actual provider used.
 		if (ctx.provider === 'anthropic') {
 			const fallback = pickFallbackModel();
 			if (fallback) {
 				modelHandle = fallback;
-				(ctx as { provider: string }).provider = 'deepseek';
+				(ctx as { provider: string }).provider = 'local';
 			}
 		}
 		if (!modelHandle) {

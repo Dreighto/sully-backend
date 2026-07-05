@@ -30,8 +30,10 @@ const OLLAMA_BASE_URL =
 	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
 
-const DEEPSEEK_BASE = 'https://api.deepseek.com';
-const DEEPSEEK_MODELS = ['deepseek-v4-pro', 'deepseek-v4-flash'];
+// Fallback model chain when Claude is unavailable. These route through Ollama
+// Cloud (ollama.com) using the existing local daemon + sign-in, no separate
+// API key needed. Tried in order: strongest → fastest.
+const FALLBACK_MODELS = ['deepseek-v4:671b-cloud', 'qwen3-coder:480b-cloud'];
 
 // ---------------------------------------------------------------------------
 // Typed error frames. Every sdk-stream error path emits a `data-sully-error`
@@ -212,22 +214,19 @@ function getAnthropicAuthForModel(modelId: string): { authToken?: string; apiKey
 	return {};
 }
 
-function getDeepSeekKey(): string | undefined {
-	return process.env.DEEPSEEK_API_KEY || undefined;
-}
-
 export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
-	const apiKey = getDeepSeekKey();
-	if (!apiKey) return null;
-	// Try pro first (stronger), fall back to flash within DeepSeek.
-	for (const modelId of DEEPSEEK_MODELS) {
+	// Route fallback models through the local Ollama daemon, which proxies
+	// `*-cloud` tags to ollama.com using the existing sign-in / OLLAMA_API_KEY.
+	// No separate API key needed — consolidated billing on the Ollama Cloud
+	// subscription. Tried strongest → fastest.
+	const localProvider = createOpenAICompatible({
+		name: 'ollama-local',
+		baseURL: OLLAMA_V1,
+		apiKey: 'ollama'
+	});
+	for (const modelId of FALLBACK_MODELS) {
 		try {
-			const provider = createOpenAICompatible({
-				name: 'deepseek',
-				baseURL: `${DEEPSEEK_BASE}/v1`,
-				apiKey
-			});
-			return { model: provider(modelId), modelId };
+			return { model: localProvider(modelId), modelId };
 		} catch {
 			continue;
 		}
