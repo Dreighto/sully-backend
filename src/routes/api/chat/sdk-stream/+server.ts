@@ -137,7 +137,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	if (ctx.autoMode) {
-		return handleAutoReply(ctx, request);
+		return handleAutoReply(ctx);
 	}
 
 	if (ctx.useClaudeCLI) {

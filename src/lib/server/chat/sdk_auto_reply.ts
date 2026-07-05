@@ -154,7 +154,7 @@ function applyCandidateToCtx(ctx: PreparedStreamContext, candidate: AutoResolveR
 	(ctx as { resolvedModelId: string }).resolvedModelId = candidate.modelHandle.modelId;
 }
 
-export function handleAutoReply(ctx: PreparedStreamContext, _request: Request): Response {
+export function handleAutoReply(ctx: PreparedStreamContext): Response {
 	const candidates = listAutoModelCandidates(ctx);
 	if (candidates.length === 0) {
 		rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);

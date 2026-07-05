@@ -160,6 +160,8 @@ export function handleLocalReply(opts: {
 				});
 			} else if (errored && !cloudCollected) {
 				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+			} else {
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
 			}
 
 			finishWithReplyId(writer, replyId, errored ? 'error' : 'stop');
@@ -260,7 +262,6 @@ export function handleLocalReply(opts: {
 				}
 			}
 		} catch (err) {
-			errored = true;
 			const errText = `Local model: ${(err as Error).message || 'stream_error'}`;
 			emitSullyError(writer as SullyErrorWriter, classifySullyError(errText));
 			writer.write({ type: 'error', errorText: errText });
@@ -364,6 +365,8 @@ export function handleLocalReply(opts: {
 					reused: ctx.reused
 				});
 			} else if (errored) {
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+			} else {
 				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
 			}
 
