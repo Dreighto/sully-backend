@@ -133,29 +133,45 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	if (ctx.useClaudeCLI) return handleCliReply(ctx, request);
 
-	let modelHandle: ReturnType<typeof resolveDirectModel>;
-	try {
-		modelHandle = resolveDirectModel({ ctx, requestedModel: body.model });
-	} catch (err) {
-		// When anthropic credentials are unavailable (subscription depleted, key
-		// exhausted, etc.), try fallback models through Ollama Cloud
-		// (ollama.com) using the existing local daemon + OLLAMA_API_KEY.
-		// No separate API key needed. Override ctx.provider so sender labels
-		// and persist metadata reflect the actual provider used.
-		if (ctx.provider === 'anthropic') {
-			const fallback = pickFallbackModel();
-			if (fallback) {
-				modelHandle = fallback;
-				(ctx as { provider: string }).provider = 'local';
-			}
+	let modelHandle: ReturnType<typeof resolveDirectModel> | undefined;
+	let fallbackReason: string | undefined;
+
+	// Pre-flight cap check: when the anthropic daily token limit is exhausted,
+	// skip directly to the fallback model instead of starting a stream that
+	// will fail mid-flight (the depletion error surfaces after the 200 response
+	// is sent, so we can't retry cleanly after that point).
+	if (ctx.provider === 'anthropic' && !body.provider) {
+		const fallback = pickFallbackModel();
+		if (fallback && isAnthropicCapExceeded()) {
+			modelHandle = fallback;
+			(ctx as { provider: string }).provider = 'local';
+			fallbackReason = 'anthropic daily cap exceeded';
 		}
-		if (!modelHandle) {
-			rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
-			const frame = sullyErrorFrame('credential_unavailable', (err as Error).message);
-			return new Response(
-				JSON.stringify({ error: 'credential_unavailable', detail: frame.message, ...frame }),
-				{ status: 503, headers: { 'Content-Type': 'application/json' } }
-			);
+	}
+
+	if (!modelHandle) {
+		try {
+			modelHandle = resolveDirectModel({ ctx, requestedModel: body.model });
+		} catch (err) {
+			// When anthropic credentials are unavailable (subscription depleted, key
+			// exhausted, etc.), try fallback models through Ollama Cloud
+			// (ollama.com) using the existing local daemon + OLLAMA_API_KEY.
+			// No separate API key needed.
+			if (ctx.provider === 'anthropic') {
+				const fb = pickFallbackModel();
+				if (fb) {
+					modelHandle = fb;
+					(ctx as { provider: string }).provider = 'local';
+				}
+			}
+			if (!modelHandle) {
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
+				const frame = sullyErrorFrame('credential_unavailable', (err as Error).message);
+				return new Response(
+					JSON.stringify({ error: 'credential_unavailable', detail: frame.message, ...frame }),
+					{ status: 503, headers: { 'Content-Type': 'application/json' } }
+				);
+			}
 		}
 	}
 

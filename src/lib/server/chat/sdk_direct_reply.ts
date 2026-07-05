@@ -14,6 +14,7 @@ import type { Tier } from '$lib/server/phase_classifier';
 import type { PreparedStreamContext, Provider } from '$lib/server/chat/stream_prepare';
 import { resolveChatModel } from '$lib/server/model_catalog';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
+import { getTokenUsage } from '$lib/server/thread_state';
 import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { factGate } from '$lib/server/routing/factGate';
@@ -212,6 +213,14 @@ function getAnthropicAuthForModel(modelId: string): { authToken?: string; apiKey
 	if (apiKey) return { apiKey };
 	if (oauth) return { authToken: oauth };
 	return {};
+}
+
+/** Pre-flight check: true when the anthropic daily token cap is exceeded. */
+export function isAnthropicCapExceeded(): boolean {
+	const cap = parseInt(process.env.ANTHROPIC_DAILY_TOKEN_CAP || '1000000', 10);
+	if (!Number.isFinite(cap) || cap <= 0) return false;
+	const used = getTokenUsage('anthropic');
+	return used >= cap;
 }
 
 export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
