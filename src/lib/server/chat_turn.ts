@@ -28,6 +28,7 @@ import { maybeAutoTitle } from './auto_title';
 import { proposeTask, markClassified, expireProposalsForThread } from './dispatchJobs';
 import { isAffirmation, isRoutingAnswer } from './routing/confirm';
 import { logTaskEvent } from './chatActivity';
+import { honestyObserve } from './brains/honesty';
 
 /**
  * Mint a Task id for a turn. Shared by the text pipeline (stream_prepare) and
@@ -239,6 +240,14 @@ export function persistAssistantTurn(args: {
 	 * (CLI/direct/local); voice + unkeyed turns leave it false.
 	 */
 	reused?: boolean;
+	/**
+	 * Honesty shadow observation: list of tool names actually called this turn.
+	 * When present, `auditTurn` runs against the reply text and any fabrication
+	 * flags are logged to the honesty corpus. Absent → no-op (backward
+	 * compatible). Added post-PR #87 to wire the honesty monitor into production
+	 * reply paths without blocking anything.
+	 */
+	toolCallsThisTurn?: string[];
 }): number {
 	// Stage 3a: on a keyed REUSE, this new reply REPLACES the prior one — delete the
 	// stale chat reply(ies) for this reused Task BEFORE writing the new row (so we
@@ -294,6 +303,14 @@ export function persistAssistantTurn(args: {
 	// so text conversations stayed "New thread" — this covers every reply path
 	// that persists an assistant turn (direct/CLI/local/voice).
 	void maybeAutoTitle(args.threadId).catch(() => {});
+
+	// Honesty shadow observation: when tool call data is provided, audit the
+	// reply for fabricated action claims and log any flags to the honesty corpus.
+	// Fire-and-forget — never blocks the reply stream. Deliberately runs AFTER
+	// the reply is persisted so the corpus has the final text.
+	if (args.toolCallsThisTurn) {
+		honestyObserve(args.text, args.toolCallsThisTurn, args.threadId);
+	}
 
 	// Stage 1 (server-owned reply-id): return the persisted chat_messages.id so the
 	// manual-writer stream paths can emit a terminal data-sully-reply-id frame,

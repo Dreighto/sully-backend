@@ -10,11 +10,7 @@
 import type { RequestHandler } from './$types';
 import { getVoice, localRefFor, kokoroVoiceFor } from '$lib/server/voices';
 import { speakableText } from '$lib/server/tts_normalize';
-import { restartTtsService } from '$lib/server/voice_services';
-import { resolveTtsUrl } from '$lib/server/voice_runtime';
-
-// Guarded: Jetson bridge only, never the local 5060 Chatterbox (see voice_runtime).
-const TTS_URL = resolveTtsUrl();
+import { synthesizeLocalTts } from '$lib/server/voice_tts';
 
 export const POST: RequestHandler = async ({ request }) => {
 	let body: { text?: string; voice?: string; voice_ref?: string };
@@ -34,46 +30,22 @@ export const POST: RequestHandler = async ({ request }) => {
 	const ref = (voice ? localRefFor(voice) : undefined) || body.voice_ref;
 	const kokoroVoice = voice ? kokoroVoiceFor(voice) : undefined;
 
-	const synthPayload = JSON.stringify({
-		text,
-		// Kokoro param — used by Kokoro server, ignored by Chatterbox.
-		voice: kokoroVoice,
-		// Chatterbox params — used by Chatterbox server, ignored by Kokoro.
-		voice_ref: ref,
-		cfg_weight: voice?.cfgWeight,
-		exaggeration: voice?.exaggeration,
-		temperature: voice?.temperature
-	});
-
-	// Attempt synthesis; on connection failure (not barge-in) cold-start Chatterbox
-	// and retry once. Chatterbox may not be running when ElevenLabs is primary and
-	// the daily cap is first hit mid-session — this is the on-demand start path.
-	const synth = () =>
-		fetch(`${TTS_URL}/tts`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: synthPayload,
-			signal: request.signal
-		}).catch((e: unknown) => {
-			if (e instanceof Error && e.name === 'AbortError') throw e;
-			return null; // connection refused / other error → trigger restart below
-		});
-
 	try {
-		let upstream = await synth();
-		if (!upstream || !upstream.ok) {
-			await restartTtsService().catch(() => null);
-			upstream = await synth();
-		}
-		if (!upstream || !upstream.ok || !upstream.body) {
-			return new Response('tts unavailable', { status: 502 });
-		}
-		// Stream the WAV straight through.
-		return new Response(upstream.body, {
+		const ttsRes = await synthesizeLocalTts({
+			text,
+			kokoroVoice,
+			voice_ref: ref,
+			cfg_weight: voice?.cfgWeight,
+			exaggeration: voice?.exaggeration,
+			temperature: voice?.temperature,
+			signal: request.signal
+		});
+		if (!ttsRes.ok) return new Response('tts unavailable', { status: 502 });
+
+		return new Response(ttsRes.body, {
 			headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store' }
 		});
 	} catch (e) {
-		// AbortError (barge-in) is expected; everything else is a real failure.
 		if (e instanceof Error && e.name === 'AbortError') {
 			return new Response(null, { status: 499 });
 		}

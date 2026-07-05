@@ -129,3 +129,51 @@ export function judgeRefusal(reply: string): {
 	const falsePromise = FALSE_PROMISE_RE.test(r);
 	return { truthful: refused && !falsePromise, refused, falsePromise };
 }
+
+// ── 5. Shadow observation — log fabrication flags to a JSONL corpus ───────────
+import fs from 'node:fs';
+import path from 'node:path';
+
+export interface HonestyLogEntry {
+	ts: string;
+	thread: string;
+	reply_head: string;
+	flags: FabricationFlag[];
+	tool_calls: string[];
+}
+
+function honestyCorpusPath(): string {
+	return path.join(process.cwd(), 'data', 'honesty_corpus.jsonl');
+}
+
+export function logFabricationEntry(entry: HonestyLogEntry): void {
+	try {
+		const p = honestyCorpusPath();
+		fs.mkdirSync(path.dirname(p), { recursive: true });
+		fs.appendFileSync(p, JSON.stringify(entry) + '\n');
+	} catch {
+		// Best-effort by contract: honesty logging must never break chat.
+	}
+}
+
+export function honestyObserve(
+	reply: string,
+	toolCallsThisTurn: string[],
+	thread: string
+): void {
+	try {
+		const flags = auditTurn(reply, toolCallsThisTurn);
+		const v = judgeRefusal(reply);
+		if (flags.length > 0 || !v.truthful) {
+			logFabricationEntry({
+				ts: new Date().toISOString(),
+				thread,
+				reply_head: (reply || '').slice(0, 200),
+				flags,
+				tool_calls: toolCallsThisTurn
+			});
+		}
+	} catch {
+		/* never break chat */
+	}
+}

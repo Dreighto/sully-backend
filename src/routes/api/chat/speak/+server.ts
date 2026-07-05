@@ -9,15 +9,12 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getTodayTtsUsage, addTtsUsage } from '$lib/server/voice_usage';
 import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
-import { restartTtsService } from '$lib/server/voice_services';
 import { speakableText } from '$lib/server/tts_normalize';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
-import { resolveTtsUrl } from '$lib/server/voice_runtime';
+import { synthesizeLocalTts } from '$lib/server/voice_tts';
 
 const EMMA_VOICE_ID = '56bWURjYFHyYyVf490Dp';
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
-// Guarded: Jetson bridge only, never the local 5060 Chatterbox (see voice_runtime).
-const TTS_URL = resolveTtsUrl();
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
@@ -32,40 +29,20 @@ export const POST: RequestHandler = async ({ request }) => {
 	// local" the same way realtime voice mode does (which routes via voices.ts).
 	if (!cloudAvailable()) {
 		const v = getVoice(typeof body.voice === 'string' ? body.voice : DEFAULT_VOICE_ID);
-		const ref = localRefFor(v);
-		const synth = () =>
-			fetch(`${TTS_URL}/tts`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					text,
-					voice_ref: ref,
-					cfg_weight: v.cfgWeight,
-					exaggeration: v.exaggeration,
-					temperature: v.temperature
-				}),
-				signal: request.signal
-			}).catch(() => null);
-		let upstream = await synth();
-		if (!upstream || !upstream.ok || !upstream.body) {
-			// Recovery. The local TTS may be cold (torn down on voice-mode exit) OR
-			// its CUDA context may be poisoned by a device-side assert (every /tts
-			// then 500s instantly until the process is recycled). A plain `start`
-			// can't clear a poisoned context, so restart the TTS service, then
-			// retry once.
-			await restartTtsService().catch(() => null);
-			upstream = await synth();
-		}
-		if (!upstream || !upstream.ok || !upstream.body) {
-			throw error(502, { message: 'local TTS unavailable' });
-		}
+		const ttsRes = await synthesizeLocalTts({
+			text,
+			voice_ref: localRefFor(v),
+			cfg_weight: v.cfgWeight,
+			exaggeration: v.exaggeration,
+			temperature: v.temperature,
+			signal: request.signal
+		});
+		if (!ttsRes.ok) throw error(ttsRes.status, { message: 'local TTS unavailable' });
 		// Buffer + pad ~700ms trailing silence so iOS/WebKit's end-of-WAV clip
 		// drops silence instead of Sully's last word (talkback only; the client
 		// fully buffers this blob anyway, so streaming bought nothing here).
-		const raw = Buffer.from(await upstream.arrayBuffer());
+		const raw = Buffer.from(await ttsRes.arrayBuffer());
 		const padded = padWavTrailingSilence(raw, 700);
-		// Wrap the Node Buffer in a plain Uint8Array — Buffer isn't assignable to
-		// the web BodyInit type even though adapter-node accepts it at runtime.
 		return new Response(new Uint8Array(padded), {
 			status: 200,
 			headers: { 'content-type': 'audio/wav', 'cache-control': 'no-store' }
