@@ -258,7 +258,7 @@ export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
 			const raw = localProvider(modelId);
 			const model = wrapLanguageModel({
 				model: raw,
-				middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+				middleware: extractReasoningMiddleware({ tagName: 'think' })
 			});
 			return { model, modelId };
 		} catch {
@@ -292,7 +292,7 @@ export function pickModel(provider: Provider, tier: Tier, requestedModel?: strin
 		const raw = localProvider(modelId);
 		const model = wrapLanguageModel({
 			model: raw,
-			middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+			middleware: extractReasoningMiddleware({ tagName: 'think' })
 		});
 		return { model, modelId };
 	}
@@ -317,7 +317,11 @@ export function resolveDirectModel(opts: {
 			baseURL: OLLAMA_V1,
 			apiKey: 'ollama'
 		});
-		return { model: cloud(factModel), modelId: factModel };
+		const factModelHandle = wrapLanguageModel({
+			model: cloud(factModel),
+			middleware: extractReasoningMiddleware({ tagName: 'think' })
+		});
+		return { model: factModelHandle, modelId: factModel };
 	}
 	return pickModel(ctx.provider, ctx.currentTier, requestedModel);
 }
@@ -416,6 +420,14 @@ export async function runDirectStreamAttempt(opts: {
 			const finalText =
 				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
 
+			// WI-7 (durable reasoning): collect the model's reasoning parts so the
+			// "Thought process" disclosure persists with the reply and survives a
+			// thread reload. Empty when the model emitted no reasoning.
+			const reasoningText = parts
+				.filter((p) => p.type === 'reasoning')
+				.map((p) => (p as { type: 'reasoning'; text: string }).text)
+				.join('');
+
 			if (finalText) {
 				const senderLabel: 'cc' | 'agy' | 'local' =
 					ctx.provider === 'anthropic' ? 'cc' : ctx.provider === 'local' ? 'local' : 'agy';
@@ -440,7 +452,8 @@ export async function runDirectStreamAttempt(opts: {
 					completionTokens,
 					latencyMs: Date.now() - turnStartedAt,
 					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
-					reused: ctx.reused
+					reused: ctx.reused,
+					reasoning: reasoningText
 				});
 				try {
 					const totalTokens = (promptTokens ?? 0) + (completionTokens ?? 0);

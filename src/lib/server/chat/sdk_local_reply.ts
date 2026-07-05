@@ -195,6 +195,9 @@ export function handleLocalReply(opts: {
 		let textStarted = false;
 		let errored = false;
 		let sawEscalation = false;
+		// WI-7: accumulate the model's reasoning trace so it persists with the
+		// reply (durable "Thought process" disclosure), not just streams live.
+		let reasoningText = '';
 
 		const ensureTextStarted = () => {
 			if (!textStarted) {
@@ -242,6 +245,7 @@ export function handleLocalReply(opts: {
 						writer.write({ type: 'reasoning-start', id: part.id });
 						break;
 					case 'reasoning-delta':
+						reasoningText += part.text;
 						writer.write({ type: 'reasoning-delta', id: part.id, delta: part.text });
 						break;
 					case 'reasoning-end':
@@ -285,7 +289,8 @@ export function handleLocalReply(opts: {
 					provider: ctx.provider,
 					status: 'truncated',
 					error: errText,
-					reused: ctx.reused
+					reused: ctx.reused,
+					reasoning: reasoningText
 				});
 			} else {
 				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
@@ -403,7 +408,8 @@ export function handleLocalReply(opts: {
 				tier: ctx.currentTier,
 				taskId: ctx.taskId,
 				provider: ctx.provider,
-				reused: ctx.reused
+				reused: ctx.reused,
+				reasoning: reasoningText
 			});
 		} else {
 			upsertThreadTier(ctx.threadId, ctx.currentTier, ctx.resolvedModelId);
