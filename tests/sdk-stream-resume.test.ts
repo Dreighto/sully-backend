@@ -345,6 +345,45 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 		expect(chunks[2]).toEqual({ type: 'text-delta', id: '0', delta: 'live' });
 	});
 
+	it('signals a gap when a resume predates the ring-buffer base (WI-10b)', async () => {
+		const common = await importCommon();
+		const handle = common.beginActiveStream('thread-gap');
+		// Overflow the ring buffer so its base advances past index 0: the OLDEST
+		// chunks get dropped, so a resume from 0 can never see them.
+		const TOTAL = 4096 + 50; // MAX_BUFFERED_CHUNKS + overflow
+		for (let i = 0; i < TOTAL; i++) {
+			handle.record({ type: 'text-delta', id: '0', delta: `c${i}` } as UIMessageChunk);
+		}
+
+		const seen: UIMessageChunk[] = [];
+		const unsub = common.subscribeToActiveStream('thread-gap', 0, {
+			onChunk: (chunk: UIMessageChunk) => seen.push(chunk),
+			onDone: () => {}
+		});
+		expect(unsub).not.toBeNull();
+
+		// First replayed chunk must be the gap marker — the client uses it to
+		// discard its holed streamed row and reconcile the final text from history.
+		const gap = seen[0] as unknown as {
+			type: string;
+			data: { droppedChunks: number; resumedAtIndex: number; requestedFrom: number };
+		};
+		expect(gap.type).toBe('data-sully-gap');
+		expect(gap.data.requestedFrom).toBe(0);
+		expect(gap.data.droppedChunks).toBe(50);
+		expect(gap.data.resumedAtIndex).toBe(50);
+		// No gap marker when the resume is within the retained window.
+		const seen2: UIMessageChunk[] = [];
+		common.subscribeToActiveStream('thread-gap', 4100, {
+			onChunk: (chunk: UIMessageChunk) => seen2.push(chunk),
+			onDone: () => {}
+		});
+		expect(seen2.every((c) => (c as { type: string }).type !== 'data-sully-gap')).toBe(true);
+
+		unsub?.();
+		handle.end();
+	});
+
 	it('returns 204 after the active stream ended (cleared on finish)', async () => {
 		const common = await importCommon();
 		const handle = common.beginActiveStream('thread-done');
