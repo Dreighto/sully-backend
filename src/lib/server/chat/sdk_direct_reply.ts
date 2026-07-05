@@ -72,6 +72,17 @@ export function sullyErrorFrame(code: SullyErrorCode, message: string): SullyErr
 	return { code, message, recovery: SULLY_ERROR_RECOVERY[code] };
 }
 
+/** Auto mode may silently try the next provider when these occur before any text. */
+export function isAutoFallbackableError(code: SullyErrorCode): boolean {
+	return (
+		code === 'rate_limit' ||
+		code === 'provider_error' ||
+		code === 'credential_unavailable' ||
+		code === 'timeout' ||
+		code === 'unknown'
+	);
+}
+
 export function classifySullyError(message: string, statusCode?: number): SullyErrorFrame {
 	const msg = message || 'unknown_stream_error';
 	const m = msg.toLowerCase();
@@ -290,45 +301,57 @@ export function resolveDirectModel(opts: {
 	return pickModel(ctx.provider, ctx.currentTier, requestedModel);
 }
 
-export async function handleDirectReply(opts: {
+export type DirectStreamAttemptResult = {
+	ok: boolean;
+	textEmitted: boolean;
+	errorFrame?: SullyErrorFrame;
+};
+
+/** Run one direct SDK stream attempt; caller owns chunk recording (buffer or staging). */
+export async function runDirectStreamAttempt(opts: {
 	ctx: PreparedStreamContext;
-	request: Request;
 	modelHandle: ReturnType<typeof pickModel>;
 	tools: ToolSet;
 	routing?: SullyRoutingFrame;
-}): Promise<Response> {
-	const { ctx, modelHandle, tools, routing } = opts;
+	record: (chunk: UIMessageChunk) => void;
+	turnAbort: AbortSignal;
+	suppressErrorFrames?: boolean;
+}): Promise<DirectStreamAttemptResult> {
+	const { ctx, modelHandle, tools, routing, record, turnAbort, suppressErrorFrames } = opts;
 	const turnStartedAt = Date.now();
 	const directTools = { ...tools, ...systemReadTools };
 	const systemToolsNote =
 		'\n\n[System inspection] You have READ-ONLY tools to check the REAL state of the LogueOS services on this machine (ROOM): list_services, service_status, service_logs, system_health. When the operator asks whether a service is up/enabled/healthy, why one failed or restarted, or about disk/memory/reachability, CALL the relevant tool and reason over the actual result — do NOT guess or state service status from memory. Only the nine whitelisted units can be inspected; these tools cannot start, stop, or restart anything.';
 	const directSystemPrompt = ctx.systemPrompt + systemToolsNote;
+
+	let textEmitted = false;
 	let directErrored = false;
-	const turnAbort = new AbortController();
-	const streamHandle = beginActiveStream(ctx.threadId, {
-		onSupersede: () => turnAbort.abort('superseded')
-	});
+	let errorFrame: SullyErrorFrame | undefined;
+
 	if (routing) {
-		streamHandle.record({ type: 'data-sully-routing', data: routing });
+		record({ type: 'data-sully-routing', data: routing });
 	}
+
 	const result = streamText({
 		model: modelHandle.model,
 		system: directSystemPrompt,
 		messages: await convertToModelMessages(ctx.modelMessages),
 		tools: directTools,
 		stopWhen: stepCountIs(8),
-		abortSignal: turnAbort.signal
+		abortSignal: turnAbort
 	});
 
-	// Resumable-stream plumbing: every UIMessage chunk of this turn is recorded
-	// into the per-thread ring buffer (sdk_stream_common), and the model stream
-	// is pumped independently of the HTTP response. The POST response below —
-	// and any later GET /api/chat/sdk-stream/resume — are just subscribers of
-	// that buffer, so a dropped client connection neither stalls generation nor
-	// loses the turn.
 	const bufferWriter = {
-		write: (chunk: UIMessageChunk) => streamHandle.record(chunk)
+		write: (chunk: UIMessageChunk) => {
+			if (chunk.type === 'text-delta') textEmitted = true;
+			record(chunk);
+		}
 	};
+
+	let resolveAttempt!: (value: DirectStreamAttemptResult) => void;
+	const attemptDone = new Promise<DirectStreamAttemptResult>((resolve) => {
+		resolveAttempt = resolve;
+	});
 
 	const uiStream = result.toUIMessageStream({
 		sendFinish: false,
@@ -337,11 +360,13 @@ export async function handleDirectReply(opts: {
 		onError: (error: unknown) => {
 			directErrored = true;
 			const { text, statusCode } = describeDirectError(error, modelHandle.modelId);
-			emitSullyError(bufferWriter, classifySullyError(text, statusCode));
+			errorFrame = classifySullyError(text, statusCode);
+			if (!suppressErrorFrames) {
+				emitSullyError(bufferWriter, errorFrame);
+			}
 			return text;
 		},
 		onFinish: async ({ responseMessage }) => {
-			if (!streamHandle.isCurrent()) return;
 			let finalReason: FinishReason | undefined;
 			try {
 				finalReason = await result.finishReason;
@@ -369,9 +394,9 @@ export async function handleDirectReply(opts: {
 			const finalText =
 				toolErrors.length > 0 ? [replyText, ...toolErrors].filter(Boolean).join('\n\n') : replyText;
 
-			let replyId: number | undefined;
 			if (finalText) {
-				const senderLabel: 'cc' | 'agy' | 'local' = ctx.provider === 'anthropic' ? 'cc' : 'agy';
+				const senderLabel: 'cc' | 'agy' | 'local' =
+					ctx.provider === 'anthropic' ? 'cc' : ctx.provider === 'local' ? 'local' : 'agy';
 				let promptTokens: number | null = null;
 				let completionTokens: number | null = null;
 				try {
@@ -381,7 +406,7 @@ export async function handleDirectReply(opts: {
 				} catch {
 					/* usage unavailable */
 				}
-				replyId = persistAssistantTurn({
+				const replyId = persistAssistantTurn({
 					text: finalText,
 					sender: senderLabel,
 					threadId: ctx.threadId,
@@ -395,9 +420,6 @@ export async function handleDirectReply(opts: {
 					error: toolErrors.length > 0 ? toolErrors.join(' | ').slice(0, 500) : null,
 					reused: ctx.reused
 				});
-				// Track real token usage from the provider response so the spend
-				// dashboard has actual counts (not just estimates from llm_router).
-				// Fire-and-forget: never block the reply stream.
 				try {
 					const totalTokens = (promptTokens ?? 0) + (completionTokens ?? 0);
 					if (totalTokens > 0) {
@@ -406,52 +428,92 @@ export async function handleDirectReply(opts: {
 				} catch {
 					/* token tracking must never break the reply */
 				}
-			} else if (directErrored || finalReason === 'error') {
-				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
-				bufferWriter.write({ type: 'finish', finishReason: finalReason });
-				return;
-			} else {
-				// Model finished without emitting reply text (tool-only abort, empty
-				// synthesis, etc.). Roll back the orphan operator row + task so the
-				// thread does not show a question with no answer forever.
-				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
-				emitSullyError(bufferWriter, classifySullyError('No reply was generated.', undefined));
-				bufferWriter.write({ type: 'finish', finishReason: finalReason ?? 'error' });
+				finishWithReplyId(bufferWriter, replyId, finalReason);
+				void applyTurnDecision(ctx.shadowDecision, {
+					taskId: ctx.taskId,
+					threadId: ctx.threadId,
+					targetRepo: ctx.targetRepo,
+					userText: ctx.userText,
+					reused: ctx.reused
+				}).catch((e) => {
+					console.error('[sdk-stream] autonomous-dispatch failed', e);
+				});
+				resolveAttempt({ ok: true, textEmitted: true, errorFrame });
 				return;
 			}
 
-			finishWithReplyId(bufferWriter, replyId, finalReason);
+			if (directErrored || finalReason === 'error') {
+				if (!suppressErrorFrames) {
+					bufferWriter.write({ type: 'finish', finishReason: finalReason });
+				}
+				resolveAttempt({ ok: false, textEmitted, errorFrame });
+				return;
+			}
 
-			void applyTurnDecision(ctx.shadowDecision, {
-				taskId: ctx.taskId,
-				threadId: ctx.threadId,
-				targetRepo: ctx.targetRepo,
-				userText: ctx.userText,
-				reused: ctx.reused
-			}).catch((e) => {
-				console.error('[sdk-stream] autonomous-dispatch failed', e);
-			});
+			errorFrame = classifySullyError('No reply was generated.', undefined);
+			if (!suppressErrorFrames) {
+				emitSullyError(bufferWriter, errorFrame);
+				bufferWriter.write({ type: 'finish', finishReason: finalReason ?? 'error' });
+			}
+			resolveAttempt({ ok: false, textEmitted, errorFrame });
 		}
 	});
 
-	// Pump the model stream into the buffer detached from the response. The
-	// finally-clause covers finish, error, AND rollback: the active stream is
-	// always cleared when the turn terminates, so resume returns 204 after.
+	try {
+		const reader = uiStream.getReader();
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (value.type === 'text-delta') textEmitted = true;
+			record(value);
+		}
+	} catch (e) {
+		console.error('[sdk-stream] direct stream pump failed', e);
+		if (!errorFrame) {
+			errorFrame = classifySullyError(
+				e instanceof Error ? e.message : 'unknown_stream_error',
+				undefined
+			);
+		}
+		return { ok: false, textEmitted, errorFrame };
+	}
+
+	return attemptDone;
+}
+
+export async function handleDirectReply(opts: {
+	ctx: PreparedStreamContext;
+	request: Request;
+	modelHandle: ReturnType<typeof pickModel>;
+	tools: ToolSet;
+	routing?: SullyRoutingFrame;
+}): Promise<Response> {
+	const { ctx, modelHandle, tools, routing } = opts;
+	const turnAbort = new AbortController();
+	const streamHandle = beginActiveStream(ctx.threadId, {
+		onSupersede: () => turnAbort.abort('superseded')
+	});
+
 	void (async () => {
 		try {
-			const reader = uiStream.getReader();
-			for (;;) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				streamHandle.record(value);
+			const attempt = await runDirectStreamAttempt({
+				ctx,
+				modelHandle,
+				tools,
+				routing,
+				record: (chunk) => streamHandle.record(chunk),
+				turnAbort: turnAbort.signal
+			});
+			if (!attempt.ok) {
+				rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
 			}
 		} catch (e) {
-			console.error('[sdk-stream] direct stream pump failed', e);
+			console.error('[sdk-stream] direct reply failed', e);
+			rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
 		} finally {
 			streamHandle.end();
 		}
 	})();
 
-	// The POST response itself is a resume-from-0 subscription over the buffer.
 	return streamResponseFromBuffer(ctx.threadId, 0);
 }

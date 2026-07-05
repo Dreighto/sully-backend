@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
-import { resolveAutoModel } from '$lib/server/chat/auto_router';
+import { listAutoModelCandidates, resolveAutoModel } from '$lib/server/chat/auto_router';
 import * as direct from '$lib/server/chat/sdk_direct_reply';
+import * as cooldown from '$lib/server/chat/auto_provider_cooldown';
 
 function baseCtx(overrides: Partial<PreparedStreamContext> = {}): PreparedStreamContext {
 	return {
@@ -30,6 +31,8 @@ function baseCtx(overrides: Partial<PreparedStreamContext> = {}): PreparedStream
 describe('resolveAutoModel', () => {
 	beforeEach(() => {
 		vi.spyOn(direct, 'isAnthropicCapExceeded').mockReturnValue(false);
+		vi.spyOn(cooldown, 'syncAnthropicCapCooldown').mockImplementation(() => {});
+		vi.spyOn(cooldown, 'isAutoProviderCooling').mockReturnValue(false);
 		vi.spyOn(direct, 'pickModel').mockImplementation((provider, tier, requested) => {
 			if (provider === 'anthropic') {
 				return { model: {} as never, modelId: 'claude-haiku-4-5-20251001' };
@@ -59,11 +62,14 @@ describe('resolveAutoModel', () => {
 	});
 
 	it('routes planning tier to CLI when sonnet is resolved', () => {
-		vi.spyOn(direct, 'pickModel').mockImplementation((provider) => {
+		vi.spyOn(direct, 'pickModel').mockImplementation((provider, _tier, requested) => {
 			if (provider === 'anthropic') {
 				return { model: {} as never, modelId: 'claude-sonnet-4-6' };
 			}
-			throw new Error('unexpected');
+			if (provider === 'google') {
+				return { model: {} as never, modelId: 'gemini-2.5-flash' };
+			}
+			return { model: {} as never, modelId: requested ?? 'deepseek-v4-pro:671b-cloud' };
 		});
 		const result = resolveAutoModel(baseCtx({ currentTier: 'planning' }));
 		expect(result.kind).toBe('cli');
@@ -111,5 +117,12 @@ describe('resolveAutoModel', () => {
 		if (result.kind === 'direct') {
 			expect(result.route.model).toContain('deepseek-v4-pro');
 		}
+	});
+
+	it('listAutoModelCandidates returns anthropic then google then ollama', () => {
+		const list = listAutoModelCandidates(baseCtx({ currentTier: 'chat' }));
+		expect(list.length).toBeGreaterThanOrEqual(2);
+		expect(list[0].route.provider).toBe('anthropic');
+		expect(list.at(-1)?.route.provider).toBe('local');
 	});
 });

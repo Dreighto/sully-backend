@@ -15,11 +15,7 @@ import { prepareStream, type Provider } from '$lib/server/chat/stream_prepare';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 import { rollbackOrphanTurn, type SullyRoutingFrame } from '$lib/server/chat/sdk_stream_common';
-import {
-	resolveAutoModel,
-	resolveAutoFallback,
-	routingFrameForExplicitPick
-} from '$lib/server/chat/auto_router';
+import { resolveAutoFallback, routingFrameForExplicitPick } from '$lib/server/chat/auto_router';
 import {
 	generateImageReply,
 	imagePromptFrom,
@@ -34,6 +30,7 @@ import {
 	resolveDirectModel,
 	sullyErrorFrame
 } from '$lib/server/chat/sdk_direct_reply';
+import { handleAutoReply } from '$lib/server/chat/sdk_auto_reply';
 import { shadowObserve } from '$lib/server/brains/shadow_router';
 
 function latestUserText(messages: UIMessage[]): string {
@@ -138,40 +135,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	if (ctx.autoMode) {
-		try {
-			const auto = resolveAutoModel(ctx);
-			if (auto.kind === 'cli') {
-				(ctx as { provider: string }).provider = 'anthropic';
-				(ctx as { resolvedModelId: string }).resolvedModelId = auto.modelId;
-				return handleCliReply(ctx, request, { routing: auto.route });
-			}
-			(ctx as { provider: string }).provider = auto.route.provider ?? 'google';
-			(ctx as { resolvedModelId: string }).resolvedModelId = auto.modelHandle.modelId;
-			const tools = ctx.allowSensitive ? { ...baseTools, ...getSensitiveTools() } : baseTools;
-			if (auto.route.provider === 'local') {
-				return handleLocalReply({
-					ctx,
-					request,
-					model: auto.modelHandle.model,
-					tools,
-					routing: auto.route
-				});
-			}
-			return handleDirectReply({
-				ctx,
-				request,
-				modelHandle: auto.modelHandle,
-				tools,
-				routing: auto.route
-			});
-		} catch (err) {
-			rollbackOrphanTurn(ctx.operatorRowId, ctx.taskId, ctx.reused);
-			const frame = sullyErrorFrame('credential_unavailable', (err as Error).message);
-			return new Response(
-				JSON.stringify({ error: 'credential_unavailable', detail: frame.message, ...frame }),
-				{ status: 503, headers: { 'Content-Type': 'application/json' } }
-			);
-		}
+		return handleAutoReply(ctx, request);
 	}
 
 	if (ctx.useClaudeCLI) {

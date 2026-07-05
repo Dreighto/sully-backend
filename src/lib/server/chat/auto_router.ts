@@ -17,6 +17,12 @@ import {
 	pickFallbackModel,
 	pickModel
 } from '$lib/server/chat/sdk_direct_reply';
+import {
+	isAutoProviderCooling,
+	providerFamilyFromApi,
+	syncAnthropicCapCooldown,
+	type AutoProviderFamily
+} from '$lib/server/chat/auto_provider_cooldown';
 
 const OLLAMA_FLASH = process.env.SULLY_AUTO_OLLAMA_FLASH || 'deepseek-v4-flash:671b-cloud';
 const OLLAMA_PRO = process.env.SULLY_AUTO_OLLAMA_PRO || 'deepseek-v4-pro:671b-cloud';
@@ -77,20 +83,41 @@ export type AutoResolveResult =
 			route: SullyRoutingFrame;
 	  };
 
+function familyFromCandidate(candidate: AutoResolveResult): AutoProviderFamily {
+	return providerFamilyFromApi(candidate.route.provider) ?? 'local';
+}
+
+function preferLastWorkingCandidate(
+	candidates: AutoResolveResult[],
+	lastModelUsed: string | null | undefined
+): AutoResolveResult[] {
+	if (!lastModelUsed || candidates.length < 2) return candidates;
+	const idx = candidates.findIndex((c) => {
+		const modelId = c.kind === 'cli' ? c.modelId : c.modelHandle.modelId;
+		return modelId === lastModelUsed || lastModelUsed.includes(modelId.split(':')[0] ?? '');
+	});
+	if (idx <= 0) return candidates;
+	return [candidates[idx], ...candidates.slice(0, idx), ...candidates.slice(idx + 1)];
+}
+
 /**
- * Resolve the model for an Auto-mode turn. Throws only when every lane is
- * exhausted (same as today's credential_unavailable 503).
+ * Ordered Auto-mode candidates. Runtime fallforward (sdk_auto_reply) walks this
+ * list when a provider fails before any reply text is emitted — same tier,
+ * next-cheapest provider, mirroring llm_router.ts. Providers in cooldown are
+ * omitted so Auto stays on fallbacks until the lane cools down.
  */
-export function resolveAutoModel(ctx: PreparedStreamContext): AutoResolveResult {
+export function listAutoModelCandidates(ctx: PreparedStreamContext): AutoResolveResult[] {
+	syncAnthropicCapCooldown();
 	const tier = ctx.currentTier;
+	const candidates: AutoResolveResult[] = [];
 	let fellForward = false;
 
 	// 1) Anthropic — tier-appropriate Haiku / Sonnet / Opus
-	if (!isAnthropicCapExceeded()) {
+	if (!isAnthropicCapExceeded() && !isAutoProviderCooling('anthropic')) {
 		const modelId = resolveChatModel({ tier, provider: 'anthropic' });
 		if (anthropicCredentialAvailable(modelId)) {
 			if (/sonnet|opus/i.test(modelId)) {
-				return {
+				candidates.push({
 					kind: 'cli',
 					modelId,
 					route: buildRoute({
@@ -101,28 +128,29 @@ export function resolveAutoModel(ctx: PreparedStreamContext): AutoResolveResult 
 						fell_forward: fellForward,
 						handled_by: 'cli'
 					})
-				};
+				});
+			} else {
+				const modelHandle = pickModel('anthropic', tier);
+				candidates.push({
+					kind: 'direct',
+					modelHandle,
+					route: buildRoute({
+						provider: 'anthropic',
+						modelId: modelHandle.modelId,
+						tier,
+						reason: 'auto_tier_primary',
+						fell_forward: fellForward
+					})
+				});
 			}
-			const modelHandle = pickModel('anthropic', tier);
-			return {
-				kind: 'direct',
-				modelHandle,
-				route: buildRoute({
-					provider: 'anthropic',
-					modelId: modelHandle.modelId,
-					tier,
-					reason: 'auto_tier_primary',
-					fell_forward: fellForward
-				})
-			};
 		}
 	}
 	fellForward = true;
 
 	// 2) Google Gemini — same tier matrix
-	if (googleCredentialAvailable()) {
+	if (googleCredentialAvailable() && !isAutoProviderCooling('google')) {
 		const modelHandle = pickModel('google', tier);
-		return {
+		candidates.push({
 			kind: 'direct',
 			modelHandle,
 			route: buildRoute({
@@ -132,24 +160,39 @@ export function resolveAutoModel(ctx: PreparedStreamContext): AutoResolveResult 
 				reason: 'auto_tier_fallback',
 				fell_forward: fellForward
 			})
-		};
+		});
 	}
-	fellForward = true;
 
-	// 3) Ollama Cloud DeepSeek — flash for chat tier, pro for planning/deep/local
-	const cloudModel = ollamaCloudModelForTier(tier);
-	const modelHandle = pickModel('local', tier, cloudModel);
-	return {
-		kind: 'direct',
-		modelHandle,
-		route: buildRoute({
-			provider: 'local',
-			modelId: modelHandle.modelId,
-			tier,
-			reason: 'auto_ollama_cloud',
-			fell_forward: fellForward
-		})
-	};
+	// 3) Ollama Cloud DeepSeek — flash for chat tier, pro for planning/deep
+	if (!isAutoProviderCooling('local')) {
+		const cloudModel = ollamaCloudModelForTier(tier);
+		const cloudHandle = pickModel('local', tier, cloudModel);
+		candidates.push({
+			kind: 'direct',
+			modelHandle: cloudHandle,
+			route: buildRoute({
+				provider: 'local',
+				modelId: cloudHandle.modelId,
+				tier,
+				reason: 'auto_ollama_cloud',
+				fell_forward: true
+			})
+		});
+	}
+
+	const anthropicInList = candidates.some((c) => familyFromCandidate(c) === 'anthropic');
+	if (!anthropicInList && ctx.threadState.last_model_used) {
+		return preferLastWorkingCandidate(candidates, ctx.threadState.last_model_used);
+	}
+	return candidates;
+}
+
+export function resolveAutoModel(ctx: PreparedStreamContext): AutoResolveResult {
+	const candidates = listAutoModelCandidates(ctx);
+	if (candidates.length === 0) {
+		throw new Error('Auto mode: no providers available (check keys and daily caps).');
+	}
+	return candidates[0];
 }
 
 /** Last-resort when explicit anthropic pick fails mid-route. */
