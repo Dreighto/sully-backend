@@ -12,9 +12,9 @@ export type DispatchProposalMeta = {
 export interface VoiceReplyContext {
 	text: string;
 	threadId: string;
-	taskId: string | undefined;
+	taskId: string;
 	currentTier: Tier;
-	targetRepo: string | undefined;
+	targetRepo: string;
 	decision: TurnDecision;
 	dispatchableDecision: boolean;
 	dispatchProposal: DispatchProposalMeta | null;
