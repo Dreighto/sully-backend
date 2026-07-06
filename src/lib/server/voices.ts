@@ -1,9 +1,9 @@
 // Voice catalog for Sully. Each voice is a (engine + params) pair the TTS
 // endpoints resolve SERVER-SIDE from an opaque `id`, so reference-clip
-// filesystem paths and ElevenLabs voice ids never reach the browser.
+// filesystem paths and cloud-provider voice ids never reach the browser.
 //
 // Two voices today:
-//   • emma         — ElevenLabs Flash (cloud, instant, crispest). Falls back to
+//   • emma         — Azure Speech (cloud, instant, crispest). Falls back to
 //                    Kokoro (bf_emma) when cloud is capped/offline.
 //   • goodman-sully — Kokoro local voice on the Jetson. Operator picks the
 //                    Kokoro voice id via TTS_VOICE env on the Jetson, or set
@@ -14,16 +14,16 @@
 
 import { env } from '$env/dynamic/private';
 
-export type VoiceEngine = 'elevenlabs' | 'chatterbox' | 'kokoro';
+export type VoiceEngine = 'azure' | 'chatterbox' | 'kokoro';
 
 export interface VoiceDef {
 	id: string;
 	label: string;
 	blurb: string;
 	engine: VoiceEngine;
-	/** ElevenLabs voice id (engine='elevenlabs'). */
+	/** Cloud TTS voice id/name (engine='azure'). */
 	voiceId?: string;
-	/** ElevenLabs model id (engine='elevenlabs'). */
+	/** Cloud TTS model/voice selector echoed to the client for routing metadata. */
 	model?: string;
 	/** Chatterbox reference clip, absolute server-side path (engine='chatterbox'). */
 	voiceRef?: string;
@@ -64,9 +64,9 @@ export const VOICES: VoiceDef[] = [
 		id: 'emma',
 		label: 'Emma',
 		blurb: 'Warm & natural — cloud, instant',
-		engine: 'elevenlabs',
-		voiceId: '56bWURjYFHyYyVf490Dp',
-		model: 'eleven_flash_v2_5',
+		engine: 'azure',
+		voiceId: 'en-US-AriaNeural',
+		model: 'en-US-AriaNeural',
 		kokoroFallbackVoice: 'bf_emma',
 		fallbackVoiceRef: `${VOICES_DIR}/emma.mp3`
 	},
@@ -101,13 +101,13 @@ export function clientVoices(): VoiceOption[] {
 	return VOICES.map(({ id, label, blurb, engine }) => ({ id, label, blurb, engine }));
 }
 
-// Cloud (ElevenLabs) is usable only when a key is present AND not force-local.
+// Cloud TTS is usable only when Azure creds are present AND not force-local.
 // `VOICE_TTS_PROVIDER=local` is a master override that pins everything local
 // (Emma then speaks through her local clone) — the operator's one-flip "go fully
 // local" switch.
 export function cloudAvailable(): boolean {
 	const forceLocal = (env.VOICE_TTS_PROVIDER || '').toLowerCase() === 'local';
-	return !!env.ELEVENLABS_API_KEY && !forceLocal;
+	return !!env.AZURE_SPEECH_KEY && !!env.AZURE_SPEECH_REGION && !forceLocal;
 }
 
 // The Chatterbox reference path to use when synthesizing a voice LOCALLY: a
@@ -126,7 +126,7 @@ export function kokoroVoiceFor(v: VoiceDef): string | undefined {
 // voice routes to /api/chat/speak (with a local fall-forward); a local voice
 // (or a cloud voice when cloud is unavailable) routes straight to speak-local.
 export function routingFor(v: VoiceDef): VoiceRouting {
-	if (v.engine === 'elevenlabs' && cloudAvailable()) {
+	if (v.engine === 'azure' && cloudAvailable()) {
 		const hasLocalFallback = !!(v.kokoroFallbackVoice || v.fallbackVoiceRef);
 		return {
 			ttsPath: '/api/chat/speak',
