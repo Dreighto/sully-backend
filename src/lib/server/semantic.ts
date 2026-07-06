@@ -14,8 +14,7 @@
 import Database from 'better-sqlite3';
 import { serverConfig } from './config';
 
-const OLLAMA_BASE =
-	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'mxbai-embed-large';
 const DEFAULT_THRESHOLD = Number(process.env.COMPANION_SEMANTIC_THRESHOLD || '0.42');
 

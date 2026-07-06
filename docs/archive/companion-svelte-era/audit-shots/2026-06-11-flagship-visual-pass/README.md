@@ -6,16 +6,16 @@ Captured during CUR competitive critique session. Used by `docs/superpowers/plan
 
 Production Sully at `http://127.0.0.1:18769/companion/chat`, iPhone viewport 390×844 (Playwright).
 
-| File | Surface |
-|------|---------|
-| `companion-empty-iphone.png` | Chat thread with history + composer |
-| `companion-sidebar-iphone.png` | Threads drawer open |
-| `companion-model-sheet-iphone.png` | Model picker bottom sheet |
+| File                               | Surface                             |
+| ---------------------------------- | ----------------------------------- |
+| `companion-empty-iphone.png`       | Chat thread with history + composer |
+| `companion-sidebar-iphone.png`     | Threads drawer open                 |
+| `companion-model-sheet-iphone.png` | Model picker bottom sheet           |
 
 ## reference/
 
-| File | Source | Status |
-|------|--------|--------|
+| File                    | Source                         | Status     |
+| ----------------------- | ------------------------------ | ---------- |
 | `ref-gemini-mobile.png` | gemini.google.com (logged out) | ✓ captured |
 
 ### Still needed (operator or authenticated session)

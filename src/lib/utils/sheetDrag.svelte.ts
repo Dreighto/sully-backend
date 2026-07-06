@@ -121,8 +121,7 @@ export function createSheetDrag(opts: {
 			return;
 		}
 		sheet.style.transition = SETTLE;
-		sheet.style.transform =
-			axis === 'y' ? 'translate3d(0, 100%, 0)' : 'translate3d(-100%, 0, 0)';
+		sheet.style.transform = axis === 'y' ? 'translate3d(0, 100%, 0)' : 'translate3d(-100%, 0, 0)';
 		let done = false;
 		const fin = () => {
 			if (done) return;

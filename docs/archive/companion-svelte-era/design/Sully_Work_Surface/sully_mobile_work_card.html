@@ -1,490 +1,617 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="A lightweight, operator-first prototype for the Sully OS Work Surface mobile card. Equipped with contextual safety confirmations and dynamic action buttons.">
-  <title>Sully Mobile Work Surface Prototype v4</title>
-  <link rel="stylesheet" href="sully_mobile_work_card.css">
-</head>
-<body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta
+			name="description"
+			content="A lightweight, operator-first prototype for the Sully OS Work Surface mobile card. Equipped with contextual safety confirmations and dynamic action buttons."
+		/>
+		<title>Sully Mobile Work Surface Prototype v4</title>
+		<link rel="stylesheet" href="sully_mobile_work_card.css" />
+	</head>
+	<body>
+		<div class="demo-viewport-container">
+			<!-- DEMO ONLY: Controls Panel -->
+			<div class="demo-controls-panel">
+				<!-- State Switcher -->
+				<div class="demo-controller" id="stateSwitcher">
+					<button class="demo-btn" data-state="collapsed">Collapsed Pill</button>
+					<button class="demo-btn active" data-state="compact">Compact Card</button>
+					<button class="demo-btn" data-state="expanded">Expanded Card</button>
+				</div>
 
-  <div class="demo-viewport-container">
-    
-    <!-- DEMO ONLY: Controls Panel -->
-    <div class="demo-controls-panel">
-      <!-- State Switcher -->
-      <div class="demo-controller" id="stateSwitcher">
-        <button class="demo-btn" data-state="collapsed">Collapsed Pill</button>
-        <button class="demo-btn active" data-state="compact">Compact Card</button>
-        <button class="demo-btn" data-state="expanded">Expanded Card</button>
-      </div>
-      
-      <!-- Preset Switcher -->
-      <div class="demo-controller presets-controller" id="presetSwitcher">
-        <button class="demo-btn active" data-preset="cc-only">CC Only</button>
-        <button class="demo-btn" data-preset="cc-verify">CC + Verify</button>
-        <button class="demo-btn" data-preset="agy-verify">AGY + Verify</button>
-        <button class="demo-btn" data-preset="multi-agent">Multi-Agent</button>
-        <button class="demo-btn" data-preset="blocked">Blocked</button>
-      </div>
-    </div>
+				<!-- Preset Switcher -->
+				<div class="demo-controller presets-controller" id="presetSwitcher">
+					<button class="demo-btn active" data-preset="cc-only">CC Only</button>
+					<button class="demo-btn" data-preset="cc-verify">CC + Verify</button>
+					<button class="demo-btn" data-preset="agy-verify">AGY + Verify</button>
+					<button class="demo-btn" data-preset="multi-agent">Multi-Agent</button>
+					<button class="demo-btn" data-preset="blocked">Blocked</button>
+				</div>
+			</div>
 
-    <!-- DEMO ONLY: iPhone Device Mockup -->
-    <div class="demo-phone-frame">
-      <div class="demo-phone-notch"></div>
-      
-      <div class="demo-phone-screen">
-        
-        <!-- Mock Status Bar -->
-        <div class="demo-screen-header">
-          <span class="demo-time">9:41</span>
-          <div class="demo-status-icons">
-            <span>5G</span>
-            <span>􀋦</span>
-            <span>􀛨</span>
-          </div>
-        </div>
+			<!-- DEMO ONLY: iPhone Device Mockup -->
+			<div class="demo-phone-frame">
+				<div class="demo-phone-notch"></div>
 
-        <h1 style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">
-          Sully Work Surface - Operator Controls Prototype
-        </h1>
+				<div class="demo-phone-screen">
+					<!-- Mock Status Bar -->
+					<div class="demo-screen-header">
+						<span class="demo-time">9:41</span>
+						<div class="demo-status-icons">
+							<span>5G</span>
+							<span>􀋦</span>
+							<span>􀛨</span>
+						</div>
+					</div>
 
-        <!-- Simulated Chat Interface -->
-        <div class="demo-chat-feed">
-          
-          <div class="demo-message system">Today at 9:41 AM</div>
-          
-          <div class="demo-message user" id="simulatedUserPrompt">
-            Can you review the database design draft?
-          </div>
-          
-          <div class="demo-message assistant" style="background-color: transparent; border: none; padding: 0; max-width: 100%;">
-            
-            <!-- ==================================================================
+					<h1
+						style="
+							position: absolute;
+							width: 1px;
+							height: 1px;
+							padding: 0;
+							margin: -1px;
+							overflow: hidden;
+							clip: rect(0, 0, 0, 0);
+							border: 0;
+						"
+					>
+						Sully Work Surface - Operator Controls Prototype
+					</h1>
+
+					<!-- Simulated Chat Interface -->
+					<div class="demo-chat-feed">
+						<div class="demo-message system">Today at 9:41 AM</div>
+
+						<div class="demo-message user" id="simulatedUserPrompt">
+							Can you review the database design draft?
+						</div>
+
+						<div
+							class="demo-message assistant"
+							style="background-color: transparent; border: none; padding: 0; max-width: 100%"
+						>
+							<!-- ==================================================================
                  START SULLY COMPONENT (APP-READY)
                  ================================================================== -->
-            <div class="sully-card-container">
-              
-              <!-- Card Core. Classes: 'state-collapsed', 'state-compact', 'state-expanded', 'status-active', 'status-verifying', 'status-blocked', 'status-complete', 'status-stopped' -->
-              <div class="sully-card state-compact status-active" id="sullyCard">
-                
-                <!-- 1. COLLAPSED VIEW -->
-                <div class="sully-collapsed-view" id="collapsedView">
-                  <div class="sully-pill-content" id="collapsedPillContent">
-                    <!-- Dynamic injection -->
-                  </div>
-                </div>
+							<div class="sully-card-container">
+								<!-- Card Core. Classes: 'state-collapsed', 'state-compact', 'state-expanded', 'status-active', 'status-verifying', 'status-blocked', 'status-complete', 'status-stopped' -->
+								<div class="sully-card state-compact status-active" id="sullyCard">
+									<!-- 1. COLLAPSED VIEW -->
+									<div class="sully-collapsed-view" id="collapsedView">
+										<div class="sully-pill-content" id="collapsedPillContent">
+											<!-- Dynamic injection -->
+										</div>
+									</div>
 
-                <!-- 2. COMPACT VIEW (Operator-Centric) -->
-                <div class="sully-compact-view" id="compactView">
-                  <div class="sully-card-header">
-                    <div class="sully-task-info">
-                      <span class="sully-card-label" id="compactLabelText">Sully Action Status</span>
-                      <h2 class="sully-task-title" id="compactTitle" style="margin: 0;">Task Title</h2>
-                    </div>
-                    <span class="sully-state-badge" id="compactBadge">Active</span>
-                  </div>
+									<!-- 2. COMPACT VIEW (Operator-Centric) -->
+									<div class="sully-compact-view" id="compactView">
+										<div class="sully-card-header">
+											<div class="sully-task-info">
+												<span class="sully-card-label" id="compactLabelText"
+													>Sully Action Status</span
+												>
+												<h2 class="sully-task-title" id="compactTitle" style="margin: 0">
+													Task Title
+												</h2>
+											</div>
+											<span class="sully-state-badge" id="compactBadge">Active</span>
+										</div>
 
-                  <!-- Route Pipeline Progress Bar -->
-                  <div class="sully-pipeline" id="compactPipeline">
-                    <!-- Dynamic pipeline injected here -->
-                  </div>
+										<!-- Route Pipeline Progress Bar -->
+										<div class="sully-pipeline" id="compactPipeline">
+											<!-- Dynamic pipeline injected here -->
+										</div>
 
-                  <!-- Small Dispatch Graph -->
-                  <div class="sully-graph-container" style="max-height: 55px;">
-                    <svg class="sully-svg-graph" id="compactSvg" viewBox="0 0 340 145" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <!-- Dynamic nodes injected here -->
-                    </svg>
-                  </div>
+										<!-- Small Dispatch Graph -->
+										<div class="sully-graph-container" style="max-height: 55px">
+											<svg
+												class="sully-svg-graph"
+												id="compactSvg"
+												viewBox="0 0 340 145"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<!-- Dynamic nodes injected here -->
+											</svg>
+										</div>
 
-                  <!-- Metadata Operator Banner -->
-                  <div class="sully-operator-banner" id="compactOperatorBanner">
-                    <!-- Dynamic injection -->
-                  </div>
+										<!-- Metadata Operator Banner -->
+										<div class="sully-operator-banner" id="compactOperatorBanner">
+											<!-- Dynamic injection -->
+										</div>
 
-                  <!-- Compact Action Buttons Row (Directly in card for blocked states) -->
-                  <div class="sully-actions-row" id="compactActionsRow" style="display: none;">
-                    <!-- Dynamic action buttons -->
-                  </div>
-                </div>
+										<!-- Compact Action Buttons Row (Directly in card for blocked states) -->
+										<div class="sully-actions-row" id="compactActionsRow" style="display: none">
+											<!-- Dynamic action buttons -->
+										</div>
+									</div>
 
-                <!-- 3. EXPANDED VIEW (Includes diagnostics & worker registry) -->
-                <div class="sully-expanded-view" id="expandedView">
-                  <div class="sully-expanded-header">
-                    <div class="sully-task-info">
-                      <span class="sully-card-label">Detailed Diagnostic Route</span>
-                      <h2 class="sully-task-title" id="expandedTitle" style="margin: 0; font-size: 14.5px;">Task Title</h2>
-                    </div>
-                    <div class="sully-expanded-actions">
-                      <button class="sully-close-btn" id="sullyCloseBtn" title="Collapse View" aria-label="Collapse View">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+									<!-- 3. EXPANDED VIEW (Includes diagnostics & worker registry) -->
+									<div class="sully-expanded-view" id="expandedView">
+										<div class="sully-expanded-header">
+											<div class="sully-task-info">
+												<span class="sully-card-label">Detailed Diagnostic Route</span>
+												<h2
+													class="sully-task-title"
+													id="expandedTitle"
+													style="margin: 0; font-size: 14.5px"
+												>
+													Task Title
+												</h2>
+											</div>
+											<div class="sully-expanded-actions">
+												<button
+													class="sully-close-btn"
+													id="sullyCloseBtn"
+													title="Collapse View"
+													aria-label="Collapse View"
+												>
+													<svg
+														width="18"
+														height="18"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="currentColor"
+														stroke-width="2.5"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+													>
+														<line x1="18" y1="6" x2="6" y2="18"></line>
+														<line x1="6" y1="6" x2="18" y2="18"></line>
+													</svg>
+												</button>
+											</div>
+										</div>
 
-                  <!-- Larger Dispatch Graph -->
-                  <div class="sully-graph-container" style="max-height: 100px;">
-                    <svg class="sully-svg-graph" id="expandedSvg" viewBox="0 0 340 145" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <!-- Dynamic nodes injected here -->
-                    </svg>
-                  </div>
+										<!-- Larger Dispatch Graph -->
+										<div class="sully-graph-container" style="max-height: 100px">
+											<svg
+												class="sully-svg-graph"
+												id="expandedSvg"
+												viewBox="0 0 340 145"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<!-- Dynamic nodes injected here -->
+											</svg>
+										</div>
 
-                  <!-- Vertical Routing Phases (Checklist) -->
-                  <div class="sully-phases" id="expandedPhases">
-                    <!-- Dynamic injection -->
-                  </div>
+										<!-- Vertical Routing Phases (Checklist) -->
+										<div class="sully-phases" id="expandedPhases">
+											<!-- Dynamic injection -->
+										</div>
 
-                  <!-- Worker Registry Detail -->
-                  <div class="sully-worker-rows" id="expandedWorkerRows">
-                    <!-- Dynamic injection -->
-                  </div>
+										<!-- Worker Registry Detail -->
+										<div class="sully-worker-rows" id="expandedWorkerRows">
+											<!-- Dynamic injection -->
+										</div>
 
-                  <!-- Proof Status and Confidence Summary -->
-                  <div class="sully-proof-card" id="expandedProofCard">
-                    <!-- Dynamic injection -->
-                  </div>
+										<!-- Proof Status and Confidence Summary -->
+										<div class="sully-proof-card" id="expandedProofCard">
+											<!-- Dynamic injection -->
+										</div>
 
-                  <!-- Expanded Action Buttons Row -->
-                  <div class="sully-actions-row" id="expandedActionsRow" style="display: none;">
-                    <!-- Dynamic action buttons -->
-                  </div>
-                </div>
-
-              </div>
-            </div>
-            <!-- ==================================================================
+										<!-- Expanded Action Buttons Row -->
+										<div class="sully-actions-row" id="expandedActionsRow" style="display: none">
+											<!-- Dynamic action buttons -->
+										</div>
+									</div>
+								</div>
+							</div>
+							<!-- ==================================================================
                  END SULLY COMPONENT (APP-READY)
                  ================================================================== -->
-                 
-          </div>
+						</div>
 
-          <div class="demo-message system" id="simulatedSystemStatus">
-            Sully has dispatched the Coordinator to analyze the draft.
-          </div>
+						<div class="demo-message system" id="simulatedSystemStatus">
+							Sully has dispatched the Coordinator to analyze the draft.
+						</div>
+					</div>
+				</div>
+			</div>
 
-        </div>
+			<!-- DEMO ONLY: Instructions -->
+			<div class="demo-instructions">
+				<strong>iPhone 12/13/14 viewport simulation (390px wide)</strong><br />
+				Tapping action buttons halts, executes, or restarts tasks. Dangerous actions require
+				double-tap confirmation.
+			</div>
+		</div>
 
-      </div>
-    </div>
-    
-    <!-- DEMO ONLY: Instructions -->
-    <div class="demo-instructions">
-      <strong>iPhone 12/13/14 viewport simulation (390px wide)</strong><br>
-      Tapping action buttons halts, executes, or restarts tasks. Dangerous actions require double-tap confirmation.
-    </div>
+		<!-- Interactive script for state-toggling & dynamic node rendering -->
+		<script>
+			// PRESETS DATA STORAGE (Includes Stopped state support)
+			const DEFAULT_PRESETS = {
+				'cc-only': {
+					userPrompt: 'Can you review the database design draft?',
+					systemStatus: 'Sully has dispatched the Coordinator to analyze the draft.',
+					title: 'Sully is researching database models',
+					status: 'active',
+					statusBadge: 'Researching',
+					nextStepText: 'Building optimization patch',
+					waitingOnText: '',
+					pipelineSteps: ['complete', 'active', 'pending', 'pending', 'pending', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Researching schema',
+							statusState: 'active'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.1s' },
+						{ name: 'Researching database models', state: 'active', time: 'Running' },
+						{ name: 'Building optimization patch', state: 'pending', time: '--' },
+						{ name: 'Checking syntax & integrity', state: 'pending', time: '--' },
+						{ name: 'Waiting for approval', state: 'pending', time: '--' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail: 'Analyzing database structures and index tables. Graph nodes computed.',
+					evidence:
+						'Coordinator active. 14 database tables mapped. Scanning foreign keys for missing indexes.',
+					proofConf: 'Active'
+				},
+				'cc-verify': {
+					userPrompt: 'Deploy the secure gateway hotfix v1.4.3.',
+					systemStatus: 'Sully is running verification suites on the hotfix.',
+					title: 'Sully is checking the gateway handshake',
+					status: 'verifying',
+					statusBadge: 'Checking',
+					nextStepText: 'Preparing final deployment response',
+					waitingOnText: '',
+					pipelineSteps: ['complete', 'complete', 'complete', 'active', 'pending', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Hotfix built',
+							statusState: 'complete'
+						},
+						{
+							key: 'Ver',
+							name: 'Verify',
+							role: 'QA Validator',
+							statusText: 'Checking TLS v1.3',
+							statusState: 'active'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.2s' },
+						{ name: 'Researching gateway ports', state: 'complete', time: '0.5s' },
+						{ name: 'Building hotfix image', state: 'complete', time: '1.1s' },
+						{ name: 'Checking handshake security', state: 'active', time: 'Verifying' },
+						{ name: 'Waiting for approval', state: 'pending', time: '--' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail: 'Running sandboxed socket execution. SSL handshake validation test suite.',
+					evidence:
+						'Gateway test suite initiated. Core port bindings mapped. SSL handshakes respond correctly.',
+					proofConf: '98% Conf.'
+				},
+				'agy-verify': {
+					userPrompt: 'Implement mobile-first deckbuilder gesture handling.',
+					systemStatus: 'Sully has dispatched the coding agent; QA tests are queued.',
+					title: 'Sully is building gesture touch handlers',
+					status: 'active',
+					statusBadge: 'Building',
+					nextStepText: 'Checking gesture behaviors',
+					waitingOnText: '',
+					pipelineSteps: ['complete', 'complete', 'active', 'pending', 'pending', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Scope mapped',
+							statusState: 'complete'
+						},
+						{
+							key: 'AGY',
+							name: 'AGY',
+							role: 'Antigravity Agent',
+							statusText: 'Writing swipe code',
+							statusState: 'active'
+						},
+						{
+							key: 'Ver',
+							name: 'Verify',
+							role: 'QA Validator',
+							statusText: 'Waiting',
+							statusState: 'queued'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.1s' },
+						{ name: 'Researching swipe standards', state: 'complete', time: '0.6s' },
+						{ name: 'Building gesture handlers', state: 'active', time: 'Running' },
+						{ name: 'Checking compilation & tests', state: 'pending', time: '--' },
+						{ name: 'Waiting for approval', state: 'pending', time: '--' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail:
+						'Awaiting local test engine execution. Input threshold rules compiled successfully.',
+					evidence:
+						'Writing swipe boundaries. 24 lines added to touch scripts. Vitest local build validation successful.',
+					proofConf: 'Queued'
+				},
+				'multi-agent': {
+					userPrompt: 'Build a context-aware search engine using past logs.',
+					systemStatus: 'Sully is referencing memory context while running code generation.',
+					title: 'Sully is building context search models',
+					status: 'active',
+					statusBadge: 'Building',
+					nextStepText: 'Checking query performance',
+					waitingOnText: '',
+					pipelineSteps: ['complete', 'complete', 'active', 'pending', 'pending', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Dispatched',
+							statusState: 'complete'
+						},
+						{
+							key: 'AGY',
+							name: 'AGY',
+							role: 'Antigravity Agent',
+							statusText: 'Building similarity queries',
+							statusState: 'active'
+						},
+						{
+							key: 'Mem',
+							name: 'Memory',
+							role: 'Context Engine',
+							statusText: 'Referencing index',
+							statusState: 'idle'
+						},
+						{
+							key: 'Ver',
+							name: 'Verify',
+							role: 'QA Validator',
+							statusText: 'Queued',
+							statusState: 'queued'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.2s' },
+						{ name: 'Researching log structures', state: 'complete', time: '0.7s' },
+						{ name: 'Building index queries', state: 'active', time: 'Querying' },
+						{ name: 'Checking query similarity', state: 'pending', time: '--' },
+						{ name: 'Waiting for approval', state: 'pending', time: '--' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail: 'Retrieved 5 vector search embeddings. Index matching threshold >= 0.82.',
+					evidence:
+						'Generating semantic search routing. Pulling reference embeddings from local memory index.',
+					proofConf: 'Active'
+				},
+				blocked: {
+					userPrompt: 'Delete production migration backup folder.',
+					systemStatus: 'Sully has paused work. Operator confirmation is required to proceed.',
+					title: 'Sully is waiting for your approval',
+					status: 'blocked',
+					statusBadge: 'Waiting on You',
+					nextStepText: 'Preparing backup deletion',
+					waitingOnText: 'Waiting for your approval to delete production backups',
+					pipelineSteps: ['complete', 'complete', 'complete', 'complete', 'active', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Awaiting Input',
+							statusState: 'blocked'
+						},
+						{
+							key: 'Ver',
+							name: 'Verify',
+							role: 'QA Validator',
+							statusText: 'Halted',
+							statusState: 'idle'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.1s' },
+						{ name: 'Researching backup paths', state: 'complete', time: '0.4s' },
+						{ name: 'Building directory maps', state: 'complete', time: '0.8s' },
+						{ name: 'Checking safe-delete rules', state: 'complete', time: '1.2s' },
+						{ name: 'Waiting for your approval', state: 'active', time: 'Halted' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail: 'Awaiting manual approval override. Write locks enabled for safety.',
+					evidence:
+						'Warning: target path matches production archive database backup logueos_migration_backup_20260524.',
+					proofConf: 'Approval Req.'
+				},
+				stopped: {
+					userPrompt: 'Delete production migration backup folder.',
+					systemStatus: 'Task halted. Sully has shut down active workers.',
+					title: 'Task stopped',
+					status: 'stopped',
+					statusBadge: 'Stopped',
+					nextStepText: '',
+					waitingOnText: 'Nothing else will run unless you restart it.',
+					pipelineSteps: ['complete', 'complete', 'complete', 'complete', 'active', 'pending'],
+					workers: [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Stopped',
+							statusState: 'stopped'
+						}
+					],
+					phases: [
+						{ name: 'Reading request', state: 'complete', time: '0.1s' },
+						{ name: 'Researching backup paths', state: 'complete', time: '0.4s' },
+						{ name: 'Building directory maps', state: 'complete', time: '0.8s' },
+						{ name: 'Checking safe-delete rules', state: 'complete', time: '1.2s' },
+						{ name: 'Waiting for your approval', state: 'complete', time: 'Cancelled' },
+						{ name: 'Preparing final response', state: 'pending', time: '--' }
+					],
+					proofDetail: 'Processes terminated. Active container nodes closed. Awaiting restart.',
+					evidence:
+						'Halted execution code: USER_TERMINATED. Active processes cleared from sandbox.',
+					proofConf: 'Stopped'
+				}
+			};
 
-  </div>
+			// Deep clone helper
+			function clonePresets() {
+				return JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+			}
 
-  <!-- Interactive script for state-toggling & dynamic node rendering -->
-  <script>
-    // PRESETS DATA STORAGE (Includes Stopped state support)
-    const DEFAULT_PRESETS = {
-      'cc-only': {
-        userPrompt: "Can you review the database design draft?",
-        systemStatus: "Sully has dispatched the Coordinator to analyze the draft.",
-        title: "Sully is researching database models",
-        status: "active",
-        statusBadge: "Researching",
-        nextStepText: "Building optimization patch",
-        waitingOnText: "",
-        pipelineSteps: ['complete', 'active', 'pending', 'pending', 'pending', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Researching schema", statusState: "active" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.1s" },
-          { name: "Researching database models", state: "active", time: "Running" },
-          { name: "Building optimization patch", state: "pending", time: "--" },
-          { name: "Checking syntax & integrity", state: "pending", time: "--" },
-          { name: "Waiting for approval", state: "pending", time: "--" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Analyzing database structures and index tables. Graph nodes computed.",
-        evidence: "Coordinator active. 14 database tables mapped. Scanning foreign keys for missing indexes.",
-        proofConf: "Active"
-      },
-      'cc-verify': {
-        userPrompt: "Deploy the secure gateway hotfix v1.4.3.",
-        systemStatus: "Sully is running verification suites on the hotfix.",
-        title: "Sully is checking the gateway handshake",
-        status: "verifying",
-        statusBadge: "Checking",
-        nextStepText: "Preparing final deployment response",
-        waitingOnText: "",
-        pipelineSteps: ['complete', 'complete', 'complete', 'active', 'pending', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Hotfix built", statusState: "complete" },
-          { key: "Ver", name: "Verify", role: "QA Validator", statusText: "Checking TLS v1.3", statusState: "active" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.2s" },
-          { name: "Researching gateway ports", state: "complete", time: "0.5s" },
-          { name: "Building hotfix image", state: "complete", time: "1.1s" },
-          { name: "Checking handshake security", state: "active", time: "Verifying" },
-          { name: "Waiting for approval", state: "pending", time: "--" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Running sandboxed socket execution. SSL handshake validation test suite.",
-        evidence: "Gateway test suite initiated. Core port bindings mapped. SSL handshakes respond correctly.",
-        proofConf: "98% Conf."
-      },
-      'agy-verify': {
-        userPrompt: "Implement mobile-first deckbuilder gesture handling.",
-        systemStatus: "Sully has dispatched the coding agent; QA tests are queued.",
-        title: "Sully is building gesture touch handlers",
-        status: "active",
-        statusBadge: "Building",
-        nextStepText: "Checking gesture behaviors",
-        waitingOnText: "",
-        pipelineSteps: ['complete', 'complete', 'active', 'pending', 'pending', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Scope mapped", statusState: "complete" },
-          { key: "AGY", name: "AGY", role: "Antigravity Agent", statusText: "Writing swipe code", statusState: "active" },
-          { key: "Ver", name: "Verify", role: "QA Validator", statusText: "Waiting", statusState: "queued" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.1s" },
-          { name: "Researching swipe standards", state: "complete", time: "0.6s" },
-          { name: "Building gesture handlers", state: "active", time: "Running" },
-          { name: "Checking compilation & tests", state: "pending", time: "--" },
-          { name: "Waiting for approval", state: "pending", time: "--" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Awaiting local test engine execution. Input threshold rules compiled successfully.",
-        evidence: "Writing swipe boundaries. 24 lines added to touch scripts. Vitest local build validation successful.",
-        proofConf: "Queued"
-      },
-      'multi-agent': {
-        userPrompt: "Build a context-aware search engine using past logs.",
-        systemStatus: "Sully is referencing memory context while running code generation.",
-        title: "Sully is building context search models",
-        status: "active",
-        statusBadge: "Building",
-        nextStepText: "Checking query performance",
-        waitingOnText: "",
-        pipelineSteps: ['complete', 'complete', 'active', 'pending', 'pending', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Dispatched", statusState: "complete" },
-          { key: "AGY", name: "AGY", role: "Antigravity Agent", statusText: "Building similarity queries", statusState: "active" },
-          { key: "Mem", name: "Memory", role: "Context Engine", statusText: "Referencing index", statusState: "idle" },
-          { key: "Ver", name: "Verify", role: "QA Validator", statusText: "Queued", statusState: "queued" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.2s" },
-          { name: "Researching log structures", state: "complete", time: "0.7s" },
-          { name: "Building index queries", state: "active", time: "Querying" },
-          { name: "Checking query similarity", state: "pending", time: "--" },
-          { name: "Waiting for approval", state: "pending", time: "--" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Retrieved 5 vector search embeddings. Index matching threshold >= 0.82.",
-        evidence: "Generating semantic search routing. Pulling reference embeddings from local memory index.",
-        proofConf: "Active"
-      },
-      'blocked': {
-        userPrompt: "Delete production migration backup folder.",
-        systemStatus: "Sully has paused work. Operator confirmation is required to proceed.",
-        title: "Sully is waiting for your approval",
-        status: "blocked",
-        statusBadge: "Waiting on You",
-        nextStepText: "Preparing backup deletion",
-        waitingOnText: "Waiting for your approval to delete production backups",
-        pipelineSteps: ['complete', 'complete', 'complete', 'complete', 'active', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Awaiting Input", statusState: "blocked" },
-          { key: "Ver", name: "Verify", role: "QA Validator", statusText: "Halted", statusState: "idle" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.1s" },
-          { name: "Researching backup paths", state: "complete", time: "0.4s" },
-          { name: "Building directory maps", state: "complete", time: "0.8s" },
-          { name: "Checking safe-delete rules", state: "complete", time: "1.2s" },
-          { name: "Waiting for your approval", state: "active", time: "Halted" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Awaiting manual approval override. Write locks enabled for safety.",
-        evidence: "Warning: target path matches production archive database backup logueos_migration_backup_20260524.",
-        proofConf: "Approval Req."
-      },
-      'stopped': {
-        userPrompt: "Delete production migration backup folder.",
-        systemStatus: "Task halted. Sully has shut down active workers.",
-        title: "Task stopped",
-        status: "stopped",
-        statusBadge: "Stopped",
-        nextStepText: "",
-        waitingOnText: "Nothing else will run unless you restart it.",
-        pipelineSteps: ['complete', 'complete', 'complete', 'complete', 'active', 'pending'],
-        workers: [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Stopped", statusState: "stopped" }
-        ],
-        phases: [
-          { name: "Reading request", state: "complete", time: "0.1s" },
-          { name: "Researching backup paths", state: "complete", time: "0.4s" },
-          { name: "Building directory maps", state: "complete", time: "0.8s" },
-          { name: "Checking safe-delete rules", state: "complete", time: "1.2s" },
-          { name: "Waiting for your approval", state: "complete", time: "Cancelled" },
-          { name: "Preparing final response", state: "pending", time: "--" }
-        ],
-        proofDetail: "Processes terminated. Active container nodes closed. Awaiting restart.",
-        evidence: "Halted execution code: USER_TERMINATED. Active processes cleared from sandbox.",
-        proofConf: "Stopped"
-      }
-    };
+			let PRESETS = clonePresets();
 
-    // Deep clone helper
-    function clonePresets() {
-      return JSON.parse(JSON.stringify(DEFAULT_PRESETS));
-    }
+			// COORDINATE LAYOUTS FOR ACTIVE NODES (CENTER IS ALWAYS 170, 72.5)
+			const LAYOUTS = {
+				1: [{ x: 60, y: 72.5 }],
+				2: [
+					{ x: 60, y: 72.5 },
+					{ x: 280, y: 72.5 }
+				],
+				3: [
+					{ x: 50, y: 35 },
+					{ x: 50, y: 110 },
+					{ x: 280, y: 72.5 }
+				],
+				4: [
+					{ x: 50, y: 35 },
+					{ x: 50, y: 110 },
+					{ x: 290, y: 35 },
+					{ x: 290, y: 110 }
+				]
+			};
 
-    let PRESETS = clonePresets();
+			// CURRENT APP STATE
+			let currentState = 'compact';
+			let currentPreset = 'cc-only';
 
-    // COORDINATE LAYOUTS FOR ACTIVE NODES (CENTER IS ALWAYS 170, 72.5)
-    const LAYOUTS = {
-      1: [
-        { x: 60, y: 72.5 }
-      ],
-      2: [
-        { x: 60, y: 72.5 },
-        { x: 280, y: 72.5 }
-      ],
-      3: [
-        { x: 50, y: 35 },
-        { x: 50, y: 110 },
-        { x: 280, y: 72.5 }
-      ],
-      4: [
-        { x: 50, y: 35 },
-        { x: 50, y: 110 },
-        { x: 290, y: 35 },
-        { x: 290, y: 110 }
-      ]
-    };
+			// CONFIRMATION STATES (V4 Safety Checks)
+			let confirmDestructive = false; // "Confirm deletion?" double-tap state
+			let confirmStopActive = false; // "Confirm Stop?" double-tap state for running tasks
 
-    // CURRENT APP STATE
-    let currentState = 'compact';
-    let currentPreset = 'cc-only';
+			// RENDER FUNCTION FOR DYNAMIC SVG GRAPH
+			function renderGraph(svgId, activeWorkers, cardStatus) {
+				const svg = document.getElementById(svgId);
+				if (!svg) return;
 
-    // CONFIRMATION STATES (V4 Safety Checks)
-    let confirmDestructive = false; // "Confirm deletion?" double-tap state
-    let confirmStopActive = false;   // "Confirm Stop?" double-tap state for running tasks
+				svg.innerHTML = '';
 
-    // RENDER FUNCTION FOR DYNAMIC SVG GRAPH
-    function renderGraph(svgId, activeWorkers, cardStatus) {
-      const svg = document.getElementById(svgId);
-      if (!svg) return;
-      
-      svg.innerHTML = '';
-      
-      // 1. Core Task Node
-      const coreNodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      coreNodeGroup.innerHTML = `
+				// 1. Core Task Node
+				const coreNodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+				coreNodeGroup.innerHTML = `
         <circle class="graph-node core-node" cx="170" cy="72.5" r="18" />
         <text class="graph-label core-label" x="170" y="72.5" dy="4">Task</text>
       `;
-      
-      // 2. Render Workers and Connections
-      const count = activeWorkers.length;
-      const positions = LAYOUTS[count] || LAYOUTS[4];
-      
-      activeWorkers.forEach((worker, idx) => {
-        const pos = positions[idx];
-        const { x, y } = pos;
-        
-        let pathD;
-        if (y === 72.5) {
-          pathD = `M ${x} ${y} L 170 72.5`;
-        } else {
-          const cx = (x + 170) / 2;
-          const cy = (y + 72.5) / 2 + (y < 72.5 ? -14 : 14);
-          pathD = `M ${x} ${y} Q ${cx} ${cy} 170 72.5`;
-        }
-        
-        const isActive = (worker.statusState === 'active' || worker.statusState === 'verifying') && cardStatus !== 'stopped';
-        const isCompleted = worker.statusState === 'complete';
-        const isBlocked = worker.statusState === 'blocked';
-        const isStopped = cardStatus === 'stopped' || worker.statusState === 'stopped';
-        
-        let edgeClass = 'graph-edge';
-        if (isActive) edgeClass += ' active-edge';
-        if (isCompleted) edgeClass += ' complete-edge';
-        if (isBlocked) edgeClass += ' blocked-edge';
-        if (isStopped) edgeClass += ' stopped-edge';
-        
-        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        pathEl.setAttribute('class', edgeClass);
-        pathEl.setAttribute('d', pathD);
-        svg.appendChild(pathEl);
-        
-        if (isActive) {
-          const packetEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          packetEl.setAttribute('class', 'graph-packet');
-          packetEl.setAttribute('r', '4');
-          packetEl.style.offsetPath = `path("${pathD}")`;
-          
-          let duration = '2.4s';
-          if (worker.key === 'AGY') duration = '1.7s';
-          if (worker.key === 'Ver') duration = '2.1s';
-          packetEl.style.animationDuration = duration;
-          
-          svg.appendChild(packetEl);
-        }
-        
-        const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        let nodeClass = 'graph-node';
-        let labelClass = 'graph-label';
-        
-        if (isActive) {
-          nodeClass += ' active-node';
-          labelClass += ' active-label';
-        } else if (isCompleted) {
-          nodeClass += ' complete-node';
-        } else if (isBlocked) {
-          nodeClass += ' blocked-node';
-          labelClass += ' blocked-label';
-        } else if (isStopped) {
-          nodeClass += ' stopped-node';
-        }
-        
-        nodeGroup.innerHTML = `
+
+				// 2. Render Workers and Connections
+				const count = activeWorkers.length;
+				const positions = LAYOUTS[count] || LAYOUTS[4];
+
+				activeWorkers.forEach((worker, idx) => {
+					const pos = positions[idx];
+					const { x, y } = pos;
+
+					let pathD;
+					if (y === 72.5) {
+						pathD = `M ${x} ${y} L 170 72.5`;
+					} else {
+						const cx = (x + 170) / 2;
+						const cy = (y + 72.5) / 2 + (y < 72.5 ? -14 : 14);
+						pathD = `M ${x} ${y} Q ${cx} ${cy} 170 72.5`;
+					}
+
+					const isActive =
+						(worker.statusState === 'active' || worker.statusState === 'verifying') &&
+						cardStatus !== 'stopped';
+					const isCompleted = worker.statusState === 'complete';
+					const isBlocked = worker.statusState === 'blocked';
+					const isStopped = cardStatus === 'stopped' || worker.statusState === 'stopped';
+
+					let edgeClass = 'graph-edge';
+					if (isActive) edgeClass += ' active-edge';
+					if (isCompleted) edgeClass += ' complete-edge';
+					if (isBlocked) edgeClass += ' blocked-edge';
+					if (isStopped) edgeClass += ' stopped-edge';
+
+					const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+					pathEl.setAttribute('class', edgeClass);
+					pathEl.setAttribute('d', pathD);
+					svg.appendChild(pathEl);
+
+					if (isActive) {
+						const packetEl = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+						packetEl.setAttribute('class', 'graph-packet');
+						packetEl.setAttribute('r', '4');
+						packetEl.style.offsetPath = `path("${pathD}")`;
+
+						let duration = '2.4s';
+						if (worker.key === 'AGY') duration = '1.7s';
+						if (worker.key === 'Ver') duration = '2.1s';
+						packetEl.style.animationDuration = duration;
+
+						svg.appendChild(packetEl);
+					}
+
+					const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+					let nodeClass = 'graph-node';
+					let labelClass = 'graph-label';
+
+					if (isActive) {
+						nodeClass += ' active-node';
+						labelClass += ' active-label';
+					} else if (isCompleted) {
+						nodeClass += ' complete-node';
+					} else if (isBlocked) {
+						nodeClass += ' blocked-node';
+						labelClass += ' blocked-label';
+					} else if (isStopped) {
+						nodeClass += ' stopped-node';
+					}
+
+					nodeGroup.innerHTML = `
           <circle class="${nodeClass}" cx="${x}" cy="${y}" r="14" />
           <text class="${labelClass}" x="${x}" y="${y}" dy="4">${worker.key}</text>
         `;
-        svg.appendChild(nodeGroup);
-      });
-      
-      svg.appendChild(coreNodeGroup);
-    }
+					svg.appendChild(nodeGroup);
+				});
 
-    // MAIN RENDERING CONTROLLER FOR SULLY CARD
-    function updateSullyCard() {
-      const data = PRESETS[currentPreset];
-      const card = document.getElementById('sullyCard');
-      
-      // Update Demo Feed Texts
-      document.getElementById('simulatedUserPrompt').innerText = data.userPrompt;
-      document.getElementById('simulatedSystemStatus').innerText = data.systemStatus;
+				svg.appendChild(coreNodeGroup);
+			}
 
-      // Update Card State & Status Classes
-      card.className = `sully-card state-${currentState} status-${data.status}`;
-      
-      // 1. COLLAPSED VIEW POPULATION
-      const collapsedContent = document.getElementById('collapsedPillContent');
-      let collapsedHtml = `<span class="sully-indicator-dot"></span><span class="sully-pill-text">Sully working</span>`;
-      collapsedHtml += `<span class="sully-pill-dot-separator">·</span><span class="sully-pill-subtext">${data.statusBadge}</span>`;
-      collapsedContent.innerHTML = collapsedHtml;
+			// MAIN RENDERING CONTROLLER FOR SULLY CARD
+			function updateSullyCard() {
+				const data = PRESETS[currentPreset];
+				const card = document.getElementById('sullyCard');
 
-      // 2. COMPACT VIEW POPULATION
-      document.getElementById('compactTitle').innerText = data.title;
-      document.getElementById('compactBadge').innerText = data.statusBadge;
-      
-      // Compact Pipeline
-      const pipelineContainer = document.getElementById('compactPipeline');
-      pipelineContainer.innerHTML = `
+				// Update Demo Feed Texts
+				document.getElementById('simulatedUserPrompt').innerText = data.userPrompt;
+				document.getElementById('simulatedSystemStatus').innerText = data.systemStatus;
+
+				// Update Card State & Status Classes
+				card.className = `sully-card state-${currentState} status-${data.status}`;
+
+				// 1. COLLAPSED VIEW POPULATION
+				const collapsedContent = document.getElementById('collapsedPillContent');
+				let collapsedHtml = `<span class="sully-indicator-dot"></span><span class="sully-pill-text">Sully working</span>`;
+				collapsedHtml += `<span class="sully-pill-dot-separator">·</span><span class="sully-pill-subtext">${data.statusBadge}</span>`;
+				collapsedContent.innerHTML = collapsedHtml;
+
+				// 2. COMPACT VIEW POPULATION
+				document.getElementById('compactTitle').innerText = data.title;
+				document.getElementById('compactBadge').innerText = data.statusBadge;
+
+				// Compact Pipeline
+				const pipelineContainer = document.getElementById('compactPipeline');
+				pipelineContainer.innerHTML = `
         <span class="sully-step ${data.pipelineSteps[0]}">Read</span>
         <span class="sully-step-arrow">→</span>
         <span class="sully-step ${data.pipelineSteps[1]}">Research</span>
@@ -498,63 +625,66 @@
         <span class="sully-step ${data.pipelineSteps[5]}">Reply</span>
       `;
 
-      // Render Compact SVG
-      renderGraph('compactSvg', data.workers, data.status);
+				// Render Compact SVG
+				renderGraph('compactSvg', data.workers, data.status);
 
-      // Compact Operator Banner (What happens next / Waiting on)
-      const bannerContainer = document.getElementById('compactOperatorBanner');
-      if (data.status === 'blocked') {
-        bannerContainer.innerHTML = `
+				// Compact Operator Banner (What happens next / Waiting on)
+				const bannerContainer = document.getElementById('compactOperatorBanner');
+				if (data.status === 'blocked') {
+					bannerContainer.innerHTML = `
           <span class="sully-banner-icon">⚠️</span>
           <span class="sully-banner-text">Waiting for your approval</span>
         `;
-      } else if (data.status === 'stopped') {
-        bannerContainer.innerHTML = `
+				} else if (data.status === 'stopped') {
+					bannerContainer.innerHTML = `
           <span class="sully-banner-icon">🛑</span>
           <span class="sully-banner-text">Nothing else will run unless you restart it.</span>
         `;
-      } else if (data.status === 'complete') {
-        bannerContainer.innerHTML = `
+				} else if (data.status === 'complete') {
+					bannerContainer.innerHTML = `
           <span class="sully-banner-icon">✓</span>
           <span class="sully-banner-text">Verification checks complete. Ready.</span>
         `;
-      } else {
-        bannerContainer.innerHTML = `
+				} else {
+					bannerContainer.innerHTML = `
           <span class="sully-banner-icon">⚡</span>
           <span class="sully-banner-text">Next: <span class="sully-banner-highlight">${data.nextStepText}</span></span>
         `;
-      }
+				}
 
-      // Compact Action Buttons Row (Directly visible in card ONLY for blocked states)
-      const compactActions = document.getElementById('compactActionsRow');
-      if (data.status === 'blocked') {
-        compactActions.style.display = 'flex';
-        compactActions.innerHTML = `
+				// Compact Action Buttons Row (Directly visible in card ONLY for blocked states)
+				const compactActions = document.getElementById('compactActionsRow');
+				if (data.status === 'blocked') {
+					compactActions.style.display = 'flex';
+					compactActions.innerHTML = `
           <button class="sully-btn btn-secondary" id="compactStopBtn">Stop task</button>
           <button class="sully-btn ${confirmDestructive ? 'btn-confirm-danger' : 'btn-approve'}" id="compactApproveBtn">
             ${confirmDestructive ? 'Confirm deletion?' : 'Approve'}
           </button>
         `;
-        // Wire up compact button event listeners
-        document.getElementById('compactApproveBtn').addEventListener('click', handleApproveClick);
-        document.getElementById('compactStopBtn').addEventListener('click', handleStopClick);
-      } else {
-        compactActions.style.display = 'none';
-      }
+					// Wire up compact button event listeners
+					document
+						.getElementById('compactApproveBtn')
+						.addEventListener('click', handleApproveClick);
+					document.getElementById('compactStopBtn').addEventListener('click', handleStopClick);
+				} else {
+					compactActions.style.display = 'none';
+				}
 
-      // 3. EXPANDED VIEW POPULATION
-      document.getElementById('expandedTitle').innerText = data.title;
-      
-      // Render Expanded SVG
-      renderGraph('expandedSvg', data.workers, data.status);
-      
-      // Expanded Checklist
-      const phasesContainer = document.getElementById('expandedPhases');
-      phasesContainer.innerHTML = data.phases.map(p => {
-        let icon = '○';
-        if (p.state === 'complete') icon = '✓';
-        if (p.state === 'active') icon = '●';
-        return `
+				// 3. EXPANDED VIEW POPULATION
+				document.getElementById('expandedTitle').innerText = data.title;
+
+				// Render Expanded SVG
+				renderGraph('expandedSvg', data.workers, data.status);
+
+				// Expanded Checklist
+				const phasesContainer = document.getElementById('expandedPhases');
+				phasesContainer.innerHTML = data.phases
+					.map((p) => {
+						let icon = '○';
+						if (p.state === 'complete') icon = '✓';
+						if (p.state === 'active') icon = '●';
+						return `
           <div class="sully-phase-item ${p.state}">
             <div class="sully-phase-left">
               <span class="sully-phase-icon">${icon}</span>
@@ -563,13 +693,18 @@
             <span class="sully-phase-time">${p.time}</span>
           </div>
         `;
-      }).join('');
+					})
+					.join('');
 
-      // Render Expanded Worker Rows
-      const expandedWorkersContainer = document.getElementById('expandedWorkerRows');
-      expandedWorkersContainer.innerHTML = `
+				// Render Expanded Worker Rows
+				const expandedWorkersContainer = document.getElementById('expandedWorkerRows');
+				expandedWorkersContainer.innerHTML =
+					`
         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--sully-text-muted); margin-bottom: 4px; letter-spacing: 0.5px;">Active Workers</div>
-        ` + data.workers.map(w => `
+        ` +
+					data.workers
+						.map(
+							(w) => `
         <div class="sully-worker-row">
           <div class="sully-worker-identity">
             <span class="sully-worker-dot dot-${w.statusState}"></span>
@@ -578,11 +713,13 @@
           </div>
           <span class="sully-worker-status ${w.statusState === 'active' || w.statusState === 'verifying' ? 'active' : ''}">${w.statusText}</span>
         </div>
-      `).join('');
+      `
+						)
+						.join('');
 
-      // Render Proof Summary
-      const proofContainer = document.getElementById('expandedProofCard');
-      proofContainer.innerHTML = `
+				// Render Proof Summary
+				const proofContainer = document.getElementById('expandedProofCard');
+				proofContainer.innerHTML = `
         <div class="sully-proof-header">
           <span class="sully-proof-title">QA Verification Proof</span>
           <span class="sully-proof-score">${data.proofConf}</span>
@@ -595,203 +732,233 @@
         </div>
       `;
 
-      // Expanded Action Buttons Row (Controls inside detail panel)
-      const expandedActions = document.getElementById('expandedActionsRow');
-      expandedActions.style.display = 'flex';
-      
-      if (data.status === 'blocked') {
-        expandedActions.innerHTML = `
+				// Expanded Action Buttons Row (Controls inside detail panel)
+				const expandedActions = document.getElementById('expandedActionsRow');
+				expandedActions.style.display = 'flex';
+
+				if (data.status === 'blocked') {
+					expandedActions.innerHTML = `
           <button class="sully-btn btn-secondary" id="expandedStopBtn">Stop task</button>
           <button class="sully-btn ${confirmDestructive ? 'btn-confirm-danger' : 'btn-approve'}" id="expandedApproveBtn">
             ${confirmDestructive ? 'Confirm deletion?' : 'Approve'}
           </button>
         `;
-        document.getElementById('expandedApproveBtn').addEventListener('click', handleApproveClick);
-        document.getElementById('expandedStopBtn').addEventListener('click', handleStopClick);
-      } else if (data.status === 'active' || data.status === 'verifying') {
-        // Active/running states get stop button in expanded view (needs confirmation)
-        expandedActions.innerHTML = `
+					document
+						.getElementById('expandedApproveBtn')
+						.addEventListener('click', handleApproveClick);
+					document.getElementById('expandedStopBtn').addEventListener('click', handleStopClick);
+				} else if (data.status === 'active' || data.status === 'verifying') {
+					// Active/running states get stop button in expanded view (needs confirmation)
+					expandedActions.innerHTML = `
           <button class="sully-btn ${confirmStopActive ? 'btn-confirm-stop' : 'btn-secondary'}" id="expandedStopActiveBtn" style="width: 100%;">
             ${confirmStopActive ? 'Confirm stopping active task?' : 'Stop Task'}
           </button>
         `;
-        document.getElementById('expandedStopActiveBtn').addEventListener('click', handleStopActiveClick);
-      } else if (data.status === 'complete') {
-        // Complete state shows View Result button
-        expandedActions.innerHTML = `
+					document
+						.getElementById('expandedStopActiveBtn')
+						.addEventListener('click', handleStopActiveClick);
+				} else if (data.status === 'complete') {
+					// Complete state shows View Result button
+					expandedActions.innerHTML = `
           <button class="sully-btn btn-complete" id="expandedViewResultBtn" style="width: 100%;">View Result</button>
         `;
-        document.getElementById('expandedViewResultBtn').addEventListener('click', handleViewResultClick);
-      } else if (data.status === 'stopped') {
-        // Stopped state shows Start Over button
-        expandedActions.innerHTML = `
+					document
+						.getElementById('expandedViewResultBtn')
+						.addEventListener('click', handleViewResultClick);
+				} else if (data.status === 'stopped') {
+					// Stopped state shows Start Over button
+					expandedActions.innerHTML = `
           <button class="sully-btn btn-restart" id="expandedRestartBtn" style="width: 100%;">Start Over</button>
         `;
-        document.getElementById('expandedRestartBtn').addEventListener('click', handleRestartClick);
-      }
-    }
+					document
+						.getElementById('expandedRestartBtn')
+						.addEventListener('click', handleRestartClick);
+				}
+			}
 
-    // CLICK HANDLERS WITH Safety Validations & stopPropagation
-    
-    function handleApproveClick(e) {
-      e.stopPropagation(); // Avoid triggering card expand/collapse
-      
-      if (!confirmDestructive) {
-        confirmDestructive = true;
-        updateSullyCard();
-      } else {
-        // Double clicked: Transition to complete state
-        confirmDestructive = false;
-        
-        // Mutate preset state to complete
-        const blockedPreset = PRESETS['blocked'];
-        blockedPreset.status = 'complete';
-        blockedPreset.statusBadge = 'Complete';
-        blockedPreset.title = 'Production backups deleted';
-        blockedPreset.systemStatus = 'Safe-delete complete. back-up directories removed.';
-        blockedPreset.pipelineSteps = ['complete', 'complete', 'complete', 'complete', 'complete', 'complete'];
-        blockedPreset.workers = [
-          { key: "CC", name: "CC", role: "Coordinator", statusText: "Success", statusState: "complete" }
-        ];
-        blockedPreset.phases[4] = { name: "Waiting for your approval", state: "complete", time: "Approved" };
-        blockedPreset.phases[5] = { name: "Preparing final response", state: "complete", time: "0.2s" };
-        blockedPreset.evidence = "Deleted 780MB production archive: logueos_migration_backup_20260524 successfully.";
-        blockedPreset.proofConf = "Done";
-        blockedPreset.proofDetail = "Sandbox clean. Storage resources released.";
+			// CLICK HANDLERS WITH Safety Validations & stopPropagation
 
-        updateSullyCard();
-      }
-    }
+			function handleApproveClick(e) {
+				e.stopPropagation(); // Avoid triggering card expand/collapse
 
-    function handleStopClick(e) {
-      e.stopPropagation();
-      confirmDestructive = false;
-      
-      // Stop the task: load stopped state
-      currentPreset = 'stopped';
-      updatePresetButtonHighlight('stopped');
-      updateSullyCard();
-    }
+				if (!confirmDestructive) {
+					confirmDestructive = true;
+					updateSullyCard();
+				} else {
+					// Double clicked: Transition to complete state
+					confirmDestructive = false;
 
-    function handleStopActiveClick(e) {
-      e.stopPropagation();
-      
-      if (!confirmStopActive) {
-        confirmStopActive = true;
-        updateSullyCard();
-      } else {
-        // Active task stop confirmed: Go to stopped state
-        confirmStopActive = false;
-        
-        // Reset dynamic mutations of presets so we can play again
-        PRESETS = clonePresets();
-        
-        currentPreset = 'stopped';
-        updatePresetButtonHighlight('stopped');
-        updateSullyCard();
-      }
-    }
+					// Mutate preset state to complete
+					const blockedPreset = PRESETS['blocked'];
+					blockedPreset.status = 'complete';
+					blockedPreset.statusBadge = 'Complete';
+					blockedPreset.title = 'Production backups deleted';
+					blockedPreset.systemStatus = 'Safe-delete complete. back-up directories removed.';
+					blockedPreset.pipelineSteps = [
+						'complete',
+						'complete',
+						'complete',
+						'complete',
+						'complete',
+						'complete'
+					];
+					blockedPreset.workers = [
+						{
+							key: 'CC',
+							name: 'CC',
+							role: 'Coordinator',
+							statusText: 'Success',
+							statusState: 'complete'
+						}
+					];
+					blockedPreset.phases[4] = {
+						name: 'Waiting for your approval',
+						state: 'complete',
+						time: 'Approved'
+					};
+					blockedPreset.phases[5] = {
+						name: 'Preparing final response',
+						state: 'complete',
+						time: '0.2s'
+					};
+					blockedPreset.evidence =
+						'Deleted 780MB production archive: logueos_migration_backup_20260524 successfully.';
+					blockedPreset.proofConf = 'Done';
+					blockedPreset.proofDetail = 'Sandbox clean. Storage resources released.';
 
-    function handleViewResultClick(e) {
-      e.stopPropagation();
-      alert("Opening Deployment Logs & Checksums...");
-    }
+					updateSullyCard();
+				}
+			}
 
-    function handleRestartClick(e) {
-      e.stopPropagation();
-      
-      // Reset all presets database to default
-      PRESETS = clonePresets();
-      confirmDestructive = false;
-      confirmStopActive = false;
-      
-      // Load CC-Only preset again
-      currentPreset = 'cc-only';
-      updatePresetButtonHighlight('cc-only');
-      updateSullyCard();
-    }
+			function handleStopClick(e) {
+				e.stopPropagation();
+				confirmDestructive = false;
 
-    // Update highlights in the presets bar (useful when presets change programmatically)
-    function updatePresetButtonHighlight(presetKey) {
-      const presetButtons = document.querySelectorAll('#presetSwitcher button');
-      presetButtons.forEach(btn => {
-        if (btn.getAttribute('data-preset') === presetKey) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-    }
+				// Stop the task: load stopped state
+				currentPreset = 'stopped';
+				updatePresetButtonHighlight('stopped');
+				updateSullyCard();
+			}
 
-    // STATE SWITCHING & PRESETS REGISTRATION
-    document.addEventListener('DOMContentLoaded', () => {
-      const card = document.getElementById('sullyCard');
-      const stateButtons = document.querySelectorAll('#stateSwitcher button');
-      const presetButtons = document.querySelectorAll('#presetSwitcher button');
-      const closeBtn = document.getElementById('sullyCloseBtn');
+			function handleStopActiveClick(e) {
+				e.stopPropagation();
 
-      function updateUIState(state) {
-        currentState = state;
-        stateButtons.forEach(btn => {
-          if (btn.getAttribute('data-state') === state) {
-            btn.classList.add('active');
-          } else {
-            btn.classList.remove('active');
-          }
-        });
-        updateSullyCard();
-      }
+				if (!confirmStopActive) {
+					confirmStopActive = true;
+					updateSullyCard();
+				} else {
+					// Active task stop confirmed: Go to stopped state
+					confirmStopActive = false;
 
-      function updatePreset(preset) {
-        currentPreset = preset;
-        confirmDestructive = false;
-        confirmStopActive = false;
-        // If moving back from stopped, reset preset database so we can play again
-        if (preset !== 'stopped') {
-          PRESETS = clonePresets();
-        }
-        updatePresetButtonHighlight(preset);
-        updateSullyCard();
-      }
+					// Reset dynamic mutations of presets so we can play again
+					PRESETS = clonePresets();
 
-      // Action Handlers: State buttons
-      stateButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          updateUIState(btn.getAttribute('data-state'));
-        });
-      });
+					currentPreset = 'stopped';
+					updatePresetButtonHighlight('stopped');
+					updateSullyCard();
+				}
+			}
 
-      // Action Handlers: Preset buttons
-      presetButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          updatePreset(btn.getAttribute('data-preset'));
-        });
-      });
+			function handleViewResultClick(e) {
+				e.stopPropagation();
+				alert('Opening Deployment Logs & Checksums...');
+			}
 
-      // Direct Card Toggles
-      card.addEventListener('click', (e) => {
-        if (closeBtn.contains(e.target) || e.target === closeBtn) {
-          return;
-        }
+			function handleRestartClick(e) {
+				e.stopPropagation();
 
-        if (card.classList.contains('state-collapsed')) {
-          updateUIState('compact');
-        } else if (card.classList.contains('state-compact')) {
-          const header = document.querySelector('.sully-card-header');
-          if (header.contains(e.target)) {
-            updateUIState('expanded');
-          }
-        }
-      });
+				// Reset all presets database to default
+				PRESETS = clonePresets();
+				confirmDestructive = false;
+				confirmStopActive = false;
 
-      closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        updateUIState('compact');
-      });
+				// Load CC-Only preset again
+				currentPreset = 'cc-only';
+				updatePresetButtonHighlight('cc-only');
+				updateSullyCard();
+			}
 
-      // Initial Render
-      updateSullyCard();
-    });
-  </script>
-</body>
+			// Update highlights in the presets bar (useful when presets change programmatically)
+			function updatePresetButtonHighlight(presetKey) {
+				const presetButtons = document.querySelectorAll('#presetSwitcher button');
+				presetButtons.forEach((btn) => {
+					if (btn.getAttribute('data-preset') === presetKey) {
+						btn.classList.add('active');
+					} else {
+						btn.classList.remove('active');
+					}
+				});
+			}
+
+			// STATE SWITCHING & PRESETS REGISTRATION
+			document.addEventListener('DOMContentLoaded', () => {
+				const card = document.getElementById('sullyCard');
+				const stateButtons = document.querySelectorAll('#stateSwitcher button');
+				const presetButtons = document.querySelectorAll('#presetSwitcher button');
+				const closeBtn = document.getElementById('sullyCloseBtn');
+
+				function updateUIState(state) {
+					currentState = state;
+					stateButtons.forEach((btn) => {
+						if (btn.getAttribute('data-state') === state) {
+							btn.classList.add('active');
+						} else {
+							btn.classList.remove('active');
+						}
+					});
+					updateSullyCard();
+				}
+
+				function updatePreset(preset) {
+					currentPreset = preset;
+					confirmDestructive = false;
+					confirmStopActive = false;
+					// If moving back from stopped, reset preset database so we can play again
+					if (preset !== 'stopped') {
+						PRESETS = clonePresets();
+					}
+					updatePresetButtonHighlight(preset);
+					updateSullyCard();
+				}
+
+				// Action Handlers: State buttons
+				stateButtons.forEach((btn) => {
+					btn.addEventListener('click', () => {
+						updateUIState(btn.getAttribute('data-state'));
+					});
+				});
+
+				// Action Handlers: Preset buttons
+				presetButtons.forEach((btn) => {
+					btn.addEventListener('click', () => {
+						updatePreset(btn.getAttribute('data-preset'));
+					});
+				});
+
+				// Direct Card Toggles
+				card.addEventListener('click', (e) => {
+					if (closeBtn.contains(e.target) || e.target === closeBtn) {
+						return;
+					}
+
+					if (card.classList.contains('state-collapsed')) {
+						updateUIState('compact');
+					} else if (card.classList.contains('state-compact')) {
+						const header = document.querySelector('.sully-card-header');
+						if (header.contains(e.target)) {
+							updateUIState('expanded');
+						}
+					}
+				});
+
+				closeBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					updateUIState('compact');
+				});
+
+				// Initial Render
+				updateSullyCard();
+			});
+		</script>
+	</body>
 </html>

@@ -1,151 +1,162 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<title>Mockup 06 — Active Work</title>
-	<link rel="stylesheet" href="./shared.css">
-	<style>
-		/* Custom enhancements for the active worker feed */
-		.pill-worker {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-			padding: 10px 16px;
-			border-radius: var(--r-pill);
-			background: rgba(124, 132, 232, 0.06);
-			border: 1px solid rgba(124, 132, 232, 0.16);
-			margin: 8px auto;
-			width: 100%;
-			max-width: 320px;
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-		}
-		.worker-tag {
-			font-family: var(--font-mono);
-			font-size: 11px;
-			font-weight: var(--weight-bold);
-			background: var(--accent);
-			color: var(--on-accent);
-			padding: 2px 8px;
-			border-radius: var(--r-pill);
-			letter-spacing: 0.02em;
-		}
-		.worker-title {
-			font-size: 13.5px;
-			font-weight: var(--weight-medium);
-			color: var(--t1);
-			flex: 1;
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-		}
-		.dots {
-			display: flex;
-			gap: 4px;
-			align-items: center;
-		}
-		.dots i {
-			width: 6px;
-			height: 6px;
-			border-radius: 50%;
-			background: var(--accent);
-			opacity: 0.25;
-		}
-		.dots i.on {
-			opacity: 1;
-			box-shadow: 0 0 8px var(--accent-glow);
-		}
-		.dots i.pulse {
-			animation: dot-glow 1.2s infinite alternate;
-		}
-		@keyframes dot-glow {
-			0% { opacity: 0.3; transform: scale(0.9); }
-			100% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 10px var(--accent); }
-		}
-		.elapsed {
-			font-family: var(--font-mono);
-			font-size: 11px;
-			color: var(--t3);
-			font-variant-numeric: tabular-nums;
-		}
-	</style>
-</head>
-<body>
-	<div class="phone-stage">
-		<div class="phone-label">AGY — Worker pill in thread (Sully Differentiator)</div>
-		<div class="phone">
-			<div class="app">
-				<div class="app-bg"></div>
-				<div class="app-root">
-					<header class="header quiet">
-						<div class="header-left">
-							<button class="icon-btn">☰</button>
-							<a class="brand" href="#"><div class="brand-mark"></div></a>
-						</div>
-						<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
-						<div class="header-right"><button class="icon-btn">✎</button></div>
-					</header>
-
-					<div class="feed">
-						<div class="msg-user">@cc fix the worker label on the dispatch pill</div>
-						<div class="msg-meta" style="align-self: flex-end; margin-top: -16px; margin-bottom: 4px;">Just now</div>
-
-						<div class="pill-worker">
-							<span class="worker-tag">CC</span>
-							<span class="worker-title">PRO-205 worker label truth</span>
-							<span class="dots">
-								<span class="elapsed">4:12</span>
-								<i class="on"></i>
-								<i class="on"></i>
-								<i class="on pulse"></i>
-								<i></i>
-							</span>
-						</div>
-
-						<div class="msg-block">
-							<div class="name-tag"><span class="orb"></span> Sully</div>
-							<div class="msg-assistant">
-								Dispatched CC on PRO-205. Tap the pill when the run sheet lands to see
-								stage logs and files — this is what makes Sully an active-work app, not
-								just another chatbot.
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Mockup 06 — Active Work</title>
+		<link rel="stylesheet" href="./shared.css" />
+		<style>
+			/* Custom enhancements for the active worker feed */
+			.pill-worker {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 10px 16px;
+				border-radius: var(--r-pill);
+				background: rgba(124, 132, 232, 0.06);
+				border: 1px solid rgba(124, 132, 232, 0.16);
+				margin: 8px auto;
+				width: 100%;
+				max-width: 320px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+			}
+			.worker-tag {
+				font-family: var(--font-mono);
+				font-size: 11px;
+				font-weight: var(--weight-bold);
+				background: var(--accent);
+				color: var(--on-accent);
+				padding: 2px 8px;
+				border-radius: var(--r-pill);
+				letter-spacing: 0.02em;
+			}
+			.worker-title {
+				font-size: 13.5px;
+				font-weight: var(--weight-medium);
+				color: var(--t1);
+				flex: 1;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.dots {
+				display: flex;
+				gap: 4px;
+				align-items: center;
+			}
+			.dots i {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--accent);
+				opacity: 0.25;
+			}
+			.dots i.on {
+				opacity: 1;
+				box-shadow: 0 0 8px var(--accent-glow);
+			}
+			.dots i.pulse {
+				animation: dot-glow 1.2s infinite alternate;
+			}
+			@keyframes dot-glow {
+				0% {
+					opacity: 0.3;
+					transform: scale(0.9);
+				}
+				100% {
+					opacity: 1;
+					transform: scale(1.15);
+					box-shadow: 0 0 10px var(--accent);
+				}
+			}
+			.elapsed {
+				font-family: var(--font-mono);
+				font-size: 11px;
+				color: var(--t3);
+				font-variant-numeric: tabular-nums;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="phone-stage">
+			<div class="phone-label">AGY — Worker pill in thread (Sully Differentiator)</div>
+			<div class="phone">
+				<div class="app">
+					<div class="app-bg"></div>
+					<div class="app-root">
+						<header class="header quiet">
+							<div class="header-left">
+								<button class="icon-btn">☰</button>
+								<a class="brand" href="#"><div class="brand-mark"></div></a>
 							</div>
-							<div class="msg-actions">
-								<button class="act" title="Copy">⎘</button>
-								<button class="act" title="Regenerate">↻</button>
-								<button class="act" title="Read aloud">▶</button>
-								<button class="act" title="More">···</button>
-							</div>
-							<div class="msg-meta">Just now</div>
-						</div>
-					</div>
+							<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
+							<div class="header-right"><button class="icon-btn">✎</button></div>
+						</header>
 
-					<div class="composer-wrap">
-						<div class="composer">
-							<div class="composer-row">
-								<button class="icon-btn">📎</button>
-								<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
-								<button class="icon-btn">〰</button>
-								<button class="send-fab">🎤</button>
+						<div class="feed">
+							<div class="msg-user">@cc fix the worker label on the dispatch pill</div>
+							<div
+								class="msg-meta"
+								style="align-self: flex-end; margin-top: -16px; margin-bottom: 4px"
+							>
+								Just now
+							</div>
+
+							<div class="pill-worker">
+								<span class="worker-tag">CC</span>
+								<span class="worker-title">PRO-205 worker label truth</span>
+								<span class="dots">
+									<span class="elapsed">4:12</span>
+									<i class="on"></i>
+									<i class="on"></i>
+									<i class="on pulse"></i>
+									<i></i>
+								</span>
+							</div>
+
+							<div class="msg-block">
+								<div class="name-tag"><span class="orb"></span> Sully</div>
+								<div class="msg-assistant">
+									Dispatched CC on PRO-205. Tap the pill when the run sheet lands to see stage logs
+									and files — this is what makes Sully an active-work app, not just another chatbot.
+								</div>
+								<div class="msg-actions">
+									<button class="act" title="Copy">⎘</button>
+									<button class="act" title="Regenerate">↻</button>
+									<button class="act" title="Read aloud">▶</button>
+									<button class="act" title="More">···</button>
+								</div>
+								<div class="msg-meta">Just now</div>
+							</div>
+						</div>
+
+						<div class="composer-wrap">
+							<div class="composer">
+								<div class="composer-row">
+									<button class="icon-btn">📎</button>
+									<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
+									<button class="icon-btn">〰</button>
+									<button class="send-fab">🎤</button>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
+			<span class="badge-note">WorkerPill integrates with clean chat stream</span>
 		</div>
-		<span class="badge-note">WorkerPill integrates with clean chat stream</span>
-	</div>
 
-	<script>
-		const msgBlocks = document.querySelectorAll('.msg-block');
-		msgBlocks.forEach(block => {
-			block.addEventListener('click', (e) => {
-				block.classList.toggle('focused');
-				e.stopPropagation();
+		<script>
+			const msgBlocks = document.querySelectorAll('.msg-block');
+			msgBlocks.forEach((block) => {
+				block.addEventListener('click', (e) => {
+					block.classList.toggle('focused');
+					e.stopPropagation();
+				});
 			});
-		});
-		document.addEventListener('click', () => {
-			msgBlocks.forEach(b => b.classList.remove('focused'));
-		});
-	</script>
-</body>
+			document.addEventListener('click', () => {
+				msgBlocks.forEach((b) => b.classList.remove('focused'));
+			});
+		</script>
+	</body>
 </html>

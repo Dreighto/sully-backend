@@ -10,8 +10,7 @@
 import { writeEpisodicFact } from './semantic';
 import { serverConfig } from './config';
 
-const OLLAMA_BASE =
-	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const MODEL = serverConfig.companionDefaultModel || 'companion-v1:latest';
 
 export async function extractAndStoreEpisodicFacts(

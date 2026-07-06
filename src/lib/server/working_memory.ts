@@ -10,8 +10,7 @@ import { getChatMessageCount, getMessagesBeforeRecent } from './chat';
 import { setSummary } from './thread_meta';
 import { serverConfig } from './config';
 
-const OLLAMA_BASE =
-	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
+const OLLAMA_BASE = process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
 const MODEL = serverConfig.companionDefaultModel || 'companion-v1:latest';
 
 const HOT_WINDOW = 20; // messages sent verbatim (must match the route's window)
@@ -22,9 +21,7 @@ export async function maybeUpdateThreadSummary(threadId: string): Promise<void> 
 	const count = getChatMessageCount(threadId);
 	if (count < SUMMARY_FLOOR || count % SUMMARY_EVERY !== 0) return;
 
-	const older = getMessagesBeforeRecent(HOT_WINDOW, threadId).filter(
-		(m) => m.sender !== 'system'
-	);
+	const older = getMessagesBeforeRecent(HOT_WINDOW, threadId).filter((m) => m.sender !== 'system');
 	if (older.length < 5) return;
 
 	const transcript = older

@@ -47,7 +47,8 @@
 
 	/* ============ TYPE — BLEND MK II ============ */
 	--font-display: 'Fraunces', 'Fraunces Variable', Georgia, serif;
-	--font-body: 'Bricolage Grotesque', 'Bricolage Grotesque Variable', -apple-system, system-ui, sans-serif;
+	--font-body:
+		'Bricolage Grotesque', 'Bricolage Grotesque Variable', -apple-system, system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono', 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
 
 	--weight-regular: 400;
@@ -149,7 +150,8 @@
 	-webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
 	margin: 0;
 	padding: 0;
 	min-height: 100dvh;
@@ -171,8 +173,7 @@ html, body {
 	gap: 16px;
 	background:
 		radial-gradient(circle at 50% 0%, rgba(124, 132, 232, 0.08), transparent 50%),
-		radial-gradient(circle at 10% 80%, rgba(96, 165, 250, 0.04), transparent 40%),
-		#06070a;
+		radial-gradient(circle at 10% 80%, rgba(96, 165, 250, 0.04), transparent 40%), #06070a;
 	user-select: none;
 }
 
@@ -542,7 +543,9 @@ html, body {
 	flex-direction: column;
 	gap: 6px;
 	box-shadow: var(--shadow-soft);
-	transition: border-color var(--dur-med) var(--ease-standard), box-shadow var(--dur-med) var(--ease-standard);
+	transition:
+		border-color var(--dur-med) var(--ease-standard),
+		box-shadow var(--dur-med) var(--ease-standard);
 }
 
 .composer:focus-within {
@@ -628,8 +631,17 @@ html, body {
 }
 
 @keyframes orb-pulse {
-	0% { transform: scale(1); filter: brightness(1); }
-	100% { transform: scale(1.06); filter: brightness(1.15); box-shadow: 0 0 0 3px rgba(124,132,232,0.1), 0 0 32px var(--accent-glow); }
+	0% {
+		transform: scale(1);
+		filter: brightness(1);
+	}
+	100% {
+		transform: scale(1.06);
+		filter: brightness(1.15);
+		box-shadow:
+			0 0 0 3px rgba(124, 132, 232, 0.1),
+			0 0 32px var(--accent-glow);
+	}
 }
 
 .empty-hero h2 {
@@ -749,8 +761,13 @@ html, body {
 }
 
 @keyframes pulse-op {
-	0% { opacity: 0.2; }
-	100% { opacity: 1; box-shadow: 0 0 8px var(--accent-glow); }
+	0% {
+		opacity: 0.2;
+	}
+	100% {
+		opacity: 1;
+		box-shadow: 0 0 8px var(--accent-glow);
+	}
 }
 
 .pill-worker .elapsed {
@@ -868,7 +885,9 @@ html, body {
 	font-size: 15px;
 	margin-top: 8px;
 	cursor: pointer;
-	transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+	transition:
+		background-color var(--dur-fast) var(--ease-standard),
+		border-color var(--dur-fast) var(--ease-standard);
 }
 
 .sheet-cancel:active {
@@ -958,7 +977,9 @@ html, body {
 	content: '→';
 	font-size: 14px;
 	color: var(--t3);
-	transition: transform var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+	transition:
+		transform var(--dur-fast) var(--ease-standard),
+		color var(--dur-fast) var(--ease-standard);
 }
 
 .hub-card:hover h3::after {

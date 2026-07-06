@@ -53,9 +53,9 @@ describe('shadow router — fast paths + heuristics', () => {
 	});
 
 	it('multi-step agentic shapes → ESCALATE heuristic', () => {
-		expect(classifyShadow('refactor my backend across 12 files, run tests, then deploy').decision).toBe(
-			'ESCALATE'
-		);
+		expect(
+			classifyShadow('refactor my backend across 12 files, run tests, then deploy').decision
+		).toBe('ESCALATE');
 		expect(classifyShadow('audit the whole project and implement fixes').decision).toBe('ESCALATE');
 	});
 

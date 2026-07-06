@@ -123,31 +123,40 @@ async function runViewport(page, width, height) {
 	})()`);
 
 	const failures = [];
-	if (closed.docScrollWidth > width) failures.push(`document width ${closed.docScrollWidth} exceeds ${width}`);
-	if (closed.bodyScrollWidth > width) failures.push(`body width ${closed.bodyScrollWidth} exceeds ${width}`);
+	if (closed.docScrollWidth > width)
+		failures.push(`document width ${closed.docScrollWidth} exceeds ${width}`);
+	if (closed.bodyScrollWidth > width)
+		failures.push(`body width ${closed.bodyScrollWidth} exceeds ${width}`);
 	for (const [key, overflows] of Object.entries(closed.overflow)) {
 		if (overflows) failures.push(`${key} overflows viewport`);
 	}
 	if (modelOpen.overflows) failures.push('model popover overflows viewport');
 	if (closed.bodyOverflow !== 'hidden' || closed.htmlOverflow !== 'hidden') {
-		failures.push(`page shell overflow is ${closed.htmlOverflow}/${closed.bodyOverflow}, expected hidden/hidden`);
+		failures.push(
+			`page shell overflow is ${closed.htmlOverflow}/${closed.bodyOverflow}, expected hidden/hidden`
+		);
 	}
-	if (closed.feedOverflowY !== 'auto') failures.push(`chat feed overflow-y is ${closed.feedOverflowY}, expected auto`);
+	if (closed.feedOverflowY !== 'auto')
+		failures.push(`chat feed overflow-y is ${closed.feedOverflowY}, expected auto`);
 
 	return { width, closed, modelOpen, failures };
 }
 
 const chrome = await findChrome();
 const userDataDir = `/tmp/companion-mobile-pwa-${process.pid}`;
-const browser = spawn(chrome, [
-	'--headless',
-	'--no-sandbox',
-	'--disable-gpu',
-	'--remote-debugging-port=9224',
-	`--user-data-dir=${userDataDir}`,
-	'--window-size=440,956',
-	baseUrl
-], { stdio: ['ignore', 'pipe', 'pipe'] });
+const browser = spawn(
+	chrome,
+	[
+		'--headless',
+		'--no-sandbox',
+		'--disable-gpu',
+		'--remote-debugging-port=9224',
+		`--user-data-dir=${userDataDir}`,
+		'--window-size=440,956',
+		baseUrl
+	],
+	{ stdio: ['ignore', 'pipe', 'pipe'] }
+);
 
 try {
 	await getJson('http://127.0.0.1:9224/json/version');

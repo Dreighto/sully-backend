@@ -55,7 +55,7 @@ export async function buildMultimodalContent(body: string): Promise<string | Con
 	}
 
 	const parts: ContentPart[] = [];
-	
+
 	const strippedText = stripMarkdownImages(body);
 	if (strippedText) {
 		parts.push({ type: 'text', text: strippedText });
@@ -68,7 +68,7 @@ export async function buildMultimodalContent(body: string): Promise<string | Con
 		}
 	}
 
-	if (parts.filter(p => p.type === 'image').length === 0) {
+	if (parts.filter((p) => p.type === 'image').length === 0) {
 		return body; // graceful fallback if no local files were found
 	}
 

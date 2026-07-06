@@ -23,9 +23,7 @@ export const POST: RequestHandler = async ({ params }) => {
 
 		const messages = getChatMessages(10, thread_id);
 		const firstUser = messages.find((m) => m.sender === 'operator');
-		const firstAssistant = messages.find(
-			(m) => m.sender !== 'operator' && m.sender !== 'system'
-		);
+		const firstAssistant = messages.find((m) => m.sender !== 'operator' && m.sender !== 'system');
 
 		if (!firstUser || !firstAssistant) {
 			return json({ skipped: true, reason: 'not_enough_messages' });

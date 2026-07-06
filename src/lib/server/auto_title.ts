@@ -24,9 +24,7 @@ export async function maybeAutoTitle(threadId: string | null | undefined): Promi
 
 		const messages = getChatMessages(10, threadId);
 		const firstUser = messages.find((m) => m.sender === 'operator');
-		const firstAssistant = messages.find(
-			(m) => m.sender !== 'operator' && m.sender !== 'system'
-		);
+		const firstAssistant = messages.find((m) => m.sender !== 'operator' && m.sender !== 'system');
 		if (!firstUser || !firstAssistant) return; // need a full exchange first
 
 		const prompt = `Generate a 5-7 word title for this conversation. Return ONLY the title, no quotes, no punctuation at the end.

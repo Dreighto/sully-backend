@@ -20,10 +20,10 @@ http://127.0.0.1:8765/
 
 With Tailscale connected on the iPhone:
 
-| URL | Notes |
-|-----|-------|
+| URL                                   | Notes                          |
+| ------------------------------------- | ------------------------------ |
 | `http://room.taila28611.ts.net:8765/` | MagicDNS — easiest to remember |
-| `http://100.106.246.89:8765/` | Raw tailnet IP (fallback) |
+| `http://100.106.246.89:8765/`         | Raw tailnet IP (fallback)      |
 
 **Start here:** `http://room.taila28611.ts.net:8765/05-compare-before-after.html`
 
@@ -46,10 +46,10 @@ sudo systemctl stop logueos-companion-mockups.service
 
 Parallel mockups from AGY live under `agy/`. Brief: `AGY-MOCKUP-CHALLENGE.md`.
 
-| URL | Notes |
-|-----|-------|
+| URL                                   | Notes                |
+| ------------------------------------- | -------------------- |
 | `http://room.taila28611.ts.net:8766/` | AGY pack (Tailscale) |
-| `http://127.0.0.1:8766/` | Loopback |
+| `http://127.0.0.1:8766/`              | Loopback             |
 
 ```bash
 sudo cp /home/dreighto/dev/LogueOS-Companion/linux/systemd/logueos-companion-mockups-agy.service /etc/systemd/system/
@@ -70,15 +70,15 @@ python3 -m http.server 8765 --bind 0.0.0.0
 
 ## Mockup pages
 
-| File | Shows |
-|------|--------|
-| `index.html` | Hub — links to all mockups |
-| `05-compare-before-after.html` | **Start here** — side-by-side today vs target |
-| `01-chat-quiet.html` | Quiet thread, glass bubbles, header model chip |
-| `02-empty-state.html` | Greeting + suggested prompt chips (Gemini borrow) |
-| `03-sidebar-clean.html` | Consumer sidebar, Active Tasks, no dev footer |
-| `04-message-sheet.html` | Long-press action sheet |
-| `06-chat-with-worker.html` | Worker pill + quiet replies (keep differentiator) |
+| File                           | Shows                                             |
+| ------------------------------ | ------------------------------------------------- |
+| `index.html`                   | Hub — links to all mockups                        |
+| `05-compare-before-after.html` | **Start here** — side-by-side today vs target     |
+| `01-chat-quiet.html`           | Quiet thread, glass bubbles, header model chip    |
+| `02-empty-state.html`          | Greeting + suggested prompt chips (Gemini borrow) |
+| `03-sidebar-clean.html`        | Consumer sidebar, Active Tasks, no dev footer     |
+| `04-message-sheet.html`        | Long-press action sheet                           |
+| `06-chat-with-worker.html`     | Worker pill + quiet replies (keep differentiator) |
 
 Shared styles: `shared.css` (Indigo locked tokens subset)
 
@@ -86,10 +86,10 @@ Shared styles: `shared.css` (Indigo locked tokens subset)
 
 ## Screenshots
 
-| Folder | Contents |
-|--------|----------|
+| Folder                  | Contents                                         |
+| ----------------------- | ------------------------------------------------ |
 | `screenshots/baseline/` | Production Sully + Gemini reference (2026-06-11) |
-| `screenshots/mockups/` | PNG captures of HTML mockups (auto-generated) |
+| `screenshots/mockups/`  | PNG captures of HTML mockups (auto-generated)    |
 
 ### Refresh mockup screenshots
 

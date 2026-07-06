@@ -57,13 +57,13 @@ Optional reference screenshots: `docs/flagship-visual-mockups/screenshots/baseli
 
 ## Hard output rules
 
-| Rule | Detail |
-|------|--------|
-| **Output only** | Write **one** file: `docs/2026-06-11-agy-flagship-ux-teardown.md` |
-| **No code** | Do not edit `src/**`, `package.json`, configs, or mockup HTML |
-| **No hype** | Every section needs actionable recommendations with file paths |
+| Rule                         | Detail                                                                           |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| **Output only**              | Write **one** file: `docs/2026-06-11-agy-flagship-ux-teardown.md`                |
+| **No code**                  | Do not edit `src/**`, `package.json`, configs, or mockup HTML                    |
+| **No hype**                  | Every section needs actionable recommendations with file paths                   |
 | **Preserve differentiators** | Do not recommend removing WorkerPill, voice mode, talkback, or dispatch surfaces |
-| **Design locked** | No new brand colors outside `sully-locked-spec.md` |
+| **Design locked**            | No new brand colors outside `sully-locked-spec.md`                               |
 
 ---
 
@@ -71,7 +71,7 @@ Optional reference screenshots: `docs/flagship-visual-mockups/screenshots/baseli
 
 ### Part A — Plain-English spec (operator-readable)
 
-Write for dreighto first. No jargon walls. Answer: *what should Sully feel like, and what changes first?*
+Write for dreighto first. No jargon walls. Answer: _what should Sully feel like, and what changes first?_
 
 Cover:
 
@@ -121,19 +121,19 @@ Engineer-facing. Include:
 
 1. **SvelteKit component map** — use these target names, but **map each to existing files** where they exist:
 
-   | Target concept | Likely existing file |
-   |----------------|----------------------|
-   | ChatShell | `src/routes/chat/+page.svelte` |
-   | MessageList | `MessageFeed.svelte` |
-   | Composer | `Composer.svelte` |
-   | AttachmentTray | staged attachments in `Composer.svelte` |
-   | WorkCard | `DispatchCard.svelte`, hybrid cards |
-   | WorkerPill | `WorkerPill.svelte` |
-   | Run sheet | `RunSheet.svelte` |
-   | ArtifactShelf | `WorkSurfaceDock.svelte`, hybrid surfaces |
-   | ToolEventTimeline | (may be NEW — propose placement) |
-   | ApprovalBanner | (may be NEW or extend pill badges) |
-   | VerificationSummary | extend `pillModel.ts` gate badges |
+   | Target concept      | Likely existing file                      |
+   | ------------------- | ----------------------------------------- |
+   | ChatShell           | `src/routes/chat/+page.svelte`            |
+   | MessageList         | `MessageFeed.svelte`                      |
+   | Composer            | `Composer.svelte`                         |
+   | AttachmentTray      | staged attachments in `Composer.svelte`   |
+   | WorkCard            | `DispatchCard.svelte`, hybrid cards       |
+   | WorkerPill          | `WorkerPill.svelte`                       |
+   | Run sheet           | `RunSheet.svelte`                         |
+   | ArtifactShelf       | `WorkSurfaceDock.svelte`, hybrid surfaces |
+   | ToolEventTimeline   | (may be NEW — propose placement)          |
+   | ApprovalBanner      | (may be NEW or extend pill badges)        |
+   | VerificationSummary | extend `pillModel.ts` gate badges         |
 
    Label each: `EXISTS` | `RENAME` | `NEW`. If renaming, include migration notes.
 
@@ -222,13 +222,13 @@ WHEN DONE:
 
 ## How this relates to other work
 
-| Artifact | Owner | Purpose |
-|----------|-------|---------|
-| `2026-06-01-companion-audit-findings.md` | CC/CUR prior audit | Evidence base — AGY updates |
-| `2026-06-11-flagship-visual-pass-plan.md` | CUR visual pass | Look/feel implementation (later) |
-| `flagship-visual-mockups/AGY-MOCKUP-CHALLENGE.md` | AGY visual test | HTML mockups on port 8766 |
-| **This brief** | AGY spec test | Architecture/UX spec markdown only |
-| `feat/cur-flagship-visual-pass` worktree | CUR | Production visual implementation (after in-flight tickets land) |
+| Artifact                                          | Owner              | Purpose                                                         |
+| ------------------------------------------------- | ------------------ | --------------------------------------------------------------- |
+| `2026-06-01-companion-audit-findings.md`          | CC/CUR prior audit | Evidence base — AGY updates                                     |
+| `2026-06-11-flagship-visual-pass-plan.md`         | CUR visual pass    | Look/feel implementation (later)                                |
+| `flagship-visual-mockups/AGY-MOCKUP-CHALLENGE.md` | AGY visual test    | HTML mockups on port 8766                                       |
+| **This brief**                                    | AGY spec test      | Architecture/UX spec markdown only                              |
+| `feat/cur-flagship-visual-pass` worktree          | CUR                | Production visual implementation (after in-flight tickets land) |
 
 **Recommended order for operator testing:**
 
@@ -237,4 +237,4 @@ WHEN DONE:
 
 ---
 
-*CUR generated this brief for operator testing. Not canon until dreighto approves the output.*
+_CUR generated this brief for operator testing. Not canon until dreighto approves the output._

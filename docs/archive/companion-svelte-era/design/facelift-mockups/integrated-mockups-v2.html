@@ -1,881 +1,2550 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Sully — the whole look v2</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  :root {
-    --brand:#ec2d78; --brand-soft:#ff7eb3; --brand-deep:#c4186a; --brand-bright:#ff4d94; --brand-glow:rgba(236,45,120,0.4);
-    --bg:#050505; --surface:#0e0e11; --surface-2:#18181b;
-    --border:rgba(255,255,255,0.07); --border-strong:rgba(255,255,255,0.12);
-    --z-200:#e4e4e7; --z-300:#d4d4d8; --z-400:#a1a1aa; --z-500:#71717a; --z-600:#52525b; --z-700:#3f3f46; --z-800:#27272a; --z-900:#18181b;
-    --amber:#f59e0b; --amber-soft:#fbbf24;
-    --emerald:#10b981; --emerald-soft:#34d399;
-    --cyan:#06b6d4; --cyan-soft:#22d3ee;
-    --red:#ef4444; --red-soft:#f87171;
-  }
-  html,body { height:100%; background:var(--bg); color:#f4f4f5; font-family:'Inter', system-ui, -apple-system, sans-serif; overscroll-behavior:none; }
-  body { padding-bottom: env(safe-area-inset-bottom, 16px); }
-
-  .aurora { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
-  .aurora span { position:absolute; border-radius:9999px; filter:blur(80px); opacity:0.22; will-change:transform; }
-  .aurora .a1 { width:460px; height:460px; background:radial-gradient(ellipse,#ec2d78 0%,#c4186a 60%,transparent 100%); top:-100px; left:-120px; animation:aurora1 22s ease-in-out infinite; }
-  .aurora .a2 { width:340px; height:340px; background:radial-gradient(ellipse,#7c3aed 0%,#ec2d78 70%,transparent 100%); bottom:80px; right:-80px; animation:aurora2 26s ease-in-out infinite; }
-  .aurora .a3 { width:280px; height:280px; background:radial-gradient(ellipse,#ec2d78 0%,transparent 80%); top:50%; left:50%; animation:aurora3 30s ease-in-out infinite; }
-  @keyframes aurora1 { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(30px,-20px) scale(1.08); } }
-  @keyframes aurora2 { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(-30px,20px) scale(0.92); } }
-  @keyframes aurora3 { 0%,100% { transform:translate(-50%,-50%) scale(1); } 50% { transform:translate(-50%,-50%) scale(1.15); } }
-  @media (prefers-reduced-motion: reduce) { .aurora span { animation:none !important; } }
-
-  .topbar { position:sticky; top:0; z-index:50; background:rgba(10,10,12,0.88); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:max(14px,env(safe-area-inset-top,14px)) 20px 12px; }
-  .topbar .row1 { display:flex; align-items:center; gap:10px; }
-  .topbar h1 { font-size:15px; font-weight:600; letter-spacing:-0.01em; }
-  .topbar .v-pill { font-size:9px; font-weight:700; padding:2px 8px; border-radius:9999px; background:rgba(236,45,120,0.15); color:var(--brand-soft); letter-spacing:0.06em; }
-  .sully-dot { display:inline-block; width:16px; height:16px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 8px rgba(236,45,120,0.5); vertical-align:-2px; margin-right:6px; }
-  .topbar p { font-size:11.5px; color:var(--z-400); margin-top:3px; line-height:1.5; }
-  .topbar .scroll-progress { position:absolute; bottom:0; left:0; height:2px; background:linear-gradient(90deg,var(--brand-deep),var(--brand-bright)); width:0%; transition:width 80ms linear; }
-
-  .page { position:relative; z-index:1; max-width:780px; margin:0 auto; padding:20px 16px 140px; }
-
-  .intro { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:30px; }
-  .intro h2 { font-size:14px; font-weight:700; letter-spacing:-0.01em; margin-bottom:8px; color:var(--brand-soft); }
-  .intro p { font-size:13px; color:var(--z-300); line-height:1.6; }
-  .intro p + p { margin-top:8px; color:var(--z-400); font-size:12.5px; }
-  .intro strong { color:var(--z-200); font-weight:600; }
-  .intro .change-list { margin-top:12px; padding:12px 14px; background:rgba(236,45,120,0.05); border:1px solid rgba(236,45,120,0.2); border-radius:12px; }
-  .intro .change-list h3 { font-size:11px; font-weight:700; color:var(--brand-soft); letter-spacing:0.06em; margin-bottom:8px; }
-  .intro .change-list ul { padding-left:18px; }
-  .intro .change-list li { font-size:12px; color:var(--z-300); line-height:1.55; margin:3px 0; }
-
-  .section { margin-bottom:48px; scroll-margin-top:90px; }
-  .section-num { font-size:10px; font-weight:700; color:var(--brand-soft); letter-spacing:0.14em; margin-bottom:6px; }
-  .section-title { font-size:20px; font-weight:600; letter-spacing:-0.02em; line-height:1.25; margin-bottom:6px; }
-  .section-caption { font-size:12.5px; color:var(--z-400); line-height:1.6; margin-bottom:20px; max-width:600px; }
-  .section-caption strong { color:var(--z-300); font-weight:500; }
-  .section-caption code { background:rgba(255,255,255,0.06); padding:1px 6px; border-radius:4px; font-size:11px; font-family:'JetBrains Mono', monospace; color:var(--brand-soft); }
-
-  .views { display:grid; gap:24px; grid-template-columns:1fr; }
-  @media (min-width:680px) { .views.two-up { grid-template-columns:1fr 1fr; } }
-  .view { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:18px; padding:16px; display:flex; flex-direction:column; align-items:center; gap:12px; }
-  .view .label { font-size:11px; font-weight:600; color:var(--z-400); letter-spacing:0.04em; text-align:center; }
-  .view .blurb { font-size:11px; color:var(--z-500); line-height:1.55; text-align:center; max-width:280px; margin-top:-4px; }
-
-  .phone {
-    width:100%; max-width:320px; aspect-ratio: 9 / 19;
-    background:var(--surface); border-radius:32px; border:1.5px solid rgba(255,255,255,0.1);
-    box-shadow:0 24px 60px -12px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.04);
-    overflow:hidden; display:flex; flex-direction:column; position:relative;
-  }
-  .phone .island { position:absolute; top:8px; left:50%; transform:translateX(-50%); width:90px; height:24px; background:#000; border-radius:9999px; z-index:5; pointer-events:none; }
-  .phone .statusbar { padding:14px 22px 6px; display:flex; justify-content:space-between; font-size:11px; font-weight:600; color:rgba(255,255,255,0.7); position:relative; z-index:1; }
-
-  /* ─── Header chrome ─── */
-  .ph-header {
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:8px 14px 10px;
-    border-bottom:1px solid rgba(255,255,255,0.05);
-    background:rgba(11,11,13,0.55); backdrop-filter:blur(20px);
-    position:relative; z-index:2;
-  }
-  .ph-header .ph-burger { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--z-400); font-size:14px; }
-  .ph-header .ph-id { display:flex; align-items:center; gap:7px; }
-  /* The Sully mark — small monster avatar instead of a pink orb */
-  .ph-header .ph-id-mark { width:26px; height:26px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 10px rgba(236,45,120,0.35), inset 0 0 0 1px rgba(236,45,120,0.3); }
-  .ph-header .ph-id-mark img { width:24px; height:24px; object-fit:contain; }
-  .ph-header .ph-id-name { font-size:13px; font-weight:600; letter-spacing:-0.005em; }
-  .ph-header .ph-model-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px 5px 7px; border-radius:9999px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); font-size:10px; color:var(--z-300); max-width:140px; }
-  .ph-header .ph-model-chip .glyph { width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; overflow:hidden; }
-  .ph-header .ph-model-chip .glyph img { width:12px; height:12px; }
-  .ph-header .ph-model-chip .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-header .ph-model-chip .caret { font-size:8px; color:var(--z-500); }
-
-  /* ─── Empty state with monster hero ─── */
-  .ph-main { flex:1; overflow:hidden; display:flex; flex-direction:column; position:relative; }
-  .ph-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px; gap:14px; }
-  .ph-monster-hero {
-    width:140px; height:140px;
-    display:flex; align-items:center; justify-content:center;
-    position:relative;
-  }
-  .ph-monster-hero::before {
-    content:''; position:absolute; inset:8px; border-radius:50%;
-    background:radial-gradient(circle, rgba(255,77,148,0.35) 0%, rgba(255,77,148,0) 65%);
-    animation:hero-glow 3.4s ease-in-out infinite;
-  }
-  @keyframes hero-glow { 0%,100% { opacity:0.6; transform:scale(0.92); } 50% { opacity:1; transform:scale(1.08); } }
-  .ph-monster-hero img { position:relative; width:100%; height:100%; object-fit:contain; z-index:1; animation:bob 3.6s ease-in-out infinite; }
-  @keyframes bob { 0%,100% { transform:translateY(0) rotate(0); } 25% { transform:translateY(-4px) rotate(-2deg); } 75% { transform:translateY(-4px) rotate(2deg); } }
-  .ph-empty h3 { font-size:17px; font-weight:600; letter-spacing:-0.01em; text-align:center; }
-  .ph-empty p { font-size:11.5px; color:var(--z-500); text-align:center; line-height:1.45; }
-  .ph-pills { display:flex; flex-direction:column; gap:7px; width:100%; max-width:240px; }
-  .ph-pill { padding:9px 14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:9999px; font-size:11px; color:var(--z-300); text-align:center; }
-
-  /* ─── Messages ─── */
-  .ph-msgs { flex:1; overflow:hidden; padding:8px 12px; display:flex; flex-direction:column; gap:8px; }
-  .ph-msg-user { align-self:flex-end; max-width:80%; background:rgba(14,14,17,0.6); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(12px); border-radius:16px; padding:7px 11px; font-size:11px; color:var(--z-200); line-height:1.5; }
-  .ph-msg-time { font-size:8px; color:var(--z-600); align-self:flex-end; padding:0 2px; font-variant-numeric:tabular-nums; }
-  .ph-msg-assist { display:flex; flex-direction:column; gap:3px; max-width:90%; align-self:flex-start; }
-  .ph-name-tag { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:9999px; background:rgba(236,45,120,0.08); border:1px solid rgba(236,45,120,0.28); font-size:9px; font-weight:600; color:var(--brand-soft); width:fit-content; }
-  .ph-name-tag .nt-dot { width:6px; height:6px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 4px rgba(236,45,120,0.6); }
-  .ph-msg-body { font-size:11px; color:var(--z-200); line-height:1.55; padding:3px 4px; }
-
-  /* ─── Composer ─── */
-  .ph-composer-area { padding:8px 12px max(12px, env(safe-area-inset-bottom, 12px)); }
-  .ph-composer { border-radius:24px; padding:8px; background:rgba(14,14,17,0.6); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(20px); transition:all 200ms; }
-  .ph-composer.sending { border-color:rgba(236,45,120,0.45); box-shadow:0 0 30px -6px var(--brand-glow); animation:composer-pulse 1.8s ease-in-out infinite; }
-  @keyframes composer-pulse { 0%,100% { box-shadow:0 0 30px -6px var(--brand-glow); } 50% { box-shadow:0 0 38px -4px rgba(236,45,120,0.5); } }
-  .ph-composer.live { border-color:rgba(16,185,129,0.4); box-shadow:0 0 24px -8px rgba(16,185,129,0.4); }
-  .ph-composer.image { border-color:rgba(6,182,212,0.4); box-shadow:0 0 24px -8px rgba(6,182,212,0.4); }
-  .ph-composer-strip { padding:2px 6px 4px; margin-bottom:3px; display:flex; align-items:center; gap:6px; font-size:9px; border-bottom:1px solid rgba(255,255,255,0.05); }
-  .ph-composer-strip.cyan { color:rgb(103,232,249); }
-  .ph-composer-strip.emerald { color:rgb(110,231,183); }
-  .ph-composer-input { padding:5px 7px; font-size:11px; color:var(--z-300); min-height:20px; }
-  .ph-composer-input.placeholder { color:var(--z-600); }
-  .ph-composer-row { display:flex; align-items:center; gap:5px; padding:3px 2px 0; }
-  .ph-cbtn { width:30px; height:30px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); box-shadow:inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.35), 0 2px 6px -1px rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; color:var(--z-300); }
-  .ph-cbtn svg { width:14px; height:14px; }
-  .ph-cbtn.send { background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep)); color:white; box-shadow:inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.35), 0 3px 10px -2px var(--brand-glow), 0 0 0 1px rgba(236,45,120,0.35); }
-  .ph-cbtn.active-cyan { background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.5); color:rgb(103,232,249); box-shadow:0 0 12px rgba(6,182,212,0.3); }
-  .ph-cbtn.active-emerald { background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.5); color:rgb(110,231,183); box-shadow:0 0 12px rgba(16,185,129,0.3); }
-
-  /* ─── Sidebar chrome ─── */
-  .ph-sidebar { flex:1; display:flex; flex-direction:column; padding:0; overflow:hidden; }
-  .ph-side-header { display:flex; align-items:center; gap:8px; padding:14px 14px 12px; border-bottom:1px solid rgba(255,255,255,0.05); }
-  .ph-side-header .ph-id { display:flex; align-items:center; gap:8px; flex:1; }
-  .ph-side-action { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--z-400); }
-  .ph-side-action svg { width:13px; height:13px; }
-  .ph-active-space { display:flex; align-items:center; gap:8px; padding:9px 12px; margin:8px; background:rgba(236,45,120,0.09); border:1px solid rgba(236,45,120,0.32); border-radius:12px; cursor:pointer; box-shadow:0 0 14px -4px var(--brand-glow); }
-  .ph-active-space .as-mark { width:22px; height:22px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; box-shadow:0 0 6px rgba(236,45,120,0.4); }
-  .ph-active-space .as-mark img { width:20px; height:20px; }
-  .ph-active-space .as-name { flex:1; font-size:12.5px; font-weight:600; color:var(--brand-soft); }
-  .ph-active-space .as-chev { font-size:14px; color:var(--brand-soft); }
-  .ph-section-label { font-size:9px; font-weight:700; color:var(--z-600); letter-spacing:0.1em; padding:10px 16px 4px; }
-  .ph-active-tasks { padding:0 8px 4px; display:flex; flex-direction:column; gap:3px; }
-  .ph-task { display:flex; align-items:center; gap:7px; padding:6px 9px; border-radius:9px; font-size:10.5px; }
-  .ph-task.running { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); }
-  .ph-task.done { background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.18); }
-  .ph-task .pulse { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-  .ph-task.running .pulse { background:var(--amber-soft); animation:amber-pulse 1.4s ease-in-out infinite; }
-  @keyframes amber-pulse { 0%,100% { opacity:1; transform:scale(1); box-shadow:0 0 6px var(--amber); } 50% { opacity:0.5; transform:scale(0.85); } }
-  .ph-task.done .pulse { background:var(--emerald-soft); }
-  .ph-task .label { flex:1; color:var(--z-200); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-task .meta { font-size:9px; color:var(--z-500); font-weight:600; font-variant-numeric:tabular-nums; }
-  .ph-thread-list { padding:0 8px; display:flex; flex-direction:column; gap:2px; }
-  .ph-thread { display:flex; align-items:center; gap:8px; padding:7px 11px; border-radius:10px; font-size:11.5px; color:var(--z-300); }
-  .ph-thread.active { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); color:white; font-weight:500; }
-  .ph-thread .hash { font-size:10px; color:var(--z-600); }
-  .ph-thread .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-thread .count { font-size:9px; color:var(--z-600); padding:1px 6px; border-radius:9999px; background:rgba(255,255,255,0.04); }
-  .ph-footer { padding:10px 12px max(10px, env(safe-area-inset-bottom, 10px)); border-top:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px; margin-top:auto; }
-  .ph-profile-chip { flex:1; display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:10px; background:rgba(255,255,255,0.03); font-size:11.5px; color:var(--z-200); font-weight:500; }
-  .ph-profile-chip .pc-mark { width:18px; height:18px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); overflow:hidden; display:flex; align-items:center; justify-content:center; }
-  .ph-profile-chip .pc-mark img { width:16px; height:16px; }
-  .ph-gear { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--z-400); }
-  .ph-gear svg { width:14px; height:14px; }
-
-  /* ─── Model picker popover with real brand icons ─── */
-  .ph-popover { position:absolute; top:60px; right:8px; width:250px; background:rgba(14,14,17,0.88); backdrop-filter:blur(28px); border:1px solid rgba(255,255,255,0.1); border-radius:18px; box-shadow:0 24px 50px -8px rgba(0,0,0,0.8); z-index:10; overflow:hidden; }
-  .ph-popover-label { font-size:9px; font-weight:700; color:var(--z-600); letter-spacing:0.12em; padding:10px 12px 4px; }
-  .ph-popover-item { display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:11.5px; cursor:pointer; color:var(--z-300); }
-  .ph-popover-item:hover { background:rgba(255,255,255,0.04); }
-  .ph-popover-item.selected { color:var(--brand-soft); font-weight:500; }
-  .ph-popover-item.selected .check { color:var(--brand-soft); margin-left:auto; font-size:11px; }
-  .ph-popover-item .pi-icon { width:20px; height:20px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; background:rgba(255,255,255,0.04); overflow:hidden; padding:2px; }
-  .ph-popover-item .pi-icon img { width:100%; height:100%; object-fit:contain; }
-  .ph-popover-item .pi-icon.dark { background:#0a0a0a; }
-  .ph-popover-item .pi-icon.brand-orange { background:#d97757; }
-  .ph-popover-item .pi-name { flex:1; line-height:1.3; }
-  .ph-popover-item .pi-sub { font-size:9px; color:var(--z-600); font-weight:400; display:block; margin-top:1px; }
-  .ph-popover-divider { height:1px; background:rgba(255,255,255,0.05); margin:4px 0; }
-  .ph-popover-footer { padding:6px 12px 9px; border-top:1px solid rgba(255,255,255,0.05); margin-top:2px; }
-  .ph-popover-footer-item { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--z-500); }
-
-  /* ─── Settings ─── */
-  .ph-settings { padding:18px 16px; display:flex; flex-direction:column; gap:20px; overflow-y:auto; }
-  .ph-settings h2 { font-size:18px; font-weight:600; letter-spacing:-0.015em; color:var(--brand-soft); }
-  .ph-set-section h3 { font-size:10px; font-weight:700; color:var(--z-500); margin-bottom:8px; letter-spacing:0.08em; }
-  .ph-set-toggle { display:inline-flex; padding:3px; border-radius:9999px; background:rgba(255,255,255,0.04); border:1px solid var(--border); gap:2px; width:fit-content; }
-  .ph-set-toggle button { padding:5px 11px; border-radius:9999px; font-size:10.5px; font-weight:500; color:var(--z-400); border:none; background:transparent; cursor:pointer; }
-  .ph-set-toggle button.active { background:var(--brand); color:white; box-shadow:0 0 12px -2px var(--brand-glow); }
-  .ph-set-meter { font-size:11px; color:var(--z-300); line-height:1.6; }
-  .ph-set-meter strong { color:var(--brand-soft); }
-  .ph-progress { margin-top:8px; height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden; }
-  .ph-progress-fill { height:100%; background:linear-gradient(90deg, var(--brand-deep), var(--brand-bright)); border-radius:9999px; }
-  .ph-memory-list { display:flex; flex-direction:column; gap:5px; }
-  .ph-memory-item { padding:7px 10px; border-radius:8px; background:rgba(255,255,255,0.025); border:1px solid var(--border); font-size:10.5px; color:var(--z-300); line-height:1.5; }
-  .ph-memory-item .src { font-size:8.5px; color:var(--z-600); margin-top:2px; font-variant-numeric:tabular-nums; }
-  .ph-stat-row { display:flex; justify-content:space-between; padding:6px 0; font-size:11px; border-bottom:1px solid var(--border); }
-  .ph-stat-row:last-child { border-bottom:none; }
-  .ph-stat-row .lab { color:var(--z-500); }
-  .ph-stat-row .val { color:var(--z-200); font-weight:500; font-variant-numeric:tabular-nums; }
-
-  /* ─── Feedback bar ─── */
-  .feedback-bar { display:flex; gap:8px; margin-top:16px; padding:12px 14px; border-radius:12px; background:rgba(255,255,255,0.025); border:1px solid var(--border); align-items:center; }
-  .feedback-bar .fb-label { flex:1; font-size:11px; color:var(--z-500); }
-  .feedback-btn { padding:7px 13px; border-radius:9px; background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--z-400); font-size:11.5px; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 180ms; }
-  .feedback-btn:hover { background:rgba(255,255,255,0.07); }
-  .feedback-btn.active.approve { background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.4); color:rgb(110,231,183); }
-  .feedback-btn.active.flag { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.4); color:rgb(252,211,77); }
-
-  /* ─── Auto-icon options & rename options ─── */
-  .opt-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px; margin-top:14px; }
-  .opt-cell { padding:14px 10px; background:rgba(255,255,255,0.03); border:1.5px solid var(--border); border-radius:12px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; transition:all 200ms; }
-  .opt-cell:hover { background:rgba(255,255,255,0.05); border-color:var(--border-strong); }
-  .opt-cell.selected { background:rgba(236,45,120,0.08); border-color:rgba(236,45,120,0.45); box-shadow:0 0 16px -4px var(--brand-glow); }
-  .opt-cell .opt-glyph { width:32px; height:32px; display:flex; align-items:center; justify-content:center; color:var(--brand-soft); }
-  .opt-cell .opt-glyph svg { width:28px; height:28px; }
-  .opt-cell .opt-name { font-size:11.5px; font-weight:600; color:var(--z-200); text-align:center; }
-  .opt-cell .opt-sub { font-size:10px; color:var(--z-500); text-align:center; line-height:1.4; }
-  .opt-cell.rec::after { content:'RECOMMENDED'; font-size:7.5px; font-weight:700; color:var(--brand-soft); letter-spacing:0.1em; }
-
-  /* ─── Hermes section ─── */
-  .hermes-grid { display:grid; gap:14px; grid-template-columns:1fr; margin-top:14px; }
-  @media (min-width:680px) { .hermes-grid { grid-template-columns:1fr 1fr 1fr; } }
-  .hermes-card { padding:16px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; }
-  .hermes-card.rec { border-color:rgba(16,185,129,0.35); background:rgba(16,185,129,0.04); }
-  .hermes-card.watch { border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.04); }
-  .hermes-card h4 { font-size:13px; font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .hermes-card .v-tag { font-size:9px; font-weight:700; padding:2px 7px; border-radius:9999px; letter-spacing:0.05em; }
-  .hermes-card .v-tag.stay { background:rgba(16,185,129,0.18); color:rgb(110,231,183); }
-  .hermes-card .v-tag.optional { background:rgba(255,255,255,0.08); color:var(--z-300); }
-  .hermes-card .v-tag.watch { background:rgba(245,158,11,0.2); color:rgb(252,211,77); }
-  .hermes-card p { font-size:11.5px; color:var(--z-300); line-height:1.55; }
-  .hermes-card .key { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:10.5px; color:var(--z-400); }
-  .hermes-card .key strong { color:var(--z-200); }
-  .hermes-stats { background:rgba(0,0,0,0.3); border-radius:10px; padding:14px; margin:18px 0; font-size:11.5px; color:var(--z-300); line-height:1.6; }
-  .hermes-stats h4 { font-size:11px; color:var(--brand-soft); font-weight:700; letter-spacing:0.06em; margin-bottom:6px; }
-  .hermes-stats code { font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--brand-soft); }
-  .hermes-stats strong { color:var(--z-100); font-weight:600; }
-  .hermes-quote { padding:12px 16px; background:rgba(236,45,120,0.05); border-left:3px solid var(--brand); border-radius:0 8px 8px 0; margin:14px 0; font-size:12px; color:var(--z-300); line-height:1.55; font-style:italic; }
-
-  /* ─── Sign-off ─── */
-  .signoff { margin-top:48px; padding:24px; background:rgba(236,45,120,0.04); border:1px solid rgba(236,45,120,0.25); border-radius:18px; }
-  .signoff h2 { font-size:18px; font-weight:600; margin-bottom:6px; color:var(--brand-soft); }
-  .signoff p { font-size:12.5px; color:var(--z-300); line-height:1.55; margin-bottom:14px; }
-  .signoff textarea { width:100%; min-height:100px; background:var(--surface); border:1px solid var(--border-strong); border-radius:10px; padding:11px 13px; color:var(--z-200); font-family:inherit; font-size:12.5px; resize:vertical; }
-  .signoff textarea:focus { outline:none; border-color:rgba(236,45,120,0.5); }
-
-  .cta-bar { position:fixed; bottom:0; left:0; right:0; z-index:60; background:rgba(10,10,12,0.92); backdrop-filter:blur(24px); border-top:1px solid var(--border); padding:14px 16px max(14px, env(safe-area-inset-bottom, 14px)); display:flex; gap:10px; align-items:center; }
-  .cta-bar .summary { flex:1; font-size:11.5px; color:var(--z-400); display:flex; align-items:center; gap:10px; }
-  .cta-bar .summary strong { color:var(--z-200); font-weight:600; }
-  .copy-btn { padding:11px 18px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep)); color:white; font-size:13px; font-weight:600; border:none; cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.35), 0 4px 14px -3px var(--brand-glow); transition:transform 140ms; white-space:nowrap; }
-  .copy-btn:active { transform:scale(0.96); }
-  .copy-btn.copied { background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, rgb(134,239,172), rgb(34,197,94) 55%, rgb(21,128,61)); }
-
-  .compare-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
-  .compare-row .compare-card { padding:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; }
-  .compare-row .compare-card .label { font-size:9px; font-weight:700; color:var(--z-500); letter-spacing:0.1em; margin-bottom:8px; text-align:center; }
-  .compare-row .compare-card.bad .label { color:rgb(252,165,165); }
-  .compare-row .compare-card.good .label { color:rgb(134,239,172); }
-
-  .info-note { padding:12px 14px; background:rgba(255,255,255,0.025); border-left:3px solid var(--brand); border-radius:0 10px 10px 0; font-size:11.5px; color:var(--z-400); line-height:1.55; margin:14px 0; }
-  .info-note strong { color:var(--z-200); }
-</style>
-</head>
-<body>
-
-<div class="aurora" aria-hidden="true">
-  <span class="a1"></span><span class="a2"></span><span class="a3"></span>
-</div>
-
-<div class="topbar">
-  <div class="row1">
-    <h1><span class="sully-dot"></span>Sully — the whole look</h1>
-    <span class="v-pill">v2 · ICONS + MONSTER + HERMES</span>
-  </div>
-  <p>Same workflow. Tap 👍 or 🚩 per section, copy sign-off at the bottom.</p>
-  <div class="scroll-progress" id="scrollProgress"></div>
-</div>
-
-<div class="page">
-
-  <div class="intro">
-    <h2>What changed in v2</h2>
-    <p>Your feedback distilled. Six things flipped, two added, one removed.</p>
-    <div class="change-list">
-      <h3>v2 CHANGES (from your sign-off)</h3>
-      <ul>
-        <li><strong>Pink orb is gone.</strong> The Sully monster avatar (which you already approved in the thinking indicator) is now the identity across header, sidebar, footer, and empty-state hero.</li>
-        <li><strong>Real brand icons in the model picker.</strong> Pulled live from <code style="font-size:10px; padding:1px 5px; background:rgba(255,255,255,0.06); border-radius:3px; color:var(--brand-soft);">simple-icons</code> CDN — actual Claude, ChatGPT, Gemini, Ollama, Perplexity, Mistral, Qwen marks at their real brand colors. Production will pull from <code style="font-size:10px; padding:1px 5px; background:rgba(255,255,255,0.06); border-radius:3px; color:var(--brand-soft);">@lobehub/icons-static</code> for the per-product variants (Claude robot face vs Anthropic asterisk).</li>
-        <li><strong>"Walkie-Talkie" → "Live".</strong> Renamed. New icon is an audio-waveform, not headphones. Headphones implied "listening to music" — Live signals continuous voice with Sully.</li>
-        <li><strong>"Auto" Feather → Sully orb.</strong> The feather felt arbitrary. Auto now uses a tiny Sully-mark glyph — same identity as the header, signals "Sully decides."</li>
-        <li><strong>Settings — much more.</strong> Memory viewer (Layer 1 working summary + Layer 3 facts), token + usage metrics, voice-mode usage, learning-richness gauge for when to consider fine-tune.</li>
-        <li><strong>Hermes 3 evaluated — recommendation: stay on Qwen 3 14B.</strong> Dedicated section with the data + why.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- ═════════════ 01 — Empty state with monster ═════════════ -->
-  <section class="section" data-section="empty">
-    <div class="section-num">01 · MOBILE</div>
-    <h2 class="section-title">Empty state — Sully shows up</h2>
-    <div class="section-caption">The pink orb is replaced with the actual Sully avatar (greeting state). She bobs gently — a living identity instead of a stock circle. The breathing magenta glow stays as backing light, not as the subject.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-mark"><img src="/companion/avatars/monster/idle.png" alt="Sully" /></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip">
-              <div class="glyph"><div style="width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); display:flex; align-items:center; justify-content:center;"><img src="/companion/avatars/monster/idle.png" alt="" style="width:11px; height:11px;" /></div></div>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-empty">
-              <div class="ph-monster-hero">
-                <img src="/companion/avatars/monster/greeting.png" alt="Sully greeting" />
-              </div>
-              <h3>Hey Captain.</h3>
-              <p>What's on your mind?</p>
-              <div class="ph-pills">
-                <div class="ph-pill">Audit my system</div>
-                <div class="ph-pill">Help me with code</div>
-                <div class="ph-pill">Brainstorm an idea</div>
-                <div class="ph-pill">Plan my day</div>
-              </div>
-            </div>
-            <div class="ph-composer-area">
-              <div class="ph-composer">
-                <div class="ph-composer-input placeholder">Talk to Sully…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h2M6 8v8M10 4v16M14 9v6M18 6v12M22 12h-2"/></svg></div>
-                  <div class="ph-cbtn send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Sully greets you. The model-picker glyph at top-right is also a tiny Sully — same identity carries through.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="empty">
-      <div class="fb-label">This feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 02 — Sidebar with monster identity ═════════════ -->
-  <section class="section" data-section="sidebar">
-    <div class="section-num">02 · MOBILE</div>
-    <h2 class="section-title">Sidebar — Sully's face everywhere identity lives</h2>
-    <div class="section-caption">Header logo, active space chip, footer profile pill: all use the monster mark instead of the orb. Active Tasks still pinned above The Den. Threads grouped chronologically. Gear at the right of the footer.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-sidebar">
-            <div class="ph-side-header">
-              <div class="ph-id" style="flex:1;">
-                <div class="ph-id-mark"><img src="/companion/avatars/monster/idle.png" alt="Sully" /></div>
-                <div class="ph-id-name">Sully</div>
-              </div>
-              <div class="ph-side-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg></div>
-              <div class="ph-side-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
-            </div>
-
-            <div class="ph-active-space">
-              <div class="as-mark"><img src="/companion/avatars/monster/idle.png" alt="" /></div>
-              <div class="as-name">The Den</div>
-              <div class="as-chev">›</div>
-            </div>
-
-            <div class="ph-section-label">ACTIVE TASKS</div>
-            <div class="ph-active-tasks">
-              <div class="ph-task running">
-                <span class="pulse"></span>
-                <span class="label">CC · refactor model picker</span>
-                <span class="meta">3m</span>
-              </div>
-              <div class="ph-task done">
-                <span class="pulse"></span>
-                <span class="label">Sully · web search ✓</span>
-                <span class="meta">now</span>
-              </div>
-            </div>
-
-            <div class="ph-section-label">TODAY</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread active"><span class="hash">#</span><span class="name">treehouse plans + Pixel</span><span class="count">14</span></div>
-              <div class="ph-thread"><span class="hash">#</span><span class="name">audit findings synth</span><span class="count">6</span></div>
-            </div>
-            <div class="ph-section-label">YESTERDAY</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread"><span class="hash">#</span><span class="name">drake search debug</span><span class="count">5</span></div>
-            </div>
-            <div class="ph-section-label">PREVIOUS 7 DAYS</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread"><span class="hash">#</span><span class="name">model picker fix</span><span class="count">22</span></div>
-              <div class="ph-thread"><span class="hash">#</span><span class="name">voice mode tuning</span><span class="count">9</span></div>
-            </div>
-
-            <div class="ph-footer">
-              <div class="ph-profile-chip">
-                <div class="pc-mark"><img src="/companion/avatars/monster/idle.png" alt="" /></div>
-                <span>Captain</span>
-              </div>
-              <div class="ph-gear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Monster everywhere identity belongs — header, active-space, profile chip. No more pink orb.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="sidebar">
-      <div class="fb-label">This feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 03 — Model picker with REAL brand icons ═════════════ -->
-  <section class="section" data-section="picker">
-    <div class="section-num">03 · MOBILE</div>
-    <h2 class="section-title">Model picker — real brand icons</h2>
-    <div class="section-caption">These icons are pulled from <code>simple-icons</code> CDN <em>live</em> in this mockup — they're the actual brand marks each provider uses publicly. In production we'll switch to <code>@lobehub/icons-static</code> for the per-product variants (Claude's product mark vs Anthropic's corporate asterisk, ChatGPT's swirl vs OpenAI's hex). <strong>Auto</strong> uses a tiny Sully-mark — the picker says "Sully decides" without arbitrary feathers.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-mark"><img src="/companion/avatars/monster/idle.png" alt="" /></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip" style="background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12);">
-              <div class="glyph"><div style="width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); display:flex; align-items:center; justify-content:center;"><img src="/companion/avatars/monster/idle.png" alt="" style="width:11px; height:11px;" /></div></div>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-
-          <div class="ph-popover">
-            <div class="ph-popover-label">CHOOSE A MODEL</div>
-            <div class="ph-popover-item selected">
-              <div class="pi-icon" style="background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); box-shadow:inset 0 0 0 1px rgba(236,45,120,0.4);">
-                <img src="/companion/avatars/monster/idle.png" alt="" />
-              </div>
-              <div class="pi-name">Auto<span class="pi-sub">Sully decides · smart tier</span></div>
-              <span class="check">✓</span>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon brand-orange"><img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" /></div>
-              <div class="pi-name">Claude Haiku 4.5<span class="pi-sub">fast · chat tier</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon brand-orange"><img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" /></div>
-              <div class="pi-name">Claude Sonnet 4.6<span class="pi-sub">planning</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon brand-orange"><img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" /></div>
-              <div class="pi-name">Claude Opus 4.8<span class="pi-sub">deep</span></div>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#ffffff;"><img src="https://cdn.simpleicons.org/googlegemini/4285F4" alt="" /></div>
-              <div class="pi-name">Gemini 2.5 Pro<span class="pi-sub">deep</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#ffffff;"><img src="https://cdn.simpleicons.org/googlegemini/4285F4" alt="" /></div>
-              <div class="pi-name">Gemini 2.5 Flash<span class="pi-sub">planning</span></div>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon dark"><img src="https://cdn.simpleicons.org/openai/ffffff" alt="" /></div>
-              <div class="pi-name">GPT-OSS 120B<span class="pi-sub">cloud · reasoning</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#615ced;"><img src="https://cdn.simpleicons.org/alibabacloud/ffffff" alt="" /></div>
-              <div class="pi-name">Qwen3-Coder 480B<span class="pi-sub">cloud · coding</span></div>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon dark"><img src="https://cdn.simpleicons.org/ollama/ffffff" alt="" /></div>
-              <div class="pi-name">Local · Ollama<span class="pi-sub">offline (companion-v1)</span></div>
-            </div>
-            <div class="ph-popover-footer">
-              <div class="ph-popover-footer-item"><span>✎</span> <span>Edit Sully's context</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Real brand glyphs. The colored backgrounds give each provider its visual signature without the row text fighting the mark.</div>
-      </div>
-    </div>
-
-    <div class="info-note">
-      <strong>About the Claude icon specifically:</strong> the icon you see is Anthropic's official mark on the orange brand background. The per-product "Claude robot face" exists as a separate brand asset; <code>@lobehub/icons-static</code> ships both. We'll wire the per-product variant in production. The <code>simple-icons</code> CDN doesn't have it as a separate icon yet.
-    </div>
-
-    <div class="feedback-bar" data-fb="picker">
-      <div class="fb-label">This feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 04 — Walkie-Talkie → Live ═════════════ -->
-  <section class="section" data-section="live">
-    <div class="section-num">04 · MOBILE</div>
-    <h2 class="section-title">"Walkie-Talkie" → "Live"</h2>
-    <div class="section-caption">The old name implied CB radio. The headphone icon implied listening to music. New name <strong>"Live"</strong> matches what Gemini and ChatGPT call the same mode (continuous voice both ways). New icon is a Lucide audio-waveform — visually represents the continuous voice signal.</div>
-
-    <div class="compare-row">
-      <div class="compare-card bad">
-        <div class="label">BEFORE</div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
-          <div style="width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:20px;">🎧</div>
-          <div style="font-size:11.5px; color:var(--z-300); font-weight:500;">Walkie-Talkie</div>
-          <div style="font-size:10px; color:var(--z-500); text-align:center;">Headphone glyph; aria-label "Hands-free continuous Talkback"</div>
-        </div>
-      </div>
-      <div class="compare-card good">
-        <div class="label">AFTER</div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
-          <div style="width:44px; height:44px; border-radius:12px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); display:flex; align-items:center; justify-content:center; color:rgb(110,231,183);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h2M6 8v8M10 4v16M14 9v6M18 6v12M22 12h-2"/></svg>
-          </div>
-          <div style="font-size:11.5px; color:rgb(110,231,183); font-weight:600;">Live</div>
-          <div style="font-size:10px; color:var(--z-500); text-align:center;">Audio waveform glyph; aria-label "Live voice — continuous"</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="info-note">
-      <strong>State chips in the strip</strong> also lose their colorful emoji: the old 🔴 / 🔄 / 📤 / 🔈 / ↩ become Lucide line icons (record · refresh · upload · volume · loop). The aesthetic stays monochrome and on-brand.
-    </div>
-
-    <div class="feedback-bar" data-fb="live">
-      <div class="fb-label">This feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 05 — Auto icon ═════════════ -->
-  <section class="section" data-section="auto-icon">
-    <div class="section-num">05 · ICON</div>
-    <h2 class="section-title">"Auto" — drop the feather, use Sully</h2>
-    <div class="section-caption">The feather (🪶) had no semantic tie to "Sully picks the model." Here are three replacements. The recommended one uses the mini-Sully-mark itself — the picker is literally saying "Sully decides."</div>
-
-    <div class="opt-grid">
-      <div class="opt-cell selected rec" data-q="auto-icon" data-value="sully-mini">
-        <div class="opt-glyph" style="width:36px; height:36px;">
-          <div style="width:32px; height:32px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%); display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(236,45,120,0.4);">
-            <img src="/companion/avatars/monster/idle.png" alt="" style="width:28px; height:28px;" />
-          </div>
-        </div>
-        <div class="opt-name">Mini Sully</div>
-        <div class="opt-sub">"Sully decides" — same identity as header</div>
-      </div>
-      <div class="opt-cell" data-q="auto-icon" data-value="sparkles">
-        <div class="opt-glyph">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5z"/><circle cx="18" cy="5" r="1.5"/><circle cx="5" cy="18" r="1.5"/></svg>
-        </div>
-        <div class="opt-name">Sparkles</div>
-        <div class="opt-sub">Lucide · "smart / magic"</div>
-      </div>
-      <div class="opt-cell" data-q="auto-icon" data-value="wand">
-        <div class="opt-glyph">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"/></svg>
-        </div>
-        <div class="opt-name">Wand</div>
-        <div class="opt-sub">Lucide · "magic routing"</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="auto-icon">
-      <div class="fb-label">Auto icon pick (default: Mini Sully):</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Different</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 06 — Settings expanded ═════════════ -->
-  <section class="section" data-section="settings">
-    <div class="section-num">06 · MOBILE</div>
-    <h2 class="section-title">Settings — more than just autonomy</h2>
-    <div class="section-caption">Restyled to brand. <strong>What Sully knows</strong> section shows her Layer-1 working memory + recent learned facts so you can audit what's in her head. Usage stats, voice usage, and a "learning richness" gauge that tells you when there's enough learned material to consider graduating to a fine-tuned student model.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header" style="border-bottom:1px solid rgba(255,255,255,0.05);">
-            <div class="ph-burger">←</div>
-            <div class="ph-id">
-              <div class="ph-id-mark"><img src="/companion/avatars/monster/idle.png" alt="" /></div>
-              <div class="ph-id-name">Settings</div>
-            </div>
-            <div style="width:32px;"></div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-settings">
-              <div>
-                <h2>Captain</h2>
-                <p style="font-size:11px; color:var(--z-500);">Single operator · Tailnet primary</p>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>AUTONOMY</h3>
-                <div class="ph-set-toggle">
-                  <button>Ask</button>
-                  <button class="active">Auto-safe</button>
-                  <button>Full-auto</button>
-                </div>
-                <p style="font-size:10px; color:var(--z-500); margin-top:6px; line-height:1.5;">Auto-safe: Sully runs tools + dispatches automatically, except for irreversible actions.</p>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>WHAT SULLY KNOWS — RECENT FACTS</h3>
-                <div class="ph-memory-list">
-                  <div class="ph-memory-item">
-                    Captain's dog is Pixel
-                    <div class="src">learned · 2026-05-31 · used 4 times</div>
-                  </div>
-                  <div class="ph-memory-item">
-                    Captain is building a treehouse this weekend
-                    <div class="src">learned · 2026-05-31 · used 6 times</div>
-                  </div>
-                  <div class="ph-memory-item">
-                    Lucky number is 17
-                    <div class="src">learned · 2026-05-31 · used 2 times</div>
-                  </div>
-                </div>
-                <div style="display:flex; gap:8px; margin-top:10px;">
-                  <button style="padding:5px 11px; border-radius:9999px; font-size:10.5px; background:rgba(255,255,255,0.04); color:var(--z-400); border:1px solid var(--border);">View all 47 facts</button>
-                  <button style="padding:5px 11px; border-radius:9999px; font-size:10.5px; background:rgba(255,255,255,0.04); color:var(--z-400); border:1px solid var(--border);">Working summary</button>
-                </div>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>LEARNING RICHNESS</h3>
-                <div class="ph-set-meter">
-                  <strong>47</strong> facts · <strong>312</strong> conversations · <strong>~180k</strong> tokens of history
-                </div>
-                <div class="ph-progress" style="height:8px;"><div class="ph-progress-fill" style="width:38%;"></div></div>
-                <p style="font-size:10px; color:var(--z-500); margin-top:6px; line-height:1.5;">
-                  At ~500 facts + ~50k user tokens you'll have enough to consider graduating to a fine-tuned student model. (<a style="color:var(--brand-soft);">why?</a>)
-                </p>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>DISPATCH METER · TODAY</h3>
-                <div class="ph-stat-row"><span class="lab">Dispatches</span><span class="val">4 / 20</span></div>
-                <div class="ph-stat-row"><span class="lab">Worker wall-clock</span><span class="val">14m 32s</span></div>
-                <div class="ph-stat-row"><span class="lab">Tokens out</span><span class="val">~412k</span></div>
-                <div class="ph-progress" style="margin-top:8px;"><div class="ph-progress-fill" style="width:20%;"></div></div>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>VOICE</h3>
-                <div class="ph-set-toggle">
-                  <button>Off</button>
-                  <button class="active">On</button>
-                </div>
-                <div class="ph-stat-row" style="margin-top:8px;"><span class="lab">Voice time today</span><span class="val">8m 14s</span></div>
-                <div class="ph-stat-row"><span class="lab">TTS provider</span><span class="val">Local chatterbox</span></div>
-              </div>
-
-              <div class="ph-set-section">
-                <h3>HOME MODEL</h3>
-                <div class="ph-stat-row"><span class="lab">Active</span><span class="val">companion-v1 (qwen3:14b)</span></div>
-                <div class="ph-stat-row"><span class="lab">Persona module</span><span class="val" style="color:var(--z-500);">(none)</span></div>
-                <button style="margin-top:8px; padding:6px 12px; border-radius:8px; font-size:10.5px; background:rgba(255,255,255,0.04); color:var(--z-300); border:1px solid var(--border);">Change…</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">A real settings page. You can audit Sully's memory, see usage, gauge when graduation makes sense.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="settings">
-      <div class="fb-label">This feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ 07 — Hermes 3 evaluation ═════════════ -->
-  <section class="section" data-section="hermes">
-    <div class="section-num">07 · RESEARCH</div>
-    <h2 class="section-title">Hermes 3 evaluation — should we switch?</h2>
-    <div class="section-caption">You asked. Deep research on NousResearch's Hermes 3 / 4 family vs your current setup. Bottom line: <strong>stay on Qwen 3 14B as primary</strong>, with two specific reasons + a model to watch. Full reasoning below.</div>
-
-    <div class="hermes-quote">
-      "Hermes 3 8B is a measurable reasoning downgrade from Qwen 3 14B. You can paint personality on with a system prompt + memory; you can't paint IQ on. The Apache 2.0 vs Llama Community License gap is a real future-proofing concern if you share or commercialize."
-    </div>
-
-    <div class="hermes-grid">
-      <div class="hermes-card rec">
-        <h4>Stay on Qwen 3 14B <span class="v-tag stay">RECOMMENDED</span></h4>
-        <p>Higher IQ at your VRAM ceiling. Apache 2.0 — clean for sharing/commercializing. Richer fine-tuning ecosystem (Unsloth, Axolotl, LLaMA-Factory all have first-class Qwen recipes).</p>
-        <div class="key"><strong>Action:</strong> No change to companion-v1.</div>
-      </div>
-      <div class="hermes-card">
-        <h4>Hermes 3 8B as persona module <span class="v-tag optional">OPTIONAL</span></h4>
-        <p>If you want roleplay-style sessions or extra-warm chat, pull <code style="font-size:10px; color:var(--brand-soft); background:rgba(255,255,255,0.06); padding:1px 4px; border-radius:3px;">hermes3:8b-llama3.1-q4_K_M</code> as a secondary model. Route to it deliberately — not as default.</p>
-        <div class="key"><strong>VRAM:</strong> ~4-5GB at Q4. Fits comfortably alongside companion-v1.</div>
-      </div>
-      <div class="hermes-card watch">
-        <h4>Watch Hermes 4 14B (Qwen-based) <span class="v-tag watch">RE-EVAL 60-90d</span></h4>
-        <p>Released Aug 2025. <strong>Apache 2.0 inherited</strong> from Qwen 3 base. Hybrid reasoning. Not on Ollama yet (Featherless API only). If it hits Ollama + benchmarks well, this is the natural upgrade.</p>
-        <div class="key"><strong>Status:</strong> Watch ollama.com/library/hermes4.</div>
-      </div>
-    </div>
-
-    <div class="hermes-stats">
-      <h4>THE DATA — concrete benchmarks (source-cited only)</h4>
-      <p><strong>Qwen 3 14B</strong> beats <strong>Hermes 3 70B</strong> on GPQA + coding index. (LLMBase)</p>
-      <p>Ai2 third-party eval: <strong>Hermes 3 8B underperforms Llama 3.1 8B Instruct</strong> on official eval template. (Interconnects / Nathan Lambert) — this is the most load-bearing finding.</p>
-      <p>LoRA on 5060 Ti 16GB: <code>Llama 3.1 8B QLoRA = ~6GB training memory</code>; Unsloth fits <code>Qwen3 30B-A3B in 17.5GB</code>. <strong>QLoRA on Qwen 3 14B is feasible on your card.</strong></p>
-      <p><strong>License:</strong> Hermes 3 inherits Llama Community License (field-of-use restrictions, EU-user exclusions, NOT OSI-open). Qwen 3 = Apache 2.0 (clean for any use).</p>
-    </div>
-
-    <div class="info-note">
-      <strong>The "learning" angle:</strong> What makes Sully <em>feel</em> like she learns is the memory layers you already have (Layer 1 working summary, Layer 3 semantic facts) — not the base model. 80% of "learning" is RAG. The other 20% is the eventual graduate-to-student fine-tune, which we'd do on Qwen 3 14B via Unsloth QLoRA on your 5060 Ti. Apache license keeps the door open.
-    </div>
-
-    <div class="feedback-bar" data-fb="hermes">
-      <div class="fb-label">This recommendation feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Agreed</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Disagree</button>
-    </div>
-  </section>
-
-  <!-- ═════════════ Sign-off ═════════════ -->
-  <div class="signoff">
-    <h2>How does v2 land?</h2>
-    <p>If approvals across the board, I'll start the build in the order from the audit doc — bug fix first, then chrome/icons, then spaces architecture. If anything still needs another pass, tell me here. We'll iterate as long as it takes.</p>
-    <textarea id="signoffNotes" placeholder="e.g. 'the monster looks too small in the sidebar pill — make it the same size as the header logo', 'Live is good but I want it called Tandem', 'I want to see the hermes section with actual Ollama model tags shown', etc."></textarea>
-  </div>
-
-</div><!-- /page -->
-
-<div class="cta-bar">
-  <div class="summary"><strong id="approveCount">0</strong> approved · <strong id="flagCount">0</strong> flagged · <strong id="pendingCount">7</strong> pending</div>
-  <button class="copy-btn" id="copyBtn">Copy sign-off</button>
-</div>
-
-<script>
-  const STORAGE_KEY = 'sully-mockup-signoff-v2';
-  const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-
-  // Restore per-section feedback
-  document.querySelectorAll('[data-fb]').forEach(bar => {
-    const key = bar.dataset.fb;
-    bar.querySelectorAll('.feedback-btn').forEach(btn => {
-      const v = btn.dataset.v;
-      if (state[key] === v) btn.classList.add('active');
-      btn.addEventListener('click', () => {
-        bar.querySelectorAll('.feedback-btn').forEach(b => b.classList.remove('active'));
-        if (state[key] === v) { state[key] = null; btn.classList.remove('active'); }
-        else { state[key] = v; btn.classList.add('active'); }
-        save();
-      });
-    });
-  });
-
-  // Auto-icon single-pick (cell-style)
-  document.querySelectorAll('.opt-cell[data-q="auto-icon"]').forEach(cell => {
-    const v = cell.dataset.value;
-    if (state['auto-icon-pick'] === v) cell.classList.add('selected');
-    cell.addEventListener('click', () => {
-      document.querySelectorAll('.opt-cell[data-q="auto-icon"]').forEach(c => c.classList.remove('selected'));
-      cell.classList.add('selected');
-      state['auto-icon-pick'] = v;
-      save();
-    });
-  });
-
-  // Notes
-  const notes = document.getElementById('signoffNotes');
-  if (state.notes) notes.value = state.notes;
-  notes.addEventListener('input', () => { state.notes = notes.value; save(); });
-
-  // Scroll progress
-  const sp = document.getElementById('scrollProgress');
-  window.addEventListener('scroll', () => {
-    const h = document.documentElement.scrollHeight - window.innerHeight;
-    const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
-    sp.style.width = Math.min(100, Math.max(0, pct)) + '%';
-  });
-
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    updateCounts();
-  }
-
-  const sections = ['empty','sidebar','picker','live','auto-icon','settings','hermes'];
-  function updateCounts() {
-    let approved = 0, flagged = 0;
-    sections.forEach(s => {
-      if (state[s] === 'approve') approved++;
-      else if (state[s] === 'flag') flagged++;
-    });
-    document.getElementById('approveCount').textContent = approved;
-    document.getElementById('flagCount').textContent = flagged;
-    document.getElementById('pendingCount').textContent = sections.length - approved - flagged;
-  }
-
-  const labels = {
-    empty: 'Empty state (monster hero)',
-    sidebar: 'Sidebar (monster identity)',
-    picker: 'Model picker (brand icons)',
-    live: 'Walkie-Talkie → Live + waveform',
-    'auto-icon': 'Auto icon',
-    settings: 'Settings (memory + metrics)',
-    hermes: 'Hermes 3 verdict (stay on Qwen)'
-  };
-  document.getElementById('copyBtn').addEventListener('click', async () => {
-    let out = 'SULLY MOCKUP v2 SIGN-OFF\n========================\n\n';
-    sections.forEach(s => {
-      const v = state[s];
-      const tag = v === 'approve' ? '👍 GOOD' : v === 'flag' ? '🚩 NEEDS CHANGE' : '— (no answer)';
-      out += `${labels[s]}\n  ${tag}\n\n`;
-    });
-    out += `Auto-icon pick: ${state['auto-icon-pick'] || 'Mini Sully (default)'}\n\n`;
-    if (state.notes && state.notes.trim()) {
-      out += `Notes:\n${state.notes.trim()}\n`;
-    }
-    const btn = document.getElementById('copyBtn');
-    try {
-      await navigator.clipboard.writeText(out);
-      btn.textContent = '✓ Copied'; btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy sign-off'; btn.classList.remove('copied'); }, 2000);
-    } catch (e) {
-      const ta = document.createElement('textarea'); ta.value = out; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); btn.textContent = '✓ Copied'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = 'Copy sign-off'; btn.classList.remove('copied'); }, 2000); } catch (e2) {}
-      document.body.removeChild(ta);
-    }
-  });
-
-  updateCounts();
-</script>
-
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+		<title>Sully — the whole look v2</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				-webkit-tap-highlight-color: transparent;
+			}
+			:root {
+				--brand: #ec2d78;
+				--brand-soft: #ff7eb3;
+				--brand-deep: #c4186a;
+				--brand-bright: #ff4d94;
+				--brand-glow: rgba(236, 45, 120, 0.4);
+				--bg: #050505;
+				--surface: #0e0e11;
+				--surface-2: #18181b;
+				--border: rgba(255, 255, 255, 0.07);
+				--border-strong: rgba(255, 255, 255, 0.12);
+				--z-200: #e4e4e7;
+				--z-300: #d4d4d8;
+				--z-400: #a1a1aa;
+				--z-500: #71717a;
+				--z-600: #52525b;
+				--z-700: #3f3f46;
+				--z-800: #27272a;
+				--z-900: #18181b;
+				--amber: #f59e0b;
+				--amber-soft: #fbbf24;
+				--emerald: #10b981;
+				--emerald-soft: #34d399;
+				--cyan: #06b6d4;
+				--cyan-soft: #22d3ee;
+				--red: #ef4444;
+				--red-soft: #f87171;
+			}
+			html,
+			body {
+				height: 100%;
+				background: var(--bg);
+				color: #f4f4f5;
+				font-family:
+					'Inter',
+					system-ui,
+					-apple-system,
+					sans-serif;
+				overscroll-behavior: none;
+			}
+			body {
+				padding-bottom: env(safe-area-inset-bottom, 16px);
+			}
+
+			.aurora {
+				position: fixed;
+				inset: 0;
+				z-index: 0;
+				pointer-events: none;
+				overflow: hidden;
+			}
+			.aurora span {
+				position: absolute;
+				border-radius: 9999px;
+				filter: blur(80px);
+				opacity: 0.22;
+				will-change: transform;
+			}
+			.aurora .a1 {
+				width: 460px;
+				height: 460px;
+				background: radial-gradient(ellipse, #ec2d78 0%, #c4186a 60%, transparent 100%);
+				top: -100px;
+				left: -120px;
+				animation: aurora1 22s ease-in-out infinite;
+			}
+			.aurora .a2 {
+				width: 340px;
+				height: 340px;
+				background: radial-gradient(ellipse, #7c3aed 0%, #ec2d78 70%, transparent 100%);
+				bottom: 80px;
+				right: -80px;
+				animation: aurora2 26s ease-in-out infinite;
+			}
+			.aurora .a3 {
+				width: 280px;
+				height: 280px;
+				background: radial-gradient(ellipse, #ec2d78 0%, transparent 80%);
+				top: 50%;
+				left: 50%;
+				animation: aurora3 30s ease-in-out infinite;
+			}
+			@keyframes aurora1 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(30px, -20px) scale(1.08);
+				}
+			}
+			@keyframes aurora2 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(-30px, 20px) scale(0.92);
+				}
+			}
+			@keyframes aurora3 {
+				0%,
+				100% {
+					transform: translate(-50%, -50%) scale(1);
+				}
+				50% {
+					transform: translate(-50%, -50%) scale(1.15);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.aurora span {
+					animation: none !important;
+				}
+			}
+
+			.topbar {
+				position: sticky;
+				top: 0;
+				z-index: 50;
+				background: rgba(10, 10, 12, 0.88);
+				backdrop-filter: blur(20px);
+				border-bottom: 1px solid var(--border);
+				padding: max(14px, env(safe-area-inset-top, 14px)) 20px 12px;
+			}
+			.topbar .row1 {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.topbar h1 {
+				font-size: 15px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+			}
+			.topbar .v-pill {
+				font-size: 9px;
+				font-weight: 700;
+				padding: 2px 8px;
+				border-radius: 9999px;
+				background: rgba(236, 45, 120, 0.15);
+				color: var(--brand-soft);
+				letter-spacing: 0.06em;
+			}
+			.sully-dot {
+				display: inline-block;
+				width: 16px;
+				height: 16px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 8px rgba(236, 45, 120, 0.5);
+				vertical-align: -2px;
+				margin-right: 6px;
+			}
+			.topbar p {
+				font-size: 11.5px;
+				color: var(--z-400);
+				margin-top: 3px;
+				line-height: 1.5;
+			}
+			.topbar .scroll-progress {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				height: 2px;
+				background: linear-gradient(90deg, var(--brand-deep), var(--brand-bright));
+				width: 0%;
+				transition: width 80ms linear;
+			}
+
+			.page {
+				position: relative;
+				z-index: 1;
+				max-width: 780px;
+				margin: 0 auto;
+				padding: 20px 16px 140px;
+			}
+
+			.intro {
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 18px;
+				padding: 18px;
+				margin-bottom: 30px;
+			}
+			.intro h2 {
+				font-size: 14px;
+				font-weight: 700;
+				letter-spacing: -0.01em;
+				margin-bottom: 8px;
+				color: var(--brand-soft);
+			}
+			.intro p {
+				font-size: 13px;
+				color: var(--z-300);
+				line-height: 1.6;
+			}
+			.intro p + p {
+				margin-top: 8px;
+				color: var(--z-400);
+				font-size: 12.5px;
+			}
+			.intro strong {
+				color: var(--z-200);
+				font-weight: 600;
+			}
+			.intro .change-list {
+				margin-top: 12px;
+				padding: 12px 14px;
+				background: rgba(236, 45, 120, 0.05);
+				border: 1px solid rgba(236, 45, 120, 0.2);
+				border-radius: 12px;
+			}
+			.intro .change-list h3 {
+				font-size: 11px;
+				font-weight: 700;
+				color: var(--brand-soft);
+				letter-spacing: 0.06em;
+				margin-bottom: 8px;
+			}
+			.intro .change-list ul {
+				padding-left: 18px;
+			}
+			.intro .change-list li {
+				font-size: 12px;
+				color: var(--z-300);
+				line-height: 1.55;
+				margin: 3px 0;
+			}
+
+			.section {
+				margin-bottom: 48px;
+				scroll-margin-top: 90px;
+			}
+			.section-num {
+				font-size: 10px;
+				font-weight: 700;
+				color: var(--brand-soft);
+				letter-spacing: 0.14em;
+				margin-bottom: 6px;
+			}
+			.section-title {
+				font-size: 20px;
+				font-weight: 600;
+				letter-spacing: -0.02em;
+				line-height: 1.25;
+				margin-bottom: 6px;
+			}
+			.section-caption {
+				font-size: 12.5px;
+				color: var(--z-400);
+				line-height: 1.6;
+				margin-bottom: 20px;
+				max-width: 600px;
+			}
+			.section-caption strong {
+				color: var(--z-300);
+				font-weight: 500;
+			}
+			.section-caption code {
+				background: rgba(255, 255, 255, 0.06);
+				padding: 1px 6px;
+				border-radius: 4px;
+				font-size: 11px;
+				font-family: 'JetBrains Mono', monospace;
+				color: var(--brand-soft);
+			}
+
+			.views {
+				display: grid;
+				gap: 24px;
+				grid-template-columns: 1fr;
+			}
+			@media (min-width: 680px) {
+				.views.two-up {
+					grid-template-columns: 1fr 1fr;
+				}
+			}
+			.view {
+				background: rgba(255, 255, 255, 0.02);
+				border: 1px solid var(--border);
+				border-radius: 18px;
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 12px;
+			}
+			.view .label {
+				font-size: 11px;
+				font-weight: 600;
+				color: var(--z-400);
+				letter-spacing: 0.04em;
+				text-align: center;
+			}
+			.view .blurb {
+				font-size: 11px;
+				color: var(--z-500);
+				line-height: 1.55;
+				text-align: center;
+				max-width: 280px;
+				margin-top: -4px;
+			}
+
+			.phone {
+				width: 100%;
+				max-width: 320px;
+				aspect-ratio: 9 / 19;
+				background: var(--surface);
+				border-radius: 32px;
+				border: 1.5px solid rgba(255, 255, 255, 0.1);
+				box-shadow:
+					0 24px 60px -12px rgba(0, 0, 0, 0.7),
+					0 0 0 0.5px rgba(255, 255, 255, 0.04);
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+				position: relative;
+			}
+			.phone .island {
+				position: absolute;
+				top: 8px;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 90px;
+				height: 24px;
+				background: #000;
+				border-radius: 9999px;
+				z-index: 5;
+				pointer-events: none;
+			}
+			.phone .statusbar {
+				padding: 14px 22px 6px;
+				display: flex;
+				justify-content: space-between;
+				font-size: 11px;
+				font-weight: 600;
+				color: rgba(255, 255, 255, 0.7);
+				position: relative;
+				z-index: 1;
+			}
+
+			/* ─── Header chrome ─── */
+			.ph-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+				padding: 8px 14px 10px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+				background: rgba(11, 11, 13, 0.55);
+				backdrop-filter: blur(20px);
+				position: relative;
+				z-index: 2;
+			}
+			.ph-header .ph-burger {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+				font-size: 14px;
+			}
+			.ph-header .ph-id {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+			}
+			/* The Sully mark — small monster avatar instead of a pink orb */
+			.ph-header .ph-id-mark {
+				width: 26px;
+				height: 26px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				overflow: hidden;
+				flex-shrink: 0;
+				box-shadow:
+					0 0 10px rgba(236, 45, 120, 0.35),
+					inset 0 0 0 1px rgba(236, 45, 120, 0.3);
+			}
+			.ph-header .ph-id-mark img {
+				width: 24px;
+				height: 24px;
+				object-fit: contain;
+			}
+			.ph-header .ph-id-name {
+				font-size: 13px;
+				font-weight: 600;
+				letter-spacing: -0.005em;
+			}
+			.ph-header .ph-model-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 5px 10px 5px 7px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.07);
+				font-size: 10px;
+				color: var(--z-300);
+				max-width: 140px;
+			}
+			.ph-header .ph-model-chip .glyph {
+				width: 14px;
+				height: 14px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 4px;
+				overflow: hidden;
+			}
+			.ph-header .ph-model-chip .glyph img {
+				width: 12px;
+				height: 12px;
+			}
+			.ph-header .ph-model-chip .name {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-header .ph-model-chip .caret {
+				font-size: 8px;
+				color: var(--z-500);
+			}
+
+			/* ─── Empty state with monster hero ─── */
+			.ph-main {
+				flex: 1;
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+				position: relative;
+			}
+			.ph-empty {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 18px;
+				gap: 14px;
+			}
+			.ph-monster-hero {
+				width: 140px;
+				height: 140px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				position: relative;
+			}
+			.ph-monster-hero::before {
+				content: '';
+				position: absolute;
+				inset: 8px;
+				border-radius: 50%;
+				background: radial-gradient(circle, rgba(255, 77, 148, 0.35) 0%, rgba(255, 77, 148, 0) 65%);
+				animation: hero-glow 3.4s ease-in-out infinite;
+			}
+			@keyframes hero-glow {
+				0%,
+				100% {
+					opacity: 0.6;
+					transform: scale(0.92);
+				}
+				50% {
+					opacity: 1;
+					transform: scale(1.08);
+				}
+			}
+			.ph-monster-hero img {
+				position: relative;
+				width: 100%;
+				height: 100%;
+				object-fit: contain;
+				z-index: 1;
+				animation: bob 3.6s ease-in-out infinite;
+			}
+			@keyframes bob {
+				0%,
+				100% {
+					transform: translateY(0) rotate(0);
+				}
+				25% {
+					transform: translateY(-4px) rotate(-2deg);
+				}
+				75% {
+					transform: translateY(-4px) rotate(2deg);
+				}
+			}
+			.ph-empty h3 {
+				font-size: 17px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+				text-align: center;
+			}
+			.ph-empty p {
+				font-size: 11.5px;
+				color: var(--z-500);
+				text-align: center;
+				line-height: 1.45;
+			}
+			.ph-pills {
+				display: flex;
+				flex-direction: column;
+				gap: 7px;
+				width: 100%;
+				max-width: 240px;
+			}
+			.ph-pill {
+				padding: 9px 14px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				border-radius: 9999px;
+				font-size: 11px;
+				color: var(--z-300);
+				text-align: center;
+			}
+
+			/* ─── Messages ─── */
+			.ph-msgs {
+				flex: 1;
+				overflow: hidden;
+				padding: 8px 12px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.ph-msg-user {
+				align-self: flex-end;
+				max-width: 80%;
+				background: rgba(14, 14, 17, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				backdrop-filter: blur(12px);
+				border-radius: 16px;
+				padding: 7px 11px;
+				font-size: 11px;
+				color: var(--z-200);
+				line-height: 1.5;
+			}
+			.ph-msg-time {
+				font-size: 8px;
+				color: var(--z-600);
+				align-self: flex-end;
+				padding: 0 2px;
+				font-variant-numeric: tabular-nums;
+			}
+			.ph-msg-assist {
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+				max-width: 90%;
+				align-self: flex-start;
+			}
+			.ph-name-tag {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 2px 8px;
+				border-radius: 9999px;
+				background: rgba(236, 45, 120, 0.08);
+				border: 1px solid rgba(236, 45, 120, 0.28);
+				font-size: 9px;
+				font-weight: 600;
+				color: var(--brand-soft);
+				width: fit-content;
+			}
+			.ph-name-tag .nt-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 4px rgba(236, 45, 120, 0.6);
+			}
+			.ph-msg-body {
+				font-size: 11px;
+				color: var(--z-200);
+				line-height: 1.55;
+				padding: 3px 4px;
+			}
+
+			/* ─── Composer ─── */
+			.ph-composer-area {
+				padding: 8px 12px max(12px, env(safe-area-inset-bottom, 12px));
+			}
+			.ph-composer {
+				border-radius: 24px;
+				padding: 8px;
+				background: rgba(14, 14, 17, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				backdrop-filter: blur(20px);
+				transition: all 200ms;
+			}
+			.ph-composer.sending {
+				border-color: rgba(236, 45, 120, 0.45);
+				box-shadow: 0 0 30px -6px var(--brand-glow);
+				animation: composer-pulse 1.8s ease-in-out infinite;
+			}
+			@keyframes composer-pulse {
+				0%,
+				100% {
+					box-shadow: 0 0 30px -6px var(--brand-glow);
+				}
+				50% {
+					box-shadow: 0 0 38px -4px rgba(236, 45, 120, 0.5);
+				}
+			}
+			.ph-composer.live {
+				border-color: rgba(16, 185, 129, 0.4);
+				box-shadow: 0 0 24px -8px rgba(16, 185, 129, 0.4);
+			}
+			.ph-composer.image {
+				border-color: rgba(6, 182, 212, 0.4);
+				box-shadow: 0 0 24px -8px rgba(6, 182, 212, 0.4);
+			}
+			.ph-composer-strip {
+				padding: 2px 6px 4px;
+				margin-bottom: 3px;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 9px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			.ph-composer-strip.cyan {
+				color: rgb(103, 232, 249);
+			}
+			.ph-composer-strip.emerald {
+				color: rgb(110, 231, 183);
+			}
+			.ph-composer-input {
+				padding: 5px 7px;
+				font-size: 11px;
+				color: var(--z-300);
+				min-height: 20px;
+			}
+			.ph-composer-input.placeholder {
+				color: var(--z-600);
+			}
+			.ph-composer-row {
+				display: flex;
+				align-items: center;
+				gap: 5px;
+				padding: 3px 2px 0;
+			}
+			.ph-cbtn {
+				width: 30px;
+				height: 30px;
+				border-radius: 10px;
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.16),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 2px 6px -1px rgba(0, 0, 0, 0.55);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-300);
+			}
+			.ph-cbtn svg {
+				width: 14px;
+				height: 14px;
+			}
+			.ph-cbtn.send {
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
+				color: white;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.25),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 3px 10px -2px var(--brand-glow),
+					0 0 0 1px rgba(236, 45, 120, 0.35);
+			}
+			.ph-cbtn.active-cyan {
+				background: rgba(6, 182, 212, 0.15);
+				border: 1px solid rgba(6, 182, 212, 0.5);
+				color: rgb(103, 232, 249);
+				box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+			}
+			.ph-cbtn.active-emerald {
+				background: rgba(16, 185, 129, 0.15);
+				border: 1px solid rgba(16, 185, 129, 0.5);
+				color: rgb(110, 231, 183);
+				box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+			}
+
+			/* ─── Sidebar chrome ─── */
+			.ph-sidebar {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				padding: 0;
+				overflow: hidden;
+			}
+			.ph-side-header {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 14px 14px 12px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			.ph-side-header .ph-id {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				flex: 1;
+			}
+			.ph-side-action {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+			}
+			.ph-side-action svg {
+				width: 13px;
+				height: 13px;
+			}
+			.ph-active-space {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 9px 12px;
+				margin: 8px;
+				background: rgba(236, 45, 120, 0.09);
+				border: 1px solid rgba(236, 45, 120, 0.32);
+				border-radius: 12px;
+				cursor: pointer;
+				box-shadow: 0 0 14px -4px var(--brand-glow);
+			}
+			.ph-active-space .as-mark {
+				width: 22px;
+				height: 22px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+				overflow: hidden;
+				flex-shrink: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				box-shadow: 0 0 6px rgba(236, 45, 120, 0.4);
+			}
+			.ph-active-space .as-mark img {
+				width: 20px;
+				height: 20px;
+			}
+			.ph-active-space .as-name {
+				flex: 1;
+				font-size: 12.5px;
+				font-weight: 600;
+				color: var(--brand-soft);
+			}
+			.ph-active-space .as-chev {
+				font-size: 14px;
+				color: var(--brand-soft);
+			}
+			.ph-section-label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--z-600);
+				letter-spacing: 0.1em;
+				padding: 10px 16px 4px;
+			}
+			.ph-active-tasks {
+				padding: 0 8px 4px;
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+			}
+			.ph-task {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				padding: 6px 9px;
+				border-radius: 9px;
+				font-size: 10.5px;
+			}
+			.ph-task.running {
+				background: rgba(245, 158, 11, 0.06);
+				border: 1px solid rgba(245, 158, 11, 0.2);
+			}
+			.ph-task.done {
+				background: rgba(16, 185, 129, 0.05);
+				border: 1px solid rgba(16, 185, 129, 0.18);
+			}
+			.ph-task .pulse {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				flex-shrink: 0;
+			}
+			.ph-task.running .pulse {
+				background: var(--amber-soft);
+				animation: amber-pulse 1.4s ease-in-out infinite;
+			}
+			@keyframes amber-pulse {
+				0%,
+				100% {
+					opacity: 1;
+					transform: scale(1);
+					box-shadow: 0 0 6px var(--amber);
+				}
+				50% {
+					opacity: 0.5;
+					transform: scale(0.85);
+				}
+			}
+			.ph-task.done .pulse {
+				background: var(--emerald-soft);
+			}
+			.ph-task .label {
+				flex: 1;
+				color: var(--z-200);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-task .meta {
+				font-size: 9px;
+				color: var(--z-500);
+				font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.ph-thread-list {
+				padding: 0 8px;
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+			.ph-thread {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 7px 11px;
+				border-radius: 10px;
+				font-size: 11.5px;
+				color: var(--z-300);
+			}
+			.ph-thread.active {
+				background: rgba(255, 255, 255, 0.06);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				color: white;
+				font-weight: 500;
+			}
+			.ph-thread .hash {
+				font-size: 10px;
+				color: var(--z-600);
+			}
+			.ph-thread .name {
+				flex: 1;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-thread .count {
+				font-size: 9px;
+				color: var(--z-600);
+				padding: 1px 6px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+			}
+			.ph-footer {
+				padding: 10px 12px max(10px, env(safe-area-inset-bottom, 10px));
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-top: auto;
+			}
+			.ph-profile-chip {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 7px 10px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.03);
+				font-size: 11.5px;
+				color: var(--z-200);
+				font-weight: 500;
+			}
+			.ph-profile-chip .pc-mark {
+				width: 18px;
+				height: 18px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+				overflow: hidden;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.ph-profile-chip .pc-mark img {
+				width: 16px;
+				height: 16px;
+			}
+			.ph-gear {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+			}
+			.ph-gear svg {
+				width: 14px;
+				height: 14px;
+			}
+
+			/* ─── Model picker popover with real brand icons ─── */
+			.ph-popover {
+				position: absolute;
+				top: 60px;
+				right: 8px;
+				width: 250px;
+				background: rgba(14, 14, 17, 0.88);
+				backdrop-filter: blur(28px);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 18px;
+				box-shadow: 0 24px 50px -8px rgba(0, 0, 0, 0.8);
+				z-index: 10;
+				overflow: hidden;
+			}
+			.ph-popover-label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--z-600);
+				letter-spacing: 0.12em;
+				padding: 10px 12px 4px;
+			}
+			.ph-popover-item {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 8px 12px;
+				font-size: 11.5px;
+				cursor: pointer;
+				color: var(--z-300);
+			}
+			.ph-popover-item:hover {
+				background: rgba(255, 255, 255, 0.04);
+			}
+			.ph-popover-item.selected {
+				color: var(--brand-soft);
+				font-weight: 500;
+			}
+			.ph-popover-item.selected .check {
+				color: var(--brand-soft);
+				margin-left: auto;
+				font-size: 11px;
+			}
+			.ph-popover-item .pi-icon {
+				width: 20px;
+				height: 20px;
+				flex-shrink: 0;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 5px;
+				background: rgba(255, 255, 255, 0.04);
+				overflow: hidden;
+				padding: 2px;
+			}
+			.ph-popover-item .pi-icon img {
+				width: 100%;
+				height: 100%;
+				object-fit: contain;
+			}
+			.ph-popover-item .pi-icon.dark {
+				background: #0a0a0a;
+			}
+			.ph-popover-item .pi-icon.brand-orange {
+				background: #d97757;
+			}
+			.ph-popover-item .pi-name {
+				flex: 1;
+				line-height: 1.3;
+			}
+			.ph-popover-item .pi-sub {
+				font-size: 9px;
+				color: var(--z-600);
+				font-weight: 400;
+				display: block;
+				margin-top: 1px;
+			}
+			.ph-popover-divider {
+				height: 1px;
+				background: rgba(255, 255, 255, 0.05);
+				margin: 4px 0;
+			}
+			.ph-popover-footer {
+				padding: 6px 12px 9px;
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				margin-top: 2px;
+			}
+			.ph-popover-footer-item {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 10px;
+				color: var(--z-500);
+			}
+
+			/* ─── Settings ─── */
+			.ph-settings {
+				padding: 18px 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 20px;
+				overflow-y: auto;
+			}
+			.ph-settings h2 {
+				font-size: 18px;
+				font-weight: 600;
+				letter-spacing: -0.015em;
+				color: var(--brand-soft);
+			}
+			.ph-set-section h3 {
+				font-size: 10px;
+				font-weight: 700;
+				color: var(--z-500);
+				margin-bottom: 8px;
+				letter-spacing: 0.08em;
+			}
+			.ph-set-toggle {
+				display: inline-flex;
+				padding: 3px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--border);
+				gap: 2px;
+				width: fit-content;
+			}
+			.ph-set-toggle button {
+				padding: 5px 11px;
+				border-radius: 9999px;
+				font-size: 10.5px;
+				font-weight: 500;
+				color: var(--z-400);
+				border: none;
+				background: transparent;
+				cursor: pointer;
+			}
+			.ph-set-toggle button.active {
+				background: var(--brand);
+				color: white;
+				box-shadow: 0 0 12px -2px var(--brand-glow);
+			}
+			.ph-set-meter {
+				font-size: 11px;
+				color: var(--z-300);
+				line-height: 1.6;
+			}
+			.ph-set-meter strong {
+				color: var(--brand-soft);
+			}
+			.ph-progress {
+				margin-top: 8px;
+				height: 6px;
+				background: rgba(255, 255, 255, 0.05);
+				border-radius: 9999px;
+				overflow: hidden;
+			}
+			.ph-progress-fill {
+				height: 100%;
+				background: linear-gradient(90deg, var(--brand-deep), var(--brand-bright));
+				border-radius: 9999px;
+			}
+			.ph-memory-list {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+			.ph-memory-item {
+				padding: 7px 10px;
+				border-radius: 8px;
+				background: rgba(255, 255, 255, 0.025);
+				border: 1px solid var(--border);
+				font-size: 10.5px;
+				color: var(--z-300);
+				line-height: 1.5;
+			}
+			.ph-memory-item .src {
+				font-size: 8.5px;
+				color: var(--z-600);
+				margin-top: 2px;
+				font-variant-numeric: tabular-nums;
+			}
+			.ph-stat-row {
+				display: flex;
+				justify-content: space-between;
+				padding: 6px 0;
+				font-size: 11px;
+				border-bottom: 1px solid var(--border);
+			}
+			.ph-stat-row:last-child {
+				border-bottom: none;
+			}
+			.ph-stat-row .lab {
+				color: var(--z-500);
+			}
+			.ph-stat-row .val {
+				color: var(--z-200);
+				font-weight: 500;
+				font-variant-numeric: tabular-nums;
+			}
+
+			/* ─── Feedback bar ─── */
+			.feedback-bar {
+				display: flex;
+				gap: 8px;
+				margin-top: 16px;
+				padding: 12px 14px;
+				border-radius: 12px;
+				background: rgba(255, 255, 255, 0.025);
+				border: 1px solid var(--border);
+				align-items: center;
+			}
+			.feedback-bar .fb-label {
+				flex: 1;
+				font-size: 11px;
+				color: var(--z-500);
+			}
+			.feedback-btn {
+				padding: 7px 13px;
+				border-radius: 9px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--border);
+				color: var(--z-400);
+				font-size: 11.5px;
+				font-weight: 500;
+				cursor: pointer;
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				transition: all 180ms;
+			}
+			.feedback-btn:hover {
+				background: rgba(255, 255, 255, 0.07);
+			}
+			.feedback-btn.active.approve {
+				background: rgba(16, 185, 129, 0.12);
+				border-color: rgba(16, 185, 129, 0.4);
+				color: rgb(110, 231, 183);
+			}
+			.feedback-btn.active.flag {
+				background: rgba(245, 158, 11, 0.12);
+				border-color: rgba(245, 158, 11, 0.4);
+				color: rgb(252, 211, 77);
+			}
+
+			/* ─── Auto-icon options & rename options ─── */
+			.opt-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+				gap: 10px;
+				margin-top: 14px;
+			}
+			.opt-cell {
+				padding: 14px 10px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1.5px solid var(--border);
+				border-radius: 12px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 8px;
+				cursor: pointer;
+				transition: all 200ms;
+			}
+			.opt-cell:hover {
+				background: rgba(255, 255, 255, 0.05);
+				border-color: var(--border-strong);
+			}
+			.opt-cell.selected {
+				background: rgba(236, 45, 120, 0.08);
+				border-color: rgba(236, 45, 120, 0.45);
+				box-shadow: 0 0 16px -4px var(--brand-glow);
+			}
+			.opt-cell .opt-glyph {
+				width: 32px;
+				height: 32px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--brand-soft);
+			}
+			.opt-cell .opt-glyph svg {
+				width: 28px;
+				height: 28px;
+			}
+			.opt-cell .opt-name {
+				font-size: 11.5px;
+				font-weight: 600;
+				color: var(--z-200);
+				text-align: center;
+			}
+			.opt-cell .opt-sub {
+				font-size: 10px;
+				color: var(--z-500);
+				text-align: center;
+				line-height: 1.4;
+			}
+			.opt-cell.rec::after {
+				content: 'RECOMMENDED';
+				font-size: 7.5px;
+				font-weight: 700;
+				color: var(--brand-soft);
+				letter-spacing: 0.1em;
+			}
+
+			/* ─── Hermes section ─── */
+			.hermes-grid {
+				display: grid;
+				gap: 14px;
+				grid-template-columns: 1fr;
+				margin-top: 14px;
+			}
+			@media (min-width: 680px) {
+				.hermes-grid {
+					grid-template-columns: 1fr 1fr 1fr;
+				}
+			}
+			.hermes-card {
+				padding: 16px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+			}
+			.hermes-card.rec {
+				border-color: rgba(16, 185, 129, 0.35);
+				background: rgba(16, 185, 129, 0.04);
+			}
+			.hermes-card.watch {
+				border-color: rgba(245, 158, 11, 0.3);
+				background: rgba(245, 158, 11, 0.04);
+			}
+			.hermes-card h4 {
+				font-size: 13px;
+				font-weight: 600;
+				margin-bottom: 6px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				flex-wrap: wrap;
+			}
+			.hermes-card .v-tag {
+				font-size: 9px;
+				font-weight: 700;
+				padding: 2px 7px;
+				border-radius: 9999px;
+				letter-spacing: 0.05em;
+			}
+			.hermes-card .v-tag.stay {
+				background: rgba(16, 185, 129, 0.18);
+				color: rgb(110, 231, 183);
+			}
+			.hermes-card .v-tag.optional {
+				background: rgba(255, 255, 255, 0.08);
+				color: var(--z-300);
+			}
+			.hermes-card .v-tag.watch {
+				background: rgba(245, 158, 11, 0.2);
+				color: rgb(252, 211, 77);
+			}
+			.hermes-card p {
+				font-size: 11.5px;
+				color: var(--z-300);
+				line-height: 1.55;
+			}
+			.hermes-card .key {
+				margin-top: 8px;
+				padding-top: 8px;
+				border-top: 1px solid var(--border);
+				font-size: 10.5px;
+				color: var(--z-400);
+			}
+			.hermes-card .key strong {
+				color: var(--z-200);
+			}
+			.hermes-stats {
+				background: rgba(0, 0, 0, 0.3);
+				border-radius: 10px;
+				padding: 14px;
+				margin: 18px 0;
+				font-size: 11.5px;
+				color: var(--z-300);
+				line-height: 1.6;
+			}
+			.hermes-stats h4 {
+				font-size: 11px;
+				color: var(--brand-soft);
+				font-weight: 700;
+				letter-spacing: 0.06em;
+				margin-bottom: 6px;
+			}
+			.hermes-stats code {
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 10.5px;
+				color: var(--brand-soft);
+			}
+			.hermes-stats strong {
+				color: var(--z-100);
+				font-weight: 600;
+			}
+			.hermes-quote {
+				padding: 12px 16px;
+				background: rgba(236, 45, 120, 0.05);
+				border-left: 3px solid var(--brand);
+				border-radius: 0 8px 8px 0;
+				margin: 14px 0;
+				font-size: 12px;
+				color: var(--z-300);
+				line-height: 1.55;
+				font-style: italic;
+			}
+
+			/* ─── Sign-off ─── */
+			.signoff {
+				margin-top: 48px;
+				padding: 24px;
+				background: rgba(236, 45, 120, 0.04);
+				border: 1px solid rgba(236, 45, 120, 0.25);
+				border-radius: 18px;
+			}
+			.signoff h2 {
+				font-size: 18px;
+				font-weight: 600;
+				margin-bottom: 6px;
+				color: var(--brand-soft);
+			}
+			.signoff p {
+				font-size: 12.5px;
+				color: var(--z-300);
+				line-height: 1.55;
+				margin-bottom: 14px;
+			}
+			.signoff textarea {
+				width: 100%;
+				min-height: 100px;
+				background: var(--surface);
+				border: 1px solid var(--border-strong);
+				border-radius: 10px;
+				padding: 11px 13px;
+				color: var(--z-200);
+				font-family: inherit;
+				font-size: 12.5px;
+				resize: vertical;
+			}
+			.signoff textarea:focus {
+				outline: none;
+				border-color: rgba(236, 45, 120, 0.5);
+			}
+
+			.cta-bar {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				z-index: 60;
+				background: rgba(10, 10, 12, 0.92);
+				backdrop-filter: blur(24px);
+				border-top: 1px solid var(--border);
+				padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px));
+				display: flex;
+				gap: 10px;
+				align-items: center;
+			}
+			.cta-bar .summary {
+				flex: 1;
+				font-size: 11.5px;
+				color: var(--z-400);
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.cta-bar .summary strong {
+				color: var(--z-200);
+				font-weight: 600;
+			}
+			.copy-btn {
+				padding: 11px 18px;
+				border-radius: 12px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
+				color: white;
+				font-size: 13px;
+				font-weight: 600;
+				border: none;
+				cursor: pointer;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.22),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 4px 14px -3px var(--brand-glow);
+				transition: transform 140ms;
+				white-space: nowrap;
+			}
+			.copy-btn:active {
+				transform: scale(0.96);
+			}
+			.copy-btn.copied {
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(
+						ellipse at top,
+						rgb(134, 239, 172),
+						rgb(34, 197, 94) 55%,
+						rgb(21, 128, 61)
+					);
+			}
+
+			.compare-row {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 14px;
+				margin-top: 14px;
+			}
+			.compare-row .compare-card {
+				padding: 14px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+			}
+			.compare-row .compare-card .label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--z-500);
+				letter-spacing: 0.1em;
+				margin-bottom: 8px;
+				text-align: center;
+			}
+			.compare-row .compare-card.bad .label {
+				color: rgb(252, 165, 165);
+			}
+			.compare-row .compare-card.good .label {
+				color: rgb(134, 239, 172);
+			}
+
+			.info-note {
+				padding: 12px 14px;
+				background: rgba(255, 255, 255, 0.025);
+				border-left: 3px solid var(--brand);
+				border-radius: 0 10px 10px 0;
+				font-size: 11.5px;
+				color: var(--z-400);
+				line-height: 1.55;
+				margin: 14px 0;
+			}
+			.info-note strong {
+				color: var(--z-200);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="aurora" aria-hidden="true">
+			<span class="a1"></span><span class="a2"></span><span class="a3"></span>
+		</div>
+
+		<div class="topbar">
+			<div class="row1">
+				<h1><span class="sully-dot"></span>Sully — the whole look</h1>
+				<span class="v-pill">v2 · ICONS + MONSTER + HERMES</span>
+			</div>
+			<p>Same workflow. Tap 👍 or 🚩 per section, copy sign-off at the bottom.</p>
+			<div class="scroll-progress" id="scrollProgress"></div>
+		</div>
+
+		<div class="page">
+			<div class="intro">
+				<h2>What changed in v2</h2>
+				<p>Your feedback distilled. Six things flipped, two added, one removed.</p>
+				<div class="change-list">
+					<h3>v2 CHANGES (from your sign-off)</h3>
+					<ul>
+						<li>
+							<strong>Pink orb is gone.</strong> The Sully monster avatar (which you already
+							approved in the thinking indicator) is now the identity across header, sidebar,
+							footer, and empty-state hero.
+						</li>
+						<li>
+							<strong>Real brand icons in the model picker.</strong> Pulled live from
+							<code
+								style="
+									font-size: 10px;
+									padding: 1px 5px;
+									background: rgba(255, 255, 255, 0.06);
+									border-radius: 3px;
+									color: var(--brand-soft);
+								"
+								>simple-icons</code
+							>
+							CDN — actual Claude, ChatGPT, Gemini, Ollama, Perplexity, Mistral, Qwen marks at their
+							real brand colors. Production will pull from
+							<code
+								style="
+									font-size: 10px;
+									padding: 1px 5px;
+									background: rgba(255, 255, 255, 0.06);
+									border-radius: 3px;
+									color: var(--brand-soft);
+								"
+								>@lobehub/icons-static</code
+							>
+							for the per-product variants (Claude robot face vs Anthropic asterisk).
+						</li>
+						<li>
+							<strong>"Walkie-Talkie" → "Live".</strong> Renamed. New icon is an audio-waveform, not
+							headphones. Headphones implied "listening to music" — Live signals continuous voice
+							with Sully.
+						</li>
+						<li>
+							<strong>"Auto" Feather → Sully orb.</strong> The feather felt arbitrary. Auto now uses
+							a tiny Sully-mark glyph — same identity as the header, signals "Sully decides."
+						</li>
+						<li>
+							<strong>Settings — much more.</strong> Memory viewer (Layer 1 working summary + Layer
+							3 facts), token + usage metrics, voice-mode usage, learning-richness gauge for when to
+							consider fine-tune.
+						</li>
+						<li>
+							<strong>Hermes 3 evaluated — recommendation: stay on Qwen 3 14B.</strong> Dedicated
+							section with the data + why.
+						</li>
+					</ul>
+				</div>
+			</div>
+
+			<!-- ═════════════ 01 — Empty state with monster ═════════════ -->
+			<section class="section" data-section="empty">
+				<div class="section-num">01 · MOBILE</div>
+				<h2 class="section-title">Empty state — Sully shows up</h2>
+				<div class="section-caption">
+					The pink orb is replaced with the actual Sully avatar (greeting state). She bobs gently —
+					a living identity instead of a stock circle. The breathing magenta glow stays as backing
+					light, not as the subject.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-mark">
+										<img src="/companion/avatars/monster/idle.png" alt="Sully" />
+									</div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div class="ph-model-chip">
+									<div class="glyph">
+										<div
+											style="
+												width: 12px;
+												height: 12px;
+												border-radius: 50%;
+												background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+												display: flex;
+												align-items: center;
+												justify-content: center;
+											"
+										>
+											<img
+												src="/companion/avatars/monster/idle.png"
+												alt=""
+												style="width: 11px; height: 11px"
+											/>
+										</div>
+									</div>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-empty">
+									<div class="ph-monster-hero">
+										<img src="/companion/avatars/monster/greeting.png" alt="Sully greeting" />
+									</div>
+									<h3>Hey Captain.</h3>
+									<p>What's on your mind?</p>
+									<div class="ph-pills">
+										<div class="ph-pill">Audit my system</div>
+										<div class="ph-pill">Help me with code</div>
+										<div class="ph-pill">Brainstorm an idea</div>
+										<div class="ph-pill">Plan my day</div>
+									</div>
+								</div>
+								<div class="ph-composer-area">
+									<div class="ph-composer">
+										<div class="ph-composer-input placeholder">Talk to Sully…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+													<path d="M12 5v14M5 12h14" />
+												</svg>
+											</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+												>
+													<path d="M2 12h2M6 8v8M10 4v16M14 9v6M18 6v12M22 12h-2" />
+												</svg>
+											</div>
+											<div class="ph-cbtn send">
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2.5"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												>
+													<path d="M12 19V5M5 12l7-7 7 7" />
+												</svg>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Sully greets you. The model-picker glyph at top-right is also a tiny Sully — same
+							identity carries through.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="empty">
+					<div class="fb-label">This feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 02 — Sidebar with monster identity ═════════════ -->
+			<section class="section" data-section="sidebar">
+				<div class="section-num">02 · MOBILE</div>
+				<h2 class="section-title">Sidebar — Sully's face everywhere identity lives</h2>
+				<div class="section-caption">
+					Header logo, active space chip, footer profile pill: all use the monster mark instead of
+					the orb. Active Tasks still pinned above The Den. Threads grouped chronologically. Gear at
+					the right of the footer.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-sidebar">
+								<div class="ph-side-header">
+									<div class="ph-id" style="flex: 1">
+										<div class="ph-id-mark">
+											<img src="/companion/avatars/monster/idle.png" alt="Sully" />
+										</div>
+										<div class="ph-id-name">Sully</div>
+									</div>
+									<div class="ph-side-action">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="9" />
+											<path d="M12 7v10M7 12h10" />
+										</svg>
+									</div>
+									<div class="ph-side-action">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<path d="M18 6L6 18M6 6l12 12" />
+										</svg>
+									</div>
+								</div>
+
+								<div class="ph-active-space">
+									<div class="as-mark">
+										<img src="/companion/avatars/monster/idle.png" alt="" />
+									</div>
+									<div class="as-name">The Den</div>
+									<div class="as-chev">›</div>
+								</div>
+
+								<div class="ph-section-label">ACTIVE TASKS</div>
+								<div class="ph-active-tasks">
+									<div class="ph-task running">
+										<span class="pulse"></span>
+										<span class="label">CC · refactor model picker</span>
+										<span class="meta">3m</span>
+									</div>
+									<div class="ph-task done">
+										<span class="pulse"></span>
+										<span class="label">Sully · web search ✓</span>
+										<span class="meta">now</span>
+									</div>
+								</div>
+
+								<div class="ph-section-label">TODAY</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread active">
+										<span class="hash">#</span><span class="name">treehouse plans + Pixel</span
+										><span class="count">14</span>
+									</div>
+									<div class="ph-thread">
+										<span class="hash">#</span><span class="name">audit findings synth</span
+										><span class="count">6</span>
+									</div>
+								</div>
+								<div class="ph-section-label">YESTERDAY</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread">
+										<span class="hash">#</span><span class="name">drake search debug</span
+										><span class="count">5</span>
+									</div>
+								</div>
+								<div class="ph-section-label">PREVIOUS 7 DAYS</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread">
+										<span class="hash">#</span><span class="name">model picker fix</span
+										><span class="count">22</span>
+									</div>
+									<div class="ph-thread">
+										<span class="hash">#</span><span class="name">voice mode tuning</span
+										><span class="count">9</span>
+									</div>
+								</div>
+
+								<div class="ph-footer">
+									<div class="ph-profile-chip">
+										<div class="pc-mark">
+											<img src="/companion/avatars/monster/idle.png" alt="" />
+										</div>
+										<span>Captain</span>
+									</div>
+									<div class="ph-gear">
+										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<circle cx="12" cy="12" r="3" />
+											<path
+												d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+											/>
+										</svg>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Monster everywhere identity belongs — header, active-space, profile chip. No more pink
+							orb.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="sidebar">
+					<div class="fb-label">This feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 03 — Model picker with REAL brand icons ═════════════ -->
+			<section class="section" data-section="picker">
+				<div class="section-num">03 · MOBILE</div>
+				<h2 class="section-title">Model picker — real brand icons</h2>
+				<div class="section-caption">
+					These icons are pulled from <code>simple-icons</code> CDN <em>live</em> in this mockup —
+					they're the actual brand marks each provider uses publicly. In production we'll switch to
+					<code>@lobehub/icons-static</code> for the per-product variants (Claude's product mark vs
+					Anthropic's corporate asterisk, ChatGPT's swirl vs OpenAI's hex).
+					<strong>Auto</strong> uses a tiny Sully-mark — the picker says "Sully decides" without
+					arbitrary feathers.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-mark">
+										<img src="/companion/avatars/monster/idle.png" alt="" />
+									</div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div
+									class="ph-model-chip"
+									style="
+										background: rgba(255, 255, 255, 0.06);
+										border-color: rgba(255, 255, 255, 0.12);
+									"
+								>
+									<div class="glyph">
+										<div
+											style="
+												width: 12px;
+												height: 12px;
+												border-radius: 50%;
+												background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+												display: flex;
+												align-items: center;
+												justify-content: center;
+											"
+										>
+											<img
+												src="/companion/avatars/monster/idle.png"
+												alt=""
+												style="width: 11px; height: 11px"
+											/>
+										</div>
+									</div>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+
+							<div class="ph-popover">
+								<div class="ph-popover-label">CHOOSE A MODEL</div>
+								<div class="ph-popover-item selected">
+									<div
+										class="pi-icon"
+										style="
+											background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+											box-shadow: inset 0 0 0 1px rgba(236, 45, 120, 0.4);
+										"
+									>
+										<img src="/companion/avatars/monster/idle.png" alt="" />
+									</div>
+									<div class="pi-name">
+										Auto<span class="pi-sub">Sully decides · smart tier</span>
+									</div>
+									<span class="check">✓</span>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon brand-orange">
+										<img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" />
+									</div>
+									<div class="pi-name">
+										Claude Haiku 4.5<span class="pi-sub">fast · chat tier</span>
+									</div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon brand-orange">
+										<img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" />
+									</div>
+									<div class="pi-name">Claude Sonnet 4.6<span class="pi-sub">planning</span></div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon brand-orange">
+										<img src="https://cdn.simpleicons.org/anthropic/ffffff" alt="" />
+									</div>
+									<div class="pi-name">Claude Opus 4.8<span class="pi-sub">deep</span></div>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #ffffff">
+										<img src="https://cdn.simpleicons.org/googlegemini/4285F4" alt="" />
+									</div>
+									<div class="pi-name">Gemini 2.5 Pro<span class="pi-sub">deep</span></div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #ffffff">
+										<img src="https://cdn.simpleicons.org/googlegemini/4285F4" alt="" />
+									</div>
+									<div class="pi-name">Gemini 2.5 Flash<span class="pi-sub">planning</span></div>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon dark">
+										<img src="https://cdn.simpleicons.org/openai/ffffff" alt="" />
+									</div>
+									<div class="pi-name">
+										GPT-OSS 120B<span class="pi-sub">cloud · reasoning</span>
+									</div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #615ced">
+										<img src="https://cdn.simpleicons.org/alibabacloud/ffffff" alt="" />
+									</div>
+									<div class="pi-name">
+										Qwen3-Coder 480B<span class="pi-sub">cloud · coding</span>
+									</div>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon dark">
+										<img src="https://cdn.simpleicons.org/ollama/ffffff" alt="" />
+									</div>
+									<div class="pi-name">
+										Local · Ollama<span class="pi-sub">offline (companion-v1)</span>
+									</div>
+								</div>
+								<div class="ph-popover-footer">
+									<div class="ph-popover-footer-item">
+										<span>✎</span> <span>Edit Sully's context</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Real brand glyphs. The colored backgrounds give each provider its visual signature
+							without the row text fighting the mark.
+						</div>
+					</div>
+				</div>
+
+				<div class="info-note">
+					<strong>About the Claude icon specifically:</strong> the icon you see is Anthropic's
+					official mark on the orange brand background. The per-product "Claude robot face" exists
+					as a separate brand asset; <code>@lobehub/icons-static</code> ships both. We'll wire the
+					per-product variant in production. The <code>simple-icons</code> CDN doesn't have it as a
+					separate icon yet.
+				</div>
+
+				<div class="feedback-bar" data-fb="picker">
+					<div class="fb-label">This feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 04 — Walkie-Talkie → Live ═════════════ -->
+			<section class="section" data-section="live">
+				<div class="section-num">04 · MOBILE</div>
+				<h2 class="section-title">"Walkie-Talkie" → "Live"</h2>
+				<div class="section-caption">
+					The old name implied CB radio. The headphone icon implied listening to music. New name
+					<strong>"Live"</strong> matches what Gemini and ChatGPT call the same mode (continuous
+					voice both ways). New icon is a Lucide audio-waveform — visually represents the continuous
+					voice signal.
+				</div>
+
+				<div class="compare-row">
+					<div class="compare-card bad">
+						<div class="label">BEFORE</div>
+						<div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+							<div
+								style="
+									width: 44px;
+									height: 44px;
+									border-radius: 12px;
+									background: rgba(255, 255, 255, 0.04);
+									border: 1px solid var(--border);
+									display: flex;
+									align-items: center;
+									justify-content: center;
+									font-size: 20px;
+								"
+							>
+								🎧
+							</div>
+							<div style="font-size: 11.5px; color: var(--z-300); font-weight: 500">
+								Walkie-Talkie
+							</div>
+							<div style="font-size: 10px; color: var(--z-500); text-align: center">
+								Headphone glyph; aria-label "Hands-free continuous Talkback"
+							</div>
+						</div>
+					</div>
+					<div class="compare-card good">
+						<div class="label">AFTER</div>
+						<div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+							<div
+								style="
+									width: 44px;
+									height: 44px;
+									border-radius: 12px;
+									background: rgba(16, 185, 129, 0.12);
+									border: 1px solid rgba(16, 185, 129, 0.4);
+									display: flex;
+									align-items: center;
+									justify-content: center;
+									color: rgb(110, 231, 183);
+								"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+								>
+									<path d="M2 12h2M6 8v8M10 4v16M14 9v6M18 6v12M22 12h-2" />
+								</svg>
+							</div>
+							<div style="font-size: 11.5px; color: rgb(110, 231, 183); font-weight: 600">Live</div>
+							<div style="font-size: 10px; color: var(--z-500); text-align: center">
+								Audio waveform glyph; aria-label "Live voice — continuous"
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="info-note">
+					<strong>State chips in the strip</strong> also lose their colorful emoji: the old 🔴 / 🔄
+					/ 📤 / 🔈 / ↩ become Lucide line icons (record · refresh · upload · volume · loop). The
+					aesthetic stays monochrome and on-brand.
+				</div>
+
+				<div class="feedback-bar" data-fb="live">
+					<div class="fb-label">This feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 05 — Auto icon ═════════════ -->
+			<section class="section" data-section="auto-icon">
+				<div class="section-num">05 · ICON</div>
+				<h2 class="section-title">"Auto" — drop the feather, use Sully</h2>
+				<div class="section-caption">
+					The feather (🪶) had no semantic tie to "Sully picks the model." Here are three
+					replacements. The recommended one uses the mini-Sully-mark itself — the picker is
+					literally saying "Sully decides."
+				</div>
+
+				<div class="opt-grid">
+					<div class="opt-cell selected rec" data-q="auto-icon" data-value="sully-mini">
+						<div class="opt-glyph" style="width: 36px; height: 36px">
+							<div
+								style="
+									width: 32px;
+									height: 32px;
+									border-radius: 50%;
+									background: radial-gradient(circle at 35% 30%, #2a1235, #0f0716 80%);
+									display: flex;
+									align-items: center;
+									justify-content: center;
+									box-shadow: 0 0 10px rgba(236, 45, 120, 0.4);
+								"
+							>
+								<img
+									src="/companion/avatars/monster/idle.png"
+									alt=""
+									style="width: 28px; height: 28px"
+								/>
+							</div>
+						</div>
+						<div class="opt-name">Mini Sully</div>
+						<div class="opt-sub">"Sully decides" — same identity as header</div>
+					</div>
+					<div class="opt-cell" data-q="auto-icon" data-value="sparkles">
+						<div class="opt-glyph">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5z" />
+								<circle cx="18" cy="5" r="1.5" />
+								<circle cx="5" cy="18" r="1.5" />
+							</svg>
+						</div>
+						<div class="opt-name">Sparkles</div>
+						<div class="opt-sub">Lucide · "smart / magic"</div>
+					</div>
+					<div class="opt-cell" data-q="auto-icon" data-value="wand">
+						<div class="opt-glyph">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+							>
+								<path
+									d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5"
+								/>
+							</svg>
+						</div>
+						<div class="opt-name">Wand</div>
+						<div class="opt-sub">Lucide · "magic routing"</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="auto-icon">
+					<div class="fb-label">Auto icon pick (default: Mini Sully):</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Different</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 06 — Settings expanded ═════════════ -->
+			<section class="section" data-section="settings">
+				<div class="section-num">06 · MOBILE</div>
+				<h2 class="section-title">Settings — more than just autonomy</h2>
+				<div class="section-caption">
+					Restyled to brand. <strong>What Sully knows</strong> section shows her Layer-1 working
+					memory + recent learned facts so you can audit what's in her head. Usage stats, voice
+					usage, and a "learning richness" gauge that tells you when there's enough learned material
+					to consider graduating to a fine-tuned student model.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.05)">
+								<div class="ph-burger">←</div>
+								<div class="ph-id">
+									<div class="ph-id-mark">
+										<img src="/companion/avatars/monster/idle.png" alt="" />
+									</div>
+									<div class="ph-id-name">Settings</div>
+								</div>
+								<div style="width: 32px"></div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-settings">
+									<div>
+										<h2>Captain</h2>
+										<p style="font-size: 11px; color: var(--z-500)">
+											Single operator · Tailnet primary
+										</p>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>AUTONOMY</h3>
+										<div class="ph-set-toggle">
+											<button>Ask</button>
+											<button class="active">Auto-safe</button>
+											<button>Full-auto</button>
+										</div>
+										<p
+											style="
+												font-size: 10px;
+												color: var(--z-500);
+												margin-top: 6px;
+												line-height: 1.5;
+											"
+										>
+											Auto-safe: Sully runs tools + dispatches automatically, except for
+											irreversible actions.
+										</p>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>WHAT SULLY KNOWS — RECENT FACTS</h3>
+										<div class="ph-memory-list">
+											<div class="ph-memory-item">
+												Captain's dog is Pixel
+												<div class="src">learned · 2026-05-31 · used 4 times</div>
+											</div>
+											<div class="ph-memory-item">
+												Captain is building a treehouse this weekend
+												<div class="src">learned · 2026-05-31 · used 6 times</div>
+											</div>
+											<div class="ph-memory-item">
+												Lucky number is 17
+												<div class="src">learned · 2026-05-31 · used 2 times</div>
+											</div>
+										</div>
+										<div style="display: flex; gap: 8px; margin-top: 10px">
+											<button
+												style="
+													padding: 5px 11px;
+													border-radius: 9999px;
+													font-size: 10.5px;
+													background: rgba(255, 255, 255, 0.04);
+													color: var(--z-400);
+													border: 1px solid var(--border);
+												"
+											>
+												View all 47 facts
+											</button>
+											<button
+												style="
+													padding: 5px 11px;
+													border-radius: 9999px;
+													font-size: 10.5px;
+													background: rgba(255, 255, 255, 0.04);
+													color: var(--z-400);
+													border: 1px solid var(--border);
+												"
+											>
+												Working summary
+											</button>
+										</div>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>LEARNING RICHNESS</h3>
+										<div class="ph-set-meter">
+											<strong>47</strong> facts · <strong>312</strong> conversations ·
+											<strong>~180k</strong> tokens of history
+										</div>
+										<div class="ph-progress" style="height: 8px">
+											<div class="ph-progress-fill" style="width: 38%"></div>
+										</div>
+										<p
+											style="
+												font-size: 10px;
+												color: var(--z-500);
+												margin-top: 6px;
+												line-height: 1.5;
+											"
+										>
+											At ~500 facts + ~50k user tokens you'll have enough to consider graduating to
+											a fine-tuned student model. (<a style="color: var(--brand-soft)">why?</a>)
+										</p>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>DISPATCH METER · TODAY</h3>
+										<div class="ph-stat-row">
+											<span class="lab">Dispatches</span><span class="val">4 / 20</span>
+										</div>
+										<div class="ph-stat-row">
+											<span class="lab">Worker wall-clock</span><span class="val">14m 32s</span>
+										</div>
+										<div class="ph-stat-row">
+											<span class="lab">Tokens out</span><span class="val">~412k</span>
+										</div>
+										<div class="ph-progress" style="margin-top: 8px">
+											<div class="ph-progress-fill" style="width: 20%"></div>
+										</div>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>VOICE</h3>
+										<div class="ph-set-toggle">
+											<button>Off</button>
+											<button class="active">On</button>
+										</div>
+										<div class="ph-stat-row" style="margin-top: 8px">
+											<span class="lab">Voice time today</span><span class="val">8m 14s</span>
+										</div>
+										<div class="ph-stat-row">
+											<span class="lab">TTS provider</span><span class="val">Local chatterbox</span>
+										</div>
+									</div>
+
+									<div class="ph-set-section">
+										<h3>HOME MODEL</h3>
+										<div class="ph-stat-row">
+											<span class="lab">Active</span
+											><span class="val">companion-v1 (qwen3:14b)</span>
+										</div>
+										<div class="ph-stat-row">
+											<span class="lab">Persona module</span
+											><span class="val" style="color: var(--z-500)">(none)</span>
+										</div>
+										<button
+											style="
+												margin-top: 8px;
+												padding: 6px 12px;
+												border-radius: 8px;
+												font-size: 10.5px;
+												background: rgba(255, 255, 255, 0.04);
+												color: var(--z-300);
+												border: 1px solid var(--border);
+											"
+										>
+											Change…
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							A real settings page. You can audit Sully's memory, see usage, gauge when graduation
+							makes sense.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="settings">
+					<div class="fb-label">This feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ 07 — Hermes 3 evaluation ═════════════ -->
+			<section class="section" data-section="hermes">
+				<div class="section-num">07 · RESEARCH</div>
+				<h2 class="section-title">Hermes 3 evaluation — should we switch?</h2>
+				<div class="section-caption">
+					You asked. Deep research on NousResearch's Hermes 3 / 4 family vs your current setup.
+					Bottom line: <strong>stay on Qwen 3 14B as primary</strong>, with two specific reasons + a
+					model to watch. Full reasoning below.
+				</div>
+
+				<div class="hermes-quote">
+					"Hermes 3 8B is a measurable reasoning downgrade from Qwen 3 14B. You can paint
+					personality on with a system prompt + memory; you can't paint IQ on. The Apache 2.0 vs
+					Llama Community License gap is a real future-proofing concern if you share or
+					commercialize."
+				</div>
+
+				<div class="hermes-grid">
+					<div class="hermes-card rec">
+						<h4>Stay on Qwen 3 14B <span class="v-tag stay">RECOMMENDED</span></h4>
+						<p>
+							Higher IQ at your VRAM ceiling. Apache 2.0 — clean for sharing/commercializing. Richer
+							fine-tuning ecosystem (Unsloth, Axolotl, LLaMA-Factory all have first-class Qwen
+							recipes).
+						</p>
+						<div class="key"><strong>Action:</strong> No change to companion-v1.</div>
+					</div>
+					<div class="hermes-card">
+						<h4>Hermes 3 8B as persona module <span class="v-tag optional">OPTIONAL</span></h4>
+						<p>
+							If you want roleplay-style sessions or extra-warm chat, pull
+							<code
+								style="
+									font-size: 10px;
+									color: var(--brand-soft);
+									background: rgba(255, 255, 255, 0.06);
+									padding: 1px 4px;
+									border-radius: 3px;
+								"
+								>hermes3:8b-llama3.1-q4_K_M</code
+							>
+							as a secondary model. Route to it deliberately — not as default.
+						</p>
+						<div class="key">
+							<strong>VRAM:</strong> ~4-5GB at Q4. Fits comfortably alongside companion-v1.
+						</div>
+					</div>
+					<div class="hermes-card watch">
+						<h4>Watch Hermes 4 14B (Qwen-based) <span class="v-tag watch">RE-EVAL 60-90d</span></h4>
+						<p>
+							Released Aug 2025. <strong>Apache 2.0 inherited</strong> from Qwen 3 base. Hybrid
+							reasoning. Not on Ollama yet (Featherless API only). If it hits Ollama + benchmarks
+							well, this is the natural upgrade.
+						</p>
+						<div class="key"><strong>Status:</strong> Watch ollama.com/library/hermes4.</div>
+					</div>
+				</div>
+
+				<div class="hermes-stats">
+					<h4>THE DATA — concrete benchmarks (source-cited only)</h4>
+					<p>
+						<strong>Qwen 3 14B</strong> beats <strong>Hermes 3 70B</strong> on GPQA + coding index.
+						(LLMBase)
+					</p>
+					<p>
+						Ai2 third-party eval:
+						<strong>Hermes 3 8B underperforms Llama 3.1 8B Instruct</strong> on official eval
+						template. (Interconnects / Nathan Lambert) — this is the most load-bearing finding.
+					</p>
+					<p>
+						LoRA on 5060 Ti 16GB: <code>Llama 3.1 8B QLoRA = ~6GB training memory</code>; Unsloth
+						fits <code>Qwen3 30B-A3B in 17.5GB</code>.
+						<strong>QLoRA on Qwen 3 14B is feasible on your card.</strong>
+					</p>
+					<p>
+						<strong>License:</strong> Hermes 3 inherits Llama Community License (field-of-use
+						restrictions, EU-user exclusions, NOT OSI-open). Qwen 3 = Apache 2.0 (clean for any
+						use).
+					</p>
+				</div>
+
+				<div class="info-note">
+					<strong>The "learning" angle:</strong> What makes Sully <em>feel</em> like she learns is
+					the memory layers you already have (Layer 1 working summary, Layer 3 semantic facts) — not
+					the base model. 80% of "learning" is RAG. The other 20% is the eventual
+					graduate-to-student fine-tune, which we'd do on Qwen 3 14B via Unsloth QLoRA on your 5060
+					Ti. Apache license keeps the door open.
+				</div>
+
+				<div class="feedback-bar" data-fb="hermes">
+					<div class="fb-label">This recommendation feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Agreed</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Disagree</button>
+				</div>
+			</section>
+
+			<!-- ═════════════ Sign-off ═════════════ -->
+			<div class="signoff">
+				<h2>How does v2 land?</h2>
+				<p>
+					If approvals across the board, I'll start the build in the order from the audit doc — bug
+					fix first, then chrome/icons, then spaces architecture. If anything still needs another
+					pass, tell me here. We'll iterate as long as it takes.
+				</p>
+				<textarea
+					id="signoffNotes"
+					placeholder="e.g. 'the monster looks too small in the sidebar pill — make it the same size as the header logo', 'Live is good but I want it called Tandem', 'I want to see the hermes section with actual Ollama model tags shown', etc."
+				></textarea>
+			</div>
+		</div>
+		<!-- /page -->
+
+		<div class="cta-bar">
+			<div class="summary">
+				<strong id="approveCount">0</strong> approved · <strong id="flagCount">0</strong> flagged ·
+				<strong id="pendingCount">7</strong> pending
+			</div>
+			<button class="copy-btn" id="copyBtn">Copy sign-off</button>
+		</div>
+
+		<script>
+			const STORAGE_KEY = 'sully-mockup-signoff-v2';
+			const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+			// Restore per-section feedback
+			document.querySelectorAll('[data-fb]').forEach((bar) => {
+				const key = bar.dataset.fb;
+				bar.querySelectorAll('.feedback-btn').forEach((btn) => {
+					const v = btn.dataset.v;
+					if (state[key] === v) btn.classList.add('active');
+					btn.addEventListener('click', () => {
+						bar.querySelectorAll('.feedback-btn').forEach((b) => b.classList.remove('active'));
+						if (state[key] === v) {
+							state[key] = null;
+							btn.classList.remove('active');
+						} else {
+							state[key] = v;
+							btn.classList.add('active');
+						}
+						save();
+					});
+				});
+			});
+
+			// Auto-icon single-pick (cell-style)
+			document.querySelectorAll('.opt-cell[data-q="auto-icon"]').forEach((cell) => {
+				const v = cell.dataset.value;
+				if (state['auto-icon-pick'] === v) cell.classList.add('selected');
+				cell.addEventListener('click', () => {
+					document
+						.querySelectorAll('.opt-cell[data-q="auto-icon"]')
+						.forEach((c) => c.classList.remove('selected'));
+					cell.classList.add('selected');
+					state['auto-icon-pick'] = v;
+					save();
+				});
+			});
+
+			// Notes
+			const notes = document.getElementById('signoffNotes');
+			if (state.notes) notes.value = state.notes;
+			notes.addEventListener('input', () => {
+				state.notes = notes.value;
+				save();
+			});
+
+			// Scroll progress
+			const sp = document.getElementById('scrollProgress');
+			window.addEventListener('scroll', () => {
+				const h = document.documentElement.scrollHeight - window.innerHeight;
+				const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+				sp.style.width = Math.min(100, Math.max(0, pct)) + '%';
+			});
+
+			function save() {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+				updateCounts();
+			}
+
+			const sections = ['empty', 'sidebar', 'picker', 'live', 'auto-icon', 'settings', 'hermes'];
+			function updateCounts() {
+				let approved = 0,
+					flagged = 0;
+				sections.forEach((s) => {
+					if (state[s] === 'approve') approved++;
+					else if (state[s] === 'flag') flagged++;
+				});
+				document.getElementById('approveCount').textContent = approved;
+				document.getElementById('flagCount').textContent = flagged;
+				document.getElementById('pendingCount').textContent = sections.length - approved - flagged;
+			}
+
+			const labels = {
+				empty: 'Empty state (monster hero)',
+				sidebar: 'Sidebar (monster identity)',
+				picker: 'Model picker (brand icons)',
+				live: 'Walkie-Talkie → Live + waveform',
+				'auto-icon': 'Auto icon',
+				settings: 'Settings (memory + metrics)',
+				hermes: 'Hermes 3 verdict (stay on Qwen)'
+			};
+			document.getElementById('copyBtn').addEventListener('click', async () => {
+				let out = 'SULLY MOCKUP v2 SIGN-OFF\n========================\n\n';
+				sections.forEach((s) => {
+					const v = state[s];
+					const tag =
+						v === 'approve' ? '👍 GOOD' : v === 'flag' ? '🚩 NEEDS CHANGE' : '— (no answer)';
+					out += `${labels[s]}\n  ${tag}\n\n`;
+				});
+				out += `Auto-icon pick: ${state['auto-icon-pick'] || 'Mini Sully (default)'}\n\n`;
+				if (state.notes && state.notes.trim()) {
+					out += `Notes:\n${state.notes.trim()}\n`;
+				}
+				const btn = document.getElementById('copyBtn');
+				try {
+					await navigator.clipboard.writeText(out);
+					btn.textContent = '✓ Copied';
+					btn.classList.add('copied');
+					setTimeout(() => {
+						btn.textContent = 'Copy sign-off';
+						btn.classList.remove('copied');
+					}, 2000);
+				} catch (e) {
+					const ta = document.createElement('textarea');
+					ta.value = out;
+					document.body.appendChild(ta);
+					ta.select();
+					try {
+						document.execCommand('copy');
+						btn.textContent = '✓ Copied';
+						btn.classList.add('copied');
+						setTimeout(() => {
+							btn.textContent = 'Copy sign-off';
+							btn.classList.remove('copied');
+						}, 2000);
+					} catch (e2) {}
+					document.body.removeChild(ta);
+				}
+			});
+
+			updateCounts();
+		</script>
+	</body>
 </html>

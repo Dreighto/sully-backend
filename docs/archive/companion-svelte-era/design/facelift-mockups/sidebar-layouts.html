@@ -1,462 +1,824 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Sidebar layout options — Sully</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --brand: #ec2d78;
-    --brand-soft: #ff7eb3;
-    --brand-glow: rgba(236,45,120,0.35);
-    --bg: #070709;
-    --surface: #0e0e11;
-    --border: rgba(255,255,255,0.07);
-    --zinc-300: #d4d4d8;
-    --zinc-400: #a1a1aa;
-    --zinc-500: #71717a;
-    --zinc-600: #52525b;
-    --zinc-800: #27272a;
-    --zinc-900: #18181b;
-    --zinc-950: #09090b;
-  }
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-  html, body { height: 100%; background: var(--bg); color: #f4f4f5; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+		<title>Sidebar layout options — Sully</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<style>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			:root {
+				--brand: #ec2d78;
+				--brand-soft: #ff7eb3;
+				--brand-glow: rgba(236, 45, 120, 0.35);
+				--bg: #070709;
+				--surface: #0e0e11;
+				--border: rgba(255, 255, 255, 0.07);
+				--zinc-300: #d4d4d8;
+				--zinc-400: #a1a1aa;
+				--zinc-500: #71717a;
+				--zinc-600: #52525b;
+				--zinc-800: #27272a;
+				--zinc-900: #18181b;
+				--zinc-950: #09090b;
+			}
+			@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+			html,
+			body {
+				height: 100%;
+				background: var(--bg);
+				color: #f4f4f5;
+				font-family:
+					'Inter',
+					system-ui,
+					-apple-system,
+					sans-serif;
+			}
 
-  /* ── Aurora ── */
-  .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .aurora span { position: absolute; border-radius: 9999px; filter: blur(72px); opacity: 0.28; animation: aurora1 14s ease-in-out infinite; }
-  .aurora .a1 { width: 420px; height: 420px; background: radial-gradient(ellipse, #ec2d78 0%, #c4186a 60%, transparent 100%); top: -80px; left: -120px; animation-name: aurora1; }
-  .aurora .a2 { width: 320px; height: 320px; background: radial-gradient(ellipse, #7c3aed 0%, #ec2d78 70%, transparent 100%); bottom: 40px; right: -60px; animation-name: aurora2; animation-duration: 18s; }
-  .aurora .a3 { width: 260px; height: 260px; background: radial-gradient(ellipse, #ec2d78 0%, transparent 80%); top: 50%; left: 50%; animation-name: aurora3; animation-duration: 22s; }
-  @keyframes aurora1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-20px) scale(1.08); } }
-  @keyframes aurora2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,15px) scale(0.94); } }
-  @keyframes aurora3 { 0%,100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.12); } }
+			/* ── Aurora ── */
+			.aurora {
+				position: fixed;
+				inset: 0;
+				z-index: 0;
+				pointer-events: none;
+				overflow: hidden;
+			}
+			.aurora span {
+				position: absolute;
+				border-radius: 9999px;
+				filter: blur(72px);
+				opacity: 0.28;
+				animation: aurora1 14s ease-in-out infinite;
+			}
+			.aurora .a1 {
+				width: 420px;
+				height: 420px;
+				background: radial-gradient(ellipse, #ec2d78 0%, #c4186a 60%, transparent 100%);
+				top: -80px;
+				left: -120px;
+				animation-name: aurora1;
+			}
+			.aurora .a2 {
+				width: 320px;
+				height: 320px;
+				background: radial-gradient(ellipse, #7c3aed 0%, #ec2d78 70%, transparent 100%);
+				bottom: 40px;
+				right: -60px;
+				animation-name: aurora2;
+				animation-duration: 18s;
+			}
+			.aurora .a3 {
+				width: 260px;
+				height: 260px;
+				background: radial-gradient(ellipse, #ec2d78 0%, transparent 80%);
+				top: 50%;
+				left: 50%;
+				animation-name: aurora3;
+				animation-duration: 22s;
+			}
+			@keyframes aurora1 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(30px, -20px) scale(1.08);
+				}
+			}
+			@keyframes aurora2 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(-20px, 15px) scale(0.94);
+				}
+			}
+			@keyframes aurora3 {
+				0%,
+				100% {
+					transform: translate(-50%, -50%) scale(1);
+				}
+				50% {
+					transform: translate(-50%, -50%) scale(1.12);
+				}
+			}
 
-  /* ── Header ── */
-  .page-header {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(10,10,12,0.85); backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
-    padding: env(safe-area-inset-top, 12px) 20px 12px;
-  }
-  .page-header h1 { font-size: 15px; font-weight: 600; color: var(--brand-soft); }
-  .page-header p { font-size: 12px; color: var(--zinc-400); margin-top: 2px; }
-  .tab-row { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-  .tab-row::-webkit-scrollbar { display: none; }
-  .tab-btn {
-    flex-shrink: 0; padding: 5px 14px; border-radius: 9999px; font-size: 12px; font-weight: 500;
-    border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--zinc-400);
-    cursor: pointer; transition: all 0.18s; white-space: nowrap;
-  }
-  .tab-btn.active { background: rgba(236,45,120,0.12); border-color: rgba(236,45,120,0.4); color: var(--brand-soft); }
+			/* ── Header ── */
+			.page-header {
+				position: sticky;
+				top: 0;
+				z-index: 50;
+				background: rgba(10, 10, 12, 0.85);
+				backdrop-filter: blur(20px);
+				border-bottom: 1px solid var(--border);
+				padding: env(safe-area-inset-top, 12px) 20px 12px;
+			}
+			.page-header h1 {
+				font-size: 15px;
+				font-weight: 600;
+				color: var(--brand-soft);
+			}
+			.page-header p {
+				font-size: 12px;
+				color: var(--zinc-400);
+				margin-top: 2px;
+			}
+			.tab-row {
+				display: flex;
+				gap: 6px;
+				margin-top: 10px;
+				overflow-x: auto;
+				scrollbar-width: none;
+				padding-bottom: 2px;
+			}
+			.tab-row::-webkit-scrollbar {
+				display: none;
+			}
+			.tab-btn {
+				flex-shrink: 0;
+				padding: 5px 14px;
+				border-radius: 9999px;
+				font-size: 12px;
+				font-weight: 500;
+				border: 1px solid var(--border);
+				background: rgba(255, 255, 255, 0.04);
+				color: var(--zinc-400);
+				cursor: pointer;
+				transition: all 0.18s;
+				white-space: nowrap;
+			}
+			.tab-btn.active {
+				background: rgba(236, 45, 120, 0.12);
+				border-color: rgba(236, 45, 120, 0.4);
+				color: var(--brand-soft);
+			}
 
-  /* ── Layout ── */
-  .page { position: relative; z-index: 1; padding: 16px; }
-  .variant { display: none; }
-  .variant.visible { display: block; }
-  .demo-label { font-size: 11px; color: var(--zinc-500); margin-bottom: 10px; font-weight: 500; letter-spacing: 0.04em; }
+			/* ── Layout ── */
+			.page {
+				position: relative;
+				z-index: 1;
+				padding: 16px;
+			}
+			.variant {
+				display: none;
+			}
+			.variant.visible {
+				display: block;
+			}
+			.demo-label {
+				font-size: 11px;
+				color: var(--zinc-500);
+				margin-bottom: 10px;
+				font-weight: 500;
+				letter-spacing: 0.04em;
+			}
 
-  /* ── Phone frame ── */
-  .phone {
-    max-width: 375px; margin: 0 auto;
-    background: var(--surface); border-radius: 28px;
-    border: 1.5px solid rgba(255,255,255,0.1);
-    box-shadow: 0 32px 80px -16px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(255,255,255,0.04);
-    overflow: hidden; min-height: 520px; display: flex; flex-direction: column;
-  }
-  /* phone "status bar" */
-  .phone-bar {
-    padding: 12px 20px 0; display: flex; justify-content: space-between; align-items: center;
-    font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7); flex-shrink: 0;
-  }
+			/* ── Phone frame ── */
+			.phone {
+				max-width: 375px;
+				margin: 0 auto;
+				background: var(--surface);
+				border-radius: 28px;
+				border: 1.5px solid rgba(255, 255, 255, 0.1);
+				box-shadow:
+					0 32px 80px -16px rgba(0, 0, 0, 0.8),
+					0 0 0 0.5px rgba(255, 255, 255, 0.04);
+				overflow: hidden;
+				min-height: 520px;
+				display: flex;
+				flex-direction: column;
+			}
+			/* phone "status bar" */
+			.phone-bar {
+				padding: 12px 20px 0;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				font-size: 12px;
+				font-weight: 600;
+				color: rgba(255, 255, 255, 0.7);
+				flex-shrink: 0;
+			}
 
-  /* ── Sidebar chrome ── */
-  .sb-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0;
-  }
-  .sb-logo { display: flex; align-items: center; gap: 8px; }
-  .sb-logo-dot {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
-    box-shadow: 0 0 10px rgba(236,45,120,0.5); flex-shrink: 0;
-  }
-  .sb-logo span { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; color: #f4f4f5; }
-  .sb-actions { display: flex; gap: 4px; }
-  .icon-btn {
-    width: 30px; height: 30px; border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
-    display: flex; align-items: center; justify-content: center; color: var(--zinc-400);
-    cursor: pointer; font-size: 14px;
-  }
-  .icon-btn:active { transform: scale(0.92); }
+			/* ── Sidebar chrome ── */
+			.sb-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 14px 16px 10px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+				flex-shrink: 0;
+			}
+			.sb-logo {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.sb-logo-dot {
+				width: 22px;
+				height: 22px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 10px rgba(236, 45, 120, 0.5);
+				flex-shrink: 0;
+			}
+			.sb-logo span {
+				font-size: 12px;
+				font-weight: 700;
+				letter-spacing: 0.01em;
+				color: #f4f4f5;
+			}
+			.sb-actions {
+				display: flex;
+				gap: 4px;
+			}
+			.icon-btn {
+				width: 30px;
+				height: 30px;
+				border-radius: 8px;
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				background: rgba(255, 255, 255, 0.04);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--zinc-400);
+				cursor: pointer;
+				font-size: 14px;
+			}
+			.icon-btn:active {
+				transform: scale(0.92);
+			}
 
-  /* Thread row styles */
-  .thread-row {
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    border-radius: 10px; cursor: pointer; transition: background 0.15s; margin: 1px 4px;
-  }
-  .thread-row:hover { background: rgba(255,255,255,0.04); }
-  .thread-row.active { background: rgba(255,255,255,0.07); }
-  .thread-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--zinc-600); flex-shrink: 0; }
-  .thread-label { font-size: 12px; color: var(--zinc-300); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .thread-count { font-size: 10px; color: var(--zinc-600); background: rgba(255,255,255,0.04); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+			/* Thread row styles */
+			.thread-row {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px 12px;
+				border-radius: 10px;
+				cursor: pointer;
+				transition: background 0.15s;
+				margin: 1px 4px;
+			}
+			.thread-row:hover {
+				background: rgba(255, 255, 255, 0.04);
+			}
+			.thread-row.active {
+				background: rgba(255, 255, 255, 0.07);
+			}
+			.thread-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--zinc-600);
+				flex-shrink: 0;
+			}
+			.thread-label {
+				font-size: 12px;
+				color: var(--zinc-300);
+				flex: 1;
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.thread-count {
+				font-size: 10px;
+				color: var(--zinc-600);
+				background: rgba(255, 255, 255, 0.04);
+				padding: 1px 6px;
+				border-radius: 4px;
+				flex-shrink: 0;
+			}
 
-  /* Den row (special) */
-  .den-row {
-    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
-    border-radius: 12px; margin: 4px 4px 2px;
-    background: rgba(236,45,120,0.09); border: 1px solid rgba(236,45,120,0.28);
-    box-shadow: 0 0 14px -4px rgba(236,45,120,0.35); cursor: pointer;
-  }
-  .den-icon { font-size: 14px; flex-shrink: 0; }
-  .den-label { font-size: 13px; font-weight: 600; color: var(--brand-soft); flex: 1; }
-  .den-count { font-size: 10px; color: rgba(236,45,120,0.6); background: rgba(236,45,120,0.1); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+			/* Den row (special) */
+			.den-row {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 9px 12px;
+				border-radius: 12px;
+				margin: 4px 4px 2px;
+				background: rgba(236, 45, 120, 0.09);
+				border: 1px solid rgba(236, 45, 120, 0.28);
+				box-shadow: 0 0 14px -4px rgba(236, 45, 120, 0.35);
+				cursor: pointer;
+			}
+			.den-icon {
+				font-size: 14px;
+				flex-shrink: 0;
+			}
+			.den-label {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--brand-soft);
+				flex: 1;
+			}
+			.den-count {
+				font-size: 10px;
+				color: rgba(236, 45, 120, 0.6);
+				background: rgba(236, 45, 120, 0.1);
+				padding: 1px 6px;
+				border-radius: 4px;
+				flex-shrink: 0;
+			}
 
-  /* Space section headers */
-  .space-header {
-    display: flex; align-items: center; gap: 6px; padding: 10px 12px 4px;
-    cursor: pointer; user-select: none;
-  }
-  .space-icon { font-size: 13px; }
-  .space-name { font-size: 11px; font-weight: 600; color: var(--zinc-400); flex: 1; letter-spacing: 0.03em; }
-  .space-chevron { font-size: 10px; color: var(--zinc-600); transition: transform 0.2s; }
-  .space-chevron.open { transform: rotate(90deg); }
-  .space-threads { overflow: hidden; transition: max-height 0.25s ease; }
-  .space-threads.collapsed { max-height: 0; }
-  .space-threads.expanded { max-height: 400px; }
+			/* Space section headers */
+			.space-header {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				padding: 10px 12px 4px;
+				cursor: pointer;
+				user-select: none;
+			}
+			.space-icon {
+				font-size: 13px;
+			}
+			.space-name {
+				font-size: 11px;
+				font-weight: 600;
+				color: var(--zinc-400);
+				flex: 1;
+				letter-spacing: 0.03em;
+			}
+			.space-chevron {
+				font-size: 10px;
+				color: var(--zinc-600);
+				transition: transform 0.2s;
+			}
+			.space-chevron.open {
+				transform: rotate(90deg);
+			}
+			.space-threads {
+				overflow: hidden;
+				transition: max-height 0.25s ease;
+			}
+			.space-threads.collapsed {
+				max-height: 0;
+			}
+			.space-threads.expanded {
+				max-height: 400px;
+			}
 
-  /* Variant A: collapsible */
-  /* Variant B: switcher tabs */
-  .space-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); scrollbar-width: none; }
-  .space-tabs::-webkit-scrollbar { display: none; }
-  .space-tab {
-    flex-shrink: 0; padding: 5px 12px; border-radius: 9999px; font-size: 11px; font-weight: 500;
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: var(--zinc-400);
-    cursor: pointer; transition: all 0.15s;
-  }
-  .space-tab.active { background: rgba(236,45,120,0.12); border-color: rgba(236,45,120,0.35); color: var(--brand-soft); }
-  .space-tab.den { background: rgba(236,45,120,0.12); border-color: rgba(236,45,120,0.35); color: var(--brand-soft); }
+			/* Variant A: collapsible */
+			/* Variant B: switcher tabs */
+			.space-tabs {
+				display: flex;
+				gap: 6px;
+				overflow-x: auto;
+				padding: 10px 12px 6px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+				scrollbar-width: none;
+			}
+			.space-tabs::-webkit-scrollbar {
+				display: none;
+			}
+			.space-tab {
+				flex-shrink: 0;
+				padding: 5px 12px;
+				border-radius: 9999px;
+				font-size: 11px;
+				font-weight: 500;
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				background: rgba(255, 255, 255, 0.04);
+				color: var(--zinc-400);
+				cursor: pointer;
+				transition: all 0.15s;
+			}
+			.space-tab.active {
+				background: rgba(236, 45, 120, 0.12);
+				border-color: rgba(236, 45, 120, 0.35);
+				color: var(--brand-soft);
+			}
+			.space-tab.den {
+				background: rgba(236, 45, 120, 0.12);
+				border-color: rgba(236, 45, 120, 0.35);
+				color: var(--brand-soft);
+			}
 
-  /* Variant C: flat */
-  .flat-group-label { font-size: 9px; font-weight: 700; color: var(--zinc-600); letter-spacing: 0.1em; padding: 10px 14px 4px; }
+			/* Variant C: flat */
+			.flat-group-label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--zinc-600);
+				letter-spacing: 0.1em;
+				padding: 10px 14px 4px;
+			}
 
-  /* Sully suggest chip */
-  .suggest-chip {
-    margin: 10px 10px 4px; padding: 10px 12px; border-radius: 12px;
-    border: 1px dashed rgba(236,45,120,0.4); background: rgba(236,45,120,0.05);
-    display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
-  }
-  .suggest-chip .avatar { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow: 0 0 8px rgba(236,45,120,0.4); flex-shrink: 0; margin-top: 1px; }
-  .suggest-chip .text { font-size: 11px; color: var(--zinc-300); line-height: 1.5; }
-  .suggest-chip .text strong { color: var(--brand-soft); font-weight: 600; }
-  .suggest-chip .btns { display: flex; gap: 6px; margin-top: 6px; }
-  .suggest-chip .yes { padding: 4px 10px; border-radius: 6px; background: var(--brand); color: white; font-size: 10px; font-weight: 600; border: none; cursor: pointer; }
-  .suggest-chip .no { padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.06); color: var(--zinc-400); font-size: 10px; font-weight: 500; border: none; cursor: pointer; }
+			/* Sully suggest chip */
+			.suggest-chip {
+				margin: 10px 10px 4px;
+				padding: 10px 12px;
+				border-radius: 12px;
+				border: 1px dashed rgba(236, 45, 120, 0.4);
+				background: rgba(236, 45, 120, 0.05);
+				display: flex;
+				align-items: flex-start;
+				gap: 8px;
+				cursor: pointer;
+			}
+			.suggest-chip .avatar {
+				width: 20px;
+				height: 20px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 8px rgba(236, 45, 120, 0.4);
+				flex-shrink: 0;
+				margin-top: 1px;
+			}
+			.suggest-chip .text {
+				font-size: 11px;
+				color: var(--zinc-300);
+				line-height: 1.5;
+			}
+			.suggest-chip .text strong {
+				color: var(--brand-soft);
+				font-weight: 600;
+			}
+			.suggest-chip .btns {
+				display: flex;
+				gap: 6px;
+				margin-top: 6px;
+			}
+			.suggest-chip .yes {
+				padding: 4px 10px;
+				border-radius: 6px;
+				background: var(--brand);
+				color: white;
+				font-size: 10px;
+				font-weight: 600;
+				border: none;
+				cursor: pointer;
+			}
+			.suggest-chip .no {
+				padding: 4px 10px;
+				border-radius: 6px;
+				background: rgba(255, 255, 255, 0.06);
+				color: var(--zinc-400);
+				font-size: 10px;
+				font-weight: 500;
+				border: none;
+				cursor: pointer;
+			}
 
-  /* Footer */
-  .sb-footer { padding: 10px 12px; border-top: 1px solid rgba(255,255,255,0.05); margin-top: auto; }
-  .sb-footer-text { font-size: 9px; color: var(--zinc-600); }
+			/* Footer */
+			.sb-footer {
+				padding: 10px 12px;
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				margin-top: auto;
+			}
+			.sb-footer-text {
+				font-size: 9px;
+				color: var(--zinc-600);
+			}
 
-  /* Description cards */
-  .desc-card {
-    max-width: 375px; margin: 14px auto 0; padding: 14px 16px;
-    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 16px;
-  }
-  .desc-card h3 { font-size: 13px; font-weight: 600; color: #f4f4f5; margin-bottom: 6px; }
-  .desc-card p { font-size: 12px; color: var(--zinc-400); line-height: 1.6; }
-  .desc-card .tag { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
-  .tag-rec { background: rgba(236,45,120,0.15); color: var(--brand-soft); }
-  .tag-later { background: rgba(255,255,255,0.06); color: var(--zinc-500); }
-</style>
-</head>
-<body>
-<div class="aurora" aria-hidden="true">
-  <span class="a1"></span><span class="a2"></span><span class="a3"></span>
-</div>
+			/* Description cards */
+			.desc-card {
+				max-width: 375px;
+				margin: 14px auto 0;
+				padding: 14px 16px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.07);
+				border-radius: 16px;
+			}
+			.desc-card h3 {
+				font-size: 13px;
+				font-weight: 600;
+				color: #f4f4f5;
+				margin-bottom: 6px;
+			}
+			.desc-card p {
+				font-size: 12px;
+				color: var(--zinc-400);
+				line-height: 1.6;
+			}
+			.desc-card .tag {
+				display: inline-block;
+				margin-top: 8px;
+				padding: 3px 10px;
+				border-radius: 9999px;
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+			}
+			.tag-rec {
+				background: rgba(236, 45, 120, 0.15);
+				color: var(--brand-soft);
+			}
+			.tag-later {
+				background: rgba(255, 255, 255, 0.06);
+				color: var(--zinc-500);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="aurora" aria-hidden="true">
+			<span class="a1"></span><span class="a2"></span><span class="a3"></span>
+		</div>
 
-<div class="page-header">
-  <h1>Sidebar layout options</h1>
-  <p>Tap to explore each one. Sully suggestion is shown in Option A.</p>
-  <div class="tab-row">
-    <button class="tab-btn active" onclick="show('a')">A — Collapsible spaces</button>
-    <button class="tab-btn" onclick="show('b')">B — Space switcher</button>
-    <button class="tab-btn" onclick="show('c')">C — Flat + labels</button>
-  </div>
-</div>
+		<div class="page-header">
+			<h1>Sidebar layout options</h1>
+			<p>Tap to explore each one. Sully suggestion is shown in Option A.</p>
+			<div class="tab-row">
+				<button class="tab-btn active" onclick="show('a')">A — Collapsible spaces</button>
+				<button class="tab-btn" onclick="show('b')">B — Space switcher</button>
+				<button class="tab-btn" onclick="show('c')">C — Flat + labels</button>
+			</div>
+		</div>
 
-<div class="page">
+		<div class="page">
+			<!-- ── OPTION A: Collapsible ── -->
+			<div class="variant visible" id="va">
+				<div class="demo-label">A — Collapsible spaces (recommended)</div>
+				<div class="phone">
+					<div class="phone-bar"><span>9:41</span><span>●●●</span></div>
+					<div class="sb-header">
+						<div class="sb-logo">
+							<div class="sb-logo-dot"></div>
+							<span>Sessions</span>
+						</div>
+						<div class="sb-actions">
+							<div class="icon-btn">＋</div>
+							<div class="icon-btn">✕</div>
+						</div>
+					</div>
 
-  <!-- ── OPTION A: Collapsible ── -->
-  <div class="variant visible" id="va">
-    <div class="demo-label">A — Collapsible spaces (recommended)</div>
-    <div class="phone">
-      <div class="phone-bar"><span>9:41</span><span>●●●</span></div>
-      <div class="sb-header">
-        <div class="sb-logo">
-          <div class="sb-logo-dot"></div>
-          <span>Sessions</span>
-        </div>
-        <div class="sb-actions">
-          <div class="icon-btn">＋</div>
-          <div class="icon-btn">✕</div>
-        </div>
-      </div>
+					<div style="flex: 1; overflow-y: auto; padding: 6px 0">
+						<!-- The Den (always top, always expanded, no toggle) -->
+						<div class="den-row">
+							<span class="den-icon">🏠</span>
+							<span class="den-label">The Den</span>
+							<span class="den-count">16</span>
+						</div>
+						<div style="padding-left: 8px">
+							<div class="thread-row active">
+								<div class="thread-dot" style="background: var(--brand)"></div>
+								<span class="thread-label">shower / treehouse / Pixel 🐾</span>
+								<span class="thread-count">7</span>
+							</div>
+							<div class="thread-row">
+								<div class="thread-dot"></div>
+								<span class="thread-label">Minecraft CC agent ideas</span>
+								<span class="thread-count">5</span>
+							</div>
+							<div class="thread-row">
+								<div class="thread-dot"></div>
+								<span class="thread-label">chat-e187x</span>
+								<span class="thread-count">4</span>
+							</div>
+						</div>
 
-      <div style="flex:1; overflow-y:auto; padding: 6px 0;">
-        <!-- The Den (always top, always expanded, no toggle) -->
-        <div class="den-row">
-          <span class="den-icon">🏠</span>
-          <span class="den-label">The Den</span>
-          <span class="den-count">16</span>
-        </div>
-        <div style="padding-left:8px;">
-          <div class="thread-row active">
-            <div class="thread-dot" style="background:var(--brand)"></div>
-            <span class="thread-label">shower / treehouse / Pixel 🐾</span>
-            <span class="thread-count">7</span>
-          </div>
-          <div class="thread-row">
-            <div class="thread-dot"></div>
-            <span class="thread-label">Minecraft CC agent ideas</span>
-            <span class="thread-count">5</span>
-          </div>
-          <div class="thread-row">
-            <div class="thread-dot"></div>
-            <span class="thread-label">chat-e187x</span>
-            <span class="thread-count">4</span>
-          </div>
-        </div>
+						<!-- Sully suggests promoting a hot thread -->
+						<div class="suggest-chip" id="suggestChip">
+							<div class="avatar"></div>
+							<div class="text">
+								<strong>Make a space for this?</strong><br />
+								"Minecraft CC agent ideas" is gaining traction — want me to set up a
+								<strong>Minecraft</strong> project space and move it there?
+								<div class="btns">
+									<button class="yes" onclick="dismissSuggest()">Yes, do it</button>
+									<button class="no" onclick="dismissSuggest()">Not yet</button>
+								</div>
+							</div>
+						</div>
 
-        <!-- Sully suggests promoting a hot thread -->
-        <div class="suggest-chip" id="suggestChip">
-          <div class="avatar"></div>
-          <div class="text">
-            <strong>Make a space for this?</strong><br>
-            "Minecraft CC agent ideas" is gaining traction — want me to set up a <strong>Minecraft</strong> project space and move it there?
-            <div class="btns">
-              <button class="yes" onclick="dismissSuggest()">Yes, do it</button>
-              <button class="no" onclick="dismissSuggest()">Not yet</button>
-            </div>
-          </div>
-        </div>
+						<!-- Project spaces (collapsed by default) -->
+						<div style="margin-top: 8px">
+							<div class="space-header" onclick="toggleSpace('treehouse')">
+								<span class="space-icon">📁</span>
+								<span class="space-name">TREEHOUSE</span>
+								<span class="space-chevron" id="chevron-treehouse">›</span>
+							</div>
+							<div class="space-threads collapsed" id="threads-treehouse">
+								<div class="thread-row" style="padding-left: 24px">
+									<div class="thread-dot"></div>
+									<span class="thread-label">build plan + materials list</span>
+									<span class="thread-count">8</span>
+								</div>
+								<div class="thread-row" style="padding-left: 24px">
+									<div class="thread-dot"></div>
+									<span class="thread-label">Pixel inspection protocol 🐾</span>
+									<span class="thread-count">3</span>
+								</div>
+							</div>
 
-        <!-- Project spaces (collapsed by default) -->
-        <div style="margin-top:8px;">
-          <div class="space-header" onclick="toggleSpace('treehouse')">
-            <span class="space-icon">📁</span>
-            <span class="space-name">TREEHOUSE</span>
-            <span class="space-chevron" id="chevron-treehouse">›</span>
-          </div>
-          <div class="space-threads collapsed" id="threads-treehouse">
-            <div class="thread-row" style="padding-left:24px">
-              <div class="thread-dot"></div>
-              <span class="thread-label">build plan + materials list</span>
-              <span class="thread-count">8</span>
-            </div>
-            <div class="thread-row" style="padding-left:24px">
-              <div class="thread-dot"></div>
-              <span class="thread-label">Pixel inspection protocol 🐾</span>
-              <span class="thread-count">3</span>
-            </div>
-          </div>
+							<div class="space-header" onclick="toggleSpace('dev')">
+								<span class="space-icon">📁</span>
+								<span class="space-name">DEV / LOGUEOS</span>
+								<span class="space-chevron" id="chevron-dev">›</span>
+							</div>
+							<div class="space-threads collapsed" id="threads-dev">
+								<div class="thread-row" style="padding-left: 24px">
+									<div class="thread-dot"></div>
+									<span class="thread-label">dispatcher v3 design</span>
+									<span class="thread-count">12</span>
+								</div>
+								<div class="thread-row" style="padding-left: 24px">
+									<div class="thread-dot"></div>
+									<span class="thread-label">Sully web search fix</span>
+									<span class="thread-count">5</span>
+								</div>
+							</div>
+						</div>
+					</div>
 
-          <div class="space-header" onclick="toggleSpace('dev')">
-            <span class="space-icon">📁</span>
-            <span class="space-name">DEV / LOGUEOS</span>
-            <span class="space-chevron" id="chevron-dev">›</span>
-          </div>
-          <div class="space-threads collapsed" id="threads-dev">
-            <div class="thread-row" style="padding-left:24px">
-              <div class="thread-dot"></div>
-              <span class="thread-label">dispatcher v3 design</span>
-              <span class="thread-count">12</span>
-            </div>
-            <div class="thread-row" style="padding-left:24px">
-              <div class="thread-dot"></div>
-              <span class="thread-label">Sully web search fix</span>
-              <span class="thread-count">5</span>
-            </div>
-          </div>
-        </div>
-      </div>
+					<div class="sb-footer">
+						<div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
+					</div>
+				</div>
+				<div class="desc-card">
+					<h3>A — Collapsible spaces</h3>
+					<p>
+						The Den lives at the top, always open — it's home. Project spaces sit below it and
+						collapse/expand with a tap. You only see threads when you need them. Sully can suggest
+						"make this a project" right inline as a chip in The Den.
+					</p>
+					<span class="tag tag-rec">⭐ Recommended for now</span>
+				</div>
+			</div>
 
-      <div class="sb-footer">
-        <div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
-      </div>
-    </div>
-    <div class="desc-card">
-      <h3>A — Collapsible spaces</h3>
-      <p>The Den lives at the top, always open — it's home. Project spaces sit below it and collapse/expand with a tap. You only see threads when you need them. Sully can suggest "make this a project" right inline as a chip in The Den.</p>
-      <span class="tag tag-rec">⭐ Recommended for now</span>
-    </div>
-  </div>
+			<!-- ── OPTION B: Switcher ── -->
+			<div class="variant" id="vb">
+				<div class="demo-label">B — Space switcher (tabs up top)</div>
+				<div class="phone">
+					<div class="phone-bar"><span>9:41</span><span>●●●</span></div>
+					<div class="sb-header">
+						<div class="sb-logo">
+							<div class="sb-logo-dot"></div>
+							<span>Sessions</span>
+						</div>
+						<div class="sb-actions">
+							<div class="icon-btn">＋</div>
+							<div class="icon-btn">✕</div>
+						</div>
+					</div>
 
-  <!-- ── OPTION B: Switcher ── -->
-  <div class="variant" id="vb">
-    <div class="demo-label">B — Space switcher (tabs up top)</div>
-    <div class="phone">
-      <div class="phone-bar"><span>9:41</span><span>●●●</span></div>
-      <div class="sb-header">
-        <div class="sb-logo">
-          <div class="sb-logo-dot"></div>
-          <span>Sessions</span>
-        </div>
-        <div class="sb-actions">
-          <div class="icon-btn">＋</div>
-          <div class="icon-btn">✕</div>
-        </div>
-      </div>
+					<div class="space-tabs">
+						<div class="space-tab den active" onclick="switchTab('den')">🏠 The Den</div>
+						<div class="space-tab" onclick="switchTab('tree')">📁 Treehouse</div>
+						<div class="space-tab" onclick="switchTab('dev')">📁 Dev</div>
+						<div class="space-tab" style="color: var(--zinc-600)">＋ New</div>
+					</div>
 
-      <div class="space-tabs">
-        <div class="space-tab den active" onclick="switchTab('den')">🏠 The Den</div>
-        <div class="space-tab" onclick="switchTab('tree')">📁 Treehouse</div>
-        <div class="space-tab" onclick="switchTab('dev')">📁 Dev</div>
-        <div class="space-tab" style="color:var(--zinc-600);">＋ New</div>
-      </div>
+					<div style="flex: 1; overflow-y: auto; padding: 8px 0" id="tab-content">
+						<!-- Den tab content -->
+						<div class="den-row" style="margin-bottom: 4px">
+							<span class="den-icon">🏠</span>
+							<span class="den-label">The Den</span>
+							<span class="den-count">16</span>
+						</div>
+						<div class="thread-row active">
+							<div class="thread-dot" style="background: var(--brand)"></div>
+							<span class="thread-label">shower / treehouse / Pixel 🐾</span>
+							<span class="thread-count">7</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">Minecraft CC agent ideas</span>
+							<span class="thread-count">5</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">chat-e187x</span>
+							<span class="thread-count">4</span>
+						</div>
+					</div>
 
-      <div style="flex:1; overflow-y:auto; padding:8px 0;" id="tab-content">
-        <!-- Den tab content -->
-        <div class="den-row" style="margin-bottom:4px;">
-          <span class="den-icon">🏠</span>
-          <span class="den-label">The Den</span>
-          <span class="den-count">16</span>
-        </div>
-        <div class="thread-row active">
-          <div class="thread-dot" style="background:var(--brand)"></div>
-          <span class="thread-label">shower / treehouse / Pixel 🐾</span>
-          <span class="thread-count">7</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">Minecraft CC agent ideas</span>
-          <span class="thread-count">5</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">chat-e187x</span>
-          <span class="thread-count">4</span>
-        </div>
-      </div>
+					<div class="sb-footer">
+						<div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
+					</div>
+				</div>
+				<div class="desc-card">
+					<h3>B — Space switcher</h3>
+					<p>
+						A row of tabs across the top; the list below shows only the active space's threads.
+						Cleaner when spaces grow, but you have to tap a tab to see other spaces' threads. Works
+						well if each space has lots of threads. More like Slack channels.
+					</p>
+					<span class="tag tag-later">Better once you have 5+ spaces</span>
+				</div>
+			</div>
 
-      <div class="sb-footer">
-        <div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
-      </div>
-    </div>
-    <div class="desc-card">
-      <h3>B — Space switcher</h3>
-      <p>A row of tabs across the top; the list below shows only the active space's threads. Cleaner when spaces grow, but you have to tap a tab to see other spaces' threads. Works well if each space has lots of threads. More like Slack channels.</p>
-      <span class="tag tag-later">Better once you have 5+ spaces</span>
-    </div>
-  </div>
+			<!-- ── OPTION C: Flat ── -->
+			<div class="variant" id="vc">
+				<div class="demo-label">C — Flat with section labels</div>
+				<div class="phone">
+					<div class="phone-bar"><span>9:41</span><span>●●●</span></div>
+					<div class="sb-header">
+						<div class="sb-logo">
+							<div class="sb-logo-dot"></div>
+							<span>Sessions</span>
+						</div>
+						<div class="sb-actions">
+							<div class="icon-btn">＋</div>
+							<div class="icon-btn">✕</div>
+						</div>
+					</div>
 
-  <!-- ── OPTION C: Flat ── -->
-  <div class="variant" id="vc">
-    <div class="demo-label">C — Flat with section labels</div>
-    <div class="phone">
-      <div class="phone-bar"><span>9:41</span><span>●●●</span></div>
-      <div class="sb-header">
-        <div class="sb-logo">
-          <div class="sb-logo-dot"></div>
-          <span>Sessions</span>
-        </div>
-        <div class="sb-actions">
-          <div class="icon-btn">＋</div>
-          <div class="icon-btn">✕</div>
-        </div>
-      </div>
+					<div style="flex: 1; overflow-y: auto; padding: 6px 0">
+						<div class="den-row">
+							<span class="den-icon">🏠</span>
+							<span class="den-label">The Den</span>
+							<span class="den-count">16</span>
+						</div>
+						<div class="thread-row active">
+							<div class="thread-dot" style="background: var(--brand)"></div>
+							<span class="thread-label">shower / treehouse / Pixel 🐾</span>
+							<span class="thread-count">7</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">Minecraft CC agent ideas</span>
+							<span class="thread-count">5</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">chat-e187x</span>
+							<span class="thread-count">4</span>
+						</div>
 
-      <div style="flex:1; overflow-y:auto; padding:6px 0;">
-        <div class="den-row">
-          <span class="den-icon">🏠</span>
-          <span class="den-label">The Den</span>
-          <span class="den-count">16</span>
-        </div>
-        <div class="thread-row active">
-          <div class="thread-dot" style="background:var(--brand)"></div>
-          <span class="thread-label">shower / treehouse / Pixel 🐾</span>
-          <span class="thread-count">7</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">Minecraft CC agent ideas</span>
-          <span class="thread-count">5</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">chat-e187x</span>
-          <span class="thread-count">4</span>
-        </div>
+						<div class="flat-group-label">TREEHOUSE</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">build plan + materials list</span>
+							<span class="thread-count">8</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">Pixel inspection protocol 🐾</span>
+							<span class="thread-count">3</span>
+						</div>
 
-        <div class="flat-group-label">TREEHOUSE</div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">build plan + materials list</span>
-          <span class="thread-count">8</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">Pixel inspection protocol 🐾</span>
-          <span class="thread-count">3</span>
-        </div>
+						<div class="flat-group-label">DEV / LOGUEOS</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">dispatcher v3 design</span>
+							<span class="thread-count">12</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">Sully web search fix</span>
+							<span class="thread-count">5</span>
+						</div>
+						<div class="thread-row">
+							<div class="thread-dot"></div>
+							<span class="thread-label">voice mode training</span>
+							<span class="thread-count">3</span>
+						</div>
+					</div>
 
-        <div class="flat-group-label">DEV / LOGUEOS</div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">dispatcher v3 design</span>
-          <span class="thread-count">12</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">Sully web search fix</span>
-          <span class="thread-count">5</span>
-        </div>
-        <div class="thread-row">
-          <div class="thread-dot"></div>
-          <span class="thread-label">voice mode training</span>
-          <span class="thread-count">3</span>
-        </div>
-      </div>
+					<div class="sb-footer">
+						<div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
+					</div>
+				</div>
+				<div class="desc-card">
+					<h3>C — Flat with labels</h3>
+					<p>
+						Everything always visible, split by a simple label row. No tapping to expand — what you
+						see is what you've got. Gets long once you have many spaces with many threads each.
+						Simplest to navigate.
+					</p>
+					<span class="tag tag-later">Best if you keep threads short and sparse</span>
+				</div>
+			</div>
+		</div>
+		<!-- /page -->
 
-      <div class="sb-footer">
-        <div class="sb-footer-text">CORE: Sully · HOST: 127.0.0.1:18080</div>
-      </div>
-    </div>
-    <div class="desc-card">
-      <h3>C — Flat with labels</h3>
-      <p>Everything always visible, split by a simple label row. No tapping to expand — what you see is what you've got. Gets long once you have many spaces with many threads each. Simplest to navigate.</p>
-      <span class="tag tag-later">Best if you keep threads short and sparse</span>
-    </div>
-  </div>
+		<script>
+			function show(id) {
+				document.querySelectorAll('.variant').forEach((v) => v.classList.remove('visible'));
+				document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+				document.getElementById('v' + id).classList.add('visible');
+				event.target.classList.add('active');
+			}
 
-</div><!-- /page -->
+			function toggleSpace(id) {
+				const threads = document.getElementById('threads-' + id);
+				const chevron = document.getElementById('chevron-' + id);
+				const isOpen = threads.classList.contains('expanded');
+				threads.classList.toggle('expanded', !isOpen);
+				threads.classList.toggle('collapsed', isOpen);
+				chevron.classList.toggle('open', !isOpen);
+				chevron.textContent = isOpen ? '›' : '›';
+			}
 
-<script>
-function show(id) {
-  document.querySelectorAll('.variant').forEach(v => v.classList.remove('visible'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('v'+id).classList.add('visible');
-  event.target.classList.add('active');
-}
-
-function toggleSpace(id) {
-  const threads = document.getElementById('threads-'+id);
-  const chevron = document.getElementById('chevron-'+id);
-  const isOpen = threads.classList.contains('expanded');
-  threads.classList.toggle('expanded', !isOpen);
-  threads.classList.toggle('collapsed', isOpen);
-  chevron.classList.toggle('open', !isOpen);
-  chevron.textContent = isOpen ? '›' : '›';
-}
-
-function dismissSuggest() {
-  const chip = document.getElementById('suggestChip');
-  if (chip) { chip.style.opacity='0'; chip.style.transform='scale(0.96)'; chip.style.transition='all 0.25s'; setTimeout(()=>chip.remove(), 260); }
-}
-</script>
-</body>
+			function dismissSuggest() {
+				const chip = document.getElementById('suggestChip');
+				if (chip) {
+					chip.style.opacity = '0';
+					chip.style.transform = 'scale(0.96)';
+					chip.style.transition = 'all 0.25s';
+					setTimeout(() => chip.remove(), 260);
+				}
+			}
+		</script>
+	</body>
 </html>

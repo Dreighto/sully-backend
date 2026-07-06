@@ -28,11 +28,11 @@
 
 **Reserved worktree (created 2026-06-11):**
 
-| Item | Value |
-|------|-------|
-| Branch | `feat/cur-flagship-visual-pass` |
-| Path | `/home/dreighto/dev/worktrees/LogueOS-Companion/cur` |
-| Base | `main` @ `4cc7391` (post LOS-204 stage-2 primitives) |
+| Item   | Value                                                |
+| ------ | ---------------------------------------------------- |
+| Branch | `feat/cur-flagship-visual-pass`                      |
+| Path   | `/home/dreighto/dev/worktrees/LogueOS-Companion/cur` |
+| Base   | `main` @ `4cc7391` (post LOS-204 stage-2 primitives) |
 
 **Operator compare loop:**
 
@@ -63,12 +63,12 @@ git rebase origin/main
 
 ### Captured screenshots
 
-| App | File | Notes |
-|-----|------|-------|
-| **Sully (baseline)** | `sully-baseline/companion-empty-iphone.png` | Chat with history — action row always visible, dev PWA banner |
-| **Sully (baseline)** | `sully-baseline/companion-sidebar-iphone.png` | Sidebar — dev footer `HOST: 127.0.0.1`, technical thread slugs |
-| **Sully (baseline)** | `sully-baseline/companion-model-sheet-iphone.png` | Model picker sheet — strong; keep pattern |
-| **Gemini (logged-out)** | `reference/ref-gemini-mobile.png` | Suggested prompt chips, minimal header, mode chip in composer, light theme |
+| App                     | File                                              | Notes                                                                      |
+| ----------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Sully (baseline)**    | `sully-baseline/companion-empty-iphone.png`       | Chat with history — action row always visible, dev PWA banner              |
+| **Sully (baseline)**    | `sully-baseline/companion-sidebar-iphone.png`     | Sidebar — dev footer `HOST: 127.0.0.1`, technical thread slugs             |
+| **Sully (baseline)**    | `sully-baseline/companion-model-sheet-iphone.png` | Model picker sheet — strong; keep pattern                                  |
+| **Gemini (logged-out)** | `reference/ref-gemini-mobile.png`                 | Suggested prompt chips, minimal header, mode chip in composer, light theme |
 
 ### Blocked captures (headless Playwright)
 
@@ -80,19 +80,19 @@ ChatGPT (`chatgpt.com`) and Claude (`claude.ai`) returned **Cloudflare “Just a
 
 ### Flagship patterns to borrow (research + live Gemini)
 
-| Pattern | ChatGPT | Claude | Gemini | Sully today | Action |
-|---------|---------|--------|--------|-------------|--------|
-| Conversation-first layout | ✓ | ✓ | ✓ | ✓ | Keep |
-| Flat assistant text (no card) | ✓ | ✓ | ✓ | ✓ | Keep |
-| User message subtle tint / indent | ✓ | ✓ | ✓ | Heavy zinc bubble | **Phase A** — glass or plain |
-| Message actions hidden until focus | ✓ | ✓ | partial | Always-on labeled row | **Phase A** — overflow / long-press |
-| Model picker in header or chip above input | ✓ | ✓ | ✓ in composer | Inside composer pill | **Phase B** — relocate |
-| Suggested prompts on empty state | ✓ | ✓ | ✓ chips | Greeting only | **Phase B** |
-| Sidebar: human titles, no dev chrome | ✓ | ✓ | ✓ | Slugs + HOST footer | **Phase A** |
-| Hide empty threads until first send | ✓ | ✓ | ✓ | Shows immediately | **Phase A** |
-| One popover/sheet glass recipe | ✓ | ✓ | ✓ | Mixed (thread menu ≠ model sheet) | **Phase B** |
-| 44pt touch targets on chrome | ✓ | ✓ | ✓ | Partial (footer has sm: shrink) | **Phase A** — keep 44px mobile |
-| Haptics on send / sheet dismiss | native | native | native | none | **Phase C** (Capacitor) |
+| Pattern                                    | ChatGPT | Claude | Gemini        | Sully today                       | Action                              |
+| ------------------------------------------ | ------- | ------ | ------------- | --------------------------------- | ----------------------------------- |
+| Conversation-first layout                  | ✓       | ✓      | ✓             | ✓                                 | Keep                                |
+| Flat assistant text (no card)              | ✓       | ✓      | ✓             | ✓                                 | Keep                                |
+| User message subtle tint / indent          | ✓       | ✓      | ✓             | Heavy zinc bubble                 | **Phase A** — glass or plain        |
+| Message actions hidden until focus         | ✓       | ✓      | partial       | Always-on labeled row             | **Phase A** — overflow / long-press |
+| Model picker in header or chip above input | ✓       | ✓      | ✓ in composer | Inside composer pill              | **Phase B** — relocate              |
+| Suggested prompts on empty state           | ✓       | ✓      | ✓ chips       | Greeting only                     | **Phase B**                         |
+| Sidebar: human titles, no dev chrome       | ✓       | ✓      | ✓             | Slugs + HOST footer               | **Phase A**                         |
+| Hide empty threads until first send        | ✓       | ✓      | ✓             | Shows immediately                 | **Phase A**                         |
+| One popover/sheet glass recipe             | ✓       | ✓      | ✓             | Mixed (thread menu ≠ model sheet) | **Phase B**                         |
+| 44pt touch targets on chrome               | ✓       | ✓      | ✓             | Partial (footer has sm: shrink)   | **Phase A** — keep 44px mobile      |
+| Haptics on send / sheet dismiss            | native  | native | native        | none                              | **Phase C** (Capacitor)             |
 
 ### Sully differentiators to **keep** (not clone away)
 
@@ -119,7 +119,7 @@ ChatGPT (`chatgpt.com`) and Claude (`claude.ai`) returned **Cloudflare “Just a
 7. **Unify popover chrome** — one recipe everywhere: `border-white/[0.08] bg-[#0e0e11]/85 backdrop-blur-2xl shadow-[var(--shadow-float)]`.
 8. **Kill `border-zinc-*` in chat surface** — per June audit; use `--line` / `--line2` tokens only.
 9. **Radius discipline** — collapse to 4 values: 8 / 12 / 16 / full (see audit §3 radius zoo).
-10. **Relocate model chip** — out of composer pill interior → header `Auto ▾` or single chip *above* pill (ChatGPT/Claude pattern). Composer keeps: `+` · textarea · talkback · send/voice.
+10. **Relocate model chip** — out of composer pill interior → header `Auto ▾` or single chip _above_ pill (ChatGPT/Claude pattern). Composer keeps: `+` · textarea · talkback · send/voice.
 11. **Header lightness** — drop `border-b` at rest; transparent blur header over feed; workspace-context icon → sidebar settings (optional).
 12. **Empty-state suggested prompts** — 3–4 tappable chips under greeting (Gemini borrow): e.g. “What’s running?”, “Summarize today”, “New thread”.
 
@@ -142,11 +142,11 @@ ChatGPT (`chatgpt.com`) and Claude (`claude.ai`) returned **Cloudflare “Just a
 
 ## File map (primary touch targets)
 
-| Phase | Files |
-|-------|-------|
-| A | `src/lib/components/MessageFeed.svelte`, `src/lib/components/ThreadsSidebar.svelte`, `src/lib/components/PwaUpdatePrompt.svelte` |
-| B | `src/lib/components/Composer.svelte`, `src/lib/components/ChatHeader.svelte`, `src/app.css`, `src/lib/components/sully/*`, `src/routes/chat/+page.svelte` (layout only) |
-| C | Capacitor wrapper + thin Svelte haptic helpers (coordinate with `ship-ios` skill owner) |
+| Phase | Files                                                                                                                                                                   |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A     | `src/lib/components/MessageFeed.svelte`, `src/lib/components/ThreadsSidebar.svelte`, `src/lib/components/PwaUpdatePrompt.svelte`                                        |
+| B     | `src/lib/components/Composer.svelte`, `src/lib/components/ChatHeader.svelte`, `src/app.css`, `src/lib/components/sully/*`, `src/routes/chat/+page.svelte` (layout only) |
+| C     | Capacitor wrapper + thin Svelte haptic helpers (coordinate with `ship-ios` skill owner)                                                                                 |
 
 ---
 
@@ -240,11 +240,11 @@ sudo -n systemctl restart logueos-companion.service   # only when operator appro
 
 ## PR strategy
 
-| PR | Branch | Scope |
-|----|--------|-------|
-| PR1 | `feat/cur-flagship-visual-pass` | Phase A only (~4 files) |
+| PR  | Branch                              | Scope                                 |
+| --- | ----------------------------------- | ------------------------------------- |
+| PR1 | `feat/cur-flagship-visual-pass`     | Phase A only (~4 files)               |
 | PR2 | same branch stacked or continuation | Phase B primitives + model relocation |
-| PR3 | follow-up branch | Phase C native polish |
+| PR3 | follow-up branch                    | Phase C native polish                 |
 
 Title prefix: `feat(sully-ui):` · Reference this plan path in PR body.
 
