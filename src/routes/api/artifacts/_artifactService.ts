@@ -10,17 +10,8 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from '$lib/server/config';
-import { resolveWorkerTemplate } from '$lib/work-surface/chatBridge.svelte';
-import {
-	findStoreDir,
-	readManifest,
-	artifactRepoRoot,
-	storeRoot,
-	classifyArtifactType
-} from '$lib/server/artifactStore';
+import { findStoreDir, readManifest, artifactRepoRoot, storeRoot } from '$lib/server/artifactStore';
 import type { ArtifactMetadata } from '$lib/server/artifactStore';
-
-const FILE_ACTIONS = new Set(['wrote_file', 'created_artifact', 'write_file']);
 
 export interface ArtifactListResponse {
 	trace_id: string;
@@ -35,12 +26,6 @@ type JobRow = Record<string, unknown> & {
 	worker: string;
 	ticket_id?: string | null;
 	started_at?: string | null;
-};
-
-type ActivityRow = {
-	action: string;
-	target: string | null;
-	timestamp: string | null;
 };
 
 const MIME: Record<string, string> = {
@@ -81,15 +66,7 @@ export async function ensureThumb(absolutePath: string, ext: string): Promise<st
 	}
 }
 
-const DEFAULT_WORKSPACE =
-	process.env.LOGUEOS_ARTIFACT_WORKSPACE_DEFAULT || '/home/dreighto/dev/sully-backend';
-
 const APP_BASE = '/companion';
-
-function workerShortCode(workerId: string): string {
-	// LOS-205: alias-aware; an unknown id renders itself (≤4 chars), never CC.
-	return resolveWorkerTemplate(workerId).shortCode;
-}
 
 export function mimeFromExtension(ext: string): string {
 	return MIME[ext.toLowerCase()] ?? 'application/octet-stream';
@@ -109,100 +86,6 @@ function getJob(traceId: string): JobRow | null {
 	} finally {
 		db.close();
 	}
-}
-
-function getActivity(traceId: string): ActivityRow[] {
-	if (!fs.existsSync(serverConfig.memoryDbPath)) return [];
-	const db = openDb();
-	try {
-		return db
-			.prepare(
-				`SELECT action, target, timestamp FROM chat_activity
-				 WHERE trace_id = ? AND action IN ('wrote_file', 'created_artifact', 'write_file')
-				 ORDER BY id ASC`
-			)
-			.all(traceId) as ActivityRow[];
-	} finally {
-		db.close();
-	}
-}
-
-function resolveWorkspacePath(job: JobRow, activityRows: ActivityRow[]): string {
-	const fromJob = (job.workspace_path ?? job.workspace_root) as string | undefined;
-	if (fromJob && typeof fromJob === 'string' && fromJob.trim()) {
-		return path.resolve(fromJob.trim());
-	}
-
-	const targets = activityRows.map((r) => r.target).filter(Boolean) as string[];
-	if (targets.length === 0) return path.resolve(DEFAULT_WORKSPACE);
-
-	const absolute = targets.filter((t) => path.isAbsolute(t));
-	if (absolute.length === 0) return path.resolve(DEFAULT_WORKSPACE);
-
-	let common = path.resolve(absolute[0]);
-	for (const target of absolute.slice(1)) {
-		const resolved = path.resolve(target);
-		while (
-			resolved !== common &&
-			!resolved.startsWith(common + path.sep) &&
-			common !== path.dirname(common)
-		) {
-			common = path.dirname(common);
-		}
-		if (!resolved.startsWith(common + path.sep) && resolved !== common) {
-			common = path.dirname(resolved);
-		}
-	}
-	return common;
-}
-
-function toOriginalPath(workspacePath: string, target: string): string {
-	const normalized = target.replace(/\\/g, '/');
-	if (path.isAbsolute(target)) {
-		const rel = path.relative(workspacePath, path.resolve(target)).replace(/\\/g, '/');
-		if (rel && !rel.startsWith('..')) return rel;
-	}
-	return normalized.replace(/^\/+/, '');
-}
-
-function artifactUrl(traceId: string, originalPath: string): string {
-	const segments = originalPath.split('/').map((s) => encodeURIComponent(s));
-	return `${APP_BASE}/api/artifacts/${encodeURIComponent(traceId)}/${segments.join('/')}`;
-}
-
-function fileTimestamp(row: ActivityRow, absolutePath: string): string {
-	if (row.timestamp) {
-		const ts = row.timestamp.trim();
-		if (ts) {
-			const iso = ts.includes('T') ? ts : ts.replace(' ', 'T');
-			return iso.endsWith('Z') || /[+-]\d\d/.test(iso) ? iso : `${iso}Z`;
-		}
-	}
-	try {
-		return fs.statSync(absolutePath).mtime.toISOString();
-	} catch {
-		return new Date().toISOString();
-	}
-}
-
-export function buildArtifactMetadata(
-	job: JobRow,
-	workspacePath: string,
-	row: ActivityRow,
-	originalPath: string
-): ArtifactMetadata {
-	const ext = originalPath.split('.').pop()?.toLowerCase() ?? '';
-	return {
-		created_by: workerShortCode(job.worker),
-		task_id: (job.ticket_id as string | null) ?? job.trace_id,
-		trace_id: job.trace_id,
-		timestamp: fileTimestamp(row, path.resolve(workspacePath, originalPath)),
-		source_worker: job.worker,
-		workspace_path: workspacePath,
-		artifact_type: classifyArtifactType(ext),
-		original_path: originalPath,
-		artifact_url: artifactUrl(job.trace_id, originalPath)
-	} as ArtifactMetadata;
 }
 
 export function getTraceWorkspacePath(traceId: string): string | null {
