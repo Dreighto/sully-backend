@@ -1,7 +1,7 @@
 // Azure Speech text-to-speech proxy.
 // POST {text: string, voice?: string, model?: string}
 //   → calls Azure Speech SSML endpoint → streams MP3 back
-// Voice defaults to Emma (en-US-AriaNeural) when omitted.
+// Voice defaults to Emma (en-US-Ava:DragonHDLatestNeural) when omitted.
 // Cap: AZURE_TTS_DAILY_CHAR_CAP env var (falling back to legacy cap env) via
 // chat_tts_usage table.
 
