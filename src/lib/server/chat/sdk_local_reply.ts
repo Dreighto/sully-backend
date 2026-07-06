@@ -3,8 +3,7 @@ import {
 	generateId,
 	streamText,
 	type ToolSet,
-	type UIMessageChunk,
-	type UIMessage
+	type UIMessageChunk
 } from 'ai';
 import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
 import type { LanguageModel } from 'ai';
@@ -29,20 +28,7 @@ import {
 	emitSullyError,
 	type SullyErrorWriter
 } from '$lib/server/chat/sdk_direct_reply';
-
-function transcriptFrom(modelMessages: UIMessage[]): string {
-	return modelMessages
-		.map((m) => {
-			const role = m.role === 'assistant' ? 'assistant' : 'user';
-			const text = (m.parts || [])
-				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text)
-				.join('');
-			return text ? `[${role}]: ${text}` : '';
-		})
-		.filter(Boolean)
-		.join('\n\n');
-}
+import { transcriptFrom } from '$lib/server/chat/local_transcript';
 
 export function handleLocalReply(opts: {
 	ctx: PreparedStreamContext;
