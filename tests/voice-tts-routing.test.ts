@@ -40,7 +40,7 @@ describe('voice-config', () => {
 		const cfg = await getConfig();
 		expect(cfg.voice).toBe('emma');
 		expect(cfg.ttsPath).toBe('/api/chat/speak');
-		expect(cfg.ttsModel).toBe('en-US-AriaNeural');
+		expect(cfg.ttsModel).toBe('en-US-Ava:DragonHDLatestNeural');
 		expect(cfg.ttsFallbackPath).toBe('/api/chat/speak-local');
 	});
 

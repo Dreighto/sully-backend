@@ -57,7 +57,7 @@ describe('voice catalog', () => {
 		const m = await load();
 		expect(m.routingFor(m.getVoice('emma'))).toEqual({
 			ttsPath: '/api/chat/speak',
-			ttsModel: 'en-US-AriaNeural',
+			ttsModel: 'en-US-Ava:DragonHDLatestNeural',
 			ttsFallbackPath: '/api/chat/speak-local'
 		});
 		expect(m.routingFor(m.getVoice('goodman-sully'))).toEqual({

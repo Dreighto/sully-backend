@@ -4,7 +4,11 @@
 // replaced, so the iOS client's audio decoding needs no changes).
 import { env } from '$env/dynamic/private';
 
-export const DEFAULT_AZURE_VOICE = 'en-US-AriaNeural';
+// Ava DragonHD: Azure's newest generative voice tier. More natural cadence
+// and expressiveness than the standard Neural voices (AriaNeural was the
+// prior default). Live-verified against both MP3 (Talkback route) and WAV
+// (Voice Mode streaming) output formats on 2026-07-06.
+export const DEFAULT_AZURE_VOICE = 'en-US-Ava:DragonHDLatestNeural';
 
 export type AzureOutputFormat = 'mp3' | 'wav';
 
