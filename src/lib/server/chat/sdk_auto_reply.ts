@@ -2,13 +2,14 @@
 // runtime when a candidate fails before any reply text is emitted (mirrors
 // llm_router.ts fall-forward semantics for sdk-stream).
 
-import { generateId, type UIMessage, type UIMessageChunk } from 'ai';
+import { generateId, type UIMessageChunk } from 'ai';
 import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
 import { getSensitiveTools } from '$lib/server/companion_tools';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { streamViaClaudeCLI } from '$lib/server/claude_cli_stream';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
+import { transcriptFrom } from '$lib/server/chat/local_transcript';
 import {
 	beginActiveStream,
 	emitRoutingFrame,
@@ -31,20 +32,6 @@ import {
 	recordAutoProviderFailure,
 	recordAutoProviderSuccess
 } from '$lib/server/chat/auto_provider_cooldown';
-
-function transcriptFrom(modelMessages: UIMessage[]): string {
-	return modelMessages
-		.map((m) => {
-			const role = m.role === 'assistant' ? 'assistant' : 'user';
-			const text = (m.parts || [])
-				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text)
-				.join('');
-			return text ? `[${role}]: ${text}` : '';
-		})
-		.filter(Boolean)
-		.join('\n\n');
-}
 
 async function runCliStreamAttempt(opts: {
 	ctx: PreparedStreamContext;

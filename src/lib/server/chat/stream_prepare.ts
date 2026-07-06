@@ -10,181 +10,40 @@
 // handler stays a thin orchestrator (parse → prepare → branch) and the two
 // paths can never drift on the preamble.
 //
-// CRITICAL: the hot-window assembly below is the model-amnesia fix — the
-// frontend resets its SDK chat each send, so body.messages carries only the
-// current turn. The server is the single source of truth for conversation
-// history. This logic is moved here VERBATIM and must not regress.
+// CRITICAL: the hot-window assembly (./hot_window.ts) is the model-amnesia
+// fix — the frontend resets its SDK chat each send, so body.messages carries
+// only the current turn. The server is the single source of truth for
+// conversation history. This logic must not regress.
+//
+// Wave 4 split (2026-07-06): detectTargetRepo moved to ./target_repo.ts,
+// prepareTurnLifecycle to ./turn_lifecycle.ts, the hot-window assembly to
+// ./hot_window.ts, and provider/model resolution to ./provider_resolve.ts.
+// Load-bearing invariant comments (Stage-2 idempotency ordering, R2 gate
+// ordering, the M6 concurrency-scope hot-window logic) travel with their code
+// in those files. All are re-exported here so the ~19 external call sites
+// need no import-path changes.
 
 import { type UIMessage } from 'ai';
-import { getChatMessages } from '$lib/server/chat';
 import { type Tier } from '$lib/server/phase_classifier';
 import { type ThreadState } from '$lib/server/thread_state';
-import { runMode, appIdentity, serverConfig } from '$lib/server/config';
-import { persistUserTurn, classifyAndTouchThread, mintTaskId } from '$lib/server/chat_turn';
 import { buildSystemPrompt } from '$lib/server/chat_prompt';
-import { resolveChatModel } from '$lib/server/model_catalog';
-import { providerPrefToApi } from '$lib/chat/model-registry';
-import { runMutationGate, type MutationGateResult } from '$lib/server/routing/mutation_gate';
-import { resolveTurnDecision, type TurnDecision } from '$lib/server/routing/turn_decision';
-import { logTaskEvent } from '$lib/server/chatActivity';
+import { type MutationGateResult } from '$lib/server/routing/mutation_gate';
+import { type TurnDecision } from '$lib/server/routing/turn_decision';
 import {
-	normalizeInputText,
 	normalizeLatestUserMessage,
 	sourceToNormalizationMode
 } from '$lib/server/input_normalizer';
+import { prepareTurnLifecycle } from './turn_lifecycle';
+import { buildHotWindow } from './hot_window';
+import { resolveProviderAndModel, type Provider } from './provider_resolve';
 
-export type Provider = 'anthropic' | 'google' | 'local';
-
-// Repo selection from message text — same keyword-scan heuristic as the
-// legacy endpoint. Client may also pass an explicit `target_repo`. Exported so
-// the voice pipeline derives the dispatch target the same way text does.
-export function detectTargetRepo(message: string, hint?: string): string {
-	if (hint) return hint;
-	const text = message.toLowerCase();
-	if (text.includes('miru')) return 'project-miru';
-	if (
-		text.includes('orchestrator') ||
-		text.includes('kernel') ||
-		text.includes('logueos-orchestrator')
-	) {
-		return 'LogueOS-Orchestrator';
-	}
-	if (text.includes('nasdoom')) return 'NASDOOM';
-	// Phase 5 / 5a: artifact builds route to Sully's workspace — AFTER the existing-repo
-	// checks above (so "fix the console build" / repo-named work still wins). Triggers on
-	// an explicit workspace reference OR an artifact-creation phrase (a build verb + an
-	// artifact noun like project/dashboard/mockup). Precise by design — a bare "build"
-	// with no artifact noun and no workspace word falls through to the default.
-	if (
-		text.includes('sully-workspace') ||
-		/\b(?:in|into|to|my) (?:the )?workspace\b/.test(text) ||
-		/\b(?:build|create|make|generate|scaffold|draft|put|add)\b[^.!?]*\b(?:project|dashboard|mockup|artifact|site|page|app|landing)\b/.test(
-			text
-		)
-	) {
-		return 'sully-workspace';
-	}
-	// Fork-aware fallback: companion mode → 'companion', wired → 'LogueOS-Console'.
-	return appIdentity.defaultWorkspace;
-}
-
-export interface PrepareTurnLifecycleArgs {
-	/** The user's message text for this turn. */
-	text: string;
-	/** Resolved thread id. */
-	threadId: string;
-	/** Sender label — defaults to 'operator'. */
-	sender?: string;
-	/** Where this turn entered from — 'chat' | 'voice' | 'walkie'. Defaults to 'chat'. */
-	source?: string;
-	/** Optional explicit target repo hint (keyword-scan fallback if absent). */
-	targetRepoHint?: string;
-	/**
-	 * Stage 2 idempotency key — a client-supplied per-turn id. When present, a
-	 * retry/regenerate re-POST of the SAME turn reuses its original operator row +
-	 * Task instead of minting duplicates. Absent → today's behaviour, unchanged.
-	 */
-	clientTurnId?: string | null;
-}
-
-export interface TurnLifecycleResult {
-	taskId: string;
-	currentTier: Tier;
-	threadState: ThreadState;
-	targetRepo: string;
-	userMessageText: string;
-	/**
-	 * chat_messages.id of THIS turn's own operator row (just persisted). Used by
-	 * the hot-window assembly to scope history to this turn's boundary so a
-	 * concurrent peer turn on the same thread can't cross-contaminate the reply.
-	 */
-	operatorRowId: number;
-	/**
-	 * Stage 2: TRUE when this turn REUSED an existing operator row + Task (a keyed
-	 * retry/regenerate re-POST) rather than persisting a fresh one. Surfaced so the
-	 * caller can tell reuse from a fresh insert — critical for the Stage 1 orphan
-	 * rollback, which must NEVER delete a reused (pre-existing, already-answered)
-	 * operator row or expire its handled Task. FALSE on every genuinely-new turn
-	 * (and on every unkeyed turn — today's behaviour).
-	 */
-	reused: boolean;
-	/** Result of the Mutation Gate (R2). Required — compile-enforced so the turn can't proceed without it. */
-	mutationGate: MutationGateResult;
-	/** Pre-stream shadow decision (D1). Journaled only — does not alter reply or dispatch. */
-	shadowDecision: TurnDecision;
-}
-
-/**
- * The shared turn-lifecycle preamble: mint a Task id, persist the operator
- * turn, classify + touch the thread, and resolve the target repo. Both the
- * text pipeline (prepareStream) and the voice pipeline (voice-reply) call this
- * before diverging into their respective prompt builds. The Mutation Gate (R2)
- * hooks in here — one chokepoint, impossible to bypass.
- */
-export async function prepareTurnLifecycle(
-	args: PrepareTurnLifecycleArgs
-): Promise<TurnLifecycleResult> {
-	const { text, threadId } = args;
-	const source = args.source ?? 'chat';
-	const normalizedText = normalizeInputText(text, sourceToNormalizationMode(source));
-
-	const taskId = mintTaskId();
-	// Capture the persisted operator row so the hot-window assembly (prepareStream)
-	// can pin its history to THIS turn's own boundary (row id) and never pull in a
-	// concurrent peer turn's freshly-persisted operator row. Stage 2: on a keyed
-	// re-POST (retry/regenerate), persistUserTurn REUSES the original row + Task
-	// instead of minting duplicates — `reused` tells us which taskId is effective.
-	const persisted = persistUserTurn({
-		text: normalizedText,
-		threadId,
-		taskId,
-		source,
-		sender: args.sender,
-		clientTurnId: args.clientTurnId
-	});
-	// CRITICAL ORDERING: on reuse the EFFECTIVE task id is the existing row's
-	// task_id — NOT the freshly minted one. Rebind HERE, BEFORE classify runs, so
-	// the classifier journal + tier attach to the reused row's Task (a fresh id
-	// would orphan the classify trail from the row it belongs to). persistUserTurn
-	// already skipped the up-front proposeTask + task_proposed journal on reuse, so
-	// classifyAndTouchThread below only re-touches the tier (idempotent) — it never
-	// re-proposes. On a genuinely-new turn effectiveTaskId === taskId, unchanged.
-	const operatorRow = persisted.row;
-	const effectiveTaskId = persisted.reused ? (persisted.taskId ?? taskId) : taskId;
-	const { currentTier, threadState } = classifyAndTouchThread({
-		threadId,
-		userText: normalizedText,
-		taskId: effectiveTaskId
-	});
-	const targetRepo = detectTargetRepo(normalizedText, args.targetRepoHint);
-	// R2: run the Mutation Gate after classify (so the active-task query is
-	// post-classify, not pre). One chokepoint — impossible to bypass.
-	const mutationGate = runMutationGate(threadId, normalizedText);
-
-	// D1.2: shadow-compute the turn decision pre-stream (deterministic — no gateBlock).
-	// Read-only + one journal write. Does NOT alter the reply or dispatch path.
-	const shadowDecision = resolveTurnDecision({
-		userText: normalizedText,
-		threadId,
-		mutationGate,
-		tier: currentTier
-	});
-	logTaskEvent(effectiveTaskId, 'turn_decision_shadow', { kind: shadowDecision.kind });
-
-	return {
-		taskId: effectiveTaskId,
-		currentTier,
-		threadState,
-		targetRepo,
-		userMessageText: normalizedText,
-		operatorRowId: operatorRow.id,
-		// Surface reuse so the route's orphan rollback can tell a freshly-persisted
-		// operator row (rollback-eligible) from a reused one (NEVER roll back).
-		reused: persisted.reused,
-		mutationGate,
-		shadowDecision
-	};
-}
+export { detectTargetRepo } from './target_repo';
+export {
+	prepareTurnLifecycle,
+	type PrepareTurnLifecycleArgs,
+	type TurnLifecycleResult
+} from './turn_lifecycle';
+export { type Provider } from './provider_resolve';
 
 export interface PrepareArgs {
 	/** The body's current-turn messages (validated non-empty by the caller). */
@@ -321,96 +180,16 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 		clientTurnId: args.clientTurnId
 	});
 
-	// ── Hot window ──────────────────────────────────────────────────────────
-	// The frontend resets its SDK chat each send (streaming.svelte.ts), so
-	// `body.messages` carries only the CURRENT turn. The server is the single
-	// source of truth: assemble the model's real conversation from chat_messages
-	// here. Without this, switching models mid-thread (or any second turn) ships
-	// the new turn with NO history — the model genuinely "forgets" the chat.
-	// HOT_WINDOW must match working_memory.ts (the Layer-1 summary covers only
-	// older-than-window history; these last turns are sent verbatim).
-	const HOT_WINDOW = 20;
-	// Concurrency scope (M6): two operator messages sent to the SAME thread ~1-2s
-	// apart used to cross-contaminate — the later turn read the earlier, still
-	// in-flight peer's freshly-persisted operator row into its window and answered
-	// BOTH messages (the old `slice(0, len - messages.length)` only dropped a fixed
-	// count from the end, so a peer's dangling operator row survived). Pin the
-	// window to THIS turn's own operator row instead, keyed off its just-persisted
-	// row id:
-	//   1. Exclude any row a later peer persisted AFTER our snapshot (id >
-	//      operatorRowId) — not part of this turn's history.
-	//   2. Drop the TRAILING run of operator rows — our own just-persisted text copy
-	//      PLUS any concurrent-peer operator row(s) that landed alongside it — then
-	//      append the body's rich copy of our own turn instead (it preserves parts
-	//      like image attachments that chat_messages stores only as text).
-	// A settled (non-concurrent) thread ends in exactly ONE trailing operator row —
-	// this turn's own — so single-send history is unchanged from before.
-	const windowRows = getChatMessages(HOT_WINDOW, threadId).filter(
-		(r) =>
-			r.sender !== 'system' &&
-			typeof r.message === 'string' &&
-			r.message.trim() !== '' &&
-			r.id <= operatorRowId
-	);
-	let priorCut = windowRows.length;
-	while (priorCut > 0 && windowRows[priorCut - 1].sender === 'operator') priorCut--;
-	const priorTurns: UIMessage[] = windowRows.slice(0, priorCut).map(
-		(r) =>
-			({
-				id: String(r.id),
-				role: r.sender === 'operator' ? 'user' : 'assistant',
-				parts: [{ type: 'text', text: r.message }]
-			}) as UIMessage
-	);
-	const modelMessages: UIMessage[] = [...priorTurns, ...messages];
+	const modelMessages = buildHotWindow(threadId, operatorRowId, messages);
 
 	const targetRepo = lifecycleTargetRepo;
 
-	// Provider preference:
-	//   1. Explicit body.provider (client just chose a model)
-	//   2. thread_state.provider_override (persisted via model picker)
-	//   3. Default 'google' (matches legacy AGY-chat-lock UX). Operator can
-	//      flip to Anthropic via picker; Anthropic-via-OAuth is free.
-	const overrideFromState: Provider | undefined = providerPrefToApi(threadState.provider_override);
-	// Tier 'local' implicitly selects the local provider unless the operator
-	// has explicitly overridden. Lets the existing "Local (Ollama)" model
-	// picker option route through Ollama without per-thread setup.
-	const tierImpliesLocal: Provider | null = currentTier === 'local' ? 'local' : null;
-	// Companion mode defaults to the LOCAL provider (companion-v1) instead of
-	// cloud Google — while keeping cloud models selectable via the picker.
-	// COMPANION_LOCAL_DISABLED env flag (operator-controlled) suppresses the
-	// implicit local default so Auto never loads a GPU model. Used when the
-	// GPU is busy with QLoRA training or other workloads. The picker's
-	// explicit "Local (Ollama)" option still works because that path sets
-	// args.provider='local' which takes priority over this default.
-	const companionDefault: Provider | null =
-		runMode.companion && !serverConfig.companionLocalDisabled ? 'local' : null;
-	const autoMode = args.provider === undefined || args.provider === null;
-	// Auto mode resolves provider/model dynamically in auto_router.ts (tier →
-	// anthropic → google → Ollama Cloud DeepSeek). The placeholder here is only
-	// used for system-prompt assembly and CLI-bridge hints until +server.ts
-	// overwrites it with the resolved lane.
-	const provider: Provider = autoMode
-		? 'anthropic'
-		: (args.provider ?? overrideFromState ?? tierImpliesLocal ?? companionDefault ?? 'google');
-
-	// Resolve the model id up-front so we can decide between the direct API
-	// route and the Claude CLI bridge. Anthropic's Claude Max OAuth only
-	// grants direct API access to Haiku — Sonnet/Opus return 429 with a
-	// mislabel'd "rate_limit_error". The CLI binary is the authorized client
-	// that CAN reach Sonnet/Opus through OAuth. Operator directive 2026-05-27:
-	// "use the CLI bridge, do NOT prompt for a billed API key — defeats the
-	// purpose of paying for Max." So Sonnet/Opus ALWAYS route through CLI
-	// regardless of any API-key env presence.
-	// Resolve via the shared catalog — precedence: body.model → companion-mode
-	// local default (companion-v1) → tier × provider matrix. Used here UP-FRONT
-	// to decide between the direct API path and the CLI bridge.
-	const resolvedModelId = resolveChatModel({
-		tier: currentTier,
-		provider,
-		requestedModel: args.model
+	const { autoMode, provider, resolvedModelId, useClaudeCLI } = resolveProviderAndModel({
+		argsProvider: args.provider,
+		requestedModel: args.model,
+		currentTier,
+		threadState
 	});
-	const useClaudeCLI = provider === 'anthropic' && /sonnet|opus/i.test(resolvedModelId);
 
 	// Sensitive machine-read + web tools are attached only for the operator's own
 	// devices. Two ways to qualify:
