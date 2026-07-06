@@ -54,17 +54,17 @@ You are **not** cloning CUR's CSS. You are **not** implementing Svelte productio
 
 Create **all** files under `docs/flagship-visual-mockups/agy/`:
 
-| File | Must communicate (content IA) |
-|------|-------------------------------|
-| `index.html` | Hub linking to every mockup; one-line description of your visual direction |
-| `shared.css` | **Your** shared styles; must define the locked `:root` tokens (copy from spec) |
-| `01-chat-quiet.html` | Active thread: quiet message surface, glass/neutral user bubble, flat Sully reply, **no** always-on action row; model control in header not buried in composer |
-| `02-empty-state.html` | Greeting + **tappable suggested prompt chips** (at least 4); composer at bottom |
-| `03-sidebar-clean.html` | Thread list with human-readable titles; Active Tasks section; **no** dev footer (`HOST:`, raw IP) |
-| `04-message-sheet.html` | Long-press / overflow **action sheet** (Copy, Regenerate, Read aloud, etc.) — native iOS sheet feel |
-| `05-compare-before-after.html` | Side-by-side or equivalent: **today's noisy chrome** vs **your target** (can use simplified "before" column) |
-| `06-chat-with-worker.html` | Thread with **WorkerPill** + in-progress work; assistant replies stay visually quiet |
-| `07-voice-mode.html` | Full-screen voice overlay: orb/avatar focal point, status line, mic control, idle starters optional; show at least idle + one active state (listening or speaking) |
+| File                           | Must communicate (content IA)                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `index.html`                   | Hub linking to every mockup; one-line description of your visual direction                                                                                         |
+| `shared.css`                   | **Your** shared styles; must define the locked `:root` tokens (copy from spec)                                                                                     |
+| `01-chat-quiet.html`           | Active thread: quiet message surface, glass/neutral user bubble, flat Sully reply, **no** always-on action row; model control in header not buried in composer     |
+| `02-empty-state.html`          | Greeting + **tappable suggested prompt chips** (at least 4); composer at bottom                                                                                    |
+| `03-sidebar-clean.html`        | Thread list with human-readable titles; Active Tasks section; **no** dev footer (`HOST:`, raw IP)                                                                  |
+| `04-message-sheet.html`        | Long-press / overflow **action sheet** (Copy, Regenerate, Read aloud, etc.) — native iOS sheet feel                                                                |
+| `05-compare-before-after.html` | Side-by-side or equivalent: **today's noisy chrome** vs **your target** (can use simplified "before" column)                                                       |
+| `06-chat-with-worker.html`     | Thread with **WorkerPill** + in-progress work; assistant replies stay visually quiet                                                                               |
+| `07-voice-mode.html`           | Full-screen voice overlay: orb/avatar focal point, status line, mic control, idle starters optional; show at least idle + one active state (listening or speaking) |
 
 **Optional but appreciated:**
 
@@ -75,13 +75,13 @@ Create **all** files under `docs/flagship-visual-mockups/agy/`:
 
 ## Reference material (read before you start)
 
-| Resource | Why |
-|----------|-----|
-| `docs/design/sully-locked-spec.md` | Canonical tokens, ash discipline, motion |
-| `docs/flagship-visual-mockups/*.html` | CUR's IA — **structure reference, not style reference** |
-| `docs/2026-06-11-flagship-visual-pass-plan.md` | Phase goals + what "flagship" means for Sully |
-| `docs/2026-06-01-companion-audit-findings.md` | Gap list vs ChatGPT/Gemini/Claude |
-| `docs/flagship-visual-mockups/screenshots/baseline/` | Production Sully + Gemini reference PNGs |
+| Resource                                             | Why                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------- |
+| `docs/design/sully-locked-spec.md`                   | Canonical tokens, ash discipline, motion                |
+| `docs/flagship-visual-mockups/*.html`                | CUR's IA — **structure reference, not style reference** |
+| `docs/2026-06-11-flagship-visual-pass-plan.md`       | Phase goals + what "flagship" means for Sully           |
+| `docs/2026-06-01-companion-audit-findings.md`        | Gap list vs ChatGPT/Gemini/Claude                       |
+| `docs/flagship-visual-mockups/screenshots/baseline/` | Production Sully + Gemini reference PNGs                |
 
 ---
 
@@ -123,9 +123,9 @@ cd /home/dreighto/dev/LogueOS-Companion/docs/flagship-visual-mockups/agy
 python3 -m http.server 8766 --bind 0.0.0.0
 ```
 
-| URL | |
-|-----|--|
-| Loopback | `http://127.0.0.1:8766/` |
+| URL               |                                       |
+| ----------------- | ------------------------------------- |
+| Loopback          | `http://127.0.0.1:8766/`              |
 | Tailscale (phone) | `http://room.taila28611.ts.net:8766/` |
 
 Compare against CUR: `http://room.taila28611.ts.net:8765/`
@@ -181,13 +181,13 @@ WHEN DONE:
 
 ## After both packs exist
 
-| Worker | Folder | Default port |
-|--------|--------|--------------|
-| CUR | `docs/flagship-visual-mockups/` | 8765 (systemd `logueos-companion-mockups.service`) |
-| AGY | `docs/flagship-visual-mockups/agy/` | 8766 (`logueos-companion-mockups-agy.service`) |
+| Worker | Folder                              | Default port                                       |
+| ------ | ----------------------------------- | -------------------------------------------------- |
+| CUR    | `docs/flagship-visual-mockups/`     | 8765 (systemd `logueos-companion-mockups.service`) |
+| AGY    | `docs/flagship-visual-mockups/agy/` | 8766 (`logueos-companion-mockups-agy.service`)     |
 
 Operator compares the same screens across ports on the iPhone, then picks direction (or hybrid) before CUR implements in the `feat/cur-flagship-visual-pass` worktree.
 
 ---
 
-*This doc is the handoff artifact. CUR generated it; AGY executes from the prompt block above.*
+_This doc is the handoff artifact. CUR generated it; AGY executes from the prompt block above._

@@ -1,686 +1,1250 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Sully — Living Canvas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet" />
-<style>
-  :root {
-    --bg: #050505;
-    --brand-deep: #c4186a;
-    --brand: #ec2d78;
-    --brand-bright: #ff4d94;
-    --brand-soft: #ff7eb3;
-    --brand-glow: #ff8fc0;
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<title>Sully — Living Canvas</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			:root {
+				--bg: #050505;
+				--brand-deep: #c4186a;
+				--brand: #ec2d78;
+				--brand-bright: #ff4d94;
+				--brand-soft: #ff7eb3;
+				--brand-glow: #ff8fc0;
 
-    --zinc-50: #fafafa;
-    --zinc-300: #d4d4d8;
-    --zinc-400: #a1a1aa;
-    --zinc-500: #71717a;
-    --zinc-600: #52525b;
-    --zinc-700: #3f3f46;
+				--zinc-50: #fafafa;
+				--zinc-300: #d4d4d8;
+				--zinc-400: #a1a1aa;
+				--zinc-500: #71717a;
+				--zinc-600: #52525b;
+				--zinc-700: #3f3f46;
 
-    --surface-1: rgba(24, 24, 27, 0.62);
-    --surface-2: rgba(32, 32, 36, 0.7);
-    --hairline: rgba(255, 255, 255, 0.06);
-    --hairline-strong: rgba(255, 255, 255, 0.09);
+				--surface-1: rgba(24, 24, 27, 0.62);
+				--surface-2: rgba(32, 32, 36, 0.7);
+				--hairline: rgba(255, 255, 255, 0.06);
+				--hairline-strong: rgba(255, 255, 255, 0.09);
 
-    --shadow-soft: 0 1px 0 rgba(255,255,255,0.04) inset, 0 12px 30px -12px rgba(0,0,0,0.7);
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  }
+				--shadow-soft:
+					0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 30px -12px rgba(0, 0, 0, 0.7);
+				--ease: cubic-bezier(0.22, 1, 0.36, 1);
+			}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
 
-  html, body {
-    background: var(--bg);
-    color: var(--zinc-300);
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    letter-spacing: -0.01em;
-  }
+			html,
+			body {
+				background: var(--bg);
+				color: var(--zinc-300);
+				font-family:
+					'Inter',
+					-apple-system,
+					BlinkMacSystemFont,
+					system-ui,
+					sans-serif;
+				font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+				-webkit-font-smoothing: antialiased;
+				text-rendering: optimizeLegibility;
+				letter-spacing: -0.01em;
+			}
 
-  body {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 40px;
-    padding: 48px 16px 64px;
-    position: relative;
-    overflow-x: hidden;
-  }
+			body {
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 40px;
+				padding: 48px 16px 64px;
+				position: relative;
+				overflow-x: hidden;
+			}
 
-  /* ===== Page-level deep ambient aurora (behind everything) ===== */
-  .page-aura {
-    position: fixed;
-    inset: -20% -20% -20% -20%;
-    z-index: 0;
-    pointer-events: none;
-    filter: blur(40px);
-    opacity: 0.5;
-  }
-  .page-aura::before,
-  .page-aura::after {
-    content: "";
-    position: absolute;
-    border-radius: 50%;
-  }
-  .page-aura::before {
-    width: 60vmax; height: 60vmax;
-    top: -10vmax; left: -15vmax;
-    background: radial-gradient(circle at 50% 50%, rgba(196,24,106,0.16), rgba(196,24,106,0) 65%);
-    animation: drift1 26s var(--ease) infinite alternate;
-  }
-  .page-aura::after {
-    width: 50vmax; height: 50vmax;
-    bottom: -12vmax; right: -10vmax;
-    background: radial-gradient(circle at 50% 50%, rgba(236,45,120,0.12), rgba(236,45,120,0) 64%);
-    animation: drift2 32s var(--ease) infinite alternate;
-  }
-  @keyframes drift1 {
-    0%   { transform: translate3d(0,0,0) scale(1); }
-    100% { transform: translate3d(8vmax, 6vmax, 0) scale(1.12); }
-  }
-  @keyframes drift2 {
-    0%   { transform: translate3d(0,0,0) scale(1.05); }
-    100% { transform: translate3d(-6vmax,-5vmax,0) scale(0.95); }
-  }
+			/* ===== Page-level deep ambient aurora (behind everything) ===== */
+			.page-aura {
+				position: fixed;
+				inset: -20% -20% -20% -20%;
+				z-index: 0;
+				pointer-events: none;
+				filter: blur(40px);
+				opacity: 0.5;
+			}
+			.page-aura::before,
+			.page-aura::after {
+				content: '';
+				position: absolute;
+				border-radius: 50%;
+			}
+			.page-aura::before {
+				width: 60vmax;
+				height: 60vmax;
+				top: -10vmax;
+				left: -15vmax;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(196, 24, 106, 0.16),
+					rgba(196, 24, 106, 0) 65%
+				);
+				animation: drift1 26s var(--ease) infinite alternate;
+			}
+			.page-aura::after {
+				width: 50vmax;
+				height: 50vmax;
+				bottom: -12vmax;
+				right: -10vmax;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(236, 45, 120, 0.12),
+					rgba(236, 45, 120, 0) 64%
+				);
+				animation: drift2 32s var(--ease) infinite alternate;
+			}
+			@keyframes drift1 {
+				0% {
+					transform: translate3d(0, 0, 0) scale(1);
+				}
+				100% {
+					transform: translate3d(8vmax, 6vmax, 0) scale(1.12);
+				}
+			}
+			@keyframes drift2 {
+				0% {
+					transform: translate3d(0, 0, 0) scale(1.05);
+				}
+				100% {
+					transform: translate3d(-6vmax, -5vmax, 0) scale(0.95);
+				}
+			}
 
-  .stage { position: relative; z-index: 1; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .stage-label {
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--zinc-600);
-    font-weight: 500;
-  }
+			.stage {
+				position: relative;
+				z-index: 1;
+				width: 100%;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 14px;
+			}
+			.stage-label {
+				font-size: 11px;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: var(--zinc-600);
+				font-weight: 500;
+			}
 
-  /* ===== Phone frame ===== */
-  .phone {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    height: 860px;
-    border-radius: 46px;
-    overflow: hidden;
-    background: var(--bg);
-    border: 1px solid rgba(255,255,255,0.05);
-    box-shadow:
-      0 0 0 1px rgba(0,0,0,0.6),
-      0 50px 90px -30px rgba(0,0,0,0.85),
-      0 0 80px -20px rgba(196,24,106,0.18);
-    isolation: isolate;
-  }
+			/* ===== Phone frame ===== */
+			.phone {
+				position: relative;
+				width: 100%;
+				max-width: 420px;
+				height: 860px;
+				border-radius: 46px;
+				overflow: hidden;
+				background: var(--bg);
+				border: 1px solid rgba(255, 255, 255, 0.05);
+				box-shadow:
+					0 0 0 1px rgba(0, 0, 0, 0.6),
+					0 50px 90px -30px rgba(0, 0, 0, 0.85),
+					0 0 80px -20px rgba(196, 24, 106, 0.18);
+				isolation: isolate;
+			}
 
-  /* ===== In-app drifting aurora (the canvas itself breathes) ===== */
-  .app-aura {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .app-aura .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(46px);
-    will-change: transform, opacity;
-  }
-  .app-aura .b1 {
-    width: 340px; height: 340px;
-    top: -90px; left: -70px;
-    background: radial-gradient(circle at 50% 50%, rgba(236,45,120,0.22), rgba(236,45,120,0) 68%);
-    animation: aura1 18s var(--ease) infinite alternate;
-  }
-  .app-aura .b2 {
-    width: 300px; height: 300px;
-    bottom: 30px; right: -90px;
-    background: radial-gradient(circle at 50% 50%, rgba(196,24,106,0.2), rgba(196,24,106,0) 66%);
-    animation: aura2 24s var(--ease) infinite alternate;
-  }
-  .app-aura .b3 {
-    width: 260px; height: 260px;
-    top: 38%; left: 30%;
-    background: radial-gradient(circle at 50% 50%, rgba(255,77,148,0.1), rgba(255,77,148,0) 70%);
-    animation: aura3 30s var(--ease) infinite alternate;
-  }
-  @keyframes aura1 {
-    0%   { transform: translate(0,0) scale(1); opacity: 0.85; }
-    100% { transform: translate(40px, 60px) scale(1.15); opacity: 1; }
-  }
-  @keyframes aura2 {
-    0%   { transform: translate(0,0) scale(1.1); opacity: 0.9; }
-    100% { transform: translate(-50px, -40px) scale(0.95); opacity: 0.65; }
-  }
-  @keyframes aura3 {
-    0%   { transform: translate(0,0) scale(1); opacity: 0.5; }
-    50%  { opacity: 0.9; }
-    100% { transform: translate(-30px, -50px) scale(1.2); opacity: 0.55; }
-  }
+			/* ===== In-app drifting aurora (the canvas itself breathes) ===== */
+			.app-aura {
+				position: absolute;
+				inset: 0;
+				z-index: 0;
+				pointer-events: none;
+				overflow: hidden;
+			}
+			.app-aura .blob {
+				position: absolute;
+				border-radius: 50%;
+				filter: blur(46px);
+				will-change: transform, opacity;
+			}
+			.app-aura .b1 {
+				width: 340px;
+				height: 340px;
+				top: -90px;
+				left: -70px;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(236, 45, 120, 0.22),
+					rgba(236, 45, 120, 0) 68%
+				);
+				animation: aura1 18s var(--ease) infinite alternate;
+			}
+			.app-aura .b2 {
+				width: 300px;
+				height: 300px;
+				bottom: 30px;
+				right: -90px;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(196, 24, 106, 0.2),
+					rgba(196, 24, 106, 0) 66%
+				);
+				animation: aura2 24s var(--ease) infinite alternate;
+			}
+			.app-aura .b3 {
+				width: 260px;
+				height: 260px;
+				top: 38%;
+				left: 30%;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(255, 77, 148, 0.1),
+					rgba(255, 77, 148, 0) 70%
+				);
+				animation: aura3 30s var(--ease) infinite alternate;
+			}
+			@keyframes aura1 {
+				0% {
+					transform: translate(0, 0) scale(1);
+					opacity: 0.85;
+				}
+				100% {
+					transform: translate(40px, 60px) scale(1.15);
+					opacity: 1;
+				}
+			}
+			@keyframes aura2 {
+				0% {
+					transform: translate(0, 0) scale(1.1);
+					opacity: 0.9;
+				}
+				100% {
+					transform: translate(-50px, -40px) scale(0.95);
+					opacity: 0.65;
+				}
+			}
+			@keyframes aura3 {
+				0% {
+					transform: translate(0, 0) scale(1);
+					opacity: 0.5;
+				}
+				50% {
+					opacity: 0.9;
+				}
+				100% {
+					transform: translate(-30px, -50px) scale(1.2);
+					opacity: 0.55;
+				}
+			}
 
-  /* faint top + bottom vignette so depth reads, content stays legible */
-  .vignette {
-    position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background:
-      radial-gradient(120% 60% at 50% -10%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%),
-      linear-gradient(180deg, rgba(5,5,5,0.85) 0%, rgba(5,5,5,0) 18%, rgba(5,5,5,0) 78%, rgba(5,5,5,0.92) 100%);
-  }
+			/* faint top + bottom vignette so depth reads, content stays legible */
+			.vignette {
+				position: absolute;
+				inset: 0;
+				z-index: 1;
+				pointer-events: none;
+				background:
+					radial-gradient(120% 60% at 50% -10%, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.4) 100%),
+					linear-gradient(
+						180deg,
+						rgba(5, 5, 5, 0.85) 0%,
+						rgba(5, 5, 5, 0) 18%,
+						rgba(5, 5, 5, 0) 78%,
+						rgba(5, 5, 5, 0.92) 100%
+					);
+			}
 
-  .screen {
-    position: relative;
-    z-index: 2;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
+			.screen {
+				position: relative;
+				z-index: 2;
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+			}
 
-  /* ===== Status bar ===== */
-  .statusbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 28px 4px;
-    font-size: 13px; font-weight: 600; color: var(--zinc-300);
-    letter-spacing: 0;
-  }
-  .statusbar .dots { display: flex; gap: 5px; align-items: center; }
-  .statusbar svg { display: block; }
+			/* ===== Status bar ===== */
+			.statusbar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 16px 28px 4px;
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--zinc-300);
+				letter-spacing: 0;
+			}
+			.statusbar .dots {
+				display: flex;
+				gap: 5px;
+				align-items: center;
+			}
+			.statusbar svg {
+				display: block;
+			}
 
-  /* ===== Top bar ===== */
-  .topbar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 18px 12px;
-    position: relative;
-  }
-  .topbar::after {
-    content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--hairline-strong) 30%, var(--hairline-strong) 70%, transparent);
-  }
-  .icon-btn {
-    width: 38px; height: 38px;
-    display: grid; place-items: center;
-    border-radius: 13px;
-    color: var(--zinc-400);
-    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
-    border: 1px solid var(--hairline);
-    box-shadow: var(--shadow-soft);
-    cursor: pointer;
-    transition: transform 0.18s var(--ease), color 0.18s, background 0.18s;
-  }
-  .icon-btn:hover { color: var(--zinc-300); background: rgba(255,255,255,0.05); }
-  .icon-btn:active { transform: scale(0.93); }
+			/* ===== Top bar ===== */
+			.topbar {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 10px 18px 12px;
+				position: relative;
+			}
+			.topbar::after {
+				content: '';
+				position: absolute;
+				left: 18px;
+				right: 18px;
+				bottom: 0;
+				height: 1px;
+				background: linear-gradient(
+					90deg,
+					transparent,
+					var(--hairline-strong) 30%,
+					var(--hairline-strong) 70%,
+					transparent
+				);
+			}
+			.icon-btn {
+				width: 38px;
+				height: 38px;
+				display: grid;
+				place-items: center;
+				border-radius: 13px;
+				color: var(--zinc-400);
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
+				border: 1px solid var(--hairline);
+				box-shadow: var(--shadow-soft);
+				cursor: pointer;
+				transition:
+					transform 0.18s var(--ease),
+					color 0.18s,
+					background 0.18s;
+			}
+			.icon-btn:hover {
+				color: var(--zinc-300);
+				background: rgba(255, 255, 255, 0.05);
+			}
+			.icon-btn:active {
+				transform: scale(0.93);
+			}
 
-  .identity { display: flex; align-items: center; gap: 9px; flex: 1; }
-  .id-dot {
-    width: 9px; height: 9px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, var(--brand-soft), var(--brand) 60%, var(--brand-deep));
-    box-shadow: 0 0 0 4px rgba(236,45,120,0.12), 0 0 14px 2px rgba(236,45,120,0.55);
-    animation: dotPulse 3.6s ease-in-out infinite;
-  }
-  @keyframes dotPulse {
-    0%, 100% { box-shadow: 0 0 0 4px rgba(236,45,120,0.10), 0 0 12px 1px rgba(236,45,120,0.45); }
-    50%      { box-shadow: 0 0 0 5px rgba(236,45,120,0.16), 0 0 20px 4px rgba(236,45,120,0.7); }
-  }
-  .id-name { font-size: 16px; font-weight: 600; color: var(--zinc-50); letter-spacing: -0.02em; }
-  .id-sub { font-size: 11px; color: var(--zinc-600); margin-top: -1px; }
+			.identity {
+				display: flex;
+				align-items: center;
+				gap: 9px;
+				flex: 1;
+			}
+			.id-dot {
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 35% 30%,
+					var(--brand-soft),
+					var(--brand) 60%,
+					var(--brand-deep)
+				);
+				box-shadow:
+					0 0 0 4px rgba(236, 45, 120, 0.12),
+					0 0 14px 2px rgba(236, 45, 120, 0.55);
+				animation: dotPulse 3.6s ease-in-out infinite;
+			}
+			@keyframes dotPulse {
+				0%,
+				100% {
+					box-shadow:
+						0 0 0 4px rgba(236, 45, 120, 0.1),
+						0 0 12px 1px rgba(236, 45, 120, 0.45);
+				}
+				50% {
+					box-shadow:
+						0 0 0 5px rgba(236, 45, 120, 0.16),
+						0 0 20px 4px rgba(236, 45, 120, 0.7);
+				}
+			}
+			.id-name {
+				font-size: 16px;
+				font-weight: 600;
+				color: var(--zinc-50);
+				letter-spacing: -0.02em;
+			}
+			.id-sub {
+				font-size: 11px;
+				color: var(--zinc-600);
+				margin-top: -1px;
+			}
 
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 32px; padding: 0 13px;
-    font-size: 12.5px; font-weight: 500; color: var(--zinc-300);
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018));
-    border: 1px solid var(--hairline-strong);
-    box-shadow: var(--shadow-soft);
-    cursor: pointer;
-    transition: transform 0.18s var(--ease);
-  }
-  .chip:active { transform: scale(0.95); }
-  .chip .feather { font-size: 13px; }
+			.chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				height: 32px;
+				padding: 0 13px;
+				font-size: 12.5px;
+				font-weight: 500;
+				color: var(--zinc-300);
+				border-radius: 999px;
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.018));
+				border: 1px solid var(--hairline-strong);
+				box-shadow: var(--shadow-soft);
+				cursor: pointer;
+				transition: transform 0.18s var(--ease);
+			}
+			.chip:active {
+				transform: scale(0.95);
+			}
+			.chip .feather {
+				font-size: 13px;
+			}
 
-  /* ===== Conversation ===== */
-  .convo {
-    flex: 1;
-    overflow: hidden;
-    padding: 22px 22px 8px;
-    display: flex; flex-direction: column; gap: 22px;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 26px, #000 calc(100% - 12px), transparent 100%);
-            mask-image: linear-gradient(180deg, transparent 0, #000 26px, #000 calc(100% - 12px), transparent 100%);
-  }
+			/* ===== Conversation ===== */
+			.convo {
+				flex: 1;
+				overflow: hidden;
+				padding: 22px 22px 8px;
+				display: flex;
+				flex-direction: column;
+				gap: 22px;
+				-webkit-mask-image: linear-gradient(
+					180deg,
+					transparent 0,
+					#000 26px,
+					#000 calc(100% - 12px),
+					transparent 100%
+				);
+				mask-image: linear-gradient(
+					180deg,
+					transparent 0,
+					#000 26px,
+					#000 calc(100% - 12px),
+					transparent 100%
+				);
+			}
 
-  .daystamp {
-    align-self: center;
-    font-size: 11px; color: var(--zinc-600);
-    letter-spacing: 0.04em;
-    padding: 4px 0;
-  }
+			.daystamp {
+				align-self: center;
+				font-size: 11px;
+				color: var(--zinc-600);
+				letter-spacing: 0.04em;
+				padding: 4px 0;
+			}
 
-  /* Operator pill — right aligned, neutral, subtle depth */
-  .op-row { display: flex; justify-content: flex-end; }
-  .op-pill {
-    max-width: 78%;
-    padding: 12px 16px;
-    font-size: 15px; line-height: 1.5; color: var(--zinc-50);
-    border-radius: 20px 20px 6px 20px;
-    background:
-      linear-gradient(180deg, rgba(42,42,47,0.92), rgba(30,30,34,0.92));
-    border: 1px solid var(--hairline-strong);
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.05) inset,
-      0 14px 26px -16px rgba(0,0,0,0.8);
-    letter-spacing: -0.012em;
-  }
+			/* Operator pill — right aligned, neutral, subtle depth */
+			.op-row {
+				display: flex;
+				justify-content: flex-end;
+			}
+			.op-pill {
+				max-width: 78%;
+				padding: 12px 16px;
+				font-size: 15px;
+				line-height: 1.5;
+				color: var(--zinc-50);
+				border-radius: 20px 20px 6px 20px;
+				background: linear-gradient(180deg, rgba(42, 42, 47, 0.92), rgba(30, 30, 34, 0.92));
+				border: 1px solid var(--hairline-strong);
+				box-shadow:
+					0 1px 0 rgba(255, 255, 255, 0.05) inset,
+					0 14px 26px -16px rgba(0, 0, 0, 0.8);
+				letter-spacing: -0.012em;
+			}
 
-  /* Sully reply — flat, no card, under a name-tag */
-  .sully-block { display: flex; flex-direction: column; gap: 8px; max-width: 90%; }
-  .nametag { display: inline-flex; align-items: center; gap: 7px; }
-  .nametag .nt-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, var(--brand-soft), var(--brand) 65%, var(--brand-deep));
-    box-shadow: 0 0 8px 1px rgba(236,45,120,0.6);
-  }
-  .nametag .nt-name {
-    font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em;
-    color: var(--brand-soft);
-  }
-  .sully-text {
-    font-size: 15.5px; line-height: 1.62; color: var(--zinc-300);
-    letter-spacing: -0.012em;
-    padding-left: 1px;
-  }
-  .sully-text strong { color: var(--zinc-50); font-weight: 600; }
+			/* Sully reply — flat, no card, under a name-tag */
+			.sully-block {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				max-width: 90%;
+			}
+			.nametag {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+			}
+			.nametag .nt-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 35% 30%,
+					var(--brand-soft),
+					var(--brand) 65%,
+					var(--brand-deep)
+				);
+				box-shadow: 0 0 8px 1px rgba(236, 45, 120, 0.6);
+			}
+			.nametag .nt-name {
+				font-size: 12.5px;
+				font-weight: 600;
+				letter-spacing: 0.01em;
+				color: var(--brand-soft);
+			}
+			.sully-text {
+				font-size: 15.5px;
+				line-height: 1.62;
+				color: var(--zinc-300);
+				letter-spacing: -0.012em;
+				padding-left: 1px;
+			}
+			.sully-text strong {
+				color: var(--zinc-50);
+				font-weight: 600;
+			}
 
-  /* working / system pill */
-  .working {
-    align-self: flex-start;
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 9px 14px 9px 12px;
-    border-radius: 999px;
-    font-size: 12.5px; color: var(--zinc-400);
-    background: linear-gradient(180deg, rgba(28,28,32,0.7), rgba(20,20,23,0.7));
-    border: 1px solid var(--hairline);
-    box-shadow: var(--shadow-soft);
-  }
-  .working b { color: var(--zinc-300); font-weight: 600; }
-  .pulse-ring {
-    position: relative; width: 14px; height: 14px; flex: none;
-  }
-  .pulse-ring .core {
-    position: absolute; inset: 3px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 35%, var(--brand-soft), var(--brand) 70%);
-    box-shadow: 0 0 8px 1px rgba(236,45,120,0.6);
-  }
-  .pulse-ring .wave {
-    position: absolute; inset: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(236,45,120,0.6);
-    animation: wave 1.8s ease-out infinite;
-  }
-  @keyframes wave {
-    0%   { transform: scale(0.4); opacity: 0.9; }
-    100% { transform: scale(1.6); opacity: 0; }
-  }
+			/* working / system pill */
+			.working {
+				align-self: flex-start;
+				display: inline-flex;
+				align-items: center;
+				gap: 10px;
+				padding: 9px 14px 9px 12px;
+				border-radius: 999px;
+				font-size: 12.5px;
+				color: var(--zinc-400);
+				background: linear-gradient(180deg, rgba(28, 28, 32, 0.7), rgba(20, 20, 23, 0.7));
+				border: 1px solid var(--hairline);
+				box-shadow: var(--shadow-soft);
+			}
+			.working b {
+				color: var(--zinc-300);
+				font-weight: 600;
+			}
+			.pulse-ring {
+				position: relative;
+				width: 14px;
+				height: 14px;
+				flex: none;
+			}
+			.pulse-ring .core {
+				position: absolute;
+				inset: 3px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 40% 35%, var(--brand-soft), var(--brand) 70%);
+				box-shadow: 0 0 8px 1px rgba(236, 45, 120, 0.6);
+			}
+			.pulse-ring .wave {
+				position: absolute;
+				inset: 0;
+				border-radius: 50%;
+				border: 1px solid rgba(236, 45, 120, 0.6);
+				animation: wave 1.8s ease-out infinite;
+			}
+			@keyframes wave {
+				0% {
+					transform: scale(0.4);
+					opacity: 0.9;
+				}
+				100% {
+					transform: scale(1.6);
+					opacity: 0;
+				}
+			}
 
-  /* ===== Composer ===== */
-  .composer-wrap {
-    padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
-    position: relative;
-  }
-  .composer {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 7px 7px 9px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(30,30,34,0.85), rgba(20,20,23,0.9));
-    border: 1px solid var(--hairline-strong);
-    box-shadow:
-      0 1px 0 rgba(255,255,255,0.05) inset,
-      0 -1px 0 rgba(0,0,0,0.4) inset,
-      0 20px 40px -20px rgba(0,0,0,0.9);
-    backdrop-filter: blur(10px);
-  }
-  .plus-btn {
-    width: 38px; height: 38px; flex: none;
-    border-radius: 50%;
-    display: grid; place-items: center;
-    color: var(--zinc-400);
-    background: rgba(255,255,255,0.035);
-    border: 1px solid var(--hairline);
-    cursor: pointer;
-    transition: transform 0.2s var(--ease), color 0.18s, background 0.18s;
-  }
-  .plus-btn:hover { color: var(--zinc-200); background: rgba(255,255,255,0.06); }
-  .plus-btn:active { transform: scale(0.9) rotate(90deg); }
-  .composer-input {
-    flex: 1;
-    font-size: 15px; color: var(--zinc-500);
-    padding: 0 4px;
-    user-select: none;
-  }
-  .send-btn {
-    width: 40px; height: 40px; flex: none;
-    border-radius: 50%;
-    display: grid; place-items: center;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    background: radial-gradient(circle at 35% 28%, var(--brand-bright), var(--brand) 58%, var(--brand-deep));
-    box-shadow:
-      0 0 0 1px rgba(255,126,179,0.4) inset,
-      0 6px 16px -4px rgba(236,45,120,0.6),
-      0 0 22px -2px rgba(236,45,120,0.55);
-    transition: transform 0.18s var(--ease);
-    animation: sendPulse 3.8s ease-in-out infinite;
-  }
-  .send-btn:active { transform: scale(0.9); }
-  @keyframes sendPulse {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255,126,179,0.4) inset, 0 6px 16px -4px rgba(236,45,120,0.55), 0 0 18px -2px rgba(236,45,120,0.45); }
-    50%      { box-shadow: 0 0 0 1px rgba(255,126,179,0.5) inset, 0 6px 18px -4px rgba(236,45,120,0.7), 0 0 30px 0px rgba(236,45,120,0.7); }
-  }
+			/* ===== Composer ===== */
+			.composer-wrap {
+				padding: 8px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+				position: relative;
+			}
+			.composer {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 7px 7px 7px 9px;
+				border-radius: 999px;
+				background: linear-gradient(180deg, rgba(30, 30, 34, 0.85), rgba(20, 20, 23, 0.9));
+				border: 1px solid var(--hairline-strong);
+				box-shadow:
+					0 1px 0 rgba(255, 255, 255, 0.05) inset,
+					0 -1px 0 rgba(0, 0, 0, 0.4) inset,
+					0 20px 40px -20px rgba(0, 0, 0, 0.9);
+				backdrop-filter: blur(10px);
+			}
+			.plus-btn {
+				width: 38px;
+				height: 38px;
+				flex: none;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				color: var(--zinc-400);
+				background: rgba(255, 255, 255, 0.035);
+				border: 1px solid var(--hairline);
+				cursor: pointer;
+				transition:
+					transform 0.2s var(--ease),
+					color 0.18s,
+					background 0.18s;
+			}
+			.plus-btn:hover {
+				color: var(--zinc-200);
+				background: rgba(255, 255, 255, 0.06);
+			}
+			.plus-btn:active {
+				transform: scale(0.9) rotate(90deg);
+			}
+			.composer-input {
+				flex: 1;
+				font-size: 15px;
+				color: var(--zinc-500);
+				padding: 0 4px;
+				user-select: none;
+			}
+			.send-btn {
+				width: 40px;
+				height: 40px;
+				flex: none;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				color: #fff;
+				border: none;
+				cursor: pointer;
+				background: radial-gradient(
+					circle at 35% 28%,
+					var(--brand-bright),
+					var(--brand) 58%,
+					var(--brand-deep)
+				);
+				box-shadow:
+					0 0 0 1px rgba(255, 126, 179, 0.4) inset,
+					0 6px 16px -4px rgba(236, 45, 120, 0.6),
+					0 0 22px -2px rgba(236, 45, 120, 0.55);
+				transition: transform 0.18s var(--ease);
+				animation: sendPulse 3.8s ease-in-out infinite;
+			}
+			.send-btn:active {
+				transform: scale(0.9);
+			}
+			@keyframes sendPulse {
+				0%,
+				100% {
+					box-shadow:
+						0 0 0 1px rgba(255, 126, 179, 0.4) inset,
+						0 6px 16px -4px rgba(236, 45, 120, 0.55),
+						0 0 18px -2px rgba(236, 45, 120, 0.45);
+				}
+				50% {
+					box-shadow:
+						0 0 0 1px rgba(255, 126, 179, 0.5) inset,
+						0 6px 18px -4px rgba(236, 45, 120, 0.7),
+						0 0 30px 0px rgba(236, 45, 120, 0.7);
+				}
+			}
 
-  /* ===== VOICE SCREEN ===== */
-  .voice-screen { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; }
-  .voice-top {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 22px 0;
-  }
-  .voice-back { color: var(--zinc-500); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-  .voice-live {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--brand-soft); font-weight: 600;
-  }
-  .voice-live .lv-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 10px 1px var(--brand); animation: dotPulse 2.4s infinite; }
+			/* ===== VOICE SCREEN ===== */
+			.voice-screen {
+				position: relative;
+				z-index: 2;
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+			}
+			.voice-top {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 8px 22px 0;
+			}
+			.voice-back {
+				color: var(--zinc-500);
+				font-size: 13px;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.voice-live {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+				font-size: 11px;
+				letter-spacing: 0.1em;
+				text-transform: uppercase;
+				color: var(--brand-soft);
+				font-weight: 600;
+			}
+			.voice-live .lv-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--brand);
+				box-shadow: 0 0 10px 1px var(--brand);
+				animation: dotPulse 2.4s infinite;
+			}
 
-  .voice-stage {
-    flex: 1;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 38px;
-    padding: 0 32px;
-  }
+			.voice-stage {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 38px;
+				padding: 0 32px;
+			}
 
-  /* The orb */
-  .orb-wrap { position: relative; width: 230px; height: 230px; display: grid; place-items: center; }
-  .orb-halo {
-    position: absolute; inset: -30px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 50% 50%, rgba(236,45,120,0.4), rgba(236,45,120,0) 62%);
-    filter: blur(14px);
-    animation: halo 5s ease-in-out infinite;
-  }
-  @keyframes halo {
-    0%, 100% { transform: scale(0.95); opacity: 0.7; }
-    50%      { transform: scale(1.08); opacity: 1; }
-  }
-  .orb {
-    position: relative;
-    width: 188px; height: 188px;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 34% 28%, var(--brand-glow), var(--brand-bright) 30%, var(--brand) 55%, var(--brand-deep) 82%, #6e0c3a 100%);
-    box-shadow:
-      0 0 0 1px rgba(255,143,192,0.35) inset,
-      0 20px 60px -10px rgba(196,24,106,0.7),
-      0 0 80px -10px rgba(236,45,120,0.6);
-    animation: breathe 5s ease-in-out infinite;
-    overflow: hidden;
-  }
-  /* glossy top highlight */
-  .orb::before {
-    content: ""; position: absolute;
-    top: 12%; left: 20%; width: 52%; height: 38%;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 30%, rgba(255,255,255,0.55), rgba(255,255,255,0) 70%);
-    filter: blur(4px);
-  }
-  /* inner depth ring */
-  .orb::after {
-    content: ""; position: absolute; inset: 14px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 65% 78%, rgba(110,12,58,0.55), rgba(110,12,58,0) 60%);
-  }
-  @keyframes breathe {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.045); }
-  }
+			/* The orb */
+			.orb-wrap {
+				position: relative;
+				width: 230px;
+				height: 230px;
+				display: grid;
+				place-items: center;
+			}
+			.orb-halo {
+				position: absolute;
+				inset: -30px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 50% 50%,
+					rgba(236, 45, 120, 0.4),
+					rgba(236, 45, 120, 0) 62%
+				);
+				filter: blur(14px);
+				animation: halo 5s ease-in-out infinite;
+			}
+			@keyframes halo {
+				0%,
+				100% {
+					transform: scale(0.95);
+					opacity: 0.7;
+				}
+				50% {
+					transform: scale(1.08);
+					opacity: 1;
+				}
+			}
+			.orb {
+				position: relative;
+				width: 188px;
+				height: 188px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 34% 28%,
+					var(--brand-glow),
+					var(--brand-bright) 30%,
+					var(--brand) 55%,
+					var(--brand-deep) 82%,
+					#6e0c3a 100%
+				);
+				box-shadow:
+					0 0 0 1px rgba(255, 143, 192, 0.35) inset,
+					0 20px 60px -10px rgba(196, 24, 106, 0.7),
+					0 0 80px -10px rgba(236, 45, 120, 0.6);
+				animation: breathe 5s ease-in-out infinite;
+				overflow: hidden;
+			}
+			/* glossy top highlight */
+			.orb::before {
+				content: '';
+				position: absolute;
+				top: 12%;
+				left: 20%;
+				width: 52%;
+				height: 38%;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 40% 30%,
+					rgba(255, 255, 255, 0.55),
+					rgba(255, 255, 255, 0) 70%
+				);
+				filter: blur(4px);
+			}
+			/* inner depth ring */
+			.orb::after {
+				content: '';
+				position: absolute;
+				inset: 14px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 65% 78%,
+					rgba(110, 12, 58, 0.55),
+					rgba(110, 12, 58, 0) 60%
+				);
+			}
+			@keyframes breathe {
+				0%,
+				100% {
+					transform: scale(1);
+				}
+				50% {
+					transform: scale(1.045);
+				}
+			}
 
-  /* soft sound ripples */
-  .orb-wrap .ripple {
-    position: absolute; inset: 0; margin: auto;
-    width: 188px; height: 188px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,126,179,0.4);
-    animation: ripple 4s ease-out infinite;
-  }
-  .orb-wrap .ripple.r2 { animation-delay: 1.3s; }
-  .orb-wrap .ripple.r3 { animation-delay: 2.6s; }
-  @keyframes ripple {
-    0%   { transform: scale(1); opacity: 0.55; }
-    100% { transform: scale(1.5); opacity: 0; }
-  }
+			/* soft sound ripples */
+			.orb-wrap .ripple {
+				position: absolute;
+				inset: 0;
+				margin: auto;
+				width: 188px;
+				height: 188px;
+				border-radius: 50%;
+				border: 1px solid rgba(255, 126, 179, 0.4);
+				animation: ripple 4s ease-out infinite;
+			}
+			.orb-wrap .ripple.r2 {
+				animation-delay: 1.3s;
+			}
+			.orb-wrap .ripple.r3 {
+				animation-delay: 2.6s;
+			}
+			@keyframes ripple {
+				0% {
+					transform: scale(1);
+					opacity: 0.55;
+				}
+				100% {
+					transform: scale(1.5);
+					opacity: 0;
+				}
+			}
 
-  .voice-status { text-align: center; display: flex; flex-direction: column; gap: 12px; }
-  .voice-status .listening {
-    font-size: 19px; font-weight: 600; color: var(--zinc-50);
-    letter-spacing: -0.02em;
-    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  }
-  .voice-status .listening .eq { display: inline-flex; gap: 3px; align-items: flex-end; height: 15px; }
-  .voice-status .listening .eq span {
-    width: 3px; border-radius: 2px;
-    background: linear-gradient(180deg, var(--brand-soft), var(--brand));
-    animation: eq 1.1s ease-in-out infinite;
-  }
-  .eq span:nth-child(1){ height: 7px;  animation-delay: 0s; }
-  .eq span:nth-child(2){ height: 14px; animation-delay: 0.15s; }
-  .eq span:nth-child(3){ height: 9px;  animation-delay: 0.3s; }
-  .eq span:nth-child(4){ height: 13px; animation-delay: 0.45s; }
-  @keyframes eq {
-    0%, 100% { transform: scaleY(0.5); opacity: 0.7; }
-    50%      { transform: scaleY(1); opacity: 1; }
-  }
-  .voice-caption {
-    font-size: 15px; line-height: 1.55; color: var(--zinc-400);
-    max-width: 280px; margin: 0 auto;
-    letter-spacing: -0.01em;
-  }
-  .voice-caption .lead { color: var(--brand-soft); font-weight: 600; }
+			.voice-status {
+				text-align: center;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+			.voice-status .listening {
+				font-size: 19px;
+				font-weight: 600;
+				color: var(--zinc-50);
+				letter-spacing: -0.02em;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				gap: 9px;
+			}
+			.voice-status .listening .eq {
+				display: inline-flex;
+				gap: 3px;
+				align-items: flex-end;
+				height: 15px;
+			}
+			.voice-status .listening .eq span {
+				width: 3px;
+				border-radius: 2px;
+				background: linear-gradient(180deg, var(--brand-soft), var(--brand));
+				animation: eq 1.1s ease-in-out infinite;
+			}
+			.eq span:nth-child(1) {
+				height: 7px;
+				animation-delay: 0s;
+			}
+			.eq span:nth-child(2) {
+				height: 14px;
+				animation-delay: 0.15s;
+			}
+			.eq span:nth-child(3) {
+				height: 9px;
+				animation-delay: 0.3s;
+			}
+			.eq span:nth-child(4) {
+				height: 13px;
+				animation-delay: 0.45s;
+			}
+			@keyframes eq {
+				0%,
+				100% {
+					transform: scaleY(0.5);
+					opacity: 0.7;
+				}
+				50% {
+					transform: scaleY(1);
+					opacity: 1;
+				}
+			}
+			.voice-caption {
+				font-size: 15px;
+				line-height: 1.55;
+				color: var(--zinc-400);
+				max-width: 280px;
+				margin: 0 auto;
+				letter-spacing: -0.01em;
+			}
+			.voice-caption .lead {
+				color: var(--brand-soft);
+				font-weight: 600;
+			}
 
-  /* voice controls */
-  .voice-controls {
-    display: flex; align-items: center; justify-content: center; gap: 26px;
-    padding: 30px 0 calc(30px + env(safe-area-inset-bottom, 0px));
-  }
-  .v-ctrl { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
-  .v-ctrl .v-circle {
-    width: 60px; height: 60px; border-radius: 50%;
-    display: grid; place-items: center;
-    color: var(--zinc-300);
-    background: linear-gradient(180deg, rgba(36,36,40,0.85), rgba(24,24,27,0.9));
-    border: 1px solid var(--hairline-strong);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 14px 30px -16px rgba(0,0,0,0.85);
-    transition: transform 0.18s var(--ease);
-  }
-  .v-ctrl:active .v-circle { transform: scale(0.92); }
-  .v-ctrl .v-label { font-size: 11.5px; color: var(--zinc-500); }
+			/* voice controls */
+			.voice-controls {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 26px;
+				padding: 30px 0 calc(30px + env(safe-area-inset-bottom, 0px));
+			}
+			.v-ctrl {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 8px;
+				cursor: pointer;
+			}
+			.v-ctrl .v-circle {
+				width: 60px;
+				height: 60px;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				color: var(--zinc-300);
+				background: linear-gradient(180deg, rgba(36, 36, 40, 0.85), rgba(24, 24, 27, 0.9));
+				border: 1px solid var(--hairline-strong);
+				box-shadow:
+					0 1px 0 rgba(255, 255, 255, 0.05) inset,
+					0 14px 30px -16px rgba(0, 0, 0, 0.85);
+				transition: transform 0.18s var(--ease);
+			}
+			.v-ctrl:active .v-circle {
+				transform: scale(0.92);
+			}
+			.v-ctrl .v-label {
+				font-size: 11.5px;
+				color: var(--zinc-500);
+			}
 
-  /* the end-call / interrupt is magenta-accented but restrained */
-  .v-ctrl.interrupt .v-circle {
-    color: #fff;
-    background: radial-gradient(circle at 35% 28%, var(--brand-bright), var(--brand) 60%, var(--brand-deep));
-    border: 1px solid rgba(255,126,179,0.35);
-    box-shadow: 0 8px 22px -6px rgba(236,45,120,0.6), 0 0 26px -4px rgba(236,45,120,0.5);
-  }
+			/* the end-call / interrupt is magenta-accented but restrained */
+			.v-ctrl.interrupt .v-circle {
+				color: #fff;
+				background: radial-gradient(
+					circle at 35% 28%,
+					var(--brand-bright),
+					var(--brand) 60%,
+					var(--brand-deep)
+				);
+				border: 1px solid rgba(255, 126, 179, 0.35);
+				box-shadow:
+					0 8px 22px -6px rgba(236, 45, 120, 0.6),
+					0 0 26px -4px rgba(236, 45, 120, 0.5);
+			}
 
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; }
-  }
-</style>
-</head>
-<body>
+			@media (prefers-reduced-motion: reduce) {
+				* {
+					animation: none !important;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="page-aura" aria-hidden="true"></div>
 
-  <div class="page-aura" aria-hidden="true"></div>
+		<!-- ===================== SECTION 1 — CHAT ===================== -->
+		<div class="stage">
+			<div class="stage-label">Chat</div>
 
-  <!-- ===================== SECTION 1 — CHAT ===================== -->
-  <div class="stage">
-    <div class="stage-label">Chat</div>
+			<div class="phone">
+				<div class="app-aura" aria-hidden="true">
+					<div class="blob b1"></div>
+					<div class="blob b2"></div>
+					<div class="blob b3"></div>
+				</div>
+				<div class="vignette" aria-hidden="true"></div>
 
-    <div class="phone">
-      <div class="app-aura" aria-hidden="true">
-        <div class="blob b1"></div>
-        <div class="blob b2"></div>
-        <div class="blob b3"></div>
-      </div>
-      <div class="vignette" aria-hidden="true"></div>
+				<div class="screen">
+					<!-- status bar -->
+					<div class="statusbar">
+						<span>9:41</span>
+						<span class="dots">
+							<svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+								<rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" />
+								<rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor" />
+								<rect
+									x="10"
+									y="1.5"
+									width="3"
+									height="10.5"
+									rx="1"
+									fill="currentColor"
+									opacity="0.55"
+								/>
+								<rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity="0.3" />
+							</svg>
+							<svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+								<path
+									d="M8 2.5c2.2 0 4.2.85 5.7 2.25l1.2-1.3A10 10 0 0 0 8 .5 10 10 0 0 0 1.1 3.45l1.2 1.3A8 8 0 0 1 8 2.5Z"
+									fill="currentColor"
+									opacity="0.75"
+								/>
+								<path
+									d="M8 6c1.25 0 2.4.5 3.25 1.3l1.2-1.3A7 7 0 0 0 8 4a7 7 0 0 0-4.45 2l1.2 1.3A4.7 4.7 0 0 1 8 6Z"
+									fill="currentColor"
+									opacity="0.75"
+								/>
+								<circle cx="8" cy="10" r="1.6" fill="currentColor" />
+							</svg>
+							<svg width="26" height="12" viewBox="0 0 26 12" fill="none">
+								<rect
+									x="0.5"
+									y="0.5"
+									width="21"
+									height="11"
+									rx="3"
+									stroke="currentColor"
+									opacity="0.5"
+								/>
+								<rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor" />
+								<rect
+									x="23"
+									y="3.5"
+									width="2"
+									height="5"
+									rx="1"
+									fill="currentColor"
+									opacity="0.5"
+								/>
+							</svg>
+						</span>
+					</div>
 
-      <div class="screen">
-        <!-- status bar -->
-        <div class="statusbar">
-          <span>9:41</span>
-          <span class="dots">
-            <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor"/><rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor"/><rect x="10" y="1.5" width="3" height="10.5" rx="1" fill="currentColor" opacity="0.55"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity="0.3"/></svg>
-            <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 2.5c2.2 0 4.2.85 5.7 2.25l1.2-1.3A10 10 0 0 0 8 .5 10 10 0 0 0 1.1 3.45l1.2 1.3A8 8 0 0 1 8 2.5Z" fill="currentColor" opacity="0.75"/><path d="M8 6c1.25 0 2.4.5 3.25 1.3l1.2-1.3A7 7 0 0 0 8 4a7 7 0 0 0-4.45 2l1.2 1.3A4.7 4.7 0 0 1 8 6Z" fill="currentColor" opacity="0.75"/><circle cx="8" cy="10" r="1.6" fill="currentColor"/></svg>
-            <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="3.5" width="2" height="5" rx="1" fill="currentColor" opacity="0.5"/></svg>
-          </span>
-        </div>
+					<!-- top bar -->
+					<div class="topbar">
+						<button class="icon-btn" aria-label="Menu">
+							<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+								<path
+									d="M2 4.5h14M2 9h14M2 13.5h14"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+								/>
+							</svg>
+						</button>
+						<div class="identity">
+							<span class="id-dot"></span>
+							<div>
+								<div class="id-name">Sully</div>
+								<div class="id-sub">always here</div>
+							</div>
+						</div>
+						<button class="chip">
+							<span class="feather">🪶</span> Auto
+							<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="opacity: 0.5">
+								<path
+									d="M3 4.5 5.5 7 8 4.5"
+									stroke="currentColor"
+									stroke-width="1.4"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</button>
+					</div>
 
-        <!-- top bar -->
-        <div class="topbar">
-          <button class="icon-btn" aria-label="Menu">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </button>
-          <div class="identity">
-            <span class="id-dot"></span>
-            <div>
-              <div class="id-name">Sully</div>
-              <div class="id-sub">always here</div>
-            </div>
-          </div>
-          <button class="chip">
-            <span class="feather">🪶</span> Auto
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="opacity:0.5"><path d="M3 4.5 5.5 7 8 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-        </div>
+					<!-- conversation -->
+					<div class="convo">
+						<div class="daystamp">Today</div>
 
-        <!-- conversation -->
-        <div class="convo">
-          <div class="daystamp">Today</div>
+						<div class="op-row">
+							<div class="op-pill">hey, what's the plan for today?</div>
+						</div>
 
-          <div class="op-row">
-            <div class="op-pill">hey, what's the plan for today?</div>
-          </div>
+						<div class="sully-block">
+							<div class="nametag">
+								<span class="nt-dot"></span><span class="nt-name">Sully</span>
+							</div>
+							<div class="sully-text">
+								Hey — let's keep it simple. What's the one thing that'd make today feel
+								<strong>handled</strong>?
+							</div>
+						</div>
 
-          <div class="sully-block">
-            <div class="nametag"><span class="nt-dot"></span><span class="nt-name">Sully</span></div>
-            <div class="sully-text">Hey — let's keep it simple. What's the one thing that'd make today feel <strong>handled</strong>?</div>
-          </div>
+						<div class="op-row">
+							<div class="op-pill">probably finally shipping the avatar.</div>
+						</div>
 
-          <div class="op-row">
-            <div class="op-pill">probably finally shipping the avatar.</div>
-          </div>
+						<div class="sully-block">
+							<div class="nametag">
+								<span class="nt-dot"></span><span class="nt-name">Sully</span>
+							</div>
+							<div class="sully-text">
+								Then that's the move. Want me to hand the build to <strong>CC</strong> while we talk
+								it through?
+							</div>
+						</div>
 
-          <div class="sully-block">
-            <div class="nametag"><span class="nt-dot"></span><span class="nt-name">Sully</span></div>
-            <div class="sully-text">Then that's the move. Want me to hand the build to <strong>CC</strong> while we talk it through?</div>
-          </div>
+						<div class="working">
+							<span class="pulse-ring"><span class="wave"></span><span class="core"></span></span>
+							Sully sent this to <b>CC</b> — watching it now
+						</div>
+					</div>
 
-          <div class="working">
-            <span class="pulse-ring"><span class="wave"></span><span class="core"></span></span>
-            Sully sent this to <b>CC</b> — watching it now
-          </div>
-        </div>
+					<!-- composer -->
+					<div class="composer-wrap">
+						<div class="composer">
+							<button class="plus-btn" aria-label="More">
+								<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+									<path
+										d="M9 3.5v11M3.5 9h11"
+										stroke="currentColor"
+										stroke-width="1.7"
+										stroke-linecap="round"
+									/>
+								</svg>
+							</button>
+							<div class="composer-input">Talk to Sully…</div>
+							<button class="send-btn" aria-label="Send">
+								<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+									<path
+										d="M9 14.5V4M9 4 4.5 8.5M9 4l4.5 4.5"
+										stroke="currentColor"
+										stroke-width="1.8"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									/>
+								</svg>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-        <!-- composer -->
-        <div class="composer-wrap">
-          <div class="composer">
-            <button class="plus-btn" aria-label="More">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3.5v11M3.5 9h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-            </button>
-            <div class="composer-input">Talk to Sully…</div>
-            <button class="send-btn" aria-label="Send">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 14.5V4M9 4 4.5 8.5M9 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+		<!-- ===================== SECTION 2 — VOICE ===================== -->
+		<div class="stage">
+			<div class="stage-label">Voice</div>
 
-  <!-- ===================== SECTION 2 — VOICE ===================== -->
-  <div class="stage">
-    <div class="stage-label">Voice</div>
+			<div class="phone">
+				<div class="app-aura" aria-hidden="true">
+					<div class="blob b1"></div>
+					<div class="blob b2"></div>
+					<div class="blob b3"></div>
+				</div>
+				<div class="vignette" aria-hidden="true"></div>
 
-    <div class="phone">
-      <div class="app-aura" aria-hidden="true">
-        <div class="blob b1"></div>
-        <div class="blob b2"></div>
-        <div class="blob b3"></div>
-      </div>
-      <div class="vignette" aria-hidden="true"></div>
+				<div class="voice-screen">
+					<div class="statusbar">
+						<span>9:41</span>
+						<span class="dots">
+							<svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+								<rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" />
+								<rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor" />
+								<rect
+									x="10"
+									y="1.5"
+									width="3"
+									height="10.5"
+									rx="1"
+									fill="currentColor"
+									opacity="0.55"
+								/>
+								<rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity="0.3" />
+							</svg>
+							<svg width="26" height="12" viewBox="0 0 26 12" fill="none">
+								<rect
+									x="0.5"
+									y="0.5"
+									width="21"
+									height="11"
+									rx="3"
+									stroke="currentColor"
+									opacity="0.5"
+								/>
+								<rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor" />
+								<rect
+									x="23"
+									y="3.5"
+									width="2"
+									height="5"
+									rx="1"
+									fill="currentColor"
+									opacity="0.5"
+								/>
+							</svg>
+						</span>
+					</div>
 
-      <div class="voice-screen">
-        <div class="statusbar">
-          <span>9:41</span>
-          <span class="dots">
-            <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor"/><rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor"/><rect x="10" y="1.5" width="3" height="10.5" rx="1" fill="currentColor" opacity="0.55"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity="0.3"/></svg>
-            <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><rect x="23" y="3.5" width="2" height="5" rx="1" fill="currentColor" opacity="0.5"/></svg>
-          </span>
-        </div>
+					<div class="voice-top">
+						<span class="voice-back">
+							<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+								<path
+									d="M10 3 5 8l5 5"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+							Chat
+						</span>
+						<span class="voice-live"><span class="lv-dot"></span>Voice</span>
+					</div>
 
-        <div class="voice-top">
-          <span class="voice-back">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Chat
-          </span>
-          <span class="voice-live"><span class="lv-dot"></span>Voice</span>
-        </div>
+					<div class="voice-stage">
+						<div class="orb-wrap">
+							<div class="orb-halo"></div>
+							<div class="ripple"></div>
+							<div class="ripple r2"></div>
+							<div class="ripple r3"></div>
+							<div class="orb"></div>
+						</div>
 
-        <div class="voice-stage">
-          <div class="orb-wrap">
-            <div class="orb-halo"></div>
-            <div class="ripple"></div>
-            <div class="ripple r2"></div>
-            <div class="ripple r3"></div>
-            <div class="orb"></div>
-          </div>
+						<div class="voice-status">
+							<div class="listening">
+								Listening
+								<span class="eq"><span></span><span></span><span></span><span></span></span>
+							</div>
+							<div class="voice-caption">
+								<span class="lead">Sully:</span> &ldquo;Take your time — I'm here whenever you're
+								ready to start.&rdquo;
+							</div>
+						</div>
+					</div>
 
-          <div class="voice-status">
-            <div class="listening">
-              Listening
-              <span class="eq"><span></span><span></span><span></span><span></span></span>
-            </div>
-            <div class="voice-caption"><span class="lead">Sully:</span> &ldquo;Take your time — I'm here whenever you're ready to start.&rdquo;</div>
-          </div>
-        </div>
+					<div class="voice-controls">
+						<div class="v-ctrl">
+							<div class="v-circle">
+								<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+									<rect
+										x="8"
+										y="3"
+										width="6"
+										height="11"
+										rx="3"
+										stroke="currentColor"
+										stroke-width="1.6"
+									/>
+									<path
+										d="M5 10a6 6 0 0 0 12 0M11 16v3"
+										stroke="currentColor"
+										stroke-width="1.6"
+										stroke-linecap="round"
+									/>
+								</svg>
+							</div>
+							<span class="v-label">Mute</span>
+						</div>
 
-        <div class="voice-controls">
-          <div class="v-ctrl">
-            <div class="v-circle">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="8" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 10a6 6 0 0 0 12 0M11 16v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            </div>
-            <span class="v-label">Mute</span>
-          </div>
+						<div class="v-ctrl interrupt">
+							<div class="v-circle">
+								<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+									<rect x="6" y="6" width="10" height="10" rx="2.5" fill="currentColor" />
+								</svg>
+							</div>
+							<span class="v-label">Interrupt</span>
+						</div>
 
-          <div class="v-ctrl interrupt">
-            <div class="v-circle">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="6" y="6" width="10" height="10" rx="2.5" fill="currentColor"/></svg>
-            </div>
-            <span class="v-label">Interrupt</span>
-          </div>
-
-          <div class="v-ctrl">
-            <div class="v-circle">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M16.5 5.5 5.5 16.5M5.5 5.5l11 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-            </div>
-            <span class="v-label">End</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</body>
+						<div class="v-ctrl">
+							<div class="v-circle">
+								<svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+									<path
+										d="M16.5 5.5 5.5 16.5M5.5 5.5l11 11"
+										stroke="currentColor"
+										stroke-width="1.7"
+										stroke-linecap="round"
+									/>
+								</svg>
+							</div>
+							<span class="v-label">End</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
 </html>

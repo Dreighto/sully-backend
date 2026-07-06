@@ -42,179 +42,288 @@ const SVG_DEFS = `
 // 2. SIMULATION PRESETS WITH SEMANTIC MOTION TYPES
 // motionType available: researching, building, verifying, waiting, blocked, complete
 const PRESETS = {
-  'cc-only': {
-    title: "CC Schema Analysis",
-    prompt: "Assess database migrations index layout.",
-    systemStatus: "Sully has dispatched the Coordinator to analyze schemas.",
-    status: "working",
-    statusText: "Working",
-    bannerText: "Next: <span class='banner-highlight'>Optimizing database lookup speed</span>",
-    bannerIcon: "⚡",
-    headerIcon: "icon-dispatch",
-    activeOwnershipLabel: "CC researching database indexes",
-    activeMotionType: "researching",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "researching", desc: "Researching index tables" }
-    ],
-    phases: [
-      { name: "Reading user payload", state: "done", time: "0.2s" },
-      { name: "Mapping tables & indexing schemas", state: "active", time: "Running" },
-      { name: "Compiling optimization queries", state: "pending", time: "--" }
-    ],
-    proofScore: "Active",
-    proofDetail: "Coordinator verifying index bounds. Graph edges active."
-  },
-  'cc-verify': {
-    title: "Handshake Diagnostic",
-    prompt: "Verify secure SSL certificate handshake bindings.",
-    systemStatus: "Sully Coordinator ports verified; Verify QA running handshake tests.",
-    status: "checking",
-    statusText: "Checking",
-    bannerText: "Next: <span class='banner-highlight'>Submitting validation report</span>",
-    bannerIcon: "🔍",
-    headerIcon: "icon-verify",
-    activeOwnershipLabel: "Verify checking TLS connection handshake",
-    activeMotionType: "verifying",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "complete", desc: "Ports checked" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "verifying", desc: "Running TLS v1.3 scans" }
-    ],
-    phases: [
-      { name: "Scanning open gateway ports", state: "done", time: "0.4s" },
-      { name: "Checking handshake security profiles", state: "active", time: "Checking" },
-      { name: "Waiting for operator approval", state: "pending", time: "--" }
-    ],
-    proofScore: "96% Confidence",
-    proofDetail: "SSL negotiation test run matches standard cryptographic validation profiles."
-  },
-  'agy-verify': {
-    title: "Deck Handler Refinements",
-    prompt: "Apply mobile-first drag handling routines.",
-    systemStatus: "Antigravity writing gesture code; QA suite checks queued.",
-    status: "working",
-    statusText: "Working",
-    bannerText: "Next: <span class='banner-highlight'>Running gesture telemetry scripts</span>",
-    bannerIcon: "⚡",
-    headerIcon: "icon-antigravity",
-    activeOwnershipLabel: "AGY building touch gesture handlers",
-    activeMotionType: "building",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "complete", desc: "Scope verified" },
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "building", desc: "Writing drag handlers" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "waiting", desc: "Queued behind build" }
-    ],
-    phases: [
-      { name: "Ingesting touch specifications", state: "done", time: "0.1s" },
-      { name: "Injecting drag logic modules", state: "active", time: "Writing" },
-      { name: "Verifying coordinate boundary limits", state: "pending", time: "--" }
-    ],
-    proofScore: "Queued",
-    proofDetail: "Gesture test blocks built. Awaiting Touch Handlers compilation."
-  },
-  'dpsk-verify': {
-    title: "Sully is checking schema logic",
-    prompt: "Verify database constraints and triggers.",
-    systemStatus: "DeepSeek active verifying constraints logic; QA queued.",
-    status: "checking",
-    statusText: "Checking",
-    bannerText: "Next: <span class='banner-highlight'>Reviewing logic constraint rules</span>",
-    bannerIcon: "🔍",
-    headerIcon: "icon-deepseek",
-    activeOwnershipLabel: "DeepSeek verifying schema constraints logic",
-    activeMotionType: "verifying",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "complete", desc: "Routing complete" },
-      { key: "DPSK", icon: "icon-deepseek", role: "DeepSeek", motionType: "verifying", desc: "Verifying trigger constraints" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "waiting", desc: "Awaiting constraints" }
-    ],
-    phases: [
-      { name: "Mapping model keys", state: "done", time: "0.3s" },
-      { name: "Evaluating check triggers", state: "active", time: "Verifying" },
-      { name: "Running integration validation", state: "pending", time: "--" }
-    ],
-    proofScore: "Active",
-    proofDetail: "DeepSeek scanning database model mappings. 12 triggers validated."
-  },
-  'multi-worker': {
-    title: "Similarity Index Build",
-    prompt: "Process embeddings archive logs context search.",
-    systemStatus: "Antigravity generating vectors; Memory indexes resolved.",
-    status: "working",
-    statusText: "Working",
-    bannerText: "Next: <span class='banner-highlight'>Deploying neural similarity matrix</span>",
-    bannerIcon: "⚡",
-    headerIcon: "icon-memory",
-    activeOwnershipLabel: "AGY compiling logs similarity arrays",
-    activeMotionType: "building",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "complete", desc: "Workflow mapped" },
-      { key: "AGY", icon: "icon-antigravity", role: "Antigravity Agent", motionType: "building", desc: "Synthesizing similarity matrices" },
-      { key: "Mem", icon: "icon-memory", role: "Memory", motionType: "complete", desc: "Log indices mapped" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "waiting", desc: "Awaiting final index" }
-    ],
-    phases: [
-      { name: "Reading log history logs", state: "done", time: "0.3s" },
-      { name: "Indexing embeddings with vector logic", state: "active", time: "Embedding" },
-      { name: "Validating index latency tests", state: "pending", time: "--" }
-    ],
-    proofScore: "89% Confidence",
-    proofDetail: "Referencing five memory blocks. Minimum match threshold validated at >= 0.81."
-  },
-  'blocked': {
-    title: "Approval Needed",
-    prompt: "Delete production migration backup folder logs.",
-    systemStatus: "Sully has paused work. Operator override is required.",
-    status: "blocked",
-    statusText: "Waiting on You",
-    bannerText: "Operator verification required to execute folder deletion.",
-    bannerIcon: "⚠️",
-    headerIcon: "icon-blocked",
-    activeOwnershipLabel: "Halted - waiting on operator override",
-    activeMotionType: "blocked",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "blocked", desc: "Halted at Gate" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "waiting", desc: "Halted" }
-    ],
-    phases: [
-      { name: "Scanning backup files", state: "done", time: "0.2s" },
-      { name: "Checking directory protection rules", state: "done", time: "0.4s" },
-      { name: "Awaiting manual operator signature", state: "active", time: "Halted" }
-    ],
-    proofScore: "Override Req.",
-    proofDetail: "Action matches protected pattern: DELETE PRODUCTION LOGS. Halted for operator safety."
-  },
-  'complete': {
-    title: "Pipeline Verified",
-    prompt: "Deploy sandbox gateway hotfix v1.4.3.",
-    systemStatus: "Hotfix deployment complete. Verification runs successful.",
-    status: "complete",
-    statusText: "Complete",
-    bannerText: "Execution successful. Sandbox environment cleaned.",
-    bannerIcon: "✓",
-    headerIcon: "icon-verify",
-    activeOwnershipLabel: "Settled - execution successful",
-    activeMotionType: "complete",
-    workers: [
-      { key: "CC", icon: "icon-dispatch", role: "Coordinator", motionType: "complete", desc: "Successful" },
-      { key: "Ver", icon: "icon-verify", role: "QA Verify", motionType: "complete", desc: "Validated" }
-    ],
-    phases: [
-      { name: "Reading deployment schema", state: "done", time: "0.1s" },
-      { name: "Spawning gateway containers", state: "done", time: "0.8s" },
-      { name: "Running socket handshake QA checks", state: "done", time: "1.2s" },
-      { name: "Compiling response package", state: "done", time: "0.2s" }
-    ],
-    proofScore: "100% Success",
-    proofDetail: "All four testing suites compiled and executed successfully with zero failures."
-  }
+	'cc-only': {
+		title: 'CC Schema Analysis',
+		prompt: 'Assess database migrations index layout.',
+		systemStatus: 'Sully has dispatched the Coordinator to analyze schemas.',
+		status: 'working',
+		statusText: 'Working',
+		bannerText: "Next: <span class='banner-highlight'>Optimizing database lookup speed</span>",
+		bannerIcon: '⚡',
+		headerIcon: 'icon-dispatch',
+		activeOwnershipLabel: 'CC researching database indexes',
+		activeMotionType: 'researching',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'researching',
+				desc: 'Researching index tables'
+			}
+		],
+		phases: [
+			{ name: 'Reading user payload', state: 'done', time: '0.2s' },
+			{ name: 'Mapping tables & indexing schemas', state: 'active', time: 'Running' },
+			{ name: 'Compiling optimization queries', state: 'pending', time: '--' }
+		],
+		proofScore: 'Active',
+		proofDetail: 'Coordinator verifying index bounds. Graph edges active.'
+	},
+	'cc-verify': {
+		title: 'Handshake Diagnostic',
+		prompt: 'Verify secure SSL certificate handshake bindings.',
+		systemStatus: 'Sully Coordinator ports verified; Verify QA running handshake tests.',
+		status: 'checking',
+		statusText: 'Checking',
+		bannerText: "Next: <span class='banner-highlight'>Submitting validation report</span>",
+		bannerIcon: '🔍',
+		headerIcon: 'icon-verify',
+		activeOwnershipLabel: 'Verify checking TLS connection handshake',
+		activeMotionType: 'verifying',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'complete',
+				desc: 'Ports checked'
+			},
+			{
+				key: 'Ver',
+				icon: 'icon-verify',
+				role: 'QA Verify',
+				motionType: 'verifying',
+				desc: 'Running TLS v1.3 scans'
+			}
+		],
+		phases: [
+			{ name: 'Scanning open gateway ports', state: 'done', time: '0.4s' },
+			{ name: 'Checking handshake security profiles', state: 'active', time: 'Checking' },
+			{ name: 'Waiting for operator approval', state: 'pending', time: '--' }
+		],
+		proofScore: '96% Confidence',
+		proofDetail: 'SSL negotiation test run matches standard cryptographic validation profiles.'
+	},
+	'agy-verify': {
+		title: 'Deck Handler Refinements',
+		prompt: 'Apply mobile-first drag handling routines.',
+		systemStatus: 'Antigravity writing gesture code; QA suite checks queued.',
+		status: 'working',
+		statusText: 'Working',
+		bannerText: "Next: <span class='banner-highlight'>Running gesture telemetry scripts</span>",
+		bannerIcon: '⚡',
+		headerIcon: 'icon-antigravity',
+		activeOwnershipLabel: 'AGY building touch gesture handlers',
+		activeMotionType: 'building',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'complete',
+				desc: 'Scope verified'
+			},
+			{
+				key: 'AGY',
+				icon: 'icon-antigravity',
+				role: 'Antigravity Agent',
+				motionType: 'building',
+				desc: 'Writing drag handlers'
+			},
+			{
+				key: 'Ver',
+				icon: 'icon-verify',
+				role: 'QA Verify',
+				motionType: 'waiting',
+				desc: 'Queued behind build'
+			}
+		],
+		phases: [
+			{ name: 'Ingesting touch specifications', state: 'done', time: '0.1s' },
+			{ name: 'Injecting drag logic modules', state: 'active', time: 'Writing' },
+			{ name: 'Verifying coordinate boundary limits', state: 'pending', time: '--' }
+		],
+		proofScore: 'Queued',
+		proofDetail: 'Gesture test blocks built. Awaiting Touch Handlers compilation.'
+	},
+	'dpsk-verify': {
+		title: 'Sully is checking schema logic',
+		prompt: 'Verify database constraints and triggers.',
+		systemStatus: 'DeepSeek active verifying constraints logic; QA queued.',
+		status: 'checking',
+		statusText: 'Checking',
+		bannerText: "Next: <span class='banner-highlight'>Reviewing logic constraint rules</span>",
+		bannerIcon: '🔍',
+		headerIcon: 'icon-deepseek',
+		activeOwnershipLabel: 'DeepSeek verifying schema constraints logic',
+		activeMotionType: 'verifying',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'complete',
+				desc: 'Routing complete'
+			},
+			{
+				key: 'DPSK',
+				icon: 'icon-deepseek',
+				role: 'DeepSeek',
+				motionType: 'verifying',
+				desc: 'Verifying trigger constraints'
+			},
+			{
+				key: 'Ver',
+				icon: 'icon-verify',
+				role: 'QA Verify',
+				motionType: 'waiting',
+				desc: 'Awaiting constraints'
+			}
+		],
+		phases: [
+			{ name: 'Mapping model keys', state: 'done', time: '0.3s' },
+			{ name: 'Evaluating check triggers', state: 'active', time: 'Verifying' },
+			{ name: 'Running integration validation', state: 'pending', time: '--' }
+		],
+		proofScore: 'Active',
+		proofDetail: 'DeepSeek scanning database model mappings. 12 triggers validated.'
+	},
+	'multi-worker': {
+		title: 'Similarity Index Build',
+		prompt: 'Process embeddings archive logs context search.',
+		systemStatus: 'Antigravity generating vectors; Memory indexes resolved.',
+		status: 'working',
+		statusText: 'Working',
+		bannerText: "Next: <span class='banner-highlight'>Deploying neural similarity matrix</span>",
+		bannerIcon: '⚡',
+		headerIcon: 'icon-memory',
+		activeOwnershipLabel: 'AGY compiling logs similarity arrays',
+		activeMotionType: 'building',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'complete',
+				desc: 'Workflow mapped'
+			},
+			{
+				key: 'AGY',
+				icon: 'icon-antigravity',
+				role: 'Antigravity Agent',
+				motionType: 'building',
+				desc: 'Synthesizing similarity matrices'
+			},
+			{
+				key: 'Mem',
+				icon: 'icon-memory',
+				role: 'Memory',
+				motionType: 'complete',
+				desc: 'Log indices mapped'
+			},
+			{
+				key: 'Ver',
+				icon: 'icon-verify',
+				role: 'QA Verify',
+				motionType: 'waiting',
+				desc: 'Awaiting final index'
+			}
+		],
+		phases: [
+			{ name: 'Reading log history logs', state: 'done', time: '0.3s' },
+			{ name: 'Indexing embeddings with vector logic', state: 'active', time: 'Embedding' },
+			{ name: 'Validating index latency tests', state: 'pending', time: '--' }
+		],
+		proofScore: '89% Confidence',
+		proofDetail: 'Referencing five memory blocks. Minimum match threshold validated at >= 0.81.'
+	},
+	blocked: {
+		title: 'Approval Needed',
+		prompt: 'Delete production migration backup folder logs.',
+		systemStatus: 'Sully has paused work. Operator override is required.',
+		status: 'blocked',
+		statusText: 'Waiting on You',
+		bannerText: 'Operator verification required to execute folder deletion.',
+		bannerIcon: '⚠️',
+		headerIcon: 'icon-blocked',
+		activeOwnershipLabel: 'Halted - waiting on operator override',
+		activeMotionType: 'blocked',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'blocked',
+				desc: 'Halted at Gate'
+			},
+			{ key: 'Ver', icon: 'icon-verify', role: 'QA Verify', motionType: 'waiting', desc: 'Halted' }
+		],
+		phases: [
+			{ name: 'Scanning backup files', state: 'done', time: '0.2s' },
+			{ name: 'Checking directory protection rules', state: 'done', time: '0.4s' },
+			{ name: 'Awaiting manual operator signature', state: 'active', time: 'Halted' }
+		],
+		proofScore: 'Override Req.',
+		proofDetail:
+			'Action matches protected pattern: DELETE PRODUCTION LOGS. Halted for operator safety.'
+	},
+	complete: {
+		title: 'Pipeline Verified',
+		prompt: 'Deploy sandbox gateway hotfix v1.4.3.',
+		systemStatus: 'Hotfix deployment complete. Verification runs successful.',
+		status: 'complete',
+		statusText: 'Complete',
+		bannerText: 'Execution successful. Sandbox environment cleaned.',
+		bannerIcon: '✓',
+		headerIcon: 'icon-verify',
+		activeOwnershipLabel: 'Settled - execution successful',
+		activeMotionType: 'complete',
+		workers: [
+			{
+				key: 'CC',
+				icon: 'icon-dispatch',
+				role: 'Coordinator',
+				motionType: 'complete',
+				desc: 'Successful'
+			},
+			{
+				key: 'Ver',
+				icon: 'icon-verify',
+				role: 'QA Verify',
+				motionType: 'complete',
+				desc: 'Validated'
+			}
+		],
+		phases: [
+			{ name: 'Reading deployment schema', state: 'done', time: '0.1s' },
+			{ name: 'Spawning gateway containers', state: 'done', time: '0.8s' },
+			{ name: 'Running socket handshake QA checks', state: 'done', time: '1.2s' },
+			{ name: 'Compiling response package', state: 'done', time: '0.2s' }
+		],
+		proofScore: '100% Success',
+		proofDetail: 'All four testing suites compiled and executed successfully with zero failures.'
+	}
 };
 
 // Layout coordinates
 const WORKER_POSITIONS = {
-  1: [{ x: 60, y: 65 }],
-  2: [{ x: 60, y: 65 }, { x: 280, y: 65 }],
-  3: [{ x: 60, y: 30 }, { x: 60, y: 100 }, { x: 280, y: 65 }],
-  4: [{ x: 60, y: 30 }, { x: 60, y: 100 }, { x: 280, y: 30 }, { x: 280, y: 100 }]
+	1: [{ x: 60, y: 65 }],
+	2: [
+		{ x: 60, y: 65 },
+		{ x: 280, y: 65 }
+	],
+	3: [
+		{ x: 60, y: 30 },
+		{ x: 60, y: 100 },
+		{ x: 280, y: 65 }
+	],
+	4: [
+		{ x: 60, y: 30 },
+		{ x: 60, y: 100 },
+		{ x: 280, y: 30 },
+		{ x: 280, y: 100 }
+	]
 };
 
 // State trackers
@@ -225,214 +334,224 @@ let confirmStop = false;
 let currentIntensity = 'normal';
 
 function logTelemetry(msg) {
-  const logBox = document.getElementById('telemetryLog');
-  if (logBox) {
-    const logSpan = document.createElement('span');
-    logSpan.innerText = `\n[V3.3 INT:${currentIntensity.toUpperCase()}] ${msg}`;
-    logBox.appendChild(logSpan);
-    logBox.scrollTop = logBox.scrollHeight;
-  }
+	const logBox = document.getElementById('telemetryLog');
+	if (logBox) {
+		const logSpan = document.createElement('span');
+		logSpan.innerText = `\n[V3.3 INT:${currentIntensity.toUpperCase()}] ${msg}`;
+		logBox.appendChild(logSpan);
+		logBox.scrollTop = logBox.scrollHeight;
+	}
 }
 
 // GRAPH DRAWING
 function renderGraph(svgId, preset) {
-  const svg = document.getElementById(svgId);
-  if (!svg) return;
+	const svg = document.getElementById(svgId);
+	if (!svg) return;
 
-  svg.innerHTML = '';
-  svg.insertAdjacentHTML('afterbegin', SVG_DEFS);
+	svg.innerHTML = '';
+	svg.insertAdjacentHTML('afterbegin', SVG_DEFS);
 
-  const workers = preset.workers;
-  const count = workers.length;
-  const layout = WORKER_POSITIONS[count] || WORKER_POSITIONS[4];
+	const workers = preset.workers;
+	const count = workers.length;
+	const layout = WORKER_POSITIONS[count] || WORKER_POSITIONS[4];
 
-  // 1. Draw paths
-  workers.forEach((w, idx) => {
-    const pos = layout[idx];
-    const targetX = 170;
-    const targetY = 65;
+	// 1. Draw paths
+	workers.forEach((w, idx) => {
+		const pos = layout[idx];
+		const targetX = 170;
+		const targetY = 65;
 
-    let pathD;
-    if (pos.y === targetY) {
-      pathD = `M ${pos.x} ${pos.y} L ${targetX} ${targetY}`;
-    } else {
-      const ctrlX = (pos.x + targetX) / 2;
-      const ctrlY = pos.y < targetY ? pos.y - 12 : pos.y + 12;
-      pathD = `M ${pos.x} ${pos.y} Q ${ctrlX} ${ctrlY} ${targetX} ${targetY}`;
-    }
+		let pathD;
+		if (pos.y === targetY) {
+			pathD = `M ${pos.x} ${pos.y} L ${targetX} ${targetY}`;
+		} else {
+			const ctrlX = (pos.x + targetX) / 2;
+			const ctrlY = pos.y < targetY ? pos.y - 12 : pos.y + 12;
+			pathD = `M ${pos.x} ${pos.y} Q ${ctrlX} ${ctrlY} ${targetX} ${targetY}`;
+		}
 
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", pathD);
-    path.setAttribute("class", `edge-line route-${w.motionType}`);
-    svg.appendChild(path);
+		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		path.setAttribute('d', pathD);
+		path.setAttribute('class', `edge-line route-${w.motionType}`);
+		svg.appendChild(path);
 
-    // 2. Draw semantic payloads natively sized via <use> properties (v3.3)
-    if (w.motionType === 'researching' || w.motionType === 'building' || w.motionType === 'verifying') {
-      const numPackets = (w.motionType === 'verifying') ? 1 : 3; 
-      
-      for (let i = 0; i < numPackets; i++) {
-        const packetGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        packetGroup.setAttribute("class", "node-icon-wrapper");
-        
-        const packetUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
-        packetUse.setAttribute("href", `#payload-${w.motionType}`);
-        
-        // Define sizes naturally so they scale cleanly with SVG viewBox
-        let size = 16;
-        if (w.motionType === 'researching') size = 20; // Radar slightly larger bounds
-        if (w.motionType === 'building') size = 16; 
-        if (w.motionType === 'verifying') size = 16;
-        
-        packetUse.setAttribute("width", size);
-        packetUse.setAttribute("height", size);
-        packetUse.setAttribute("x", -size / 2);
-        packetUse.setAttribute("y", -size / 2);
-        
-        packetUse.setAttribute("class", `data-packet packet-${w.motionType} animating`);
-        packetUse.style.offsetPath = `path("${pathD}")`;
-        
-        if (w.motionType === 'researching') {
-          packetUse.style.animation = `glidePacketResearching 5s ease-in-out infinite`;
-          packetUse.style.animationDelay = `${i * 1.6}s`;
-        } else if (w.motionType === 'building') {
-          packetUse.style.animation = `glidePacketBuilding 3.6s cubic-bezier(0.25, 0.8, 0.25, 1) infinite`;
-          packetUse.style.animationDelay = `${i * 1.2}s`;
-        } else if (w.motionType === 'verifying') {
-          packetUse.style.animation = `glidePacketVerifying 4.5s ease-in-out infinite`;
-        }
-        
-        packetGroup.appendChild(packetUse);
-        svg.appendChild(packetGroup);
-      }
-    }
-  });
+		// 2. Draw semantic payloads natively sized via <use> properties (v3.3)
+		if (
+			w.motionType === 'researching' ||
+			w.motionType === 'building' ||
+			w.motionType === 'verifying'
+		) {
+			const numPackets = w.motionType === 'verifying' ? 1 : 3;
 
-  // 3. Draw Worker Nodes utilizing standard <symbol> scaling
-  workers.forEach((w, idx) => {
-    const pos = layout[idx];
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("class", `node-group-animated stagger-${(idx % 4) + 1}`);
+			for (let i = 0; i < numPackets; i++) {
+				const packetGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+				packetGroup.setAttribute('class', 'node-icon-wrapper');
 
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", pos.x);
-    circle.setAttribute("cy", pos.y);
-    circle.setAttribute("r", "16");
-    
-    let breathDelayClass = (idx % 2 === 0) ? "breath-delay-1" : "breath-delay-2";
-    circle.setAttribute("class", `node-circle node-${w.motionType} ${breathDelayClass}`);
-    g.appendChild(circle);
+				const packetUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+				packetUse.setAttribute('href', `#payload-${w.motionType}`);
 
-    const iconG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    iconG.setAttribute("class", "node-icon-wrapper");
-    
-    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    use.setAttribute("href", `#${w.icon}`);
-    
-    // With symbol viewBox, this perfectly scales and centers a 20x20 icon in the 32x32 circle
-    use.setAttribute("x", pos.x - 10);
-    use.setAttribute("y", pos.y - 10);
-    use.setAttribute("width", "20");
-    use.setAttribute("height", "20");
-    use.setAttribute("style", "color: var(--sully-text);");
-    
-    iconG.appendChild(use);
-    g.appendChild(iconG);
+				// Define sizes naturally so they scale cleanly with SVG viewBox
+				let size = 16;
+				if (w.motionType === 'researching') size = 20; // Radar slightly larger bounds
+				if (w.motionType === 'building') size = 16;
+				if (w.motionType === 'verifying') size = 16;
 
-    const isHighlight = w.motionType === 'researching' || w.motionType === 'building' || w.motionType === 'verifying' || w.motionType === 'blocked';
-    
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.setAttribute("x", pos.x);
-    label.setAttribute("y", pos.y + 24);
-    label.setAttribute("text-anchor", "middle");
-    label.setAttribute("fill", isHighlight ? "#fff" : "var(--sully-text-muted)");
-    label.setAttribute("font-size", "8.5px");
-    label.setAttribute("font-weight", "bold");
-    label.textContent = w.key;
-    g.appendChild(label);
+				packetUse.setAttribute('width', size);
+				packetUse.setAttribute('height', size);
+				packetUse.setAttribute('x', -size / 2);
+				packetUse.setAttribute('y', -size / 2);
 
-    svg.appendChild(g);
-  });
+				packetUse.setAttribute('class', `data-packet packet-${w.motionType} animating`);
+				packetUse.style.offsetPath = `path("${pathD}")`;
 
-  // 4. Central Task Node
-  const centralG = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  centralG.setAttribute("class", "node-group-animated stagger-3");
-  
-  const centralCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  centralCircle.setAttribute("cx", "170");
-  centralCircle.setAttribute("cy", "65");
-  centralCircle.setAttribute("r", "20");
-  
-  let taskStatusClass = "status-working";
-  if (preset.activeMotionType === 'complete') taskStatusClass = "status-complete";
-  else if (preset.activeMotionType === 'blocked') taskStatusClass = "status-blocked";
-  else if (preset.activeMotionType === 'waiting') taskStatusClass = "status-waiting";
-  
-  centralCircle.setAttribute("class", `node-circle central-task-node ${taskStatusClass}`);
-  centralG.appendChild(centralCircle);
+				if (w.motionType === 'researching') {
+					packetUse.style.animation = `glidePacketResearching 5s ease-in-out infinite`;
+					packetUse.style.animationDelay = `${i * 1.6}s`;
+				} else if (w.motionType === 'building') {
+					packetUse.style.animation = `glidePacketBuilding 3.6s cubic-bezier(0.25, 0.8, 0.25, 1) infinite`;
+					packetUse.style.animationDelay = `${i * 1.2}s`;
+				} else if (w.motionType === 'verifying') {
+					packetUse.style.animation = `glidePacketVerifying 4.5s ease-in-out infinite`;
+				}
 
-  const centralIconUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
-  centralIconUse.setAttribute("href", "#icon-task");
-  // Scale perfectly for task node
-  centralIconUse.setAttribute("x", "159");
-  centralIconUse.setAttribute("y", "54");
-  centralIconUse.setAttribute("width", "22");
-  centralIconUse.setAttribute("height", "22");
-  centralIconUse.setAttribute("style", "color: var(--sully-text);");
-  centralG.appendChild(centralIconUse);
+				packetGroup.appendChild(packetUse);
+				svg.appendChild(packetGroup);
+			}
+		}
+	});
 
-  const centralLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  centralLabel.setAttribute("x", "170");
-  centralLabel.setAttribute("y", "97");
-  centralLabel.setAttribute("text-anchor", "middle");
-  centralLabel.setAttribute("fill", "#fff");
-  centralLabel.setAttribute("font-size", "9px");
-  centralLabel.setAttribute("font-weight", "bold");
-  centralLabel.textContent = "TASK";
-  centralG.appendChild(centralLabel);
+	// 3. Draw Worker Nodes utilizing standard <symbol> scaling
+	workers.forEach((w, idx) => {
+		const pos = layout[idx];
+		const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+		g.setAttribute('class', `node-group-animated stagger-${(idx % 4) + 1}`);
 
-  svg.appendChild(centralG);
+		const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+		circle.setAttribute('cx', pos.x);
+		circle.setAttribute('cy', pos.y);
+		circle.setAttribute('r', '16');
+
+		let breathDelayClass = idx % 2 === 0 ? 'breath-delay-1' : 'breath-delay-2';
+		circle.setAttribute('class', `node-circle node-${w.motionType} ${breathDelayClass}`);
+		g.appendChild(circle);
+
+		const iconG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+		iconG.setAttribute('class', 'node-icon-wrapper');
+
+		const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+		use.setAttribute('href', `#${w.icon}`);
+
+		// With symbol viewBox, this perfectly scales and centers a 20x20 icon in the 32x32 circle
+		use.setAttribute('x', pos.x - 10);
+		use.setAttribute('y', pos.y - 10);
+		use.setAttribute('width', '20');
+		use.setAttribute('height', '20');
+		use.setAttribute('style', 'color: var(--sully-text);');
+
+		iconG.appendChild(use);
+		g.appendChild(iconG);
+
+		const isHighlight =
+			w.motionType === 'researching' ||
+			w.motionType === 'building' ||
+			w.motionType === 'verifying' ||
+			w.motionType === 'blocked';
+
+		const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		label.setAttribute('x', pos.x);
+		label.setAttribute('y', pos.y + 24);
+		label.setAttribute('text-anchor', 'middle');
+		label.setAttribute('fill', isHighlight ? '#fff' : 'var(--sully-text-muted)');
+		label.setAttribute('font-size', '8.5px');
+		label.setAttribute('font-weight', 'bold');
+		label.textContent = w.key;
+		g.appendChild(label);
+
+		svg.appendChild(g);
+	});
+
+	// 4. Central Task Node
+	const centralG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+	centralG.setAttribute('class', 'node-group-animated stagger-3');
+
+	const centralCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+	centralCircle.setAttribute('cx', '170');
+	centralCircle.setAttribute('cy', '65');
+	centralCircle.setAttribute('r', '20');
+
+	let taskStatusClass = 'status-working';
+	if (preset.activeMotionType === 'complete') taskStatusClass = 'status-complete';
+	else if (preset.activeMotionType === 'blocked') taskStatusClass = 'status-blocked';
+	else if (preset.activeMotionType === 'waiting') taskStatusClass = 'status-waiting';
+
+	centralCircle.setAttribute('class', `node-circle central-task-node ${taskStatusClass}`);
+	centralG.appendChild(centralCircle);
+
+	const centralIconUse = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+	centralIconUse.setAttribute('href', '#icon-task');
+	// Scale perfectly for task node
+	centralIconUse.setAttribute('x', '159');
+	centralIconUse.setAttribute('y', '54');
+	centralIconUse.setAttribute('width', '22');
+	centralIconUse.setAttribute('height', '22');
+	centralIconUse.setAttribute('style', 'color: var(--sully-text);');
+	centralG.appendChild(centralIconUse);
+
+	const centralLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+	centralLabel.setAttribute('x', '170');
+	centralLabel.setAttribute('y', '97');
+	centralLabel.setAttribute('text-anchor', 'middle');
+	centralLabel.setAttribute('fill', '#fff');
+	centralLabel.setAttribute('font-size', '9px');
+	centralLabel.setAttribute('font-weight', 'bold');
+	centralLabel.textContent = 'TASK';
+	centralG.appendChild(centralLabel);
+
+	svg.appendChild(centralG);
 }
 
 function updateUI() {
-  const data = PRESETS[currentPreset];
-  const card = document.getElementById('sullyCard');
+	const data = PRESETS[currentPreset];
+	const card = document.getElementById('sullyCard');
 
-  card.className = `sully-card state-${currentState} status-${data.status}`;
+	card.className = `sully-card state-${currentState} status-${data.status}`;
 
-  document.getElementById('collapsedTitle').innerText = data.title;
-  document.getElementById('collapsedMeta').innerText = data.workers.map(w => w.key).join(' + ');
+	document.getElementById('collapsedTitle').innerText = data.title;
+	document.getElementById('collapsedMeta').innerText = data.workers.map((w) => w.key).join(' + ');
 
-  document.getElementById('compactTaskTitle').innerText = data.title;
-  document.getElementById('compactStatusBadge').innerText = data.statusText;
-  document.getElementById('compactStatusBadge').className = `status-pill status-${data.status}`;
+	document.getElementById('compactTaskTitle').innerText = data.title;
+	document.getElementById('compactStatusBadge').innerText = data.statusText;
+	document.getElementById('compactStatusBadge').className = `status-pill status-${data.status}`;
 
-  const banner = document.getElementById('compactBanner');
-  banner.innerHTML = `<span class="banner-icon">${data.bannerIcon}</span><span class="banner-text">${data.bannerText}</span>`;
+	const banner = document.getElementById('compactBanner');
+	banner.innerHTML = `<span class="banner-icon">${data.bannerIcon}</span><span class="banner-text">${data.bannerText}</span>`;
 
-  const headerIconWrapper = document.getElementById('systemHeaderIcon');
-  headerIconWrapper.innerHTML = `<svg><use href="#${data.headerIcon}"/></svg>`;
+	const headerIconWrapper = document.getElementById('systemHeaderIcon');
+	headerIconWrapper.innerHTML = `<svg><use href="#${data.headerIcon}"/></svg>`;
 
-  const expandedHeaderIconWrapper = document.getElementById('expandedHeaderIcon');
-  expandedHeaderIconWrapper.innerHTML = `<svg><use href="#${data.headerIcon}"/></svg>`;
+	const expandedHeaderIconWrapper = document.getElementById('expandedHeaderIcon');
+	expandedHeaderIconWrapper.innerHTML = `<svg><use href="#${data.headerIcon}"/></svg>`;
 
-  document.getElementById('userBubble').innerText = data.prompt;
-  document.getElementById('systemBubble').innerText = data.systemStatus;
+	document.getElementById('userBubble').innerText = data.prompt;
+	document.getElementById('systemBubble').innerText = data.systemStatus;
 
-  renderGraph('graphSvg', data);
-  renderGraph('expandedGraphSvg', data);
+	renderGraph('graphSvg', data);
+	renderGraph('expandedGraphSvg', data);
 
-  const compactOwnershipLabel = document.getElementById('compactOwnershipLabel');
-  const expandedOwnershipLabel = document.getElementById('expandedOwnershipLabel');
+	const compactOwnershipLabel = document.getElementById('compactOwnershipLabel');
+	const expandedOwnershipLabel = document.getElementById('expandedOwnershipLabel');
 
-  compactOwnershipLabel.className = `active-ownership-banner ${data.activeMotionType}`;
-  expandedOwnershipLabel.className = `active-ownership-banner ${data.activeMotionType}`;
+	compactOwnershipLabel.className = `active-ownership-banner ${data.activeMotionType}`;
+	expandedOwnershipLabel.className = `active-ownership-banner ${data.activeMotionType}`;
 
-  const labelContent = `Now: ${data.activeOwnershipLabel}`;
-  compactOwnershipLabel.querySelector('.ownership-text').innerText = labelContent;
-  expandedOwnershipLabel.querySelector('.ownership-text').innerText = labelContent;
+	const labelContent = `Now: ${data.activeOwnershipLabel}`;
+	compactOwnershipLabel.querySelector('.ownership-text').innerText = labelContent;
+	expandedOwnershipLabel.querySelector('.ownership-text').innerText = labelContent;
 
-  const checklist = document.getElementById('phasesChecklist');
-  checklist.innerHTML = data.phases.map(p => `
+	const checklist = document.getElementById('phasesChecklist');
+	checklist.innerHTML = data.phases
+		.map(
+			(p) => `
     <div class="phase-row ${p.state}">
       <div class="phase-left">
         <span class="phase-dot"></span>
@@ -440,34 +559,37 @@ function updateUI() {
       </div>
       <span class="phase-time">${p.time}</span>
     </div>
-  `).join('');
+  `
+		)
+		.join('');
 
-  const workersGrid = document.getElementById('workersGrid');
-  workersGrid.innerHTML = data.workers.map(w => {
-    let rowClass = "worker-row";
-    let badgeHtml = '';
+	const workersGrid = document.getElementById('workersGrid');
+	workersGrid.innerHTML = data.workers
+		.map((w) => {
+			let rowClass = 'worker-row';
+			let badgeHtml = '';
 
-    if (w.motionType === 'researching') {
-      rowClass += " row-active-highlight-researching";
-      badgeHtml = `<span class="worker-badge-pill badge-researching">Researching</span>`;
-    } else if (w.motionType === 'building') {
-      rowClass += " row-active-highlight-building";
-      badgeHtml = `<span class="worker-badge-pill badge-building">Building</span>`;
-    } else if (w.motionType === 'verifying') {
-      rowClass += " row-active-highlight-verifying";
-      badgeHtml = `<span class="worker-badge-pill badge-verifying">Verifying</span>`;
-    } else if (w.motionType === 'blocked') {
-      rowClass += " row-active-highlight-blocked";
-      badgeHtml = `<span class="worker-badge-pill badge-blocked">Blocked</span>`;
-    } else if (w.motionType === 'complete') {
-      rowClass += " complete";
-      badgeHtml = `<span class="worker-badge-pill badge-done">Done</span>`;
-    } else {
-      rowClass += " idle";
-      badgeHtml = `<span class="worker-badge-pill badge-waiting">Waiting</span>`;
-    }
+			if (w.motionType === 'researching') {
+				rowClass += ' row-active-highlight-researching';
+				badgeHtml = `<span class="worker-badge-pill badge-researching">Researching</span>`;
+			} else if (w.motionType === 'building') {
+				rowClass += ' row-active-highlight-building';
+				badgeHtml = `<span class="worker-badge-pill badge-building">Building</span>`;
+			} else if (w.motionType === 'verifying') {
+				rowClass += ' row-active-highlight-verifying';
+				badgeHtml = `<span class="worker-badge-pill badge-verifying">Verifying</span>`;
+			} else if (w.motionType === 'blocked') {
+				rowClass += ' row-active-highlight-blocked';
+				badgeHtml = `<span class="worker-badge-pill badge-blocked">Blocked</span>`;
+			} else if (w.motionType === 'complete') {
+				rowClass += ' complete';
+				badgeHtml = `<span class="worker-badge-pill badge-done">Done</span>`;
+			} else {
+				rowClass += ' idle';
+				badgeHtml = `<span class="worker-badge-pill badge-waiting">Waiting</span>`;
+			}
 
-    return `
+			return `
       <div class="${rowClass}">
         <div class="worker-left">
           <span class="worker-dot"></span>
@@ -479,10 +601,11 @@ function updateUI() {
         </div>
       </div>
     `;
-  }).join('');
+		})
+		.join('');
 
-  const proofContainer = document.getElementById('proofContainer');
-  proofContainer.innerHTML = `
+	const proofContainer = document.getElementById('proofContainer');
+	proofContainer.innerHTML = `
     <div class="proof-header">
       <span>QA Cryptographic Proof</span>
       <span class="proof-conf">${data.proofScore}</span>
@@ -490,186 +613,186 @@ function updateUI() {
     <p class="proof-log">${data.proofDetail}</p>
   `;
 
-  renderActionButtons(data);
+	renderActionButtons(data);
 }
 
 function renderActionButtons(data) {
-  const compactActions = document.getElementById('compactActions');
-  const expandedActions = document.getElementById('expandedActions');
+	const compactActions = document.getElementById('compactActions');
+	const expandedActions = document.getElementById('expandedActions');
 
-  let buttonHtml = '';
+	let buttonHtml = '';
 
-  if (data.activeMotionType === 'blocked') {
-    buttonHtml = `
+	if (data.activeMotionType === 'blocked') {
+		buttonHtml = `
       <button class="sully-btn btn-secondary" id="btnStop">
-        ${confirmStop ? "Confirm stopping?" : "Stop Task"}
+        ${confirmStop ? 'Confirm stopping?' : 'Stop Task'}
       </button>
       <button class="sully-btn ${confirmApprove ? 'btn-danger-confirm' : 'btn-approve'}" id="btnApprove">
-        ${confirmApprove ? "Confirm deletion?" : "Approve Override"}
+        ${confirmApprove ? 'Confirm deletion?' : 'Approve Override'}
       </button>
     `;
-    compactActions.style.display = 'flex';
-  } else if (data.status === 'working' || data.status === 'checking') {
-    buttonHtml = `
+		compactActions.style.display = 'flex';
+	} else if (data.status === 'working' || data.status === 'checking') {
+		buttonHtml = `
       <button class="sully-btn ${confirmStop ? 'btn-stop-confirm' : 'btn-secondary'}" id="btnStop" style="width: 100%;">
-        ${confirmStop ? "Confirm stopping active task?" : "Stop Pipeline"}
+        ${confirmStop ? 'Confirm stopping active task?' : 'Stop Pipeline'}
       </button>
     `;
-    compactActions.style.display = 'none';
-  } else if (data.status === 'complete') {
-    buttonHtml = `
+		compactActions.style.display = 'none';
+	} else if (data.status === 'complete') {
+		buttonHtml = `
       <button class="sully-btn btn-complete-view" id="btnComplete" style="width: 100%;">
         View Sandbox Deployment Logs
       </button>
     `;
-    compactActions.style.display = 'none';
-  } else {
-    compactActions.style.display = 'none';
-  }
+		compactActions.style.display = 'none';
+	} else {
+		compactActions.style.display = 'none';
+	}
 
-  if (compactActions.style.display === 'flex') {
-    compactActions.innerHTML = buttonHtml;
-  }
-  expandedActions.innerHTML = buttonHtml;
+	if (compactActions.style.display === 'flex') {
+		compactActions.innerHTML = buttonHtml;
+	}
+	expandedActions.innerHTML = buttonHtml;
 
-  bindActionListeners();
+	bindActionListeners();
 }
 
 function bindActionListeners() {
-  const btnApprove = document.querySelectorAll('#btnApprove');
-  btnApprove.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!confirmApprove) {
-        confirmApprove = true;
-        logTelemetry("Approve override requested. Double-tap trigger armed.");
-        updateUI();
-      } else {
-        confirmApprove = false;
-        logTelemetry("Signed operator approval override. settling sweep.");
-        const card = document.getElementById('sullyCard');
-        card.classList.add('sweep-active');
-        setTimeout(() => {
-          card.classList.remove('sweep-active');
-          currentPreset = 'complete';
-          updatePresetsPanelHighlight();
-          updateUI();
-        }, 1200);
-      }
-    });
-  });
+	const btnApprove = document.querySelectorAll('#btnApprove');
+	btnApprove.forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (!confirmApprove) {
+				confirmApprove = true;
+				logTelemetry('Approve override requested. Double-tap trigger armed.');
+				updateUI();
+			} else {
+				confirmApprove = false;
+				logTelemetry('Signed operator approval override. settling sweep.');
+				const card = document.getElementById('sullyCard');
+				card.classList.add('sweep-active');
+				setTimeout(() => {
+					card.classList.remove('sweep-active');
+					currentPreset = 'complete';
+					updatePresetsPanelHighlight();
+					updateUI();
+				}, 1200);
+			}
+		});
+	});
 
-  const btnStop = document.querySelectorAll('#btnStop');
-  btnStop.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (!confirmStop) {
-        confirmStop = true;
-        logTelemetry("Aborting pipeline safety confirmation requested.");
-        updateUI();
-      } else {
-        confirmStop = false;
-        logTelemetry("Aborted task. resetting work surface states.");
-        currentPreset = 'cc-only';
-        confirmApprove = false;
-        updatePresetsPanelHighlight();
-        updateUI();
-      }
-    });
-  });
+	const btnStop = document.querySelectorAll('#btnStop');
+	btnStop.forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (!confirmStop) {
+				confirmStop = true;
+				logTelemetry('Aborting pipeline safety confirmation requested.');
+				updateUI();
+			} else {
+				confirmStop = false;
+				logTelemetry('Aborted task. resetting work surface states.');
+				currentPreset = 'cc-only';
+				confirmApprove = false;
+				updatePresetsPanelHighlight();
+				updateUI();
+			}
+		});
+	});
 
-  const btnComplete = document.querySelectorAll('#btnComplete');
-  btnComplete.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      logTelemetry("Opening deployment telemetry logs.");
-      alert("Deployment validation logs loaded. Build success.");
-    });
-  });
+	const btnComplete = document.querySelectorAll('#btnComplete');
+	btnComplete.forEach((btn) => {
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			logTelemetry('Opening deployment telemetry logs.');
+			alert('Deployment validation logs loaded. Build success.');
+		});
+	});
 }
 
 function updatePresetsPanelHighlight() {
-  const btns = document.querySelectorAll('#presetControls button');
-  btns.forEach(btn => {
-    if (btn.getAttribute('data-preset') === currentPreset) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+	const btns = document.querySelectorAll('#presetControls button');
+	btns.forEach((btn) => {
+		if (btn.getAttribute('data-preset') === currentPreset) {
+			btn.classList.add('active');
+		} else {
+			btn.classList.remove('active');
+		}
+	});
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const presetBtns = document.querySelectorAll('#presetControls button');
-  presetBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentPreset = btn.getAttribute('data-preset');
-      confirmApprove = false;
-      confirmStop = false;
-      
-      presetBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      logTelemetry(`Preset updated: ${currentPreset}`);
-      updateUI();
-    });
-  });
+	const presetBtns = document.querySelectorAll('#presetControls button');
+	presetBtns.forEach((btn) => {
+		btn.addEventListener('click', () => {
+			currentPreset = btn.getAttribute('data-preset');
+			confirmApprove = false;
+			confirmStop = false;
 
-  const layoutBtns = document.querySelectorAll('#layoutControls button');
-  layoutBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentState = btn.getAttribute('data-state');
-      layoutBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      logTelemetry(`Display state: ${currentState}`);
-      updateUI();
-    });
-  });
+			presetBtns.forEach((b) => b.classList.remove('active'));
+			btn.classList.add('active');
 
-  document.getElementById('closeExpandedBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    currentState = 'compact';
-    
-    layoutBtns.forEach(b => {
-      if (b.getAttribute('data-state') === 'compact') b.classList.add('active');
-      else b.classList.remove('active');
-    });
-    
-    logTelemetry("Surface collapsed to compact card.");
-    updateUI();
-  });
+			logTelemetry(`Preset updated: ${currentPreset}`);
+			updateUI();
+		});
+	});
 
-  document.getElementById('sullyCard').addEventListener('click', (e) => {
-    if (e.target.closest('.sully-btn') || e.target.closest('#closeExpandedBtn')) return;
+	const layoutBtns = document.querySelectorAll('#layoutControls button');
+	layoutBtns.forEach((btn) => {
+		btn.addEventListener('click', () => {
+			currentState = btn.getAttribute('data-state');
+			layoutBtns.forEach((b) => b.classList.remove('active'));
+			btn.classList.add('active');
 
-    if (currentState === 'collapsed') {
-      currentState = 'compact';
-      logTelemetry("Collapsed pill expanded to compact.");
-    } else if (currentState === 'compact') {
-      currentState = 'expanded';
-      logTelemetry("Compact card unfolded to expanded registry.");
-    }
-    
-    layoutBtns.forEach(b => {
-      if (b.getAttribute('data-state') === currentState) b.classList.add('active');
-      else b.classList.remove('active');
-    });
+			logTelemetry(`Display state: ${currentState}`);
+			updateUI();
+		});
+	});
 
-    updateUI();
-  });
+	document.getElementById('closeExpandedBtn').addEventListener('click', (e) => {
+		e.stopPropagation();
+		currentState = 'compact';
 
-  // Motion Intensity Toggle
-  const intensityRadios = document.querySelectorAll('input[name="intensity"]');
-  intensityRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        currentIntensity = e.target.value;
-        document.body.className = `intensity-${currentIntensity}`;
-        logTelemetry(`Set motion intensity to: ${currentIntensity}`);
-      }
-    });
-  });
+		layoutBtns.forEach((b) => {
+			if (b.getAttribute('data-state') === 'compact') b.classList.add('active');
+			else b.classList.remove('active');
+		});
 
-  updateUI();
+		logTelemetry('Surface collapsed to compact card.');
+		updateUI();
+	});
+
+	document.getElementById('sullyCard').addEventListener('click', (e) => {
+		if (e.target.closest('.sully-btn') || e.target.closest('#closeExpandedBtn')) return;
+
+		if (currentState === 'collapsed') {
+			currentState = 'compact';
+			logTelemetry('Collapsed pill expanded to compact.');
+		} else if (currentState === 'compact') {
+			currentState = 'expanded';
+			logTelemetry('Compact card unfolded to expanded registry.');
+		}
+
+		layoutBtns.forEach((b) => {
+			if (b.getAttribute('data-state') === currentState) b.classList.add('active');
+			else b.classList.remove('active');
+		});
+
+		updateUI();
+	});
+
+	// Motion Intensity Toggle
+	const intensityRadios = document.querySelectorAll('input[name="intensity"]');
+	intensityRadios.forEach((radio) => {
+		radio.addEventListener('change', (e) => {
+			if (e.target.checked) {
+				currentIntensity = e.target.value;
+				document.body.className = `intensity-${currentIntensity}`;
+				logTelemetry(`Set motion intensity to: ${currentIntensity}`);
+			}
+		});
+	});
+
+	updateUI();
 });

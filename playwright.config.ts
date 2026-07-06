@@ -99,24 +99,24 @@ export default defineConfig({
 			testMatch: ['**/motion-engine.spec.ts']
 		},
 		...ENGINES.flatMap(({ name, device }) => [
-		{
-			name,
-			use: { ...device },
-			testMatch: EMPTY_STATE_TRIO
-		},
-		{
-			name: `${name}-rest`,
-			use: { ...device },
-			testIgnore: [...EMPTY_STATE_TRIO, ...MUTATING_SPECS],
-			dependencies: [name]
-		},
-		{
-			name: `${name}-mutating`,
-			use: { ...device },
-			testMatch: MUTATING_SPECS,
-			dependencies: [`${name}-rest`]
-		}
-	])
+			{
+				name,
+				use: { ...device },
+				testMatch: EMPTY_STATE_TRIO
+			},
+			{
+				name: `${name}-rest`,
+				use: { ...device },
+				testIgnore: [...EMPTY_STATE_TRIO, ...MUTATING_SPECS],
+				dependencies: [name]
+			},
+			{
+				name: `${name}-mutating`,
+				use: { ...device },
+				testMatch: MUTATING_SPECS,
+				dependencies: [`${name}-rest`]
+			}
+		])
 	],
 	// Hermetic server: the adapter-node build with the per-run DB. Shell env
 	// beats --env-file (verified Node 22.22.3), so these overrides win over

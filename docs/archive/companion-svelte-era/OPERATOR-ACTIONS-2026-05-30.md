@@ -6,7 +6,7 @@ Plain-English status + the few things only **you** can do. CC did everything els
 
 ## ✅ DONE & LIVE RIGHT NOW (test from your phone anytime)
 
-- **Image generation fixed.** Your key + $25 were never the problem — your prompt ("Sully from Monsters Inc") is a copyrighted character Google refuses, and the app mislabeled that as a key error. Now it shows the *real* reason. Use any non-copyrighted prompt and it works. (Want a Sully-ish pic? Describe an original "big blue furry monster" instead.)
+- **Image generation fixed.** Your key + $25 were never the problem — your prompt ("Sully from Monsters Inc") is a copyrighted character Google refuses, and the app mislabeled that as a key error. Now it shows the _real_ reason. Use any non-copyrighted prompt and it works. (Want a Sully-ish pic? Describe an original "big blue furry monster" instead.)
 - **Voice — all live on the server:**
   - **Talkback no longer freezes after the first turn** (the chime could hang the loop on iOS; fixed).
   - **Emma is now LOCAL** (your `emma.mp3` clone) — both Emma and Goodman run on the local GPU, ElevenLabs is shelved (reversible).
@@ -18,7 +18,7 @@ Plain-English status + the few things only **you** can do. CC did everything els
 
 Build `6a1ba67a` went green end-to-end: generated the custom icon, signed, archived `App.ipa`, and **published to TestFlight**. Apple accepted the upload, which means the 1024 icon passed validation (the alpha-flatten worked). **Open TestFlight on your phone — the build updates with the new icon**, and it loads the improved (voice + image) app remotely.
 
-Codemagic already auto-signs every build, so you have hands-off signing on this path *today*. The GitHub Actions path below is the long-term replacement you asked for — fully wired, just needs two secrets only you can retrieve.
+Codemagic already auto-signs every build, so you have hands-off signing on this path _today_. The GitHub Actions path below is the long-term replacement you asked for — fully wired, just needs two secrets only you can retrieve.
 
 ## ✅ GitHub path — DONE (shipped via GitHub Actions)
 
@@ -27,25 +27,31 @@ Codemagic already auto-signs every build, so you have hands-off signing on this 
 The instructions below are now only relevant if your ASC key is ever **rotated/revoked** — otherwise ignore them:
 
 ### 1. App Store Connect API key (`.p8`) → secret `APP_STORE_CONNECT_PRIVATE_KEY`
+
 The key for ID `R8SY4X6JM4` only lives inside Codemagic. Either:
+
 - **Find the original `.p8`** you downloaded when you created it, **OR**
 - App Store Connect → **Users and Access → Integrations → App Store Connect API** → **create a new key** (App Manager role) → download the `.p8` (⚠️ one-time download).
 
 Then **either**: drop the file on the box (e.g. `~/AuthKey.p8`) and tell me the path — I'll set the secret without it ever showing in chat. **Or** run it yourself:
+
 ```
 gh secret set APP_STORE_CONNECT_PRIVATE_KEY -R Dreighto/LogueOS-Companion < ~/AuthKey.p8
 ```
-*(If you made a NEW key, also tell me its Key ID so I update `APP_STORE_CONNECT_KEY_IDENTIFIER`.)*
+
+_(If you made a NEW key, also tell me its Key ID so I update `APP_STORE_CONNECT_KEY_IDENTIFIER`.)_
 
 ### 2. ASC Issuer ID → secret `APP_STORE_CONNECT_ISSUER_ID`
+
 App Store Connect → **Users and Access → Integrations → App Store Connect API** → copy the **Issuer ID** (a UUID at the top). Then tell me it, or:
+
 ```
 gh secret set APP_STORE_CONNECT_ISSUER_ID -R Dreighto/LogueOS-Companion -b "<the-uuid>"
 ```
 
 **Once those two are in:** the build is runnable. I'll trigger it (or you: Actions → "Sully iOS -> TestFlight" → Run workflow). It builds on a macOS runner, signs, and uploads to TestFlight **with your custom icon**. After the first green build I'll enable the keepalive schedule so the TestFlight build never expires (it auto-rebuilds every ~21 days).
 
-*(Already set for you: `CERTIFICATE_PRIVATE_KEY` from your local cert, and `APP_STORE_CONNECT_KEY_IDENTIFIER`.)*
+_(Already set for you: `CERTIFICATE_PRIVATE_KEY` from your local cert, and `APP_STORE_CONNECT_KEY_IDENTIFIER`.)_
 
 ## 🤔 DECISIONS I NEED FROM YOU
 

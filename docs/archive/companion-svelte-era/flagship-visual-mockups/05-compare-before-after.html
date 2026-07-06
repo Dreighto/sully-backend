@@ -1,140 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<title>Before → After</title>
-	<link rel="stylesheet" href="./shared.css">
-	<style>
-		.compare-stage {
-			padding: 32px 16px 48px;
-			max-width: 900px;
-			margin: 0 auto;
-		}
-		.compare-stage h1 {
-			font-family: var(--font-display);
-			text-align: center;
-			margin: 0 0 8px;
-			font-size: 22px;
-		}
-		.compare-stage .sub {
-			text-align: center;
-			color: var(--t3);
-			font-size: 13px;
-			margin-bottom: 28px;
-		}
-		.feed-compact { gap: 14px; padding-top: 8px; }
-		.pwa-banner {
-			margin: 8px 12px 0;
-			padding: 10px 12px;
-			border-radius: var(--r-md);
-			border: 1px solid var(--live-line);
-			background: rgba(9,9,11,0.95);
-			font-size: 12px;
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 8px;
-		}
-		.pwa-banner button {
-			padding: 6px 12px;
-			border-radius: var(--r-pill);
-			border: none;
-			background: var(--accent);
-			color: white;
-			font-size: 11px;
-			font-weight: 600;
-		}
-		.model-in-pill {
-			font-size: 11px;
-			color: var(--t3);
-			padding: 0 4px 6px;
-			display: flex;
-			align-items: center;
-			gap: 6px;
-		}
-		.legacy-header .brand-name { display: inline; }
-		.target-header .brand-name { display: none; }
-	</style>
-</head>
-<body>
-	<div class="compare-stage">
-		<h1>Before → After</h1>
-		<p class="sub">Same conversation · less chrome · flagship quietness</p>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Before → After</title>
+		<link rel="stylesheet" href="./shared.css" />
+		<style>
+			.compare-stage {
+				padding: 32px 16px 48px;
+				max-width: 900px;
+				margin: 0 auto;
+			}
+			.compare-stage h1 {
+				font-family: var(--font-display);
+				text-align: center;
+				margin: 0 0 8px;
+				font-size: 22px;
+			}
+			.compare-stage .sub {
+				text-align: center;
+				color: var(--t3);
+				font-size: 13px;
+				margin-bottom: 28px;
+			}
+			.feed-compact {
+				gap: 14px;
+				padding-top: 8px;
+			}
+			.pwa-banner {
+				margin: 8px 12px 0;
+				padding: 10px 12px;
+				border-radius: var(--r-md);
+				border: 1px solid var(--live-line);
+				background: rgba(9, 9, 11, 0.95);
+				font-size: 12px;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+			}
+			.pwa-banner button {
+				padding: 6px 12px;
+				border-radius: var(--r-pill);
+				border: none;
+				background: var(--accent);
+				color: white;
+				font-size: 11px;
+				font-weight: 600;
+			}
+			.model-in-pill {
+				font-size: 11px;
+				color: var(--t3);
+				padding: 0 4px 6px;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.legacy-header .brand-name {
+				display: inline;
+			}
+			.target-header .brand-name {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="compare-stage">
+			<h1>Before → After</h1>
+			<p class="sub">Same conversation · less chrome · flagship quietness</p>
 
-		<div class="compare-grid">
-			<div>
-				<div class="compare-tag before">Today (baseline)</div>
-				<div class="phone">
-					<div class="app">
-						<div class="pwa-banner">
-							<span>↻ Update ready</span>
-							<button type="button">Update</button>
-						</div>
-						<header class="header legacy-header" style="border-bottom:1px solid rgba(255,255,255,0.05)">
-							<div class="header-left">
-								<button class="icon-btn">☰</button>
-								<a class="brand" href="#"><div class="brand-mark"></div><span class="brand-name">Sully</span></a>
+			<div class="compare-grid">
+				<div>
+					<div class="compare-tag before">Today (baseline)</div>
+					<div class="phone">
+						<div class="app">
+							<div class="pwa-banner">
+								<span>↻ Update ready</span>
+								<button type="button">Update</button>
 							</div>
-							<button class="icon-btn">✎</button>
-						</header>
-						<div class="feed feed-compact">
-							<div class="msg-user legacy">What needs to ship next?</div>
-							<div>
-								<div class="name-tag"><span class="orb"></span> Sully</div>
-								<div class="msg-assistant" style="font-size:14px">LOS-193 run sheet, then primitives stage 3.</div>
-								<div class="msg-actions noisy">
-									<button class="act">⎘ Copy</button>
-									<button class="act">↻ Regen</button>
-									<button class="act">▶ Play</button>
-									<button class="act">👍</button>
-									<button class="act">👎</button>
+							<header
+								class="header legacy-header"
+								style="border-bottom: 1px solid rgba(255, 255, 255, 0.05)"
+							>
+								<div class="header-left">
+									<button class="icon-btn">☰</button>
+									<a class="brand" href="#"
+										><div class="brand-mark"></div>
+										<span class="brand-name">Sully</span></a
+									>
 								</div>
-								<div class="msg-meta">12:44 PM</div>
+								<button class="icon-btn">✎</button>
+							</header>
+							<div class="feed feed-compact">
+								<div class="msg-user legacy">What needs to ship next?</div>
+								<div>
+									<div class="name-tag"><span class="orb"></span> Sully</div>
+									<div class="msg-assistant" style="font-size: 14px">
+										LOS-193 run sheet, then primitives stage 3.
+									</div>
+									<div class="msg-actions noisy">
+										<button class="act">⎘ Copy</button>
+										<button class="act">↻ Regen</button>
+										<button class="act">▶ Play</button>
+										<button class="act">👍</button>
+										<button class="act">👎</button>
+									</div>
+									<div class="msg-meta">12:44 PM</div>
+								</div>
 							</div>
-						</div>
-						<div class="composer-wrap">
-							<div class="composer">
-								<div class="model-in-pill">✦ Auto · companion-v1-voice ▾</div>
-								<div class="composer-row">
-									<button class="icon-btn">📎</button>
-									<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
-									<button class="icon-btn">〰</button>
-									<button class="send-fab">🎤</button>
+							<div class="composer-wrap">
+								<div class="composer">
+									<div class="model-in-pill">✦ Auto · companion-v1-voice ▾</div>
+									<div class="composer-row">
+										<button class="icon-btn">📎</button>
+										<textarea
+											class="composer-input"
+											rows="1"
+											placeholder="Talk to Sully…"
+										></textarea>
+										<button class="icon-btn">〰</button>
+										<button class="send-fab">🎤</button>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 				</div>
-			</div>
 
-			<div>
-				<div class="compare-tag after">Target (mockup)</div>
-				<div class="phone">
-					<div class="app">
-						<header class="header quiet target-header">
-							<div class="header-left">
-								<button class="icon-btn">☰</button>
-								<a class="brand" href="#"><div class="brand-mark"></div><span class="brand-name">Sully</span></a>
+				<div>
+					<div class="compare-tag after">Target (mockup)</div>
+					<div class="phone">
+						<div class="app">
+							<header class="header quiet target-header">
+								<div class="header-left">
+									<button class="icon-btn">☰</button>
+									<a class="brand" href="#"
+										><div class="brand-mark"></div>
+										<span class="brand-name">Sully</span></a
+									>
+								</div>
+								<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
+								<button class="icon-btn">✎</button>
+							</header>
+							<div class="feed feed-compact">
+								<div class="msg-user">What needs to ship next?</div>
+								<div class="msg-block">
+									<div class="name-tag"><span class="orb"></span> Sully</div>
+									<div class="msg-assistant">LOS-193 run sheet, then primitives stage 3.</div>
+									<div class="msg-meta">12:44 PM</div>
+								</div>
 							</div>
-							<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
-							<button class="icon-btn">✎</button>
-						</header>
-						<div class="feed feed-compact">
-							<div class="msg-user">What needs to ship next?</div>
-							<div class="msg-block">
-								<div class="name-tag"><span class="orb"></span> Sully</div>
-								<div class="msg-assistant">LOS-193 run sheet, then primitives stage 3.</div>
-								<div class="msg-meta">12:44 PM</div>
-							</div>
-						</div>
-						<div class="composer-wrap">
-							<div class="composer">
-								<div class="composer-row">
-									<button class="icon-btn">📎</button>
-									<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
-									<button class="icon-btn">〰</button>
-									<button class="send-fab">🎤</button>
+							<div class="composer-wrap">
+								<div class="composer">
+									<div class="composer-row">
+										<button class="icon-btn">📎</button>
+										<textarea
+											class="composer-input"
+											rows="1"
+											placeholder="Talk to Sully…"
+										></textarea>
+										<button class="icon-btn">〰</button>
+										<button class="send-fab">🎤</button>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -142,6 +169,5 @@
 				</div>
 			</div>
 		</div>
-	</div>
-</body>
+	</body>
 </html>

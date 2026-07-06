@@ -357,4 +357,3 @@ Results:
 
 - `npm run check`: passed with 0 errors and 0 warnings.
 - `npm run lint`: failed during `prettier --check .`; 39 files need formatting. ESLint did not run because Prettier exited first.
-

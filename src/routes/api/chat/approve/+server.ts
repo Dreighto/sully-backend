@@ -15,7 +15,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { message_id, status } = body; // status is 'approved' or 'denied'
 
 		if (!message_id || !status || (status !== 'approved' && status !== 'denied')) {
-			return json({ error: 'message_id and valid status (approved/denied) are required.' }, { status: 400 });
+			return json(
+				{ error: 'message_id and valid status (approved/denied) are required.' },
+				{ status: 400 }
+			);
 		}
 
 		// 1. Fetch the command details from the DB before updating so we can emit a clean system message
@@ -43,13 +46,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		const success = updateActionStatus(Number.parseInt(message_id, 10), status);
 
 		if (!success) {
-			return json({ error: 'Failed to update action status. Message not found or has no action.' }, { status: 400 });
+			return json(
+				{ error: 'Failed to update action status. Message not found or has no action.' },
+				{ status: 400 }
+			);
 		}
 
 		// 3. Insert a clean system feedback message into the chat so the operator sees the decision logged
 		const actionVerb = status === 'approved' ? 'APPROVED' : 'DENIED';
 		const feedbackMsg = `Operator **${actionVerb}** the command requested by **${sender}**:\n\`\`\`bash\n${command}\n\`\`\``;
-		
+
 		addChatMessage('system', feedbackMsg, traceId, ticketId);
 
 		return json({ success: true, status });

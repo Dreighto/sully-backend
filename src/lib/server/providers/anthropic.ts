@@ -22,7 +22,7 @@ function roleMessageToAnthropic(msg: ProviderMessage) {
 	}
 	return {
 		role: msg.role,
-		content: msg.content.map(part => {
+		content: msg.content.map((part) => {
 			if (part.type === 'text') {
 				return { type: 'text', text: part.text };
 			}

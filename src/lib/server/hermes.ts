@@ -11,9 +11,7 @@ import path from 'node:path';
 // or another local model.
 
 const OLLAMA_URL =
-	process.env.LOGUEOS_HERMES_OLLAMA_URL ||
-	process.env.OLLAMA_BASE_URL ||
-	'http://127.0.0.1:11434';
+	process.env.LOGUEOS_HERMES_OLLAMA_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const HERMES_MODEL = process.env.LOGUEOS_HERMES_MODEL || 'qwen2.5:7b';
 
 const OPERATOR_PROFILE_PATH =
@@ -136,9 +134,7 @@ export async function callHermes(history: HermesTurn[], userMessage: string): Pr
  * Hermes can tell who said what). Filters reset markers and dispatch
  * announcements that would just add noise to the local model's context.
  */
-export function chatRowsToHermesHistory(
-	rows: { sender: string; message: string }[]
-): HermesTurn[] {
+export function chatRowsToHermesHistory(rows: { sender: string; message: string }[]): HermesTurn[] {
 	const turns: HermesTurn[] = [];
 	for (const r of rows) {
 		if (r.sender === 'system') {

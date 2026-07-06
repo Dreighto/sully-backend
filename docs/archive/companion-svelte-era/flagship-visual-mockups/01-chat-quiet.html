@@ -1,88 +1,95 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<title>Mockup 01 — Quiet conversation</title>
-	<link rel="stylesheet" href="./shared.css">
-	<style>
-		.msg-block.focused-demo .msg-actions.quiet { opacity: 1; }
-		.hint { text-align: center; font-size: 11px; color: var(--t4); padding: 0 16px 8px; }
-	</style>
-</head>
-<body>
-	<div class="phone-stage">
-		<div class="phone-label">Target — Phase A+B</div>
-		<div class="phone">
-			<div class="app">
-				<header class="header quiet">
-					<div class="header-left">
-						<button class="icon-btn" aria-label="Menu">☰</button>
-						<a class="brand" href="#">
-							<div class="brand-mark"></div>
-						</a>
-					</div>
-					<button class="model-chip" type="button">
-						<span class="dot"></span>
-						Auto ▾
-					</button>
-					<div class="header-right">
-						<button class="icon-btn" aria-label="Context">✎</button>
-					</div>
-				</header>
-
-				<div class="feed">
-					<div>
-						<div class="msg-user">Can you check what's running on the machine?</div>
-						<div class="msg-meta" style="text-align: right">12:41 PM</div>
-					</div>
-
-					<div class="msg-block">
-						<div class="name-tag"><span class="orb"></span> Sully</div>
-						<div class="msg-assistant">
-							Three services are up: companion, dispatch listener, and the MCP gateway.
-							CC finished PRO-205 twelve minutes ago — nothing else is in flight.
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Mockup 01 — Quiet conversation</title>
+		<link rel="stylesheet" href="./shared.css" />
+		<style>
+			.msg-block.focused-demo .msg-actions.quiet {
+				opacity: 1;
+			}
+			.hint {
+				text-align: center;
+				font-size: 11px;
+				color: var(--t4);
+				padding: 0 16px 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="phone-stage">
+			<div class="phone-label">Target — Phase A+B</div>
+			<div class="phone">
+				<div class="app">
+					<header class="header quiet">
+						<div class="header-left">
+							<button class="icon-btn" aria-label="Menu">☰</button>
+							<a class="brand" href="#">
+								<div class="brand-mark"></div>
+							</a>
 						</div>
-						<div class="msg-actions quiet">
-							<button class="act" title="Copy">⎘</button>
-							<button class="act" title="Regenerate">↻</button>
-							<button class="act" title="Read aloud">▶</button>
-							<button class="act" title="More">···</button>
+						<button class="model-chip" type="button">
+							<span class="dot"></span>
+							Auto ▾
+						</button>
+						<div class="header-right">
+							<button class="icon-btn" aria-label="Context">✎</button>
 						</div>
-						<div class="msg-meta">12:41 PM</div>
+					</header>
+
+					<div class="feed">
+						<div>
+							<div class="msg-user">Can you check what's running on the machine?</div>
+							<div class="msg-meta" style="text-align: right">12:41 PM</div>
+						</div>
+
+						<div class="msg-block">
+							<div class="name-tag"><span class="orb"></span> Sully</div>
+							<div class="msg-assistant">
+								Three services are up: companion, dispatch listener, and the MCP gateway. CC
+								finished PRO-205 twelve minutes ago — nothing else is in flight.
+							</div>
+							<div class="msg-actions quiet">
+								<button class="act" title="Copy">⎘</button>
+								<button class="act" title="Regenerate">↻</button>
+								<button class="act" title="Read aloud">▶</button>
+								<button class="act" title="More">···</button>
+							</div>
+							<div class="msg-meta">12:41 PM</div>
+						</div>
+
+						<div class="msg-block focused focused-demo">
+							<div class="name-tag"><span class="orb"></span> Sully</div>
+							<div class="msg-assistant">
+								Tap or long-press a reply to reveal actions — the conversation stays clean until you
+								need controls.
+							</div>
+							<div class="msg-actions quiet">
+								<button class="act" title="Copy">⎘</button>
+								<button class="act" title="Regenerate">↻</button>
+								<button class="act" title="Read aloud">▶</button>
+								<button class="act" title="More">···</button>
+							</div>
+							<div class="msg-meta">12:42 PM · focused</div>
+						</div>
 					</div>
 
-					<div class="msg-block focused focused-demo">
-						<div class="name-tag"><span class="orb"></span> Sully</div>
-						<div class="msg-assistant">
-							Tap or long-press a reply to reveal actions — the conversation stays
-							clean until you need controls.
-						</div>
-						<div class="msg-actions quiet">
-							<button class="act" title="Copy">⎘</button>
-							<button class="act" title="Regenerate">↻</button>
-							<button class="act" title="Read aloud">▶</button>
-							<button class="act" title="More">···</button>
-						</div>
-						<div class="msg-meta">12:42 PM · focused</div>
-					</div>
-				</div>
+					<p class="hint">Actions hidden by default · shown on focus (demo: middle message)</p>
 
-				<p class="hint">Actions hidden by default · shown on focus (demo: middle message)</p>
-
-				<div class="composer-wrap">
-					<div class="composer">
-						<div class="composer-row">
-							<button class="icon-btn" type="button">📎</button>
-							<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
-							<button class="icon-btn" type="button">〰</button>
-							<button class="send-fab" type="button">🎤</button>
+					<div class="composer-wrap">
+						<div class="composer">
+							<div class="composer-row">
+								<button class="icon-btn" type="button">📎</button>
+								<textarea class="composer-input" rows="1" placeholder="Talk to Sully…"></textarea>
+								<button class="icon-btn" type="button">〰</button>
+								<button class="send-fab" type="button">🎤</button>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
+			<span class="badge-note">Model chip moved to header · composer is text + actions only</span>
 		</div>
-		<span class="badge-note">Model chip moved to header · composer is text + actions only</span>
-	</div>
-</body>
+	</body>
 </html>

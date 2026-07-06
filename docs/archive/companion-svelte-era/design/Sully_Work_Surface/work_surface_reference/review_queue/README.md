@@ -1,8 +1,9 @@
 # Review Queue
 
-This directory acts as a staging queue where ChatGPT and other LLM-generated code/asset prototypes can be dropped and categorized. 
+This directory acts as a staging queue where ChatGPT and other LLM-generated code/asset prototypes can be dropped and categorized.
 
 ## Structure
+
 - **html/**: Isolated markup structures.
 - **css/**: Styling sheets and transition overrides.
 - **js/**: Code logic and mock telemetry.

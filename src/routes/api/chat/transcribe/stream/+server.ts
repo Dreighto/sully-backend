@@ -31,10 +31,7 @@ export const GET: RequestHandler = async () => {
 	const dailyCapMinutes = Number(env.ASSEMBLYAI_DAILY_MINUTE_CAP ?? 30);
 	const usedToday = getTodaySttUsage();
 	if (usedToday >= dailyCapMinutes) {
-		return json(
-			{ error: 'cap_exhausted', usage_today_minutes: usedToday },
-			{ status: 429 }
-		);
+		return json({ error: 'cap_exhausted', usage_today_minutes: usedToday }, { status: 429 });
 	}
 
 	const tokenRes = await fetch(ASSEMBLYAI_TOKEN_URL, {

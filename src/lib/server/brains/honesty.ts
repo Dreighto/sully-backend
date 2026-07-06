@@ -156,11 +156,7 @@ export function logFabricationEntry(entry: HonestyLogEntry): void {
 	}
 }
 
-export function honestyObserve(
-	reply: string,
-	toolCallsThisTurn: string[],
-	thread: string
-): void {
+export function honestyObserve(reply: string, toolCallsThisTurn: string[], thread: string): void {
 	try {
 		const flags = auditTurn(reply, toolCallsThisTurn);
 		const v = judgeRefusal(reply);

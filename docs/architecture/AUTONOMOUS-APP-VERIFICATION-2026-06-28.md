@@ -17,29 +17,29 @@ The single biggest enabler, named independently by R1, R2, and R3: **add `.acces
 
 Each layer runs on apple-node via `xcodebuild`/`simctl`/`AXe`. Ordered so a fast failure kills the build before expensive layers run.
 
-**Layer 0 — Build + launch-without-crash (seconds, free).** `xcodebuild build` then `simctl boot/install/launch`. Catches: compile breaks, crash-on-launch, missing assets. Setup: zero (already on apple-node). *Real history:* would have caught any build-time regression in the b97→b109 churn before it ever shipped.
+**Layer 0 — Build + launch-without-crash (seconds, free).** `xcodebuild build` then `simctl boot/install/launch`. Catches: compile breaks, crash-on-launch, missing assets. Setup: zero (already on apple-node). _Real history:_ would have caught any build-time regression in the b97→b109 churn before it ever shipped.
 
-**Layer 1 — Logic/unit tests (ms, free).** Swift Testing + your existing ComposerViewTests/ChatCoordinatorTests via `xcodebuild test`. Optionally ViewInspector for "Send button wired to wrong action / composer binds wrong @State" (R2 layer 1). Catches: wiring bugs, coordinator state machine errors. *Real history:* the **ack/result overlap** bug is a ChatCoordinator state-ordering bug — exactly a Swift Testing/ViewInspector assertion on coordinator output, catchable here with no rendering. (R2)
+**Layer 1 — Logic/unit tests (ms, free).** Swift Testing + your existing ComposerViewTests/ChatCoordinatorTests via `xcodebuild test`. Optionally ViewInspector for "Send button wired to wrong action / composer binds wrong @State" (R2 layer 1). Catches: wiring bugs, coordinator state machine errors. _Real history:_ the **ack/result overlap** bug is a ChatCoordinator state-ordering bug — exactly a Swift Testing/ViewInspector assertion on coordinator output, catchable here with no rendering. (R2)
 
-**Layer 2 — Preview + snapshot tests (seconds, cheap — HIGHEST visual leverage).** swift-snapshot-testing (pointfreeco) pixel-diffs MessageFeedView/ComposerView against committed PNG references; Prefire/SnapshotPreviews auto-snapshots every existing `#Preview` block for free (R2 layers 2-3, R4). Catches: shifted bubbles, clipped orb, wrong color, broken Dynamic-Type layout — "the exact 'looks wrong' class the operator currently screen-records" (R2). *Real history:* the **composer-blank scroll bug** is a layout regression — a committed snapshot of ComposerView with keyboard up would have diffed red. **Pin one sim** (iPhone 16 Pro / iOS 26.5) and record references on apple-node so they match (R2 caveat: snapshots are device/OS/scale-sensitive). Agent reads the failure-diff PNG with the vision model.
+**Layer 2 — Preview + snapshot tests (seconds, cheap — HIGHEST visual leverage).** swift-snapshot-testing (pointfreeco) pixel-diffs MessageFeedView/ComposerView against committed PNG references; Prefire/SnapshotPreviews auto-snapshots every existing `#Preview` block for free (R2 layers 2-3, R4). Catches: shifted bubbles, clipped orb, wrong color, broken Dynamic-Type layout — "the exact 'looks wrong' class the operator currently screen-records" (R2). _Real history:_ the **composer-blank scroll bug** is a layout regression — a committed snapshot of ComposerView with keyboard up would have diffed red. **Pin one sim** (iPhone 16 Pro / iOS 26.5) and record references on apple-node so they match (R2 caveat: snapshots are device/OS/scale-sensitive). Agent reads the failure-diff PNG with the vision model.
 
-**Layer 3 — XCUITest flow smoke (tens of seconds).** One thin `xcodebuild test` flow: launch → type into composer → tap Send (by accessibilityIdentifier) → assert new bubble row exists in MessageFeedView → open voice mode → assert orb container present (R2 layer 4, R4). Catches: navigation/flow breaks, "tapping Send does nothing," empty-state branch errors. *Real history:* **composer-blank** also catchable here — bring up keyboard, assert composer field still hit-testable. **Gotcha (R4):** if a hardware keyboard is "connected" the sim hides the software keyboard and the test silently passes — force software keyboard via `simctl`/Toggle.
+**Layer 3 — XCUITest flow smoke (tens of seconds).** One thin `xcodebuild test` flow: launch → type into composer → tap Send (by accessibilityIdentifier) → assert new bubble row exists in MessageFeedView → open voice mode → assert orb container present (R2 layer 4, R4). Catches: navigation/flow breaks, "tapping Send does nothing," empty-state branch errors. _Real history:_ **composer-blank** also catchable here — bring up keyboard, assert composer field still hit-testable. **Gotcha (R4):** if a hardware keyboard is "connected" the sim hides the software keyboard and the test silently passes — force software keyboard via `simctl`/Toggle.
 
-**Layer 4 — AXe-driven scripted flow + a11y assert (tens of seconds — the deterministic agent gate).** `axe describe-ui --udid <UDID>` returns the full a11y tree as JSON; agent asserts "send button enabled," "MessageFeedView has N rows," "orb present" with no vision (R1, R3 item 1). This is the layer the *agent* drives ad-hoc (vs. checked-in XCUITest). Catches: the same flow bugs, but authorable on the fly by CC over ssh without recompiling a test target.
+**Layer 4 — AXe-driven scripted flow + a11y assert (tens of seconds — the deterministic agent gate).** `axe describe-ui --udid <UDID>` returns the full a11y tree as JSON; agent asserts "send button enabled," "MessageFeedView has N rows," "orb present" with no vision (R1, R3 item 1). This is the layer the _agent_ drives ad-hoc (vs. checked-in XCUITest). Catches: the same flow bugs, but authorable on the fly by CC over ssh without recompiling a test target.
 
 **Layer 5 — Screenshot → vision rubric (advisory only).** `simctl io booted screenshot` → ask vision model a structured-JSON rubric ("blank? overlapping? orb visible? text legible? {pass:bool, issues:[]}") (R3 item 2). Catches: aesthetic drift, blank/broken/overlapping states the tree can't express. **Advisory, never the hard gate** — practitioners report ~1-in-10 vision-judge calls is garbage, with order/position bias. Mitigate: feed a known-good baseline for diff-style judging, run 2-3x for self-consistency. **Do NOT use raw pixel-diff** — sim anti-aliasing floods false positives (R3).
 
-**Layer 6 — recordVideo → claude-video-vision + Whisper (animation + spoken output).** `simctl io booted recordVideo orb.mp4` → your existing claude-video-vision plugin extracts frames + Whisper transcript. Xcode 15+ recordVideo captures sim audio by default (R3 item 3). Catches: orb animation state, **does the spoken reply actually play and say roughly X** — directly addresses read-aloud/voice-truncate regressions. *Real history:* the **WAV crash / decodeWAV** path — a crash here surfaces as a launch/playback failure in the recording; the *perf* aspect (main-thread stall) does NOT (see Limits).
+**Layer 6 — recordVideo → claude-video-vision + Whisper (animation + spoken output).** `simctl io booted recordVideo orb.mp4` → your existing claude-video-vision plugin extracts frames + Whisper transcript. Xcode 15+ recordVideo captures sim audio by default (R3 item 3). Catches: orb animation state, **does the spoken reply actually play and say roughly X** — directly addresses read-aloud/voice-truncate regressions. _Real history:_ the **WAV crash / decodeWAV** path — a crash here surfaces as a launch/playback failure in the recording; the _perf_ aspect (main-thread stall) does NOT (see Limits).
 
-| Layer | Catches | Our real bug | Cost |
-|---|---|---|---|
-| 0 Build+launch | crashes, asset breaks | any b97-b109 build break | free |
-| 1 Logic/unit | wiring, coordinator state | **ack/result overlap** | free |
-| 2 Snapshot/Preview | layout/visual/color | **composer-blank** | cheap |
-| 3 XCUITest flow | flow/nav breaks | composer-blank (interaction) | medium |
-| 4 AXe a11y assert | agent-authored flow | ad-hoc flow checks | medium |
-| 5 Vision rubric | aesthetic/blank (advisory) | composer-blank visual | medium |
-| 6 Video+Whisper | animation, spoken output | **WAV crash** (crash only) | higher |
+| Layer              | Catches                    | Our real bug                 | Cost   |
+| ------------------ | -------------------------- | ---------------------------- | ------ |
+| 0 Build+launch     | crashes, asset breaks      | any b97-b109 build break     | free   |
+| 1 Logic/unit       | wiring, coordinator state  | **ack/result overlap**       | free   |
+| 2 Snapshot/Preview | layout/visual/color        | **composer-blank**           | cheap  |
+| 3 XCUITest flow    | flow/nav breaks            | composer-blank (interaction) | medium |
+| 4 AXe a11y assert  | agent-authored flow        | ad-hoc flow checks           | medium |
+| 5 Vision rubric    | aesthetic/blank (advisory) | composer-blank visual        | medium |
+| 6 Video+Whisper    | animation, spoken output   | **WAV crash** (crash only)   | higher |
 
 ---
 
@@ -61,7 +61,7 @@ ssh apple-node 'xcrun simctl boot "iPhone 16 Pro"; \
 # then scp the JSON+PNG back; assert on tree, vision on PNG
 ```
 
-Why AXe over the snapshot suite first, even though snapshot is the highest *visual* leverage: AXe needs **zero in-repo code** to start returning value (it reads the live a11y tree of the app as-is), whereas snapshot tests require writing/recording references first. AXe gets the autonomous loop *running end-to-end this week*; snapshot tests are the parallel in-repo workstream (week 2).
+Why AXe over the snapshot suite first, even though snapshot is the highest _visual_ leverage: AXe needs **zero in-repo code** to start returning value (it reads the live a11y tree of the app as-is), whereas snapshot tests require writing/recording references first. AXe gets the autonomous loop _running end-to-end this week_; snapshot tests are the parallel in-repo workstream (week 2).
 
 **Blocker requiring operator (R4): apple-node must be auto-logged-in + caffeinated + have a display.** Apple-silicon Mac minis won't initialize a framebuffer headless — the Simulator renders wrong or `simctl boot` fails from a bare ssh shell. Fixes: enable auto-login for the build user, attach a **dummy HDMI plug** (or headless display adapter), keep a console session alive, and launch tests into the GUI domain (`launchctl asuser <uid>`) not the ssh session. This is a one-time operator setup and is the gate on everything else.
 
@@ -100,7 +100,7 @@ How CC (or a dispatched worker) runs it end-to-end on apple-node:
              else → Telegram the operator the failure + the diff PNG, hold the build.
 ```
 
-This is the wrapper that goes *in front of* `ship-build.sh`. The backend half is already covered — we routinely curl/SSE :18779, so STT/transport logic asserts there (R2, R3).
+This is the wrapper that goes _in front of_ `ship-build.sh`. The backend half is already covered — we routinely curl/SSE :18779, so STT/transport logic asserts there (R2, R3).
 
 ---
 
@@ -108,8 +108,8 @@ This is the wrapper that goes *in front of* `ship-build.sh`. The backend half is
 
 The Simulator mic is the Mac's mic; the sim runs on fast Mac CPU/SSD; the sim has no haptics and Apple explicitly states it "does not simulate audio session behavior." So these are **irreducible** (R3, R4):
 
-1. **Voice mode end-to-end** — AVAudioEngine/AVAudioSession activation timing, TTFA, route changes, interruptions (call/Bluetooth), echo/garble. The **voice main-thread hang** lives here. *Partial mitigation (R3):* set BlackHole as a virtual **input** device on apple-node, play a known WAV in, assert the :18779 SSE transcript — this exercises the STT/backend path but NOT the real iPhone audio session.
-2. **Real perf / hang behavior on A-series silicon** — the **NNN-ms HUD hang, decodeWAV disk roundtrip timing, thermals, frame drops.** The sim's fast SSD hides exactly these. The WAV *crash* is catchable (Layer 6); the WAV *stall* is not.
+1. **Voice mode end-to-end** — AVAudioEngine/AVAudioSession activation timing, TTFA, route changes, interruptions (call/Bluetooth), echo/garble. The **voice main-thread hang** lives here. _Partial mitigation (R3):_ set BlackHole as a virtual **input** device on apple-node, play a known WAV in, assert the :18779 SSE transcript — this exercises the STT/backend path but NOT the real iPhone audio session.
+2. **Real perf / hang behavior on A-series silicon** — the **NNN-ms HUD hang, decodeWAV disk roundtrip timing, thermals, frame drops.** The sim's fast SSD hides exactly these. The WAV _crash_ is catchable (Layer 6); the WAV _stall_ is not.
 3. **Haptics** firing correctly — sim produces none.
 4. **Push / badge / background** with a real APNs token (we have this disabled anyway per the killswitch).
 5. **Camera/mic real capture quality.**
@@ -122,11 +122,11 @@ Net: the pipeline pre-screens **layout/visual/logic/flow/crash + spoken-output +
 
 ## 5. RECOMMENDATIONS — ranked, shippable
 
-1. **[NEEDS OPERATOR] Make apple-node a headless test host.** Auto-login for the build user, attach a dummy HDMI/display adapter, `caffeinate`, confirm `simctl boot` works from ssh into the GUI domain. One-time; gates everything. (R4) — *This is the only hard operator dependency; flag it first.*
+1. **[NEEDS OPERATOR] Make apple-node a headless test host.** Auto-login for the build user, attach a dummy HDMI/display adapter, `caffeinate`, confirm `simctl boot` works from ssh into the GUI domain. One-time; gates everything. (R4) — _This is the only hard operator dependency; flag it first._
 2. **[CC, this week] Install AXe + stand up the build→boot→a11y-assert→screenshot loop** as a single ssh-driven script in sully-backend's repo tooling (or a new `~/sully-ota/preflight.sh` on apple-node, sibling to ship-build.sh). Driveable by CC and dispatched workers. (R1, R3)
 3. **[CC, repo work, parallel] Add `.accessibilityIdentifier(...)` to ComposerView (field + send), MessageFeedView rows, and the voice-orb container.** Prerequisite for reliable AXe/XCUITest assertions — without it every layer is brittle. (R1/R2/R3 unanimous)
-4. **[CC, week 2] Add swift-snapshot-testing + Prefire**, pin iPhone 16 Pro/iOS 26.5, record references on apple-node, run as a required `xcodebuild test` gate. Highest *visual* leverage; would have caught composer-blank. (R2, R4)
-5. **[CC, defer] Wrap ship-build.sh with the PASS/FAIL gate** so a red preflight Telegrams the operator the diff PNG and *holds* the build instead of shipping. The actual bottleneck-breaker — only build after layers 2-4 exist. Optional later: XcodeBuildMCP as MCP tools if we want LLM-native ergonomics, but AXe-over-ssh is lower-friction and avoids idb's Xcode-26 fragility. (R1, R3)
+4. **[CC, week 2] Add swift-snapshot-testing + Prefire**, pin iPhone 16 Pro/iOS 26.5, record references on apple-node, run as a required `xcodebuild test` gate. Highest _visual_ leverage; would have caught composer-blank. (R2, R4)
+5. **[CC, defer] Wrap ship-build.sh with the PASS/FAIL gate** so a red preflight Telegrams the operator the diff PNG and _holds_ the build instead of shipping. The actual bottleneck-breaker — only build after layers 2-4 exist. Optional later: XcodeBuildMCP as MCP tools if we want LLM-native ergonomics, but AXe-over-ssh is lower-friction and avoids idb's Xcode-26 fragility. (R1, R3)
 
 Skip: idb/ios-simulator-mcp (idb companion breaks on Xcode 26 — R1/R3), raw pixel-diff (sim AA false positives — R3), Appium/cloud device farms (single-target, our operator's phone is the device-farm-of-one — R1/R4), vision-as-primary-gate (~1-in-10 unreliable — R3).
 
@@ -137,6 +137,7 @@ Relevant paths: `~/sully-ota/ship-build.sh` (existing, on apple-node — wrap it
 ## Appendix: raw research
 
 ### Sim automation
+
 # iOS Simulator Automation for an Autonomous Agent (Sully on apple-node)
 
 **Bottom line:** the modern stack is **AXe (raw CLI) + simctl** as the ssh-drivable primitive, optionally wrapped by **XcodeBuildMCP** when you want LLM-native tools. idb still works but Meta has deprioritized it and its companion daemon is fragile on Xcode 26. All of these run on the simulator on apple-node; no physical device needed.
@@ -144,39 +145,51 @@ Relevant paths: `~/sully-ota/ship-build.sh` (existing, on apple-node — wrap it
 ## Ranked by fit for an agent driving `ssh apple-node`
 
 ### 1. AXe (cameroncooke/AXe) — best raw primitive ⭐
+
 Standalone single binary, **no daemon, no client/server**, uses Apple's private accessibility APIs. This is exactly what XcodeBuildMCP wraps, so over plain ssh you get the same power without MCP plumbing.
+
 - `axe describe-ui --udid <UDID>` → JSON accessibility tree (labels + frames) — your "DOM" for assertions without vision.
 - `axe tap --label "Send"` / `axe tap -x 200 -y 640`, `axe type "hello"`, `axe swipe`, `axe screenshot out.png`, batch-chaining for multi-step flows.
 - Ships an agent skill: `axe init` installs a Claude Code skill. Setup: one `brew`/release download on the Mac mini. Active (2025-2026), purpose-built for AI agents. Simulator-only.
 
 ### 2. xcrun simctl — the boot/install/launch backbone (always needed)
+
 Built into Xcode, zero setup. Does lifecycle + capture but **cannot tap/gesture or dump the a11y tree**.
+
 - `xcrun simctl boot "iPhone 16 Pro"` · `xcrun simctl install booted Sully.app` · `xcrun simctl launch booted com.logueos.Sully`
 - `xcrun simctl io booted screenshot out.png` · `xcrun simctl io booted recordVideo out.mp4` (feed to your claude-video-vision plugin)
 - `xcrun simctl ui booted appearance dark` for light/dark + dynamic-type runs. Pair with AXe/idb for input.
 
 ### 3. XcodeBuildMCP (now under getsentry, formerly cameroncooke) — richest LLM ergonomics
+
 Single package, MCP server + CLI. Exposes discover/build/install/launch, `screenshot`, `describe_ui` (a11y tree JSON), and `tap/swipe/type/gesture/key` (via bundled AXe). Best if you run it **on apple-node** and connect over an MCP stdio transport, or use its CLI mode. Sentry-backed = the most actively maintained option. `npx -y xcodebuildmcp`. Simulator + device.
 
 ### 4. ios-simulator-mcp (joshuayoes) — lighter MCP, but needs idb
+
 MCP wrapper exposing tap/swipe/type/screenshot/record + `ui_describe_all`. Thin layer over **idb**, so it inherits idb's companion install. `npx ios-simulator-mcp`. Use only if you've standardized on idb; otherwise XcodeBuildMCP/AXe is less brittle. Simulator-focused.
 
 ### 5. idb / fb-idb (facebook/idb) — mature but waning
+
 Python client `pip install fb-idb` + `idb_companion` daemon (`brew install idb-companion`). Real gesture/text/key support and `idb ui describe-all` / `describe-point` (a11y tree). Daemon mode (`idb_companion --udid …`) is genuinely agent-drivable over ssh. **Caveat:** Meta has deprioritized it; open issues pile up and companion compilation breaks on newer Xcode/macOS. Works on simulator and device. Treat as fallback, not foundation.
 
 ### 6. Maestro (mobile-dev-inc) — best for saved regression flows
+
 Declarative YAML (`launchApp`, `tapOn`, `assertVisible`), auto-detects the booted sim (no driver server to start), single-binary install, and an **official MCP server** for agents. Agent writes/edits flows, then `maestro test sully_chat.yaml` over ssh. Uses WebDriverAgent/XCUITest underneath. Ideal for a checked-in suite that gates a build before OTA. Sim + device.
 
 ### 7. Appium + WebDriverAgent — heaviest, last resort
+
 Full WebDriver/XCUITest, maximal flexibility, but a server + WDA build + capabilities config. Overkill versus AXe/Maestro for your headless-verify goal. Sim + device.
 
 ## The accessibility tree as the agent's DOM
+
 `axe describe-ui` (or `idb ui describe-all`) returns every element with `AXLabel`/identifier + frame as JSON — assert "Send button visible," "message row contains X," "voice orb present" **without a vision model**. To make this reliable, add `.accessibilityIdentifier(...)` to your SwiftUI surfaces (ComposerView TextField + send button, MessageFeedView rows, the voice-orb container). Then the agent taps by label/id, not brittle coordinates. Use screenshots/video + vision only for the orb's visual/animation state, where the tree can't help.
 
 ## Recommended setup for Sully
+
 On apple-node: `xcrun simctl` (have it) + **AXe** (one install) as the core; layer **Maestro** for a checked-in pre-ship regression suite; reach for **XcodeBuildMCP** if you want it as MCP tools. Loop: `simctl boot/install/launch` → `axe describe-ui`/`tap`/`type` to exercise chat + voice → `simctl io … screenshot`/`recordVideo` → assert on tree, vision only for the orb — all before the OTA build hits the operator's iPhone.
 
 Sources:
+
 - [cameroncooke/AXe](https://github.com/cameroncooke/AXe) · [axe-cli.com](https://www.axe-cli.com/) · [AXe AGENTS.md](https://github.com/cameroncooke/AXe/blob/main/AGENTS.md)
 - [getsentry/XcodeBuildMCP](https://github.com/cameroncooke/XcodeBuildMCP) · [xcodebuildmcp.com](https://www.xcodebuildmcp.com/)
 - [joshuayoes/ios-simulator-mcp](https://github.com/joshuayoes/ios-simulator-mcp) · [setup guide 2026](https://mcp.directory/blog/ios-simulator-mcp-complete-guide-2026)
@@ -185,6 +198,7 @@ Sources:
 - [vermont42/ios-build-verify (AXe+xcodebuild reference rig)](https://github.com/vermont42/ios-build-verify)
 
 ### SwiftUI test frameworks
+
 # SwiftUI Test Frameworks That Catch Regressions Headlessly (apple-node)
 
 All of these run on the iOS Simulator via `xcodebuild test` on apple-node — no physical iPhone. An agent can author and run them over `ssh apple-node`. Map each layer to the bug class it catches.
@@ -217,6 +231,7 @@ The simulator does not reproduce: **real on-device keyboard** behavior (frame, a
 Sources: [pointfreeco/swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing), [nalexn/ViewInspector](https://github.com/nalexn/ViewInspector), [EmergeTools/SnapshotPreviews](https://github.com/EmergeTools/SnapshotPreviews), [BarredEwe/Prefire](https://github.com/BarredEwe/Prefire), [Swift Testing vs XCTest (Crosley)](https://blakecrosley.com/blog/swift-testing-vs-xctest), [Apple XCTest docs](https://developer.apple.com/documentation/xctest).
 
 ### Vision/agent verification
+
 STACK-GROUNDED RESEARCH: Autonomous UI verification for Sully before OTA-shipping to the operator's iPhone.
 
 Bottom line: build the loop on apple-node's Simulator with an accessibility-tree-first MCP as the deterministic gate, and use the vision model only as a secondary "does it look right" judge. Do NOT make a vision model the primary pass/fail — it's ~1-in-10 unreliable.
@@ -241,10 +256,13 @@ RECOMMENDED BUILD: apple-node runs Simulator + ios-simulator-mcp; CC over SSH do
 Sources inline above.
 
 ### CI limits / real teams
+
 How real teams do autonomous/CI iOS UI verification — grounded in your stack (apple-node M1 sim host, Sully SwiftUI, sully-backend).
 
 ## The standard pattern: the iOS test pyramid in CI
+
 Real teams gate every build with a layered suite run via `xcodebuild test` (or Fastlane `scan`, a 100%-xcodebuild wrapper) on a simulator, on a macOS runner — GitHub Actions `macos-latest`, Xcode Cloud, or a self-hosted Mac (your apple-node) ([Fastlane scan](https://docs.fastlane.tools/actions/scan/); [Bright Inventions 2025](https://brightinventions.pl/blog/ios-build-run-tests-github-actions/); [Quality Coding](https://qualitycoding.org/github-actions-ci-xcode/)). Layers, cheapest→costliest:
+
 1. **Unit tests** (your ComposerViewTests, ChatCoordinatorTests) — pure logic, milliseconds.
 2. **Snapshot tests** — pointfreeco/swift-snapshot-testing renders a view and pixel-diffs against a committed reference; the dominant way teams catch layout regressions without a human, run as a required CI gate ([swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing); [Bitrise](https://bitrise.io/blog/post/snapshot-testing-in-ios-testing-the-ui-and-beyond)).
 3. **XCUITest** — drives the real app on a booted sim (tap composer, type, send, assert the row lands in MessageFeedView), captures screenshots (Fastlane `snapshot`) ([WillowTree](https://willowtree.engineering/2023/02/14/how-to-use-swift-snapshot-testing-for-xcuitest/)).
@@ -253,21 +271,25 @@ Real teams gate every build with a layered suite run via `xcodebuild test` (or F
 Your agent extension: after XCUITest, pipe `xcrun simctl io screenshot` + the accessibility tree into your vision model to read each screen for regressions ("composer empty?", "orb visible?") — this is the autonomous pre-ship check you want, and it runs entirely on apple-node with no operator.
 
 ## Headless-over-SSH gotchas (apple-node M1)
+
 Simulators need a **logged-in Aqua/window-server session** — `simctl boot` + UI tests fail from a bare SSH shell. Fixes real teams use: enable **auto-login** for the build user, keep a console session alive, and launch tests into the GUI domain (`launchctl asuser <uid>` / load into `gui/<UID>`) rather than the SSH session ([Jeff Geerling](https://www.jeffgeerling.com/blog/2020/setting-mac-mini-macstadium-headless-ci/); [Apple Forums 765060](https://developer.apple.com/forums/thread/765060)). Apple-silicon Mac minis **won't initialize a framebuffer without a display** — attach a dummy HDMI plug or headless GPU emulates won't render correctly ([Apple Forums 737381](https://developer.apple.com/forums/thread/737381)). Keychain/codesign also need that login session ([VPSMAC 2026](https://vpsmac.com/en/blog/mac-cloud-ios-ci-signing-keychain-headless-xcodebuild-2026.html)). Net: get apple-node auto-logged-in + caffeinated once, then everything is `ssh`-drivable.
 
 ## What the simulator CANNOT reproduce — mapped to YOUR bugs
+
 - **Composer-blank (keyboard + safeAreaInset/scroll): WOULD likely be caught.** The sim renders the software keyboard and SwiftUI keyboard avoidance, so an XCUITest that brings up the keyboard and snapshots the composer reproduces safe-area/scroll layout. **Gotcha:** if a hardware keyboard is "connected," the sim hides the software keyboard — your test must force it (`simctl`/Toggle Software Keyboard) or it silently passes.
 - **Voice hang (AVAudioEngine + AVAudioSession activation timing): WOULD NOT be caught.** Apple states the Simulator "does not simulate session behavior… to test your audio session code, run on a device," and can't reproduce route changes, interruptions, or mixing ([Apple Audio Session Guide](https://developer.apple.com/library/archive/documentation/Audio/Conceptual/AudioSessionProgrammingGuide/OptimizingForDeviceHardware/OptimizingForDeviceHardware.html)). Activation-timing/CoreAudio-HAL bugs are real-device-only.
 - **The "NNN ms HUD" hang / decodeWAV disk roundtrip: WOULD NOT be reliably caught.** The sim runs on the Mac's fast CPU/SSD, so main-thread stalls, thermals, and A-series perf hangs hide. Real-device only.
 - **Haptics, push tokens, camera/mic capture: real device.** Sim produces no haptics; remote-push is partially simulatable (Xcode 14+ `simctl push`) but tokens/background behavior need a device ([SwiftLee](https://www.avanderlee.com/workflow/testing-push-notifications-ios-simulator/)).
 
-Cloud farms (BrowserStack/Sauce/AWS Device Farm) give real devices but solve the *fleet/OS-matrix* problem — irrelevant to you (single iOS 26.5 target, one operator iPhone). Your operator's phone IS your device-farm-of-one.
+Cloud farms (BrowserStack/Sauce/AWS Device Farm) give real devices but solve the _fleet/OS-matrix_ problem — irrelevant to you (single iOS 26.5 target, one operator iPhone). Your operator's phone IS your device-farm-of-one.
 
 ## Realistic division of labor
-**Agents verify autonomously on apple-node (pre-ship gate):** build success; unit + snapshot + XCUITest; screenshot→vision review of chat surface and orb static states; navigation/empty-state/crash-on-launch; accessibility assertions; backend SSE (already curl-tested). This catches the *majority* of your chat-surface regressions before any OTA.
+
+**Agents verify autonomously on apple-node (pre-ship gate):** build success; unit + snapshot + XCUITest; screenshot→vision review of chat surface and orb static states; navigation/empty-state/crash-on-launch; accessibility assertions; backend SSE (already curl-tested). This catches the _majority_ of your chat-surface regressions before any OTA.
 **Operator's device remains required for:** anything audio-runtime, perf, or hardware-sensory.
 
 ## Irreducible "still needs the operator's device" list
+
 1. Voice mode end-to-end: AVAudioEngine/AVAudioSession activation timing, TTFA, route changes, interruptions (call/Bluetooth), echo/garble.
 2. Real performance/hang behavior on A-series silicon (the NNN-ms HUD, thermals, frame drops, decode roundtrips).
 3. Haptics firing correctly.

@@ -1,1419 +1,3074 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Sully — the whole look</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --brand:#ec2d78; --brand-soft:#ff7eb3; --brand-deep:#c4186a; --brand-bright:#ff4d94; --brand-glow:rgba(236,45,120,0.4);
-    --bg:#050505; --surface:#0e0e11; --surface-2:#18181b; --surface-3:#1f1f23;
-    --border:rgba(255,255,255,0.07); --border-strong:rgba(255,255,255,0.12);
-    --z-200:#e4e4e7; --z-300:#d4d4d8; --z-400:#a1a1aa; --z-500:#71717a; --z-600:#52525b; --z-700:#3f3f46; --z-800:#27272a; --z-900:#18181b;
-    --amber:#f59e0b; --amber-soft:#fbbf24;
-    --emerald:#10b981; --emerald-soft:#34d399;
-    --cyan:#06b6d4; --cyan-soft:#22d3ee;
-    --red:#ef4444; --red-soft:#f87171;
-  }
-  html,body { height:100%; background:var(--bg); color:#f4f4f5; font-family:'Inter', system-ui, -apple-system, sans-serif; overscroll-behavior:none; }
-  body { padding-bottom: env(safe-area-inset-bottom, 16px); }
-
-  /* ── Aurora ── */
-  .aurora { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
-  .aurora span { position:absolute; border-radius:9999px; filter:blur(80px); opacity:0.22; will-change:transform; }
-  .aurora .a1 { width:460px; height:460px; background:radial-gradient(ellipse,#ec2d78 0%,#c4186a 60%,transparent 100%); top:-100px; left:-120px; animation:aurora1 22s ease-in-out infinite; }
-  .aurora .a2 { width:340px; height:340px; background:radial-gradient(ellipse,#7c3aed 0%,#ec2d78 70%,transparent 100%); bottom:80px; right:-80px; animation:aurora2 26s ease-in-out infinite; }
-  .aurora .a3 { width:280px; height:280px; background:radial-gradient(ellipse,#ec2d78 0%,transparent 80%); top:50%; left:50%; animation:aurora3 30s ease-in-out infinite; }
-  @keyframes aurora1 { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(30px,-20px) scale(1.08); } }
-  @keyframes aurora2 { 0%,100% { transform:translate(0,0) scale(1); } 50% { transform:translate(-30px,20px) scale(0.92); } }
-  @keyframes aurora3 { 0%,100% { transform:translate(-50%,-50%) scale(1); } 50% { transform:translate(-50%,-50%) scale(1.15); } }
-  @media (prefers-reduced-motion: reduce) { .aurora span { animation:none !important; } }
-
-  /* ── Topbar ── */
-  .topbar { position:sticky; top:0; z-index:50; background:rgba(10,10,12,0.88); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:max(14px,env(safe-area-inset-top,14px)) 20px 12px; }
-  .topbar .row1 { display:flex; align-items:center; gap:10px; }
-  .topbar h1 { font-size:15px; font-weight:600; letter-spacing:-0.01em; }
-  .sully-dot { display:inline-block; width:16px; height:16px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 8px rgba(236,45,120,0.5); vertical-align:-2px; margin-right:6px; }
-  .topbar p { font-size:11.5px; color:var(--z-400); margin-top:3px; line-height:1.5; }
-  .topbar .scroll-progress { position:absolute; bottom:0; left:0; height:2px; background:linear-gradient(90deg,var(--brand-deep),var(--brand-bright)); width:0%; transition:width 80ms linear; }
-
-  /* ── Page ── */
-  .page { position:relative; z-index:1; max-width:780px; margin:0 auto; padding:20px 16px 140px; }
-
-  /* ── Intro card ── */
-  .intro { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:30px; }
-  .intro h2 { font-size:14px; font-weight:700; letter-spacing:-0.01em; margin-bottom:8px; color:var(--brand-soft); }
-  .intro p { font-size:13px; color:var(--z-300); line-height:1.6; }
-  .intro p + p { margin-top:8px; color:var(--z-400); font-size:12.5px; }
-  .intro strong { color:var(--z-200); font-weight:600; }
-  .intro .legend { display:flex; gap:14px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); font-size:11px; color:var(--z-500); flex-wrap:wrap; }
-  .intro .legend span { display:inline-flex; align-items:center; gap:5px; }
-  .intro .legend .dot { width:8px; height:8px; border-radius:50%; }
-
-  /* ── Section ── */
-  .section { margin-bottom:48px; scroll-margin-top:90px; }
-  .section-num { font-size:10px; font-weight:700; color:var(--brand-soft); letter-spacing:0.14em; margin-bottom:6px; }
-  .section-title { font-size:20px; font-weight:600; letter-spacing:-0.02em; line-height:1.25; margin-bottom:6px; }
-  .section-caption { font-size:12.5px; color:var(--z-400); line-height:1.6; margin-bottom:20px; max-width:600px; }
-  .section-caption strong { color:var(--z-300); font-weight:500; }
-  .section-caption code { background:rgba(255,255,255,0.06); padding:1px 6px; border-radius:4px; font-size:11px; font-family:'JetBrains Mono', ui-monospace, monospace; color:var(--brand-soft); }
-
-  /* ── View card ── */
-  .views { display:grid; gap:24px; grid-template-columns:1fr; }
-  @media (min-width:680px) { .views.two-up { grid-template-columns:1fr 1fr; } }
-  .view { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:18px; padding:16px; display:flex; flex-direction:column; align-items:center; gap:12px; }
-  .view .label { font-size:11px; font-weight:600; color:var(--z-400); letter-spacing:0.04em; text-align:center; }
-  .view .blurb { font-size:11px; color:var(--z-500); line-height:1.55; text-align:center; max-width:280px; margin-top:-4px; }
-
-  /* ── Phone frame ── */
-  .phone {
-    width:100%; max-width:320px; aspect-ratio: 9 / 19;
-    background:var(--surface); border-radius:32px;
-    border:1.5px solid rgba(255,255,255,0.1);
-    box-shadow: 0 24px 60px -12px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.04);
-    overflow:hidden; display:flex; flex-direction:column;
-    position:relative;
-  }
-  .phone .island { position:absolute; top:8px; left:50%; transform:translateX(-50%); width:90px; height:24px; background:#000; border-radius:9999px; z-index:5; pointer-events:none; }
-  .phone .statusbar { padding:14px 22px 6px; display:flex; justify-content:space-between; font-size:11px; font-weight:600; color:rgba(255,255,255,0.7); position:relative; z-index:1; }
-
-  /* ── Phone CHROME components (reused across mockups) ── */
-  .ph-header {
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:8px 14px 10px;
-    border-bottom:1px solid rgba(255,255,255,0.05);
-    background:rgba(11,11,13,0.55); backdrop-filter:blur(20px);
-    position:relative; z-index:2;
-  }
-  .ph-header .ph-burger { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--z-400); font-size:14px; }
-  .ph-header .ph-id { display:flex; align-items:center; gap:7px; }
-  .ph-header .ph-id-orb { width:24px; height:24px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 10px rgba(236,45,120,0.5); }
-  .ph-header .ph-id-name { font-size:13px; font-weight:600; }
-  .ph-header .ph-model-chip {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:5px 10px 5px 8px; border-radius:9999px;
-    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07);
-    font-size:10px; color:var(--z-300);
-    max-width:130px;
-  }
-  .ph-header .ph-model-chip .glyph { width:11px; height:11px; display:inline-flex; }
-  .ph-header .ph-model-chip .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-header .ph-model-chip .caret { font-size:8px; color:var(--z-500); }
-
-  /* ── Main chat surface area ── */
-  .ph-main { flex:1; overflow:hidden; display:flex; flex-direction:column; position:relative; }
-  .ph-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:14px; }
-  .ph-empty .orb-big { width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a 80%); box-shadow:0 0 30px rgba(236,45,120,0.6), inset 0 -8px 14px rgba(0,0,0,0.3); }
-  .ph-empty h3 { font-size:16px; font-weight:600; letter-spacing:-0.01em; text-align:center; }
-  .ph-empty p { font-size:11px; color:var(--z-500); text-align:center; }
-  .ph-pills { display:flex; flex-direction:column; gap:7px; width:100%; max-width:240px; }
-  .ph-pill {
-    padding:9px 14px;
-    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
-    border-radius:9999px;
-    font-size:11px; color:var(--z-300); text-align:center;
-  }
-  .ph-pill:hover { background:rgba(255,255,255,0.06); }
-
-  /* ── Message list ── */
-  .ph-msgs { flex:1; overflow:hidden; padding:8px 12px; display:flex; flex-direction:column; gap:8px; }
-  .ph-msg-user {
-    align-self:flex-end; max-width:80%;
-    background:rgba(14,14,17,0.6); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(12px);
-    border-radius:16px; padding:7px 11px; font-size:11px; color:var(--z-200); line-height:1.5;
-  }
-  .ph-msg-time { font-size:8px; color:var(--z-600); align-self:flex-end; padding:0 2px; font-variant-numeric:tabular-nums; }
-  .ph-msg-assist { display:flex; flex-direction:column; gap:3px; max-width:90%; align-self:flex-start; }
-  .ph-name-tag {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:2px 8px; border-radius:9999px;
-    background:rgba(236,45,120,0.08); border:1px solid rgba(236,45,120,0.28);
-    font-size:9px; font-weight:600; color:var(--brand-soft);
-    width:fit-content;
-  }
-  .ph-name-tag .nt-dot { width:6px; height:6px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 4px rgba(236,45,120,0.6); }
-  .ph-msg-body { font-size:11px; color:var(--z-200); line-height:1.55; padding:3px 4px; }
-  .ph-msg-actions { display:flex; gap:2px; padding:2px 0; align-items:center; }
-  .ph-action {
-    display:inline-flex; align-items:center; gap:3px;
-    padding:4px 7px; border-radius:7px;
-    font-size:10px; color:var(--z-500); font-weight:500;
-  }
-  .ph-action:hover { background:rgba(255,255,255,0.05); color:var(--z-300); }
-  .ph-action svg { width:11px; height:11px; }
-
-  /* ── Composer ── */
-  .ph-composer-area { padding:8px 12px max(12px, env(safe-area-inset-bottom, 12px)); }
-  .ph-composer {
-    border-radius:24px; padding:8px;
-    background:rgba(14,14,17,0.6); border:1px solid rgba(255,255,255,0.08); backdrop-filter:blur(20px);
-    transition: all 200ms;
-  }
-  .ph-composer.sending { border-color:rgba(236,45,120,0.45); box-shadow:0 0 30px -6px var(--brand-glow); animation: composer-pulse 1.8s ease-in-out infinite; }
-  @keyframes composer-pulse { 0%,100% { box-shadow:0 0 30px -6px var(--brand-glow); } 50% { box-shadow:0 0 38px -4px rgba(236,45,120,0.5); } }
-  .ph-composer.talkback { border-color:rgba(16,185,129,0.4); box-shadow:0 0 24px -8px rgba(16,185,129,0.4); }
-  .ph-composer.image { border-color:rgba(6,182,212,0.4); box-shadow:0 0 24px -8px rgba(6,182,212,0.4); }
-  .ph-composer-strip {
-    padding:2px 6px 4px; margin-bottom:3px;
-    display:flex; align-items:center; gap:6px; font-size:9px;
-    border-bottom:1px solid rgba(255,255,255,0.05);
-  }
-  .ph-composer-strip.cyan { color:rgb(103,232,249); }
-  .ph-composer-strip.emerald { color:rgb(110,231,183); }
-  .ph-composer-input {
-    padding:5px 7px; font-size:11px; color:var(--z-300);
-    min-height:20px;
-  }
-  .ph-composer-input.placeholder { color:var(--z-600); }
-  .ph-composer-row {
-    display:flex; align-items:center; gap:5px; padding:3px 2px 0;
-  }
-  .ph-cbtn {
-    width:30px; height:30px; border-radius:10px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.35), 0 2px 6px -1px rgba(0,0,0,0.55);
-    display:flex; align-items:center; justify-content:center;
-    color:var(--z-300); font-size:13px;
-  }
-  .ph-cbtn.send {
-    width:30px; height:30px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
-    color:white;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.35), 0 3px 10px -2px var(--brand-glow), 0 0 0 1px rgba(236,45,120,0.35);
-  }
-  .ph-cbtn.active-cyan { background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.5); color:rgb(103,232,249); box-shadow:0 0 12px rgba(6,182,212,0.3); }
-  .ph-cbtn.active-emerald { background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.5); color:rgb(110,231,183); box-shadow:0 0 12px rgba(16,185,129,0.3); }
-
-  /* ── Sidebar (full-screen mockup, simulated drawer) ── */
-  .ph-sidebar { flex:1; display:flex; flex-direction:column; padding:0; overflow:hidden; }
-  .ph-side-header {
-    display:flex; align-items:center; gap:8px;
-    padding:14px 14px 12px;
-    border-bottom:1px solid rgba(255,255,255,0.05);
-  }
-  .ph-side-header .ph-id { display:flex; align-items:center; gap:8px; flex:1; }
-  .ph-side-action { width:32px; height:32px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; color:var(--z-400); font-size:14px; }
-  .ph-active-space {
-    display:flex; align-items:center; gap:8px;
-    padding:9px 12px; margin:8px;
-    background:rgba(236,45,120,0.09); border:1px solid rgba(236,45,120,0.32);
-    border-radius:12px; cursor:pointer;
-    box-shadow: 0 0 14px -4px var(--brand-glow);
-  }
-  .ph-active-space .as-icon { font-size:14px; }
-  .ph-active-space .as-name { flex:1; font-size:12.5px; font-weight:600; color:var(--brand-soft); }
-  .ph-active-space .as-chev { font-size:14px; color:var(--brand-soft); }
-  .ph-section-label { font-size:9px; font-weight:700; color:var(--z-600); letter-spacing:0.1em; padding:10px 16px 4px; }
-  .ph-active-tasks { padding:0 8px 4px; display:flex; flex-direction:column; gap:3px; }
-  .ph-task {
-    display:flex; align-items:center; gap:7px;
-    padding:6px 9px; border-radius:9px;
-    font-size:10.5px;
-  }
-  .ph-task.running { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); }
-  .ph-task.done { background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.18); }
-  .ph-task.failed { background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.18); }
-  .ph-task .pulse { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-  .ph-task.running .pulse { background:var(--amber-soft); animation: amber-pulse 1.4s ease-in-out infinite; }
-  @keyframes amber-pulse { 0%,100% { opacity:1; transform:scale(1); box-shadow:0 0 6px var(--amber); } 50% { opacity:0.5; transform:scale(0.85); } }
-  .ph-task.done .pulse { background:var(--emerald-soft); }
-  .ph-task.failed .pulse { background:var(--red-soft); }
-  .ph-task .label { flex:1; color:var(--z-200); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-task .meta { font-size:9px; color:var(--z-500); font-weight:600; font-variant-numeric:tabular-nums; }
-  .ph-thread-list { flex:1; overflow:hidden; padding:0 8px; display:flex; flex-direction:column; gap:2px; }
-  .ph-thread {
-    display:flex; align-items:center; gap:8px;
-    padding:7px 11px; border-radius:10px;
-    font-size:11.5px; color:var(--z-300);
-  }
-  .ph-thread:hover { background:rgba(255,255,255,0.03); }
-  .ph-thread.active { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); color:white; font-weight:500; }
-  .ph-thread .hash { font-size:10px; color:var(--z-600); }
-  .ph-thread .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ph-thread .count { font-size:9px; color:var(--z-600); padding:1px 6px; border-radius:9999px; background:rgba(255,255,255,0.04); }
-  .ph-footer {
-    padding:10px 12px max(10px, env(safe-area-inset-bottom, 10px));
-    border-top:1px solid rgba(255,255,255,0.05);
-    display:flex; align-items:center; gap:8px;
-  }
-  .ph-profile-chip {
-    flex:1;
-    display:flex; align-items:center; gap:8px;
-    padding:7px 10px; border-radius:10px;
-    background:rgba(255,255,255,0.03);
-    font-size:11.5px; color:var(--z-200); font-weight:500;
-  }
-  .ph-profile-chip .pc-dot { width:14px; height:14px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 5px rgba(236,45,120,0.4); }
-  .ph-gear {
-    width:32px; height:32px; border-radius:10px;
-    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
-    display:flex; align-items:center; justify-content:center;
-    color:var(--z-400); font-size:14px;
-  }
-
-  /* ── Model picker popover (with brand icons) ── */
-  .ph-popover {
-    position:absolute;
-    top:60px; right:8px;
-    width:240px;
-    background:rgba(14,14,17,0.88); backdrop-filter:blur(28px); -webkit-backdrop-filter:blur(28px);
-    border:1px solid rgba(255,255,255,0.1);
-    border-radius:18px;
-    box-shadow:0 24px 50px -8px rgba(0,0,0,0.8);
-    z-index:10; overflow:hidden;
-  }
-  .ph-popover-label { font-size:9px; font-weight:700; color:var(--z-600); letter-spacing:0.12em; padding:10px 12px 4px; }
-  .ph-popover-item {
-    display:flex; align-items:center; gap:10px;
-    padding:8px 12px;
-    font-size:11.5px;
-    cursor:pointer; color:var(--z-300);
-  }
-  .ph-popover-item:hover { background:rgba(255,255,255,0.04); }
-  .ph-popover-item.selected { color:var(--brand-soft); font-weight:500; }
-  .ph-popover-item.selected .check { color:var(--brand-soft); margin-left:auto; font-size:11px; }
-  .ph-popover-item .pi-icon { width:18px; height:18px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; background:rgba(255,255,255,0.05); }
-  .ph-popover-item .pi-icon svg { width:13px; height:13px; }
-  .ph-popover-item .pi-name { flex:1; line-height:1.3; }
-  .ph-popover-item .pi-sub { font-size:9px; color:var(--z-600); font-weight:400; display:block; margin-top:1px; }
-  .ph-popover-divider { height:1px; background:rgba(255,255,255,0.05); margin:4px 0; }
-  .ph-popover-footer { padding:6px 12px 9px; border-top:1px solid rgba(255,255,255,0.05); margin-top:2px; }
-  .ph-popover-footer-item { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--z-500); }
-
-  /* ── Spaces overview page ── */
-  .ph-spaces-grid { padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .ph-space-card { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:6px; cursor:pointer; transition:all 200ms; }
-  .ph-space-card:hover { background:rgba(255,255,255,0.05); border-color:var(--border-strong); }
-  .ph-space-card.den { background:rgba(236,45,120,0.08); border-color:rgba(236,45,120,0.32); box-shadow:0 0 16px -4px var(--brand-glow); }
-  .ph-space-card .sc-icon { font-size:20px; }
-  .ph-space-card .sc-name { font-size:12px; font-weight:600; color:var(--z-200); }
-  .ph-space-card.den .sc-name { color:var(--brand-soft); }
-  .ph-space-card .sc-meta { font-size:9.5px; color:var(--z-500); }
-  .ph-space-card.new { background:rgba(255,255,255,0.02); border:1.5px dashed var(--border-strong); align-items:center; justify-content:center; min-height:80px; }
-  .ph-space-card.new .sc-icon { color:var(--z-500); }
-  .ph-space-card.new .sc-name { color:var(--z-500); font-weight:500; }
-
-  /* ── Settings page ── */
-  .ph-settings { padding:18px 16px; display:flex; flex-direction:column; gap:22px; }
-  .ph-settings h2 { font-size:18px; font-weight:600; letter-spacing:-0.015em; color:var(--brand-soft); }
-  .ph-set-section h3 { font-size:11px; font-weight:600; color:var(--z-400); margin-bottom:8px; letter-spacing:0.04em; }
-  .ph-set-toggle { display:inline-flex; padding:3px; border-radius:9999px; background:rgba(255,255,255,0.04); border:1px solid var(--border); gap:2px; }
-  .ph-set-toggle button { padding:5px 11px; border-radius:9999px; font-size:10.5px; font-weight:500; color:var(--z-400); border:none; background:transparent; cursor:pointer; }
-  .ph-set-toggle button.active { background:var(--brand); color:white; box-shadow:0 0 12px -2px var(--brand-glow); }
-  .ph-set-meter { font-size:11px; color:var(--z-300); line-height:1.6; }
-  .ph-set-meter strong { color:var(--brand-soft); }
-
-  /* ── AI promotion modal ── */
-  .ph-modal-overlay {
-    position:absolute; inset:0;
-    background:rgba(0,0,0,0.5); backdrop-filter:blur(6px);
-    display:flex; align-items:flex-end; padding:14px; z-index:10;
-  }
-  .ph-modal {
-    width:100%;
-    background:rgba(14,14,17,0.95); border:1px solid var(--border-strong);
-    border-radius:18px; padding:18px;
-    box-shadow:0 24px 50px -8px rgba(0,0,0,0.8);
-  }
-  .ph-modal .mh { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-  .ph-modal .mh-orb { width:24px; height:24px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); box-shadow:0 0 8px rgba(236,45,120,0.5); }
-  .ph-modal .mh-title { font-size:13px; font-weight:600; }
-  .ph-modal .mb { font-size:11.5px; color:var(--z-300); line-height:1.55; }
-  .ph-modal .mb em { color:var(--brand-soft); font-style:normal; font-weight:500; }
-  .ph-modal .ma { display:flex; gap:8px; margin-top:14px; }
-  .ph-modal .ma-primary {
-    flex:1; padding:9px; border-radius:10px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
-    color:white; font-size:11.5px; font-weight:600; border:none;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 10px -3px var(--brand-glow);
-  }
-  .ph-modal .ma-ghost { padding:9px 14px; border-radius:10px; background:rgba(255,255,255,0.05); color:var(--z-400); font-size:11.5px; font-weight:500; border:none; }
-
-  /* ── Desktop view ── */
-  .desktop-frame {
-    width:100%; max-width:760px;
-    aspect-ratio: 16 / 10;
-    background:var(--surface); border-radius:14px;
-    border:1.5px solid rgba(255,255,255,0.1);
-    box-shadow: 0 24px 60px -12px rgba(0,0,0,0.7);
-    overflow:hidden; display:flex; flex-direction:column;
-  }
-  .dt-titlebar { padding:8px 14px; background:rgba(0,0,0,0.4); display:flex; align-items:center; gap:6px; border-bottom:1px solid rgba(255,255,255,0.05); }
-  .dt-titlebar .dot { width:9px; height:9px; border-radius:50%; }
-  .dt-titlebar .red { background:#ff5f57; } .dt-titlebar .yellow { background:#febc2e; } .dt-titlebar .green { background:#28c840; }
-  .dt-titlebar .url { margin-left:14px; padding:3px 12px; background:rgba(255,255,255,0.06); border-radius:9999px; font-size:10px; color:var(--z-500); }
-  .dt-body { flex:1; display:flex; min-height:0; }
-
-  /* Desktop sidebar */
-  .dt-sidebar {
-    width:200px; flex-shrink:0;
-    border-right:1px solid var(--border);
-    background:#090909;
-    display:flex; flex-direction:column;
-    padding-top:8px;
-  }
-  .dt-sidebar .sidebar-row {
-    display:flex; align-items:center; gap:6px;
-    padding:6px 10px; margin:1px 6px; border-radius:7px;
-    font-size:10px; color:var(--z-400);
-  }
-  .dt-sidebar .sidebar-row.active { background:rgba(255,255,255,0.05); color:white; }
-  .dt-sidebar .sidebar-row .hash { font-size:9px; color:var(--z-600); }
-  .dt-sidebar .as-row { padding:7px 10px; margin:4px 6px; border-radius:8px; background:rgba(236,45,120,0.09); border:1px solid rgba(236,45,120,0.32); font-size:10px; font-weight:600; color:var(--brand-soft); display:flex; align-items:center; gap:6px; }
-  .dt-sidebar .section-label { font-size:8px; font-weight:700; color:var(--z-600); letter-spacing:0.1em; padding:7px 12px 3px; }
-  .dt-sidebar .task-row { padding:5px 8px; margin:1px 6px; border-radius:6px; font-size:9px; display:flex; align-items:center; gap:5px; }
-  .dt-sidebar .task-row.running { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); }
-  .dt-sidebar .task-row .pulse { width:5px; height:5px; border-radius:50%; background:var(--amber-soft); animation:amber-pulse 1.4s ease-in-out infinite; }
-
-  /* Desktop chat */
-  .dt-chat { flex:1; display:flex; flex-direction:column; padding:12px; gap:8px; min-width:0; }
-  .dt-chat-msg-user { align-self:flex-end; max-width:60%; background:rgba(14,14,17,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:6px 10px; font-size:10px; color:var(--z-200); }
-  .dt-chat-msg-assist { align-self:flex-start; max-width:80%; display:flex; flex-direction:column; gap:3px; }
-  .dt-chat-name-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:9999px; background:rgba(236,45,120,0.08); border:1px solid rgba(236,45,120,0.28); font-size:8.5px; font-weight:600; color:var(--brand-soft); width:fit-content; }
-  .dt-chat-name-tag .nt-dot { width:5px; height:5px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a); }
-  .dt-chat-msg-body { font-size:10px; color:var(--z-200); line-height:1.55; padding:3px 4px; }
-
-  /* Desktop artifact panel */
-  .dt-artifact {
-    width:240px; flex-shrink:0;
-    border-left:1px solid var(--border);
-    background:rgba(255,255,255,0.02);
-    display:flex; flex-direction:column;
-  }
-  .dt-art-head { padding:8px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; font-size:9px; }
-  .dt-art-head .canvas-icon { color:var(--brand-soft); font-weight:600; }
-  .dt-art-head .filename { font-family:'JetBrains Mono', monospace; font-size:9px; color:var(--z-400); }
-  .dt-art-body { flex:1; padding:8px 10px; overflow:hidden; }
-  .dt-art-code { background:rgba(0,0,0,0.4); border-radius:6px; padding:7px 9px; font-family:'JetBrains Mono', monospace; font-size:8.5px; color:var(--z-400); line-height:1.55; }
-  .dt-art-code .add { color:#86efac; }
-  .dt-art-code .del { color:#fca5a5; }
-  .dt-art-actions { padding:8px 10px; border-top:1px solid var(--border); display:flex; gap:6px; }
-  .dt-art-btn { padding:4px 9px; border-radius:5px; font-size:9px; font-weight:600; }
-  .dt-art-btn.accept { background:var(--brand); color:white; }
-  .dt-art-btn.skip { background:rgba(255,255,255,0.05); color:var(--z-400); }
-
-  /* ── Icons section ── */
-  .icon-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:14px; margin-top:16px; }
-  .icon-cell {
-    background:rgba(255,255,255,0.03); border:1px solid var(--border);
-    border-radius:14px; padding:16px 12px;
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-  }
-  .icon-cell .ic-glyph { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; color:var(--z-200); }
-  .icon-cell .ic-glyph svg { width:32px; height:32px; }
-  .icon-cell .ic-name { font-size:11px; font-weight:600; color:var(--z-300); text-align:center; }
-  .icon-cell .ic-sub { font-size:9.5px; color:var(--z-500); font-family:'JetBrains Mono', monospace; }
-
-  /* Library compare */
-  .lib-compare { display:grid; gap:12px; grid-template-columns:1fr; margin-top:18px; }
-  @media (min-width:680px) { .lib-compare { grid-template-columns:1fr 1fr; } }
-  .lib-card { padding:16px; border-radius:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border); }
-  .lib-card.rec { border-color:rgba(236,45,120,0.35); background:rgba(236,45,120,0.04); }
-  .lib-card h4 { font-size:13px; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
-  .lib-card h4 .rec-badge { font-size:9px; font-weight:700; padding:2px 7px; border-radius:9999px; background:rgba(236,45,120,0.18); color:var(--brand-soft); letter-spacing:0.05em; }
-  .lib-card p { font-size:12px; color:var(--z-300); line-height:1.55; }
-  .lib-card ul { padding-left:18px; margin-top:6px; }
-  .lib-card li { font-size:11.5px; color:var(--z-400); line-height:1.55; margin:2px 0; }
-  .lib-card .pkg { display:inline-block; margin-top:8px; padding:3px 9px; border-radius:5px; background:rgba(255,255,255,0.05); font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--brand-soft); }
-
-  /* ── Per-section feedback (thumb up + flag) ── */
-  .feedback-bar {
-    display:flex; gap:8px; margin-top:16px;
-    padding:12px 14px; border-radius:12px; background:rgba(255,255,255,0.025); border:1px solid var(--border);
-    align-items:center;
-  }
-  .feedback-bar .fb-label { flex:1; font-size:11px; color:var(--z-500); }
-  .feedback-btn {
-    padding:7px 13px; border-radius:9px;
-    background:rgba(255,255,255,0.04); border:1px solid var(--border);
-    color:var(--z-400); font-size:11.5px; font-weight:500; cursor:pointer;
-    display:inline-flex; align-items:center; gap:5px;
-    transition: all 180ms;
-  }
-  .feedback-btn:hover { background:rgba(255,255,255,0.07); }
-  .feedback-btn.active.approve { background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.4); color:rgb(110,231,183); }
-  .feedback-btn.active.flag { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.4); color:rgb(252,211,77); }
-
-  /* ── Sign-off ── */
-  .signoff { margin-top:48px; padding:24px; background:rgba(236,45,120,0.04); border:1px solid rgba(236,45,120,0.25); border-radius:18px; }
-  .signoff h2 { font-size:18px; font-weight:600; margin-bottom:6px; color:var(--brand-soft); }
-  .signoff p { font-size:12.5px; color:var(--z-300); line-height:1.55; margin-bottom:14px; }
-  .signoff textarea { width:100%; min-height:100px; background:var(--surface); border:1px solid var(--border-strong); border-radius:10px; padding:11px 13px; color:var(--z-200); font-family:inherit; font-size:12.5px; resize:vertical; }
-  .signoff textarea:focus { outline:none; border-color:rgba(236,45,120,0.5); }
-
-  /* ── Sticky CTA ── */
-  .cta-bar {
-    position:fixed; bottom:0; left:0; right:0; z-index:60;
-    background:rgba(10,10,12,0.92); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-    border-top:1px solid var(--border);
-    padding:14px 16px max(14px, env(safe-area-inset-bottom, 14px));
-    display:flex; gap:10px; align-items:center;
-  }
-  .cta-bar .summary { flex:1; font-size:11.5px; color:var(--z-400); display:flex; align-items:center; gap:10px; }
-  .cta-bar .summary strong { color:var(--z-200); font-weight:600; }
-  .copy-btn {
-    padding:11px 18px; border-radius:12px;
-    background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
-    color:white; font-size:13px; font-weight:600; border:none; cursor:pointer;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.35), 0 4px 14px -3px var(--brand-glow);
-    transition:transform 140ms;
-    white-space:nowrap;
-  }
-  .copy-btn:active { transform:scale(0.96); }
-  .copy-btn.copied { background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)), radial-gradient(ellipse at top, rgb(134,239,172), rgb(34,197,94) 55%, rgb(21,128,61)); }
-</style>
-</head>
-<body>
-
-<div class="aurora" aria-hidden="true">
-  <span class="a1"></span><span class="a2"></span><span class="a3"></span>
-</div>
-
-<div class="topbar">
-  <div class="row1">
-    <h1><span class="sully-dot"></span>Sully — the whole look</h1>
-  </div>
-  <p>The integrated app based on your audit picks. Scroll, react per section, sign off at the bottom.</p>
-  <div class="scroll-progress" id="scrollProgress"></div>
-</div>
-
-<div class="page">
-
-  <div class="intro">
-    <h2>What you're looking at</h2>
-    <p>Mobile views first (since you live on the phone), then the desktop layout, then the icon strategy. Each view is built in the actual design language we'll ship — magenta brand sparingly, glass + aurora, Inter, Lucide line icons throughout the chrome, and brand-icons (Claude/OpenAI/Gemini/Ollama/Qwen/etc.) in the model picker only.</p>
-    <p><strong>If something looks off:</strong> tap the flag on that section. <strong>If a section's good:</strong> tap approve. End of page has a free-text notes box + a "Looks good, build it" button that copies your sign-off back.</p>
-    <div class="legend">
-      <span><span class="dot" style="background:var(--brand);"></span>Brand magenta (identity only)</span>
-      <span><span class="dot" style="background:var(--amber-soft);"></span>Active task running</span>
-      <span><span class="dot" style="background:var(--emerald-soft);"></span>Done / talkback / success</span>
-      <span><span class="dot" style="background:var(--cyan-soft);"></span>Image mode</span>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 01 — Empty state landing -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="empty">
-    <div class="section-num">01 · MOBILE</div>
-    <h2 class="section-title">Empty-state landing</h2>
-    <div class="section-caption">Fresh open of the app: Sully orb above the suggestion pills. The composer rests below at 36px. No clutter — hop in and go.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip">
-              <span class="glyph">🪶</span>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-empty">
-              <div class="orb-big"></div>
-              <h3>Hey Captain.</h3>
-              <p>What's on your mind?</p>
-              <div class="ph-pills">
-                <div class="ph-pill">Audit my system</div>
-                <div class="ph-pill">Help me with code</div>
-                <div class="ph-pill">Brainstorm an idea</div>
-                <div class="ph-pill">Plan my day</div>
-              </div>
-            </div>
-            <div class="ph-composer-area">
-              <div class="ph-composer">
-                <div class="ph-composer-input placeholder">Talk to Sully…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn">🎧</div>
-                  <div class="ph-cbtn send">↑</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Suggestion pills, friendly greeting, big orb. The composer sits at rest height. Nothing else competes.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="empty">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 02 — Sidebar (hybrid) -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="sidebar">
-    <div class="section-num">02 · MOBILE</div>
-    <h2 class="section-title">Sidebar — hybrid spaces</h2>
-    <div class="section-caption">Active space chip at top (tap → spaces overview). Active Tasks above the Den (always visible). Threads in the current space, grouped chronologically. Profile chip + gear at the footer (no more dev label).</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-sidebar">
-            <div class="ph-side-header">
-              <div class="ph-id">
-                <div class="ph-id-orb"></div>
-                <div class="ph-id-name">Sully</div>
-              </div>
-              <div class="ph-side-action">⌂</div>
-              <div class="ph-side-action">✕</div>
-            </div>
-
-            <!-- Active space chip -->
-            <div class="ph-active-space">
-              <div class="as-icon">🌙</div>
-              <div class="as-name">The Den</div>
-              <div class="as-chev">›</div>
-            </div>
-
-            <!-- Active Tasks -->
-            <div class="ph-section-label">ACTIVE TASKS</div>
-            <div class="ph-active-tasks">
-              <div class="ph-task running">
-                <span class="pulse"></span>
-                <span class="label">CC · refactor model picker</span>
-                <span class="meta">3m</span>
-              </div>
-              <div class="ph-task done">
-                <span class="pulse"></span>
-                <span class="label">Sully · web search ✓</span>
-                <span class="meta">just now</span>
-              </div>
-            </div>
-
-            <!-- Threads -->
-            <div class="ph-section-label">TODAY</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread active">
-                <span class="hash">#</span>
-                <span class="name">treehouse plans + Pixel</span>
-                <span class="count">14</span>
-              </div>
-              <div class="ph-thread">
-                <span class="hash">#</span>
-                <span class="name">audit findings synth</span>
-                <span class="count">6</span>
-              </div>
-            </div>
-            <div class="ph-section-label">YESTERDAY</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread">
-                <span class="hash">#</span>
-                <span class="name">drake search debug</span>
-                <span class="count">5</span>
-              </div>
-            </div>
-            <div class="ph-section-label">PREVIOUS 7 DAYS</div>
-            <div class="ph-thread-list">
-              <div class="ph-thread">
-                <span class="hash">#</span>
-                <span class="name">model picker fix</span>
-                <span class="count">22</span>
-              </div>
-              <div class="ph-thread">
-                <span class="hash">#</span>
-                <span class="name">voice mode tuning</span>
-                <span class="count">9</span>
-              </div>
-            </div>
-
-            <div class="ph-footer">
-              <div class="ph-profile-chip">
-                <span class="pc-dot"></span>
-                <span>Captain</span>
-              </div>
-              <div class="ph-gear">⚙</div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">The Den is the default active space. Tap the chip to switch space or open the overview page (next section).</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="sidebar">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 03 — Spaces overview page -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="spaces-page">
-    <div class="section-num">03 · MOBILE</div>
-    <h2 class="section-title">Spaces overview page</h2>
-    <div class="section-caption">Tap the active-space chip in the sidebar → arrive here. Manage spaces in a clean grid. The Den is pinned magenta. Tap any card to enter that space (sidebar now shows its threads). The "＋ New space" affordance is always at the end of the grid.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">←</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Spaces</div>
-            </div>
-            <div class="ph-burger">＋</div>
-          </div>
-          <div class="ph-main" style="overflow-y:auto;">
-            <div class="ph-spaces-grid">
-              <div class="ph-space-card den">
-                <div class="sc-icon">🌙</div>
-                <div class="sc-name">The Den</div>
-                <div class="sc-meta">16 threads · home</div>
-              </div>
-              <div class="ph-space-card">
-                <div class="sc-icon">🏗️</div>
-                <div class="sc-name">Treehouse</div>
-                <div class="sc-meta">8 threads</div>
-              </div>
-              <div class="ph-space-card">
-                <div class="sc-icon">⚙️</div>
-                <div class="sc-name">Dev · LogueOS</div>
-                <div class="sc-meta">12 threads</div>
-              </div>
-              <div class="ph-space-card">
-                <div class="sc-icon">📚</div>
-                <div class="sc-name">Reading</div>
-                <div class="sc-meta">3 threads</div>
-              </div>
-              <div class="ph-space-card new">
-                <div class="sc-icon">＋</div>
-                <div class="sc-name">New space</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">A separate page, but reached in one tap from the sidebar — and the chat-side sidebar still shows Active Tasks while you're here.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="spaces-page">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 04 — Model picker with brand icons -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="picker">
-    <div class="section-num">04 · MOBILE</div>
-    <h2 class="section-title">Model picker — with brand icons</h2>
-    <div class="section-caption">Brand glyphs for each provider (Anthropic, OpenAI, Google, Ollama, Mistral, Qwen, xAI) sit on the left of each row. Unified glass popover that matches the rest of the app's chrome. <code>Auto</code> stays at the top with the 🪶 mark — Sully's identity, not a brand.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip" style="background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12);">
-              <span class="glyph">🪶</span>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-
-          <!-- popover -->
-          <div class="ph-popover">
-            <div class="ph-popover-label">CHOOSE A MODEL</div>
-            <div class="ph-popover-item selected">
-              <div class="pi-icon" style="background:rgba(236,45,120,0.12);">🪶</div>
-              <div class="pi-name">Auto<span class="pi-sub">smart tier routing</span></div>
-              <span class="check">✓</span>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#d97757;">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z"/></svg>
-              </div>
-              <div class="pi-name">Claude Haiku 4.5<span class="pi-sub">fast · chat tier</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#d97757;">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z"/></svg>
-              </div>
-              <div class="pi-name">Claude Sonnet 4.6<span class="pi-sub">planning</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#d97757;">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z"/></svg>
-              </div>
-              <div class="pi-name">Claude Opus 4.8<span class="pi-sub">deep</span></div>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:linear-gradient(135deg,#4285f4,#9b72cb 50%,#d96570);">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M12 2 C12 8 16.5 11.5 22 12 C16.5 12.5 12 16 12 22 C12 16 7.5 12.5 2 12 C7.5 11.5 12 8 12 2 Z"/></svg>
-              </div>
-              <div class="pi-name">Gemini 2.5 Pro<span class="pi-sub">deep</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#000;">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z" /></svg>
-              </div>
-              <div class="pi-name">GPT-OSS 120B<span class="pi-sub">cloud · reasoning</span></div>
-            </div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:#000;">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z" /></svg>
-              </div>
-              <div class="pi-name">Qwen3-Coder 480B<span class="pi-sub">cloud · coding</span></div>
-            </div>
-            <div class="ph-popover-divider"></div>
-            <div class="ph-popover-item">
-              <div class="pi-icon" style="background:rgba(255,255,255,0.08);">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M6 6 L8 4 L9.5 5.5 L8 7 L9.5 8.5 L11 7 L12.5 8.5 L11 10 L12.5 11.5 L14 10 L15.5 11.5 L14 13 L15.5 14.5 L17 13 L18.5 14.5 L17 16 L18.5 17.5 L17 19 L15 17 L13.5 18.5 L12 17 L10.5 18.5 L9 17 L7.5 18.5 L6 17 L4.5 18.5 L3 17 L4.5 15.5 L3 14 L4.5 12.5 L3 11 L4.5 9.5 L3 8 L4.5 6.5 L6 8 Z" /></svg>
-              </div>
-              <div class="pi-name">Local · Ollama<span class="pi-sub">offline (companion-v1)</span></div>
-            </div>
-            <div class="ph-popover-footer">
-              <div class="ph-popover-footer-item">
-                <span>✎</span>
-                <span>Edit Sully's context</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Brand icons make the choice instantly readable. The picker stays a one-tap experience.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="picker">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 05 — Composer states -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="composer">
-    <div class="section-num">05 · MOBILE</div>
-    <h2 class="section-title">Composer states</h2>
-    <div class="section-caption">Four states across the same pill: idle, sending (magenta pulse), talkback (emerald with Lucide icons instead of emoji), image mode (cyan, the toggle is lit not dim). Send/voice button morphs based on draft contents.</div>
-
-    <div class="views two-up">
-      <div class="view">
-        <div class="phone" style="aspect-ratio: 9/8; max-height:240px;">
-          <div class="ph-main">
-            <div class="ph-composer-area" style="margin:auto 0;">
-              <div class="ph-composer">
-                <div class="ph-composer-input placeholder">Talk to Sully…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn">🎧</div>
-                  <div class="ph-cbtn send">↑</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="label">IDLE</div>
-        <div class="blurb">Resting state. Calm, neutral border.</div>
-      </div>
-      <div class="view">
-        <div class="phone" style="aspect-ratio: 9/8; max-height:240px;">
-          <div class="ph-main">
-            <div class="ph-composer-area" style="margin:auto 0;">
-              <div class="ph-composer sending">
-                <div class="ph-composer-input" style="color:var(--z-200);">Help me audit the new sidebar layout</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn">🎧</div>
-                  <div class="ph-cbtn send">✦</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="label">SENDING</div>
-        <div class="blurb">Magenta glow only while Sully is thinking. Send button morphs to spark.</div>
-      </div>
-      <div class="view">
-        <div class="phone" style="aspect-ratio: 9/8; max-height:240px;">
-          <div class="ph-main">
-            <div class="ph-composer-area" style="margin:auto 0;">
-              <div class="ph-composer talkback">
-                <div class="ph-composer-strip emerald">
-                  <span style="width:6px; height:6px; border-radius:50%; background:#34d399; animation:amber-pulse 1.4s infinite;"></span>
-                  <span style="font-weight:600;">Walkie-Talkie engaged</span>
-                  <span style="margin-left:auto; padding:1px 6px; border-radius:9999px; background:rgba(255,255,255,0.05);">Capture</span>
-                </div>
-                <div class="ph-composer-input placeholder">Hands free…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn active-emerald">🎧</div>
-                  <div class="ph-cbtn">↑</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="label">TALKBACK</div>
-        <div class="blurb">Lucide-style state chips (no more emoji). Talkback button lit emerald.</div>
-      </div>
-      <div class="view">
-        <div class="phone" style="aspect-ratio: 9/8; max-height:240px;">
-          <div class="ph-main">
-            <div class="ph-composer-area" style="margin:auto 0;">
-              <div class="ph-composer image">
-                <div class="ph-composer-strip cyan">
-                  <span>✦</span>
-                  <span>Prompt routes to image generation</span>
-                  <span style="margin-left:auto; color:var(--z-500);">Cancel</span>
-                </div>
-                <div class="ph-composer-input placeholder">Describe what you want…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div class="ph-cbtn active-cyan">✦</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn">🎧</div>
-                  <div class="ph-cbtn send">↑</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="label">IMAGE MODE</div>
-        <div class="blurb">Cyan indicator strip. Toggle button is bright cyan when active (was dark before).</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="composer">
-      <div class="fb-label">These states feel:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 06 — Message + actions -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="messages">
-    <div class="section-num">06 · MOBILE</div>
-    <h2 class="section-title">Messages — user bubble + Sully reply</h2>
-    <div class="section-caption">User bubble now glass (matches the composer material). Sully reply flat under the ● Sully name-tag. Copy/Regen/Play buttons bumped to 36px (was 25px — sub-WCAG before). Timestamps in tabular Inter, no more mono.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip">
-              <span class="glyph">🪶</span>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-msgs">
-              <div class="ph-msg-user">Audit the sidebar — what's still off?</div>
-              <div class="ph-msg-time">9:38 AM</div>
-
-              <div class="ph-msg-assist">
-                <div class="ph-name-tag"><span class="nt-dot"></span>Sully</div>
-                <div class="ph-msg-body">Three things still off in the sidebar:<br>1. Den row's hover state could be subtler<br>2. Active Tasks needs a "view all" link when count &gt; 3<br>3. Profile chip needs a long-press menu</div>
-                <div class="ph-msg-actions">
-                  <span class="ph-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="10" height="10" rx="2"/><path d="M5 15h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1"/></svg>Copy</span>
-                  <span class="ph-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Regen</span>
-                  <span class="ph-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Play</span>
-                  <span style="margin-left:auto;"><span class="ph-msg-time">9:38 AM</span></span>
-                </div>
-              </div>
-            </div>
-            <div class="ph-composer-area">
-              <div class="ph-composer">
-                <div class="ph-composer-input placeholder">Talk to Sully…</div>
-                <div class="ph-composer-row">
-                  <div class="ph-cbtn">+</div>
-                  <div style="flex:1;"></div>
-                  <div class="ph-cbtn">🎧</div>
-                  <div class="ph-cbtn send">↑</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Bubble + reply share the same material language. Actions are real tap targets now.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="messages">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 07 — AI promotion dialog -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="promotion">
-    <div class="section-num">07 · MOBILE</div>
-    <h2 class="section-title">AI suggests "make this a space"</h2>
-    <div class="section-caption">When a conversation grows pattern-rich (e.g., 5+ messages about one topic), Sully proposes a space. Opt-in modal — you choose to accept. Comes from the bottom like a sheet (less startling than a centered modal).</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">☰</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Sully</div>
-            </div>
-            <div class="ph-model-chip">
-              <span class="glyph">🪶</span>
-              <span class="name">Auto</span>
-              <span class="caret">▾</span>
-            </div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-msgs" style="opacity:0.45;">
-              <div class="ph-msg-user">Can you help me figure out treehouse dimensions?</div>
-              <div class="ph-msg-assist">
-                <div class="ph-name-tag"><span class="nt-dot"></span>Sully</div>
-                <div class="ph-msg-body">Yeah — what's the tree? Diameter and species help me size the platform safely.</div>
-              </div>
-            </div>
-            <div class="ph-modal-overlay">
-              <div class="ph-modal">
-                <div class="mh">
-                  <div class="mh-orb"></div>
-                  <div class="mh-title">Make a space for this?</div>
-                </div>
-                <div class="mb">"Treehouse" is turning into a real project — <em>8 messages</em> about the build, materials, Pixel's inspection. Want me to set up a <em>Treehouse</em> space and move this chat there?</div>
-                <div class="ma">
-                  <button class="ma-primary">Yes, do it</button>
-                  <button class="ma-ghost">Not yet</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Cleanly slides up. Tap "Yes" — instant move. Tap "Not yet" — Sully won't ask again this session.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="promotion">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 08 — Settings page -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="settings">
-    <div class="section-num">08 · MOBILE</div>
-    <h2 class="section-title">Settings page — restyled to brand</h2>
-    <div class="section-caption">The orphaned <code>/settings</code> page AGY found, restyled to brand magenta (was fuchsia). Autonomy toggle for Ask / Auto-safe / Full-auto. Dispatch meter underneath. Reachable from the gear icon in the sidebar footer.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="phone">
-          <div class="island"></div>
-          <div class="statusbar"><span>9:41</span><span>●●●</span></div>
-          <div class="ph-header">
-            <div class="ph-burger">←</div>
-            <div class="ph-id">
-              <div class="ph-id-orb"></div>
-              <div class="ph-id-name">Settings</div>
-            </div>
-            <div style="width:32px;"></div>
-          </div>
-          <div class="ph-main">
-            <div class="ph-settings">
-              <div>
-                <h2>Captain</h2>
-                <p style="font-size:11px; color:var(--z-500);">Single operator · Tailnet primary</p>
-              </div>
-              <div class="ph-set-section">
-                <h3>AUTONOMY</h3>
-                <div class="ph-set-toggle">
-                  <button>Ask</button>
-                  <button class="active">Auto-safe</button>
-                  <button>Full-auto</button>
-                </div>
-                <p style="font-size:10.5px; color:var(--z-500); margin-top:8px; line-height:1.55;">Auto-safe: Sully dispatches & runs tools without asking, except for irreversible / destructive actions.</p>
-              </div>
-              <div class="ph-set-section">
-                <h3>DISPATCH METER · TODAY</h3>
-                <div class="ph-set-meter">
-                  <strong>4</strong> dispatches · <strong>14m 32s</strong> worker wall-clock · <strong>4/20</strong> daily cap
-                </div>
-                <div style="margin-top:8px; height:6px; background:rgba(255,255,255,0.05); border-radius:9999px; overflow:hidden;">
-                  <div style="height:100%; width:20%; background:linear-gradient(90deg, var(--brand-deep), var(--brand-bright)); border-radius:9999px;"></div>
-                </div>
-              </div>
-              <div class="ph-set-section">
-                <h3>VOICE</h3>
-                <div class="ph-set-toggle">
-                  <button>Off</button>
-                  <button class="active">On</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">Single-screen, scannable. Same chrome as everywhere else. Magenta replaces the orphan's fuchsia.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="settings">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 09 — Desktop layout -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="desktop">
-    <div class="section-num">09 · DESKTOP</div>
-    <h2 class="section-title">Desktop — 3-region layout with Canvas</h2>
-    <div class="section-caption">Persistent sidebar (the bug is fixed). Center chat. Right-side artifact panel slides in when dispatched work produces code or diffs. Plays Claude Cowork in spirit, but every artifact is something Sully or a dispatched agent actually <em>did</em>, not a fresh canvas to "create" in.</div>
-
-    <div class="views">
-      <div class="view">
-        <div class="desktop-frame">
-          <div class="dt-titlebar">
-            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            <span class="url">room.taila28611.ts.net/companion/chat</span>
-          </div>
-          <div class="dt-body">
-            <div class="dt-sidebar">
-              <!-- Active space -->
-              <div class="as-row">
-                <span>🌙</span><span style="flex:1;">The Den</span><span style="font-size:9px;">›</span>
-              </div>
-              <div class="section-label">ACTIVE TASKS</div>
-              <div class="task-row running"><span class="pulse"></span><span style="flex:1;">CC · refactor picker</span><span style="font-size:8px; color:var(--z-500);">3m</span></div>
-              <div class="task-row" style="background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.18);">
-                <span class="pulse" style="background:var(--emerald-soft); animation:none;"></span><span style="flex:1;">Sully · web ✓</span><span style="font-size:8px; color:var(--z-500);">now</span>
-              </div>
-              <div class="section-label">TODAY</div>
-              <div class="sidebar-row active"><span class="hash">#</span><span style="flex:1;">treehouse plans</span></div>
-              <div class="sidebar-row"><span class="hash">#</span><span style="flex:1;">audit synth</span></div>
-              <div class="section-label">YESTERDAY</div>
-              <div class="sidebar-row"><span class="hash">#</span><span style="flex:1;">drake debug</span></div>
-              <div style="margin-top:auto; padding:8px; border-top:1px solid var(--border); display:flex; align-items:center; gap:6px;">
-                <div style="flex:1; padding:5px 8px; background:rgba(255,255,255,0.03); border-radius:6px; font-size:10px; display:flex; align-items:center; gap:6px;">
-                  <span style="width:10px; height:10px; border-radius:50%; background:radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);"></span>
-                  Captain
-                </div>
-                <div style="width:24px; height:24px; border-radius:6px; background:rgba(255,255,255,0.03); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--z-400);">⚙</div>
-              </div>
-            </div>
-            <div class="dt-chat">
-              <div class="dt-chat-msg-user">Refactor the model picker — the toggle is fighting itself.</div>
-              <div class="dt-chat-msg-assist">
-                <div class="dt-chat-name-tag"><span class="nt-dot"></span>Sully</div>
-                <div class="dt-chat-msg-body">I sent it to CC. I'll watch and ping back. Opening the diff on the right →</div>
-              </div>
-              <div class="dt-chat-msg-assist">
-                <div class="dt-chat-name-tag"><span class="nt-dot"></span>Sully</div>
-                <div class="dt-chat-msg-body">CC came back. Two-line fix: skip <code style="font-family:'JetBrains Mono', mono; background:rgba(255,255,255,0.06); padding:0 4px; border-radius:3px; font-size:9px;">[data-popover-trigger]</code> in the capture-phase handler. Diff on the right →</div>
-              </div>
-              <div style="margin-top:auto;">
-                <div class="ph-composer" style="margin:0;">
-                  <div class="ph-composer-input placeholder" style="font-size:10px;">Reply or ask follow-up…</div>
-                  <div class="ph-composer-row">
-                    <div class="ph-cbtn" style="width:24px;height:24px;font-size:11px;">+</div>
-                    <div style="flex:1;"></div>
-                    <div class="ph-cbtn" style="width:24px;height:24px;font-size:11px;">🎧</div>
-                    <div class="ph-cbtn send" style="width:24px;height:24px;font-size:11px;">↑</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="dt-artifact">
-              <div class="dt-art-head">
-                <span class="canvas-icon">⌧</span>
-                <span class="filename">+page.svelte</span>
-                <span style="margin-left:auto; color:var(--z-500);">CC</span>
-              </div>
-              <div class="dt-art-body">
-                <div class="dt-art-code">
-<span style="color:var(--z-600);">function onPointerDown(e) {</span><br>
-<span style="color:var(--z-600);">  const target = e.target;</span><br>
-<span style="color:var(--z-600);">  if (target.closest('[data-popover]'))</span><br>
-<span style="color:var(--z-600);">    return;</span><br>
-<span class="add">+ if (target.closest('[data-popover-trigger]'))</span><br>
-<span class="add">+   return;</span><br>
-<span style="color:var(--z-600);">  closeAllPopovers();</span><br>
-<span style="color:var(--z-600);">}</span>
-                </div>
-              </div>
-              <div class="dt-art-actions">
-                <button class="dt-art-btn accept">Accept</button>
-                <button class="dt-art-btn skip">View PR ↗</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="blurb">The artifact panel appears only when there's something to show. Collapses to a thumb tab otherwise.</div>
-      </div>
-    </div>
-
-    <div class="feedback-bar" data-fb="desktop">
-      <div class="fb-label">This section feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- 10 — Icon strategy -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <section class="section" data-section="icons">
-    <div class="section-num">10 · ICON STRATEGY</div>
-    <h2 class="section-title">Brand icons + Lucide</h2>
-    <div class="section-caption">Two icon systems working together: <strong>Lucide line icons</strong> for everything generic (chrome, actions, controls — we already use this); <strong>brand glyphs</strong> for the model picker only. Below: real brand marks for each provider you have in the picker today, and the two libraries I'd pick from.</div>
-
-    <h3 style="font-size:13px; font-weight:600; margin-bottom:8px; color:var(--z-300); letter-spacing:-0.005em;">Brand icons in your current picker</h3>
-    <div class="icon-grid">
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#d97757;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z"/></svg>
-        </div>
-        <div class="ic-name">Anthropic</div>
-        <div class="ic-sub">Claude</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#fff;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.28 9.82a5.94 5.94 0 0 0-.51-4.88 6 6 0 0 0-6.5-2.87A6 6 0 0 0 4.93 4.18a5.94 5.94 0 0 0-3.97 2.88 6 6 0 0 0 .74 7.05 5.94 5.94 0 0 0 .51 4.88 6 6 0 0 0 6.5 2.87 5.94 5.94 0 0 0 4.51 2.02 6 6 0 0 0 5.83-4.18 5.94 5.94 0 0 0 3.97-2.88 6 6 0 0 0-.74-7.05zm-9.06 12.7a4.46 4.46 0 0 1-2.87-1.04l.14-.08 4.78-2.77a.79.79 0 0 0 .39-.68v-6.75l2.02 1.17v5.62a4.5 4.5 0 0 1-4.46 4.53zm-9.6-4.1a4.47 4.47 0 0 1-.54-3.02l.14.08 4.78 2.77a.78.78 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06l-4.83 2.79a4.5 4.5 0 0 1-6.14-1.64zm-1.26-10.43a4.5 4.5 0 0 1 2.34-1.97v5.71a.78.78 0 0 0 .39.68l5.81 3.36-2.02 1.17-4.78-2.77a4.5 4.5 0 0 1-1.74-6.18zm16.62 3.85L13.18 8.5l2.02-1.17 4.78 2.77a4.5 4.5 0 0 1-.7 8.13v-5.71a.78.78 0 0 0-.4-.68zm2.01-3.02-.14-.08-4.78-2.77a.78.78 0 0 0-.78 0l-5.84 3.37V7.01a.08.08 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66zM10.06 14.7L8.04 13.5V9.21a.08.08 0 0 1 .03-.07l4.83-2.79a4.5 4.5 0 0 1 6.68 6.36l-.14-.08-4.78-2.77a.78.78 0 0 0-.78 0L7.04 13.23zM11.16 12.4l2.6-1.5 2.6 1.5v3l-2.6 1.5-2.6-1.5z"/></svg>
-        </div>
-        <div class="ic-name">OpenAI</div>
-        <div class="ic-sub">GPT, GPT-OSS</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph">
-          <svg viewBox="0 0 24 24"><defs><linearGradient id="gem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4285f4"/><stop offset="0.5" stop-color="#9b72cb"/><stop offset="1" stop-color="#d96570"/></linearGradient></defs><path fill="url(#gem)" d="M12 2 C12 8 16.5 11.5 22 12 C16.5 12.5 12 16 12 22 C12 16 7.5 12.5 2 12 C7.5 11.5 12 8 12 2 Z"/></svg>
-        </div>
-        <div class="ic-name">Google</div>
-        <div class="ic-sub">Gemini</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#fff;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z"/></svg>
-        </div>
-        <div class="ic-name">Ollama</div>
-        <div class="ic-sub">Local + cloud</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#ff7000;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="3" height="16"/><rect x="18" y="4" width="3" height="16"/><rect x="3" y="4" width="18" height="3"/><rect x="9" y="9" width="6" height="3"/></svg>
-        </div>
-        <div class="ic-name">Mistral</div>
-        <div class="ic-sub">Le Chat / Agents</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#7c3aed;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M14 14 L20 20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-        </div>
-        <div class="ic-name">Qwen</div>
-        <div class="ic-sub">Coder, Chat</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#fff;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 5 L19 19"/><path d="M19 5 L5 19"/></svg>
-        </div>
-        <div class="ic-name">xAI</div>
-        <div class="ic-sub">Grok</div>
-      </div>
-      <div class="icon-cell">
-        <div class="ic-glyph" style="color:#20b8cd;">
-          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor" font-family="Inter">P</text></svg>
-        </div>
-        <div class="ic-name">Perplexity</div>
-        <div class="ic-sub">Search backend</div>
-      </div>
-    </div>
-
-    <h3 style="font-size:13px; font-weight:600; margin:24px 0 8px; color:var(--z-300); letter-spacing:-0.005em;">Library choice (SvelteKit-compatible)</h3>
-    <div class="lib-compare">
-      <div class="lib-card rec">
-        <h4>@lobehub/icons-static <span class="rec-badge">RECOMMENDED</span></h4>
-        <p>Your suggestion. The static-SVG variant of <code>@lobehub/icons</code> — ships every AI brand mark as a plain SVG file, framework-agnostic, no React required. We import the SVGs into <code>$lib/icons/brand/</code> and load via small Svelte wrappers.</p>
-        <ul>
-          <li>Covers every provider you have today + the ones coming (DeepSeek, Grok, GLM, Kimi, etc.)</li>
-          <li>Official brand colors included if we want them tinted; mono fallback works on the chrome</li>
-          <li>One source — no per-provider hand-traced fallbacks (which always look slightly off)</li>
-          <li>MIT-licensed</li>
-        </ul>
-        <div class="pkg">npm i @lobehub/icons-static-svg</div>
-      </div>
-      <div class="lib-card">
-        <h4>simple-icons</h4>
-        <p>The general-purpose "every brand mark on the internet" package. Has all the AI providers too, but the marks are pure brand glyphs (no per-product variants).</p>
-        <ul>
-          <li>Broader catalog (we'd use it if we expand beyond AI — Notion, Linear, GitHub, etc.)</li>
-          <li>Single-color mono SVGs only</li>
-          <li>Slightly more boilerplate to integrate</li>
-          <li>CC0 / public-domain</li>
-        </ul>
-        <div class="pkg">npm i simple-icons</div>
-      </div>
-    </div>
-    <p style="font-size:11.5px; color:var(--z-500); margin-top:14px; line-height:1.55;"><strong>The pick:</strong> ship both — <code>@lobehub/icons-static</code> for the model picker (per-provider brand marks, official colors), <code>simple-icons</code> as a fallback when we add non-AI integrations later (Linear, Notion, etc.). Lucide stays the default for all generic chrome icons (everything that isn't a brand).</p>
-
-    <div class="feedback-bar" data-fb="icons">
-      <div class="fb-label">This strategy feels:</div>
-      <button class="feedback-btn approve" data-v="approve">👍 Good</button>
-      <button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- SIGN-OFF -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <div class="signoff">
-    <h2>Looks good? Anything to change first?</h2>
-    <p>Per-section reactions above were captured. If you want anything specific to change before I write a single line — say so here. Otherwise, hit "Copy sign-off" at the bottom and I'll start the build in the order from the audit doc.</p>
-    <textarea id="signoffNotes" placeholder="e.g. 'the spaces grid icons feel generic, find better ones', 'the talkback state strip is too narrow', 'don't bother with simple-icons until later', etc. — anything you want addressed before build."></textarea>
-  </div>
-
-</div><!-- /page -->
-
-<div class="cta-bar">
-  <div class="summary"><strong id="approveCount">0</strong> approved · <strong id="flagCount">0</strong> flagged · <strong id="pendingCount">10</strong> pending</div>
-  <button class="copy-btn" id="copyBtn">Copy sign-off</button>
-</div>
-
-<script>
-  const STORAGE_KEY = 'sully-mockup-signoff';
-  const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-
-  // Wire feedback bars
-  document.querySelectorAll('[data-fb]').forEach(bar => {
-    const key = bar.dataset.fb;
-    bar.querySelectorAll('.feedback-btn').forEach(btn => {
-      const v = btn.dataset.v;
-      if (state[key] === v) btn.classList.add('active');
-      btn.addEventListener('click', () => {
-        bar.querySelectorAll('.feedback-btn').forEach(b => b.classList.remove('active'));
-        if (state[key] === v) { state[key] = null; btn.classList.remove('active'); }
-        else { state[key] = v; btn.classList.add('active'); }
-        save();
-      });
-    });
-  });
-
-  // Notes
-  const notes = document.getElementById('signoffNotes');
-  if (state.notes) notes.value = state.notes;
-  notes.addEventListener('input', () => { state.notes = notes.value; save(); });
-
-  // Scroll progress
-  const sp = document.getElementById('scrollProgress');
-  window.addEventListener('scroll', () => {
-    const h = document.documentElement.scrollHeight - window.innerHeight;
-    const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
-    sp.style.width = Math.min(100, Math.max(0, pct)) + '%';
-  });
-
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    updateCounts();
-  }
-
-  const sections = ['empty','sidebar','spaces-page','picker','composer','messages','promotion','settings','desktop','icons'];
-  function updateCounts() {
-    let approved = 0, flagged = 0;
-    sections.forEach(s => {
-      if (state[s] === 'approve') approved++;
-      else if (state[s] === 'flag') flagged++;
-    });
-    document.getElementById('approveCount').textContent = approved;
-    document.getElementById('flagCount').textContent = flagged;
-    document.getElementById('pendingCount').textContent = sections.length - approved - flagged;
-  }
-
-  // Copy
-  const labels = {
-    empty: 'Empty-state landing',
-    sidebar: 'Sidebar (hybrid spaces)',
-    'spaces-page': 'Spaces overview page',
-    picker: 'Model picker w/ brand icons',
-    composer: 'Composer states',
-    messages: 'Messages + actions',
-    promotion: 'AI space-promotion dialog',
-    settings: 'Settings page',
-    desktop: 'Desktop 3-region layout',
-    icons: 'Icon library strategy'
-  };
-  document.getElementById('copyBtn').addEventListener('click', async () => {
-    let out = 'SULLY MOCKUP SIGN-OFF\n=====================\n\n';
-    sections.forEach(s => {
-      const v = state[s];
-      const tag = v === 'approve' ? '👍 GOOD' : v === 'flag' ? '🚩 NEEDS CHANGE' : '— (no answer)';
-      out += `${labels[s]}\n  ${tag}\n\n`;
-    });
-    if (state.notes && state.notes.trim()) {
-      out += `Notes:\n${state.notes.trim()}\n`;
-    }
-    const btn = document.getElementById('copyBtn');
-    try {
-      await navigator.clipboard.writeText(out);
-      btn.textContent = '✓ Copied';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy sign-off'; btn.classList.remove('copied'); }, 2000);
-    } catch (e) {
-      const ta = document.createElement('textarea');
-      ta.value = out; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); btn.textContent = '✓ Copied'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = 'Copy sign-off'; btn.classList.remove('copied'); }, 2000); } catch (e2) {}
-      document.body.removeChild(ta);
-    }
-  });
-
-  updateCounts();
-</script>
-
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+		<title>Sully — the whole look</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+				-webkit-tap-highlight-color: transparent;
+			}
+			:root {
+				--brand: #ec2d78;
+				--brand-soft: #ff7eb3;
+				--brand-deep: #c4186a;
+				--brand-bright: #ff4d94;
+				--brand-glow: rgba(236, 45, 120, 0.4);
+				--bg: #050505;
+				--surface: #0e0e11;
+				--surface-2: #18181b;
+				--surface-3: #1f1f23;
+				--border: rgba(255, 255, 255, 0.07);
+				--border-strong: rgba(255, 255, 255, 0.12);
+				--z-200: #e4e4e7;
+				--z-300: #d4d4d8;
+				--z-400: #a1a1aa;
+				--z-500: #71717a;
+				--z-600: #52525b;
+				--z-700: #3f3f46;
+				--z-800: #27272a;
+				--z-900: #18181b;
+				--amber: #f59e0b;
+				--amber-soft: #fbbf24;
+				--emerald: #10b981;
+				--emerald-soft: #34d399;
+				--cyan: #06b6d4;
+				--cyan-soft: #22d3ee;
+				--red: #ef4444;
+				--red-soft: #f87171;
+			}
+			html,
+			body {
+				height: 100%;
+				background: var(--bg);
+				color: #f4f4f5;
+				font-family:
+					'Inter',
+					system-ui,
+					-apple-system,
+					sans-serif;
+				overscroll-behavior: none;
+			}
+			body {
+				padding-bottom: env(safe-area-inset-bottom, 16px);
+			}
+
+			/* ── Aurora ── */
+			.aurora {
+				position: fixed;
+				inset: 0;
+				z-index: 0;
+				pointer-events: none;
+				overflow: hidden;
+			}
+			.aurora span {
+				position: absolute;
+				border-radius: 9999px;
+				filter: blur(80px);
+				opacity: 0.22;
+				will-change: transform;
+			}
+			.aurora .a1 {
+				width: 460px;
+				height: 460px;
+				background: radial-gradient(ellipse, #ec2d78 0%, #c4186a 60%, transparent 100%);
+				top: -100px;
+				left: -120px;
+				animation: aurora1 22s ease-in-out infinite;
+			}
+			.aurora .a2 {
+				width: 340px;
+				height: 340px;
+				background: radial-gradient(ellipse, #7c3aed 0%, #ec2d78 70%, transparent 100%);
+				bottom: 80px;
+				right: -80px;
+				animation: aurora2 26s ease-in-out infinite;
+			}
+			.aurora .a3 {
+				width: 280px;
+				height: 280px;
+				background: radial-gradient(ellipse, #ec2d78 0%, transparent 80%);
+				top: 50%;
+				left: 50%;
+				animation: aurora3 30s ease-in-out infinite;
+			}
+			@keyframes aurora1 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(30px, -20px) scale(1.08);
+				}
+			}
+			@keyframes aurora2 {
+				0%,
+				100% {
+					transform: translate(0, 0) scale(1);
+				}
+				50% {
+					transform: translate(-30px, 20px) scale(0.92);
+				}
+			}
+			@keyframes aurora3 {
+				0%,
+				100% {
+					transform: translate(-50%, -50%) scale(1);
+				}
+				50% {
+					transform: translate(-50%, -50%) scale(1.15);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.aurora span {
+					animation: none !important;
+				}
+			}
+
+			/* ── Topbar ── */
+			.topbar {
+				position: sticky;
+				top: 0;
+				z-index: 50;
+				background: rgba(10, 10, 12, 0.88);
+				backdrop-filter: blur(20px);
+				-webkit-backdrop-filter: blur(20px);
+				border-bottom: 1px solid var(--border);
+				padding: max(14px, env(safe-area-inset-top, 14px)) 20px 12px;
+			}
+			.topbar .row1 {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.topbar h1 {
+				font-size: 15px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+			}
+			.sully-dot {
+				display: inline-block;
+				width: 16px;
+				height: 16px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 8px rgba(236, 45, 120, 0.5);
+				vertical-align: -2px;
+				margin-right: 6px;
+			}
+			.topbar p {
+				font-size: 11.5px;
+				color: var(--z-400);
+				margin-top: 3px;
+				line-height: 1.5;
+			}
+			.topbar .scroll-progress {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				height: 2px;
+				background: linear-gradient(90deg, var(--brand-deep), var(--brand-bright));
+				width: 0%;
+				transition: width 80ms linear;
+			}
+
+			/* ── Page ── */
+			.page {
+				position: relative;
+				z-index: 1;
+				max-width: 780px;
+				margin: 0 auto;
+				padding: 20px 16px 140px;
+			}
+
+			/* ── Intro card ── */
+			.intro {
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 18px;
+				padding: 18px;
+				margin-bottom: 30px;
+			}
+			.intro h2 {
+				font-size: 14px;
+				font-weight: 700;
+				letter-spacing: -0.01em;
+				margin-bottom: 8px;
+				color: var(--brand-soft);
+			}
+			.intro p {
+				font-size: 13px;
+				color: var(--z-300);
+				line-height: 1.6;
+			}
+			.intro p + p {
+				margin-top: 8px;
+				color: var(--z-400);
+				font-size: 12.5px;
+			}
+			.intro strong {
+				color: var(--z-200);
+				font-weight: 600;
+			}
+			.intro .legend {
+				display: flex;
+				gap: 14px;
+				margin-top: 14px;
+				padding-top: 14px;
+				border-top: 1px solid var(--border);
+				font-size: 11px;
+				color: var(--z-500);
+				flex-wrap: wrap;
+			}
+			.intro .legend span {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+			}
+			.intro .legend .dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+			}
+
+			/* ── Section ── */
+			.section {
+				margin-bottom: 48px;
+				scroll-margin-top: 90px;
+			}
+			.section-num {
+				font-size: 10px;
+				font-weight: 700;
+				color: var(--brand-soft);
+				letter-spacing: 0.14em;
+				margin-bottom: 6px;
+			}
+			.section-title {
+				font-size: 20px;
+				font-weight: 600;
+				letter-spacing: -0.02em;
+				line-height: 1.25;
+				margin-bottom: 6px;
+			}
+			.section-caption {
+				font-size: 12.5px;
+				color: var(--z-400);
+				line-height: 1.6;
+				margin-bottom: 20px;
+				max-width: 600px;
+			}
+			.section-caption strong {
+				color: var(--z-300);
+				font-weight: 500;
+			}
+			.section-caption code {
+				background: rgba(255, 255, 255, 0.06);
+				padding: 1px 6px;
+				border-radius: 4px;
+				font-size: 11px;
+				font-family: 'JetBrains Mono', ui-monospace, monospace;
+				color: var(--brand-soft);
+			}
+
+			/* ── View card ── */
+			.views {
+				display: grid;
+				gap: 24px;
+				grid-template-columns: 1fr;
+			}
+			@media (min-width: 680px) {
+				.views.two-up {
+					grid-template-columns: 1fr 1fr;
+				}
+			}
+			.view {
+				background: rgba(255, 255, 255, 0.02);
+				border: 1px solid var(--border);
+				border-radius: 18px;
+				padding: 16px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 12px;
+			}
+			.view .label {
+				font-size: 11px;
+				font-weight: 600;
+				color: var(--z-400);
+				letter-spacing: 0.04em;
+				text-align: center;
+			}
+			.view .blurb {
+				font-size: 11px;
+				color: var(--z-500);
+				line-height: 1.55;
+				text-align: center;
+				max-width: 280px;
+				margin-top: -4px;
+			}
+
+			/* ── Phone frame ── */
+			.phone {
+				width: 100%;
+				max-width: 320px;
+				aspect-ratio: 9 / 19;
+				background: var(--surface);
+				border-radius: 32px;
+				border: 1.5px solid rgba(255, 255, 255, 0.1);
+				box-shadow:
+					0 24px 60px -12px rgba(0, 0, 0, 0.7),
+					0 0 0 0.5px rgba(255, 255, 255, 0.04);
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+				position: relative;
+			}
+			.phone .island {
+				position: absolute;
+				top: 8px;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 90px;
+				height: 24px;
+				background: #000;
+				border-radius: 9999px;
+				z-index: 5;
+				pointer-events: none;
+			}
+			.phone .statusbar {
+				padding: 14px 22px 6px;
+				display: flex;
+				justify-content: space-between;
+				font-size: 11px;
+				font-weight: 600;
+				color: rgba(255, 255, 255, 0.7);
+				position: relative;
+				z-index: 1;
+			}
+
+			/* ── Phone CHROME components (reused across mockups) ── */
+			.ph-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+				padding: 8px 14px 10px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+				background: rgba(11, 11, 13, 0.55);
+				backdrop-filter: blur(20px);
+				position: relative;
+				z-index: 2;
+			}
+			.ph-header .ph-burger {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+				font-size: 14px;
+			}
+			.ph-header .ph-id {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+			}
+			.ph-header .ph-id-orb {
+				width: 24px;
+				height: 24px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 10px rgba(236, 45, 120, 0.5);
+			}
+			.ph-header .ph-id-name {
+				font-size: 13px;
+				font-weight: 600;
+			}
+			.ph-header .ph-model-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 5px 10px 5px 8px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.07);
+				font-size: 10px;
+				color: var(--z-300);
+				max-width: 130px;
+			}
+			.ph-header .ph-model-chip .glyph {
+				width: 11px;
+				height: 11px;
+				display: inline-flex;
+			}
+			.ph-header .ph-model-chip .name {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-header .ph-model-chip .caret {
+				font-size: 8px;
+				color: var(--z-500);
+			}
+
+			/* ── Main chat surface area ── */
+			.ph-main {
+				flex: 1;
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+				position: relative;
+			}
+			.ph-empty {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 20px;
+				gap: 14px;
+			}
+			.ph-empty .orb-big {
+				width: 64px;
+				height: 64px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a 80%);
+				box-shadow:
+					0 0 30px rgba(236, 45, 120, 0.6),
+					inset 0 -8px 14px rgba(0, 0, 0, 0.3);
+			}
+			.ph-empty h3 {
+				font-size: 16px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+				text-align: center;
+			}
+			.ph-empty p {
+				font-size: 11px;
+				color: var(--z-500);
+				text-align: center;
+			}
+			.ph-pills {
+				display: flex;
+				flex-direction: column;
+				gap: 7px;
+				width: 100%;
+				max-width: 240px;
+			}
+			.ph-pill {
+				padding: 9px 14px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				border-radius: 9999px;
+				font-size: 11px;
+				color: var(--z-300);
+				text-align: center;
+			}
+			.ph-pill:hover {
+				background: rgba(255, 255, 255, 0.06);
+			}
+
+			/* ── Message list ── */
+			.ph-msgs {
+				flex: 1;
+				overflow: hidden;
+				padding: 8px 12px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.ph-msg-user {
+				align-self: flex-end;
+				max-width: 80%;
+				background: rgba(14, 14, 17, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				backdrop-filter: blur(12px);
+				border-radius: 16px;
+				padding: 7px 11px;
+				font-size: 11px;
+				color: var(--z-200);
+				line-height: 1.5;
+			}
+			.ph-msg-time {
+				font-size: 8px;
+				color: var(--z-600);
+				align-self: flex-end;
+				padding: 0 2px;
+				font-variant-numeric: tabular-nums;
+			}
+			.ph-msg-assist {
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+				max-width: 90%;
+				align-self: flex-start;
+			}
+			.ph-name-tag {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 2px 8px;
+				border-radius: 9999px;
+				background: rgba(236, 45, 120, 0.08);
+				border: 1px solid rgba(236, 45, 120, 0.28);
+				font-size: 9px;
+				font-weight: 600;
+				color: var(--brand-soft);
+				width: fit-content;
+			}
+			.ph-name-tag .nt-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 4px rgba(236, 45, 120, 0.6);
+			}
+			.ph-msg-body {
+				font-size: 11px;
+				color: var(--z-200);
+				line-height: 1.55;
+				padding: 3px 4px;
+			}
+			.ph-msg-actions {
+				display: flex;
+				gap: 2px;
+				padding: 2px 0;
+				align-items: center;
+			}
+			.ph-action {
+				display: inline-flex;
+				align-items: center;
+				gap: 3px;
+				padding: 4px 7px;
+				border-radius: 7px;
+				font-size: 10px;
+				color: var(--z-500);
+				font-weight: 500;
+			}
+			.ph-action:hover {
+				background: rgba(255, 255, 255, 0.05);
+				color: var(--z-300);
+			}
+			.ph-action svg {
+				width: 11px;
+				height: 11px;
+			}
+
+			/* ── Composer ── */
+			.ph-composer-area {
+				padding: 8px 12px max(12px, env(safe-area-inset-bottom, 12px));
+			}
+			.ph-composer {
+				border-radius: 24px;
+				padding: 8px;
+				background: rgba(14, 14, 17, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				backdrop-filter: blur(20px);
+				transition: all 200ms;
+			}
+			.ph-composer.sending {
+				border-color: rgba(236, 45, 120, 0.45);
+				box-shadow: 0 0 30px -6px var(--brand-glow);
+				animation: composer-pulse 1.8s ease-in-out infinite;
+			}
+			@keyframes composer-pulse {
+				0%,
+				100% {
+					box-shadow: 0 0 30px -6px var(--brand-glow);
+				}
+				50% {
+					box-shadow: 0 0 38px -4px rgba(236, 45, 120, 0.5);
+				}
+			}
+			.ph-composer.talkback {
+				border-color: rgba(16, 185, 129, 0.4);
+				box-shadow: 0 0 24px -8px rgba(16, 185, 129, 0.4);
+			}
+			.ph-composer.image {
+				border-color: rgba(6, 182, 212, 0.4);
+				box-shadow: 0 0 24px -8px rgba(6, 182, 212, 0.4);
+			}
+			.ph-composer-strip {
+				padding: 2px 6px 4px;
+				margin-bottom: 3px;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 9px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			.ph-composer-strip.cyan {
+				color: rgb(103, 232, 249);
+			}
+			.ph-composer-strip.emerald {
+				color: rgb(110, 231, 183);
+			}
+			.ph-composer-input {
+				padding: 5px 7px;
+				font-size: 11px;
+				color: var(--z-300);
+				min-height: 20px;
+			}
+			.ph-composer-input.placeholder {
+				color: var(--z-600);
+			}
+			.ph-composer-row {
+				display: flex;
+				align-items: center;
+				gap: 5px;
+				padding: 3px 2px 0;
+			}
+			.ph-cbtn {
+				width: 30px;
+				height: 30px;
+				border-radius: 10px;
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.16),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 2px 6px -1px rgba(0, 0, 0, 0.55);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-300);
+				font-size: 13px;
+			}
+			.ph-cbtn.send {
+				width: 30px;
+				height: 30px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
+				color: white;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.25),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 3px 10px -2px var(--brand-glow),
+					0 0 0 1px rgba(236, 45, 120, 0.35);
+			}
+			.ph-cbtn.active-cyan {
+				background: rgba(6, 182, 212, 0.15);
+				border: 1px solid rgba(6, 182, 212, 0.5);
+				color: rgb(103, 232, 249);
+				box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+			}
+			.ph-cbtn.active-emerald {
+				background: rgba(16, 185, 129, 0.15);
+				border: 1px solid rgba(16, 185, 129, 0.5);
+				color: rgb(110, 231, 183);
+				box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+			}
+
+			/* ── Sidebar (full-screen mockup, simulated drawer) ── */
+			.ph-sidebar {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				padding: 0;
+				overflow: hidden;
+			}
+			.ph-side-header {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 14px 14px 12px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			.ph-side-header .ph-id {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				flex: 1;
+			}
+			.ph-side-action {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+				font-size: 14px;
+			}
+			.ph-active-space {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 9px 12px;
+				margin: 8px;
+				background: rgba(236, 45, 120, 0.09);
+				border: 1px solid rgba(236, 45, 120, 0.32);
+				border-radius: 12px;
+				cursor: pointer;
+				box-shadow: 0 0 14px -4px var(--brand-glow);
+			}
+			.ph-active-space .as-icon {
+				font-size: 14px;
+			}
+			.ph-active-space .as-name {
+				flex: 1;
+				font-size: 12.5px;
+				font-weight: 600;
+				color: var(--brand-soft);
+			}
+			.ph-active-space .as-chev {
+				font-size: 14px;
+				color: var(--brand-soft);
+			}
+			.ph-section-label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--z-600);
+				letter-spacing: 0.1em;
+				padding: 10px 16px 4px;
+			}
+			.ph-active-tasks {
+				padding: 0 8px 4px;
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+			}
+			.ph-task {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				padding: 6px 9px;
+				border-radius: 9px;
+				font-size: 10.5px;
+			}
+			.ph-task.running {
+				background: rgba(245, 158, 11, 0.06);
+				border: 1px solid rgba(245, 158, 11, 0.2);
+			}
+			.ph-task.done {
+				background: rgba(16, 185, 129, 0.05);
+				border: 1px solid rgba(16, 185, 129, 0.18);
+			}
+			.ph-task.failed {
+				background: rgba(239, 68, 68, 0.05);
+				border: 1px solid rgba(239, 68, 68, 0.18);
+			}
+			.ph-task .pulse {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				flex-shrink: 0;
+			}
+			.ph-task.running .pulse {
+				background: var(--amber-soft);
+				animation: amber-pulse 1.4s ease-in-out infinite;
+			}
+			@keyframes amber-pulse {
+				0%,
+				100% {
+					opacity: 1;
+					transform: scale(1);
+					box-shadow: 0 0 6px var(--amber);
+				}
+				50% {
+					opacity: 0.5;
+					transform: scale(0.85);
+				}
+			}
+			.ph-task.done .pulse {
+				background: var(--emerald-soft);
+			}
+			.ph-task.failed .pulse {
+				background: var(--red-soft);
+			}
+			.ph-task .label {
+				flex: 1;
+				color: var(--z-200);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-task .meta {
+				font-size: 9px;
+				color: var(--z-500);
+				font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.ph-thread-list {
+				flex: 1;
+				overflow: hidden;
+				padding: 0 8px;
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+			.ph-thread {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 7px 11px;
+				border-radius: 10px;
+				font-size: 11.5px;
+				color: var(--z-300);
+			}
+			.ph-thread:hover {
+				background: rgba(255, 255, 255, 0.03);
+			}
+			.ph-thread.active {
+				background: rgba(255, 255, 255, 0.06);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				color: white;
+				font-weight: 500;
+			}
+			.ph-thread .hash {
+				font-size: 10px;
+				color: var(--z-600);
+			}
+			.ph-thread .name {
+				flex: 1;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.ph-thread .count {
+				font-size: 9px;
+				color: var(--z-600);
+				padding: 1px 6px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+			}
+			.ph-footer {
+				padding: 10px 12px max(10px, env(safe-area-inset-bottom, 10px));
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.ph-profile-chip {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 7px 10px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.03);
+				font-size: 11.5px;
+				color: var(--z-200);
+				font-weight: 500;
+			}
+			.ph-profile-chip .pc-dot {
+				width: 14px;
+				height: 14px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 5px rgba(236, 45, 120, 0.4);
+			}
+			.ph-gear {
+				width: 32px;
+				height: 32px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-400);
+				font-size: 14px;
+			}
+
+			/* ── Model picker popover (with brand icons) ── */
+			.ph-popover {
+				position: absolute;
+				top: 60px;
+				right: 8px;
+				width: 240px;
+				background: rgba(14, 14, 17, 0.88);
+				backdrop-filter: blur(28px);
+				-webkit-backdrop-filter: blur(28px);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 18px;
+				box-shadow: 0 24px 50px -8px rgba(0, 0, 0, 0.8);
+				z-index: 10;
+				overflow: hidden;
+			}
+			.ph-popover-label {
+				font-size: 9px;
+				font-weight: 700;
+				color: var(--z-600);
+				letter-spacing: 0.12em;
+				padding: 10px 12px 4px;
+			}
+			.ph-popover-item {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 8px 12px;
+				font-size: 11.5px;
+				cursor: pointer;
+				color: var(--z-300);
+			}
+			.ph-popover-item:hover {
+				background: rgba(255, 255, 255, 0.04);
+			}
+			.ph-popover-item.selected {
+				color: var(--brand-soft);
+				font-weight: 500;
+			}
+			.ph-popover-item.selected .check {
+				color: var(--brand-soft);
+				margin-left: auto;
+				font-size: 11px;
+			}
+			.ph-popover-item .pi-icon {
+				width: 18px;
+				height: 18px;
+				flex-shrink: 0;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 5px;
+				background: rgba(255, 255, 255, 0.05);
+			}
+			.ph-popover-item .pi-icon svg {
+				width: 13px;
+				height: 13px;
+			}
+			.ph-popover-item .pi-name {
+				flex: 1;
+				line-height: 1.3;
+			}
+			.ph-popover-item .pi-sub {
+				font-size: 9px;
+				color: var(--z-600);
+				font-weight: 400;
+				display: block;
+				margin-top: 1px;
+			}
+			.ph-popover-divider {
+				height: 1px;
+				background: rgba(255, 255, 255, 0.05);
+				margin: 4px 0;
+			}
+			.ph-popover-footer {
+				padding: 6px 12px 9px;
+				border-top: 1px solid rgba(255, 255, 255, 0.05);
+				margin-top: 2px;
+			}
+			.ph-popover-footer-item {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 10px;
+				color: var(--z-500);
+			}
+
+			/* ── Spaces overview page ── */
+			.ph-spaces-grid {
+				padding: 14px;
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 10px;
+			}
+			.ph-space-card {
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 12px;
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+				cursor: pointer;
+				transition: all 200ms;
+			}
+			.ph-space-card:hover {
+				background: rgba(255, 255, 255, 0.05);
+				border-color: var(--border-strong);
+			}
+			.ph-space-card.den {
+				background: rgba(236, 45, 120, 0.08);
+				border-color: rgba(236, 45, 120, 0.32);
+				box-shadow: 0 0 16px -4px var(--brand-glow);
+			}
+			.ph-space-card .sc-icon {
+				font-size: 20px;
+			}
+			.ph-space-card .sc-name {
+				font-size: 12px;
+				font-weight: 600;
+				color: var(--z-200);
+			}
+			.ph-space-card.den .sc-name {
+				color: var(--brand-soft);
+			}
+			.ph-space-card .sc-meta {
+				font-size: 9.5px;
+				color: var(--z-500);
+			}
+			.ph-space-card.new {
+				background: rgba(255, 255, 255, 0.02);
+				border: 1.5px dashed var(--border-strong);
+				align-items: center;
+				justify-content: center;
+				min-height: 80px;
+			}
+			.ph-space-card.new .sc-icon {
+				color: var(--z-500);
+			}
+			.ph-space-card.new .sc-name {
+				color: var(--z-500);
+				font-weight: 500;
+			}
+
+			/* ── Settings page ── */
+			.ph-settings {
+				padding: 18px 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 22px;
+			}
+			.ph-settings h2 {
+				font-size: 18px;
+				font-weight: 600;
+				letter-spacing: -0.015em;
+				color: var(--brand-soft);
+			}
+			.ph-set-section h3 {
+				font-size: 11px;
+				font-weight: 600;
+				color: var(--z-400);
+				margin-bottom: 8px;
+				letter-spacing: 0.04em;
+			}
+			.ph-set-toggle {
+				display: inline-flex;
+				padding: 3px;
+				border-radius: 9999px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--border);
+				gap: 2px;
+			}
+			.ph-set-toggle button {
+				padding: 5px 11px;
+				border-radius: 9999px;
+				font-size: 10.5px;
+				font-weight: 500;
+				color: var(--z-400);
+				border: none;
+				background: transparent;
+				cursor: pointer;
+			}
+			.ph-set-toggle button.active {
+				background: var(--brand);
+				color: white;
+				box-shadow: 0 0 12px -2px var(--brand-glow);
+			}
+			.ph-set-meter {
+				font-size: 11px;
+				color: var(--z-300);
+				line-height: 1.6;
+			}
+			.ph-set-meter strong {
+				color: var(--brand-soft);
+			}
+
+			/* ── AI promotion modal ── */
+			.ph-modal-overlay {
+				position: absolute;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.5);
+				backdrop-filter: blur(6px);
+				display: flex;
+				align-items: flex-end;
+				padding: 14px;
+				z-index: 10;
+			}
+			.ph-modal {
+				width: 100%;
+				background: rgba(14, 14, 17, 0.95);
+				border: 1px solid var(--border-strong);
+				border-radius: 18px;
+				padding: 18px;
+				box-shadow: 0 24px 50px -8px rgba(0, 0, 0, 0.8);
+			}
+			.ph-modal .mh {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 8px;
+			}
+			.ph-modal .mh-orb {
+				width: 24px;
+				height: 24px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+				box-shadow: 0 0 8px rgba(236, 45, 120, 0.5);
+			}
+			.ph-modal .mh-title {
+				font-size: 13px;
+				font-weight: 600;
+			}
+			.ph-modal .mb {
+				font-size: 11.5px;
+				color: var(--z-300);
+				line-height: 1.55;
+			}
+			.ph-modal .mb em {
+				color: var(--brand-soft);
+				font-style: normal;
+				font-weight: 500;
+			}
+			.ph-modal .ma {
+				display: flex;
+				gap: 8px;
+				margin-top: 14px;
+			}
+			.ph-modal .ma-primary {
+				flex: 1;
+				padding: 9px;
+				border-radius: 10px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
+				color: white;
+				font-size: 11.5px;
+				font-weight: 600;
+				border: none;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.2),
+					0 4px 10px -3px var(--brand-glow);
+			}
+			.ph-modal .ma-ghost {
+				padding: 9px 14px;
+				border-radius: 10px;
+				background: rgba(255, 255, 255, 0.05);
+				color: var(--z-400);
+				font-size: 11.5px;
+				font-weight: 500;
+				border: none;
+			}
+
+			/* ── Desktop view ── */
+			.desktop-frame {
+				width: 100%;
+				max-width: 760px;
+				aspect-ratio: 16 / 10;
+				background: var(--surface);
+				border-radius: 14px;
+				border: 1.5px solid rgba(255, 255, 255, 0.1);
+				box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7);
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+			}
+			.dt-titlebar {
+				padding: 8px 14px;
+				background: rgba(0, 0, 0, 0.4);
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			.dt-titlebar .dot {
+				width: 9px;
+				height: 9px;
+				border-radius: 50%;
+			}
+			.dt-titlebar .red {
+				background: #ff5f57;
+			}
+			.dt-titlebar .yellow {
+				background: #febc2e;
+			}
+			.dt-titlebar .green {
+				background: #28c840;
+			}
+			.dt-titlebar .url {
+				margin-left: 14px;
+				padding: 3px 12px;
+				background: rgba(255, 255, 255, 0.06);
+				border-radius: 9999px;
+				font-size: 10px;
+				color: var(--z-500);
+			}
+			.dt-body {
+				flex: 1;
+				display: flex;
+				min-height: 0;
+			}
+
+			/* Desktop sidebar */
+			.dt-sidebar {
+				width: 200px;
+				flex-shrink: 0;
+				border-right: 1px solid var(--border);
+				background: #090909;
+				display: flex;
+				flex-direction: column;
+				padding-top: 8px;
+			}
+			.dt-sidebar .sidebar-row {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				padding: 6px 10px;
+				margin: 1px 6px;
+				border-radius: 7px;
+				font-size: 10px;
+				color: var(--z-400);
+			}
+			.dt-sidebar .sidebar-row.active {
+				background: rgba(255, 255, 255, 0.05);
+				color: white;
+			}
+			.dt-sidebar .sidebar-row .hash {
+				font-size: 9px;
+				color: var(--z-600);
+			}
+			.dt-sidebar .as-row {
+				padding: 7px 10px;
+				margin: 4px 6px;
+				border-radius: 8px;
+				background: rgba(236, 45, 120, 0.09);
+				border: 1px solid rgba(236, 45, 120, 0.32);
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--brand-soft);
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.dt-sidebar .section-label {
+				font-size: 8px;
+				font-weight: 700;
+				color: var(--z-600);
+				letter-spacing: 0.1em;
+				padding: 7px 12px 3px;
+			}
+			.dt-sidebar .task-row {
+				padding: 5px 8px;
+				margin: 1px 6px;
+				border-radius: 6px;
+				font-size: 9px;
+				display: flex;
+				align-items: center;
+				gap: 5px;
+			}
+			.dt-sidebar .task-row.running {
+				background: rgba(245, 158, 11, 0.06);
+				border: 1px solid rgba(245, 158, 11, 0.2);
+			}
+			.dt-sidebar .task-row .pulse {
+				width: 5px;
+				height: 5px;
+				border-radius: 50%;
+				background: var(--amber-soft);
+				animation: amber-pulse 1.4s ease-in-out infinite;
+			}
+
+			/* Desktop chat */
+			.dt-chat {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				padding: 12px;
+				gap: 8px;
+				min-width: 0;
+			}
+			.dt-chat-msg-user {
+				align-self: flex-end;
+				max-width: 60%;
+				background: rgba(14, 14, 17, 0.6);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				border-radius: 14px;
+				padding: 6px 10px;
+				font-size: 10px;
+				color: var(--z-200);
+			}
+			.dt-chat-msg-assist {
+				align-self: flex-start;
+				max-width: 80%;
+				display: flex;
+				flex-direction: column;
+				gap: 3px;
+			}
+			.dt-chat-name-tag {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				padding: 2px 7px;
+				border-radius: 9999px;
+				background: rgba(236, 45, 120, 0.08);
+				border: 1px solid rgba(236, 45, 120, 0.28);
+				font-size: 8.5px;
+				font-weight: 600;
+				color: var(--brand-soft);
+				width: fit-content;
+			}
+			.dt-chat-name-tag .nt-dot {
+				width: 5px;
+				height: 5px;
+				border-radius: 50%;
+				background: radial-gradient(circle at 30% 25%, #ff8fc0, #ec2d78 55%, #c4186a);
+			}
+			.dt-chat-msg-body {
+				font-size: 10px;
+				color: var(--z-200);
+				line-height: 1.55;
+				padding: 3px 4px;
+			}
+
+			/* Desktop artifact panel */
+			.dt-artifact {
+				width: 240px;
+				flex-shrink: 0;
+				border-left: 1px solid var(--border);
+				background: rgba(255, 255, 255, 0.02);
+				display: flex;
+				flex-direction: column;
+			}
+			.dt-art-head {
+				padding: 8px 12px;
+				border-bottom: 1px solid var(--border);
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 9px;
+			}
+			.dt-art-head .canvas-icon {
+				color: var(--brand-soft);
+				font-weight: 600;
+			}
+			.dt-art-head .filename {
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 9px;
+				color: var(--z-400);
+			}
+			.dt-art-body {
+				flex: 1;
+				padding: 8px 10px;
+				overflow: hidden;
+			}
+			.dt-art-code {
+				background: rgba(0, 0, 0, 0.4);
+				border-radius: 6px;
+				padding: 7px 9px;
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 8.5px;
+				color: var(--z-400);
+				line-height: 1.55;
+			}
+			.dt-art-code .add {
+				color: #86efac;
+			}
+			.dt-art-code .del {
+				color: #fca5a5;
+			}
+			.dt-art-actions {
+				padding: 8px 10px;
+				border-top: 1px solid var(--border);
+				display: flex;
+				gap: 6px;
+			}
+			.dt-art-btn {
+				padding: 4px 9px;
+				border-radius: 5px;
+				font-size: 9px;
+				font-weight: 600;
+			}
+			.dt-art-btn.accept {
+				background: var(--brand);
+				color: white;
+			}
+			.dt-art-btn.skip {
+				background: rgba(255, 255, 255, 0.05);
+				color: var(--z-400);
+			}
+
+			/* ── Icons section ── */
+			.icon-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+				gap: 14px;
+				margin-top: 16px;
+			}
+			.icon-cell {
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 16px 12px;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 8px;
+			}
+			.icon-cell .ic-glyph {
+				width: 36px;
+				height: 36px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--z-200);
+			}
+			.icon-cell .ic-glyph svg {
+				width: 32px;
+				height: 32px;
+			}
+			.icon-cell .ic-name {
+				font-size: 11px;
+				font-weight: 600;
+				color: var(--z-300);
+				text-align: center;
+			}
+			.icon-cell .ic-sub {
+				font-size: 9.5px;
+				color: var(--z-500);
+				font-family: 'JetBrains Mono', monospace;
+			}
+
+			/* Library compare */
+			.lib-compare {
+				display: grid;
+				gap: 12px;
+				grid-template-columns: 1fr;
+				margin-top: 18px;
+			}
+			@media (min-width: 680px) {
+				.lib-compare {
+					grid-template-columns: 1fr 1fr;
+				}
+			}
+			.lib-card {
+				padding: 16px;
+				border-radius: 14px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid var(--border);
+			}
+			.lib-card.rec {
+				border-color: rgba(236, 45, 120, 0.35);
+				background: rgba(236, 45, 120, 0.04);
+			}
+			.lib-card h4 {
+				font-size: 13px;
+				font-weight: 600;
+				margin-bottom: 8px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.lib-card h4 .rec-badge {
+				font-size: 9px;
+				font-weight: 700;
+				padding: 2px 7px;
+				border-radius: 9999px;
+				background: rgba(236, 45, 120, 0.18);
+				color: var(--brand-soft);
+				letter-spacing: 0.05em;
+			}
+			.lib-card p {
+				font-size: 12px;
+				color: var(--z-300);
+				line-height: 1.55;
+			}
+			.lib-card ul {
+				padding-left: 18px;
+				margin-top: 6px;
+			}
+			.lib-card li {
+				font-size: 11.5px;
+				color: var(--z-400);
+				line-height: 1.55;
+				margin: 2px 0;
+			}
+			.lib-card .pkg {
+				display: inline-block;
+				margin-top: 8px;
+				padding: 3px 9px;
+				border-radius: 5px;
+				background: rgba(255, 255, 255, 0.05);
+				font-family: 'JetBrains Mono', monospace;
+				font-size: 10.5px;
+				color: var(--brand-soft);
+			}
+
+			/* ── Per-section feedback (thumb up + flag) ── */
+			.feedback-bar {
+				display: flex;
+				gap: 8px;
+				margin-top: 16px;
+				padding: 12px 14px;
+				border-radius: 12px;
+				background: rgba(255, 255, 255, 0.025);
+				border: 1px solid var(--border);
+				align-items: center;
+			}
+			.feedback-bar .fb-label {
+				flex: 1;
+				font-size: 11px;
+				color: var(--z-500);
+			}
+			.feedback-btn {
+				padding: 7px 13px;
+				border-radius: 9px;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--border);
+				color: var(--z-400);
+				font-size: 11.5px;
+				font-weight: 500;
+				cursor: pointer;
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				transition: all 180ms;
+			}
+			.feedback-btn:hover {
+				background: rgba(255, 255, 255, 0.07);
+			}
+			.feedback-btn.active.approve {
+				background: rgba(16, 185, 129, 0.12);
+				border-color: rgba(16, 185, 129, 0.4);
+				color: rgb(110, 231, 183);
+			}
+			.feedback-btn.active.flag {
+				background: rgba(245, 158, 11, 0.12);
+				border-color: rgba(245, 158, 11, 0.4);
+				color: rgb(252, 211, 77);
+			}
+
+			/* ── Sign-off ── */
+			.signoff {
+				margin-top: 48px;
+				padding: 24px;
+				background: rgba(236, 45, 120, 0.04);
+				border: 1px solid rgba(236, 45, 120, 0.25);
+				border-radius: 18px;
+			}
+			.signoff h2 {
+				font-size: 18px;
+				font-weight: 600;
+				margin-bottom: 6px;
+				color: var(--brand-soft);
+			}
+			.signoff p {
+				font-size: 12.5px;
+				color: var(--z-300);
+				line-height: 1.55;
+				margin-bottom: 14px;
+			}
+			.signoff textarea {
+				width: 100%;
+				min-height: 100px;
+				background: var(--surface);
+				border: 1px solid var(--border-strong);
+				border-radius: 10px;
+				padding: 11px 13px;
+				color: var(--z-200);
+				font-family: inherit;
+				font-size: 12.5px;
+				resize: vertical;
+			}
+			.signoff textarea:focus {
+				outline: none;
+				border-color: rgba(236, 45, 120, 0.5);
+			}
+
+			/* ── Sticky CTA ── */
+			.cta-bar {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				z-index: 60;
+				background: rgba(10, 10, 12, 0.92);
+				backdrop-filter: blur(24px);
+				-webkit-backdrop-filter: blur(24px);
+				border-top: 1px solid var(--border);
+				padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px));
+				display: flex;
+				gap: 10px;
+				align-items: center;
+			}
+			.cta-bar .summary {
+				flex: 1;
+				font-size: 11.5px;
+				color: var(--z-400);
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.cta-bar .summary strong {
+				color: var(--z-200);
+				font-weight: 600;
+			}
+			.copy-btn {
+				padding: 11px 18px;
+				border-radius: 12px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(ellipse at top, var(--brand-bright), var(--brand) 55%, var(--brand-deep));
+				color: white;
+				font-size: 13px;
+				font-weight: 600;
+				border: none;
+				cursor: pointer;
+				box-shadow:
+					inset 0 1px 0 rgba(255, 255, 255, 0.22),
+					inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+					0 4px 14px -3px var(--brand-glow);
+				transition: transform 140ms;
+				white-space: nowrap;
+			}
+			.copy-btn:active {
+				transform: scale(0.96);
+			}
+			.copy-btn.copied {
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+					radial-gradient(
+						ellipse at top,
+						rgb(134, 239, 172),
+						rgb(34, 197, 94) 55%,
+						rgb(21, 128, 61)
+					);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="aurora" aria-hidden="true">
+			<span class="a1"></span><span class="a2"></span><span class="a3"></span>
+		</div>
+
+		<div class="topbar">
+			<div class="row1">
+				<h1><span class="sully-dot"></span>Sully — the whole look</h1>
+			</div>
+			<p>
+				The integrated app based on your audit picks. Scroll, react per section, sign off at the
+				bottom.
+			</p>
+			<div class="scroll-progress" id="scrollProgress"></div>
+		</div>
+
+		<div class="page">
+			<div class="intro">
+				<h2>What you're looking at</h2>
+				<p>
+					Mobile views first (since you live on the phone), then the desktop layout, then the icon
+					strategy. Each view is built in the actual design language we'll ship — magenta brand
+					sparingly, glass + aurora, Inter, Lucide line icons throughout the chrome, and brand-icons
+					(Claude/OpenAI/Gemini/Ollama/Qwen/etc.) in the model picker only.
+				</p>
+				<p>
+					<strong>If something looks off:</strong> tap the flag on that section.
+					<strong>If a section's good:</strong> tap approve. End of page has a free-text notes box +
+					a "Looks good, build it" button that copies your sign-off back.
+				</p>
+				<div class="legend">
+					<span
+						><span class="dot" style="background: var(--brand)"></span>Brand magenta (identity
+						only)</span
+					>
+					<span
+						><span class="dot" style="background: var(--amber-soft)"></span>Active task
+						running</span
+					>
+					<span
+						><span class="dot" style="background: var(--emerald-soft)"></span>Done / talkback /
+						success</span
+					>
+					<span><span class="dot" style="background: var(--cyan-soft)"></span>Image mode</span>
+				</div>
+			</div>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 01 — Empty state landing -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="empty">
+				<div class="section-num">01 · MOBILE</div>
+				<h2 class="section-title">Empty-state landing</h2>
+				<div class="section-caption">
+					Fresh open of the app: Sully orb above the suggestion pills. The composer rests below at
+					36px. No clutter — hop in and go.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div class="ph-model-chip">
+									<span class="glyph">🪶</span>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-empty">
+									<div class="orb-big"></div>
+									<h3>Hey Captain.</h3>
+									<p>What's on your mind?</p>
+									<div class="ph-pills">
+										<div class="ph-pill">Audit my system</div>
+										<div class="ph-pill">Help me with code</div>
+										<div class="ph-pill">Brainstorm an idea</div>
+										<div class="ph-pill">Plan my day</div>
+									</div>
+								</div>
+								<div class="ph-composer-area">
+									<div class="ph-composer">
+										<div class="ph-composer-input placeholder">Talk to Sully…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">🎧</div>
+											<div class="ph-cbtn send">↑</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Suggestion pills, friendly greeting, big orb. The composer sits at rest height.
+							Nothing else competes.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="empty">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 02 — Sidebar (hybrid) -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="sidebar">
+				<div class="section-num">02 · MOBILE</div>
+				<h2 class="section-title">Sidebar — hybrid spaces</h2>
+				<div class="section-caption">
+					Active space chip at top (tap → spaces overview). Active Tasks above the Den (always
+					visible). Threads in the current space, grouped chronologically. Profile chip + gear at
+					the footer (no more dev label).
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-sidebar">
+								<div class="ph-side-header">
+									<div class="ph-id">
+										<div class="ph-id-orb"></div>
+										<div class="ph-id-name">Sully</div>
+									</div>
+									<div class="ph-side-action">⌂</div>
+									<div class="ph-side-action">✕</div>
+								</div>
+
+								<!-- Active space chip -->
+								<div class="ph-active-space">
+									<div class="as-icon">🌙</div>
+									<div class="as-name">The Den</div>
+									<div class="as-chev">›</div>
+								</div>
+
+								<!-- Active Tasks -->
+								<div class="ph-section-label">ACTIVE TASKS</div>
+								<div class="ph-active-tasks">
+									<div class="ph-task running">
+										<span class="pulse"></span>
+										<span class="label">CC · refactor model picker</span>
+										<span class="meta">3m</span>
+									</div>
+									<div class="ph-task done">
+										<span class="pulse"></span>
+										<span class="label">Sully · web search ✓</span>
+										<span class="meta">just now</span>
+									</div>
+								</div>
+
+								<!-- Threads -->
+								<div class="ph-section-label">TODAY</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread active">
+										<span class="hash">#</span>
+										<span class="name">treehouse plans + Pixel</span>
+										<span class="count">14</span>
+									</div>
+									<div class="ph-thread">
+										<span class="hash">#</span>
+										<span class="name">audit findings synth</span>
+										<span class="count">6</span>
+									</div>
+								</div>
+								<div class="ph-section-label">YESTERDAY</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread">
+										<span class="hash">#</span>
+										<span class="name">drake search debug</span>
+										<span class="count">5</span>
+									</div>
+								</div>
+								<div class="ph-section-label">PREVIOUS 7 DAYS</div>
+								<div class="ph-thread-list">
+									<div class="ph-thread">
+										<span class="hash">#</span>
+										<span class="name">model picker fix</span>
+										<span class="count">22</span>
+									</div>
+									<div class="ph-thread">
+										<span class="hash">#</span>
+										<span class="name">voice mode tuning</span>
+										<span class="count">9</span>
+									</div>
+								</div>
+
+								<div class="ph-footer">
+									<div class="ph-profile-chip">
+										<span class="pc-dot"></span>
+										<span>Captain</span>
+									</div>
+									<div class="ph-gear">⚙</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							The Den is the default active space. Tap the chip to switch space or open the overview
+							page (next section).
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="sidebar">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 03 — Spaces overview page -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="spaces-page">
+				<div class="section-num">03 · MOBILE</div>
+				<h2 class="section-title">Spaces overview page</h2>
+				<div class="section-caption">
+					Tap the active-space chip in the sidebar → arrive here. Manage spaces in a clean grid. The
+					Den is pinned magenta. Tap any card to enter that space (sidebar now shows its threads).
+					The "＋ New space" affordance is always at the end of the grid.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">←</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Spaces</div>
+								</div>
+								<div class="ph-burger">＋</div>
+							</div>
+							<div class="ph-main" style="overflow-y: auto">
+								<div class="ph-spaces-grid">
+									<div class="ph-space-card den">
+										<div class="sc-icon">🌙</div>
+										<div class="sc-name">The Den</div>
+										<div class="sc-meta">16 threads · home</div>
+									</div>
+									<div class="ph-space-card">
+										<div class="sc-icon">🏗️</div>
+										<div class="sc-name">Treehouse</div>
+										<div class="sc-meta">8 threads</div>
+									</div>
+									<div class="ph-space-card">
+										<div class="sc-icon">⚙️</div>
+										<div class="sc-name">Dev · LogueOS</div>
+										<div class="sc-meta">12 threads</div>
+									</div>
+									<div class="ph-space-card">
+										<div class="sc-icon">📚</div>
+										<div class="sc-name">Reading</div>
+										<div class="sc-meta">3 threads</div>
+									</div>
+									<div class="ph-space-card new">
+										<div class="sc-icon">＋</div>
+										<div class="sc-name">New space</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							A separate page, but reached in one tap from the sidebar — and the chat-side sidebar
+							still shows Active Tasks while you're here.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="spaces-page">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 04 — Model picker with brand icons -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="picker">
+				<div class="section-num">04 · MOBILE</div>
+				<h2 class="section-title">Model picker — with brand icons</h2>
+				<div class="section-caption">
+					Brand glyphs for each provider (Anthropic, OpenAI, Google, Ollama, Mistral, Qwen, xAI) sit
+					on the left of each row. Unified glass popover that matches the rest of the app's chrome.
+					<code>Auto</code> stays at the top with the 🪶 mark — Sully's identity, not a brand.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div
+									class="ph-model-chip"
+									style="
+										background: rgba(255, 255, 255, 0.06);
+										border-color: rgba(255, 255, 255, 0.12);
+									"
+								>
+									<span class="glyph">🪶</span>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+
+							<!-- popover -->
+							<div class="ph-popover">
+								<div class="ph-popover-label">CHOOSE A MODEL</div>
+								<div class="ph-popover-item selected">
+									<div class="pi-icon" style="background: rgba(236, 45, 120, 0.12)">🪶</div>
+									<div class="pi-name">Auto<span class="pi-sub">smart tier routing</span></div>
+									<span class="check">✓</span>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #d97757">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z" />
+										</svg>
+									</div>
+									<div class="pi-name">
+										Claude Haiku 4.5<span class="pi-sub">fast · chat tier</span>
+									</div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #d97757">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z" />
+										</svg>
+									</div>
+									<div class="pi-name">Claude Sonnet 4.6<span class="pi-sub">planning</span></div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #d97757">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z" />
+										</svg>
+									</div>
+									<div class="pi-name">Claude Opus 4.8<span class="pi-sub">deep</span></div>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div
+										class="pi-icon"
+										style="background: linear-gradient(135deg, #4285f4, #9b72cb 50%, #d96570)"
+									>
+										<svg viewBox="0 0 24 24" fill="white">
+											<path
+												d="M12 2 C12 8 16.5 11.5 22 12 C16.5 12.5 12 16 12 22 C12 16 7.5 12.5 2 12 C7.5 11.5 12 8 12 2 Z"
+											/>
+										</svg>
+									</div>
+									<div class="pi-name">Gemini 2.5 Pro<span class="pi-sub">deep</span></div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #000">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path
+												d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z"
+											/>
+										</svg>
+									</div>
+									<div class="pi-name">
+										GPT-OSS 120B<span class="pi-sub">cloud · reasoning</span>
+									</div>
+								</div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: #000">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path
+												d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z"
+											/>
+										</svg>
+									</div>
+									<div class="pi-name">
+										Qwen3-Coder 480B<span class="pi-sub">cloud · coding</span>
+									</div>
+								</div>
+								<div class="ph-popover-divider"></div>
+								<div class="ph-popover-item">
+									<div class="pi-icon" style="background: rgba(255, 255, 255, 0.08)">
+										<svg viewBox="0 0 24 24" fill="white">
+											<path
+												d="M6 6 L8 4 L9.5 5.5 L8 7 L9.5 8.5 L11 7 L12.5 8.5 L11 10 L12.5 11.5 L14 10 L15.5 11.5 L14 13 L15.5 14.5 L17 13 L18.5 14.5 L17 16 L18.5 17.5 L17 19 L15 17 L13.5 18.5 L12 17 L10.5 18.5 L9 17 L7.5 18.5 L6 17 L4.5 18.5 L3 17 L4.5 15.5 L3 14 L4.5 12.5 L3 11 L4.5 9.5 L3 8 L4.5 6.5 L6 8 Z"
+											/>
+										</svg>
+									</div>
+									<div class="pi-name">
+										Local · Ollama<span class="pi-sub">offline (companion-v1)</span>
+									</div>
+								</div>
+								<div class="ph-popover-footer">
+									<div class="ph-popover-footer-item">
+										<span>✎</span>
+										<span>Edit Sully's context</span>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Brand icons make the choice instantly readable. The picker stays a one-tap experience.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="picker">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 05 — Composer states -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="composer">
+				<div class="section-num">05 · MOBILE</div>
+				<h2 class="section-title">Composer states</h2>
+				<div class="section-caption">
+					Four states across the same pill: idle, sending (magenta pulse), talkback (emerald with
+					Lucide icons instead of emoji), image mode (cyan, the toggle is lit not dim). Send/voice
+					button morphs based on draft contents.
+				</div>
+
+				<div class="views two-up">
+					<div class="view">
+						<div class="phone" style="aspect-ratio: 9/8; max-height: 240px">
+							<div class="ph-main">
+								<div class="ph-composer-area" style="margin: auto 0">
+									<div class="ph-composer">
+										<div class="ph-composer-input placeholder">Talk to Sully…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">🎧</div>
+											<div class="ph-cbtn send">↑</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="label">IDLE</div>
+						<div class="blurb">Resting state. Calm, neutral border.</div>
+					</div>
+					<div class="view">
+						<div class="phone" style="aspect-ratio: 9/8; max-height: 240px">
+							<div class="ph-main">
+								<div class="ph-composer-area" style="margin: auto 0">
+									<div class="ph-composer sending">
+										<div class="ph-composer-input" style="color: var(--z-200)">
+											Help me audit the new sidebar layout
+										</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">🎧</div>
+											<div class="ph-cbtn send">✦</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="label">SENDING</div>
+						<div class="blurb">
+							Magenta glow only while Sully is thinking. Send button morphs to spark.
+						</div>
+					</div>
+					<div class="view">
+						<div class="phone" style="aspect-ratio: 9/8; max-height: 240px">
+							<div class="ph-main">
+								<div class="ph-composer-area" style="margin: auto 0">
+									<div class="ph-composer talkback">
+										<div class="ph-composer-strip emerald">
+											<span
+												style="
+													width: 6px;
+													height: 6px;
+													border-radius: 50%;
+													background: #34d399;
+													animation: amber-pulse 1.4s infinite;
+												"
+											></span>
+											<span style="font-weight: 600">Walkie-Talkie engaged</span>
+											<span
+												style="
+													margin-left: auto;
+													padding: 1px 6px;
+													border-radius: 9999px;
+													background: rgba(255, 255, 255, 0.05);
+												"
+												>Capture</span
+											>
+										</div>
+										<div class="ph-composer-input placeholder">Hands free…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn active-emerald">🎧</div>
+											<div class="ph-cbtn">↑</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="label">TALKBACK</div>
+						<div class="blurb">
+							Lucide-style state chips (no more emoji). Talkback button lit emerald.
+						</div>
+					</div>
+					<div class="view">
+						<div class="phone" style="aspect-ratio: 9/8; max-height: 240px">
+							<div class="ph-main">
+								<div class="ph-composer-area" style="margin: auto 0">
+									<div class="ph-composer image">
+										<div class="ph-composer-strip cyan">
+											<span>✦</span>
+											<span>Prompt routes to image generation</span>
+											<span style="margin-left: auto; color: var(--z-500)">Cancel</span>
+										</div>
+										<div class="ph-composer-input placeholder">Describe what you want…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div class="ph-cbtn active-cyan">✦</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">🎧</div>
+											<div class="ph-cbtn send">↑</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="label">IMAGE MODE</div>
+						<div class="blurb">
+							Cyan indicator strip. Toggle button is bright cyan when active (was dark before).
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="composer">
+					<div class="fb-label">These states feel:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 06 — Message + actions -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="messages">
+				<div class="section-num">06 · MOBILE</div>
+				<h2 class="section-title">Messages — user bubble + Sully reply</h2>
+				<div class="section-caption">
+					User bubble now glass (matches the composer material). Sully reply flat under the ● Sully
+					name-tag. Copy/Regen/Play buttons bumped to 36px (was 25px — sub-WCAG before). Timestamps
+					in tabular Inter, no more mono.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div class="ph-model-chip">
+									<span class="glyph">🪶</span>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-msgs">
+									<div class="ph-msg-user">Audit the sidebar — what's still off?</div>
+									<div class="ph-msg-time">9:38 AM</div>
+
+									<div class="ph-msg-assist">
+										<div class="ph-name-tag"><span class="nt-dot"></span>Sully</div>
+										<div class="ph-msg-body">
+											Three things still off in the sidebar:<br />1. Den row's hover state could be
+											subtler<br />2. Active Tasks needs a "view all" link when count &gt; 3<br />3.
+											Profile chip needs a long-press menu
+										</div>
+										<div class="ph-msg-actions">
+											<span class="ph-action"
+												><svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+												>
+													<rect x="9" y="9" width="10" height="10" rx="2" />
+													<path
+														d="M5 15h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1"
+													/></svg
+												>Copy</span
+											>
+											<span class="ph-action"
+												><svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+												>
+													<polyline points="23 4 23 10 17 10" />
+													<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg
+												>Regen</span
+											>
+											<span class="ph-action"
+												><svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+												>
+													<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+													<path
+														d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"
+													/></svg
+												>Play</span
+											>
+											<span style="margin-left: auto"
+												><span class="ph-msg-time">9:38 AM</span></span
+											>
+										</div>
+									</div>
+								</div>
+								<div class="ph-composer-area">
+									<div class="ph-composer">
+										<div class="ph-composer-input placeholder">Talk to Sully…</div>
+										<div class="ph-composer-row">
+											<div class="ph-cbtn">+</div>
+											<div style="flex: 1"></div>
+											<div class="ph-cbtn">🎧</div>
+											<div class="ph-cbtn send">↑</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Bubble + reply share the same material language. Actions are real tap targets now.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="messages">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 07 — AI promotion dialog -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="promotion">
+				<div class="section-num">07 · MOBILE</div>
+				<h2 class="section-title">AI suggests "make this a space"</h2>
+				<div class="section-caption">
+					When a conversation grows pattern-rich (e.g., 5+ messages about one topic), Sully proposes
+					a space. Opt-in modal — you choose to accept. Comes from the bottom like a sheet (less
+					startling than a centered modal).
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">☰</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Sully</div>
+								</div>
+								<div class="ph-model-chip">
+									<span class="glyph">🪶</span>
+									<span class="name">Auto</span>
+									<span class="caret">▾</span>
+								</div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-msgs" style="opacity: 0.45">
+									<div class="ph-msg-user">Can you help me figure out treehouse dimensions?</div>
+									<div class="ph-msg-assist">
+										<div class="ph-name-tag"><span class="nt-dot"></span>Sully</div>
+										<div class="ph-msg-body">
+											Yeah — what's the tree? Diameter and species help me size the platform safely.
+										</div>
+									</div>
+								</div>
+								<div class="ph-modal-overlay">
+									<div class="ph-modal">
+										<div class="mh">
+											<div class="mh-orb"></div>
+											<div class="mh-title">Make a space for this?</div>
+										</div>
+										<div class="mb">
+											"Treehouse" is turning into a real project — <em>8 messages</em> about the
+											build, materials, Pixel's inspection. Want me to set up a
+											<em>Treehouse</em> space and move this chat there?
+										</div>
+										<div class="ma">
+											<button class="ma-primary">Yes, do it</button>
+											<button class="ma-ghost">Not yet</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Cleanly slides up. Tap "Yes" — instant move. Tap "Not yet" — Sully won't ask again
+							this session.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="promotion">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 08 — Settings page -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="settings">
+				<div class="section-num">08 · MOBILE</div>
+				<h2 class="section-title">Settings page — restyled to brand</h2>
+				<div class="section-caption">
+					The orphaned <code>/settings</code> page AGY found, restyled to brand magenta (was
+					fuchsia). Autonomy toggle for Ask / Auto-safe / Full-auto. Dispatch meter underneath.
+					Reachable from the gear icon in the sidebar footer.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="phone">
+							<div class="island"></div>
+							<div class="statusbar"><span>9:41</span><span>●●●</span></div>
+							<div class="ph-header">
+								<div class="ph-burger">←</div>
+								<div class="ph-id">
+									<div class="ph-id-orb"></div>
+									<div class="ph-id-name">Settings</div>
+								</div>
+								<div style="width: 32px"></div>
+							</div>
+							<div class="ph-main">
+								<div class="ph-settings">
+									<div>
+										<h2>Captain</h2>
+										<p style="font-size: 11px; color: var(--z-500)">
+											Single operator · Tailnet primary
+										</p>
+									</div>
+									<div class="ph-set-section">
+										<h3>AUTONOMY</h3>
+										<div class="ph-set-toggle">
+											<button>Ask</button>
+											<button class="active">Auto-safe</button>
+											<button>Full-auto</button>
+										</div>
+										<p
+											style="
+												font-size: 10.5px;
+												color: var(--z-500);
+												margin-top: 8px;
+												line-height: 1.55;
+											"
+										>
+											Auto-safe: Sully dispatches & runs tools without asking, except for
+											irreversible / destructive actions.
+										</p>
+									</div>
+									<div class="ph-set-section">
+										<h3>DISPATCH METER · TODAY</h3>
+										<div class="ph-set-meter">
+											<strong>4</strong> dispatches · <strong>14m 32s</strong> worker wall-clock ·
+											<strong>4/20</strong> daily cap
+										</div>
+										<div
+											style="
+												margin-top: 8px;
+												height: 6px;
+												background: rgba(255, 255, 255, 0.05);
+												border-radius: 9999px;
+												overflow: hidden;
+											"
+										>
+											<div
+												style="
+													height: 100%;
+													width: 20%;
+													background: linear-gradient(
+														90deg,
+														var(--brand-deep),
+														var(--brand-bright)
+													);
+													border-radius: 9999px;
+												"
+											></div>
+										</div>
+									</div>
+									<div class="ph-set-section">
+										<h3>VOICE</h3>
+										<div class="ph-set-toggle">
+											<button>Off</button>
+											<button class="active">On</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							Single-screen, scannable. Same chrome as everywhere else. Magenta replaces the
+							orphan's fuchsia.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="settings">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 09 — Desktop layout -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="desktop">
+				<div class="section-num">09 · DESKTOP</div>
+				<h2 class="section-title">Desktop — 3-region layout with Canvas</h2>
+				<div class="section-caption">
+					Persistent sidebar (the bug is fixed). Center chat. Right-side artifact panel slides in
+					when dispatched work produces code or diffs. Plays Claude Cowork in spirit, but every
+					artifact is something Sully or a dispatched agent actually <em>did</em>, not a fresh
+					canvas to "create" in.
+				</div>
+
+				<div class="views">
+					<div class="view">
+						<div class="desktop-frame">
+							<div class="dt-titlebar">
+								<span class="dot red"></span><span class="dot yellow"></span
+								><span class="dot green"></span>
+								<span class="url">room.taila28611.ts.net/companion/chat</span>
+							</div>
+							<div class="dt-body">
+								<div class="dt-sidebar">
+									<!-- Active space -->
+									<div class="as-row">
+										<span>🌙</span><span style="flex: 1">The Den</span
+										><span style="font-size: 9px">›</span>
+									</div>
+									<div class="section-label">ACTIVE TASKS</div>
+									<div class="task-row running">
+										<span class="pulse"></span><span style="flex: 1">CC · refactor picker</span
+										><span style="font-size: 8px; color: var(--z-500)">3m</span>
+									</div>
+									<div
+										class="task-row"
+										style="
+											background: rgba(16, 185, 129, 0.05);
+											border: 1px solid rgba(16, 185, 129, 0.18);
+										"
+									>
+										<span
+											class="pulse"
+											style="background: var(--emerald-soft); animation: none"
+										></span
+										><span style="flex: 1">Sully · web ✓</span
+										><span style="font-size: 8px; color: var(--z-500)">now</span>
+									</div>
+									<div class="section-label">TODAY</div>
+									<div class="sidebar-row active">
+										<span class="hash">#</span><span style="flex: 1">treehouse plans</span>
+									</div>
+									<div class="sidebar-row">
+										<span class="hash">#</span><span style="flex: 1">audit synth</span>
+									</div>
+									<div class="section-label">YESTERDAY</div>
+									<div class="sidebar-row">
+										<span class="hash">#</span><span style="flex: 1">drake debug</span>
+									</div>
+									<div
+										style="
+											margin-top: auto;
+											padding: 8px;
+											border-top: 1px solid var(--border);
+											display: flex;
+											align-items: center;
+											gap: 6px;
+										"
+									>
+										<div
+											style="
+												flex: 1;
+												padding: 5px 8px;
+												background: rgba(255, 255, 255, 0.03);
+												border-radius: 6px;
+												font-size: 10px;
+												display: flex;
+												align-items: center;
+												gap: 6px;
+											"
+										>
+											<span
+												style="
+													width: 10px;
+													height: 10px;
+													border-radius: 50%;
+													background: radial-gradient(
+														circle at 30% 25%,
+														#ff8fc0,
+														#ec2d78 55%,
+														#c4186a
+													);
+												"
+											></span>
+											Captain
+										</div>
+										<div
+											style="
+												width: 24px;
+												height: 24px;
+												border-radius: 6px;
+												background: rgba(255, 255, 255, 0.03);
+												border: 1px solid var(--border);
+												display: flex;
+												align-items: center;
+												justify-content: center;
+												font-size: 11px;
+												color: var(--z-400);
+											"
+										>
+											⚙
+										</div>
+									</div>
+								</div>
+								<div class="dt-chat">
+									<div class="dt-chat-msg-user">
+										Refactor the model picker — the toggle is fighting itself.
+									</div>
+									<div class="dt-chat-msg-assist">
+										<div class="dt-chat-name-tag"><span class="nt-dot"></span>Sully</div>
+										<div class="dt-chat-msg-body">
+											I sent it to CC. I'll watch and ping back. Opening the diff on the right →
+										</div>
+									</div>
+									<div class="dt-chat-msg-assist">
+										<div class="dt-chat-name-tag"><span class="nt-dot"></span>Sully</div>
+										<div class="dt-chat-msg-body">
+											CC came back. Two-line fix: skip
+											<code
+												style="
+													font-family: 'JetBrains Mono', mono;
+													background: rgba(255, 255, 255, 0.06);
+													padding: 0 4px;
+													border-radius: 3px;
+													font-size: 9px;
+												"
+												>[data-popover-trigger]</code
+											>
+											in the capture-phase handler. Diff on the right →
+										</div>
+									</div>
+									<div style="margin-top: auto">
+										<div class="ph-composer" style="margin: 0">
+											<div class="ph-composer-input placeholder" style="font-size: 10px">
+												Reply or ask follow-up…
+											</div>
+											<div class="ph-composer-row">
+												<div class="ph-cbtn" style="width: 24px; height: 24px; font-size: 11px">
+													+
+												</div>
+												<div style="flex: 1"></div>
+												<div class="ph-cbtn" style="width: 24px; height: 24px; font-size: 11px">
+													🎧
+												</div>
+												<div
+													class="ph-cbtn send"
+													style="width: 24px; height: 24px; font-size: 11px"
+												>
+													↑
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="dt-artifact">
+									<div class="dt-art-head">
+										<span class="canvas-icon">⌧</span>
+										<span class="filename">+page.svelte</span>
+										<span style="margin-left: auto; color: var(--z-500)">CC</span>
+									</div>
+									<div class="dt-art-body">
+										<div class="dt-art-code">
+											<span style="color: var(--z-600)">function onPointerDown(e) {</span><br />
+											<span style="color: var(--z-600)"> const target = e.target;</span><br />
+											<span style="color: var(--z-600)"> if (target.closest('[data-popover]'))</span
+											><br />
+											<span style="color: var(--z-600)"> return;</span><br />
+											<span class="add">+ if (target.closest('[data-popover-trigger]'))</span><br />
+											<span class="add">+ return;</span><br />
+											<span style="color: var(--z-600)"> closeAllPopovers();</span><br />
+											<span style="color: var(--z-600)">}</span>
+										</div>
+									</div>
+									<div class="dt-art-actions">
+										<button class="dt-art-btn accept">Accept</button>
+										<button class="dt-art-btn skip">View PR ↗</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="blurb">
+							The artifact panel appears only when there's something to show. Collapses to a thumb
+							tab otherwise.
+						</div>
+					</div>
+				</div>
+
+				<div class="feedback-bar" data-fb="desktop">
+					<div class="fb-label">This section feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- 10 — Icon strategy -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<section class="section" data-section="icons">
+				<div class="section-num">10 · ICON STRATEGY</div>
+				<h2 class="section-title">Brand icons + Lucide</h2>
+				<div class="section-caption">
+					Two icon systems working together: <strong>Lucide line icons</strong> for everything
+					generic (chrome, actions, controls — we already use this);
+					<strong>brand glyphs</strong> for the model picker only. Below: real brand marks for each
+					provider you have in the picker today, and the two libraries I'd pick from.
+				</div>
+
+				<h3
+					style="
+						font-size: 13px;
+						font-weight: 600;
+						margin-bottom: 8px;
+						color: var(--z-300);
+						letter-spacing: -0.005em;
+					"
+				>
+					Brand icons in your current picker
+				</h3>
+				<div class="icon-grid">
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #d97757">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<path d="M12 2.5l2.8 8.7L23 12l-8.2 0.8L12 21.5l-2.8-8.7L1 12l8.2-0.8z" />
+							</svg>
+						</div>
+						<div class="ic-name">Anthropic</div>
+						<div class="ic-sub">Claude</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #fff">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<path
+									d="M22.28 9.82a5.94 5.94 0 0 0-.51-4.88 6 6 0 0 0-6.5-2.87A6 6 0 0 0 4.93 4.18a5.94 5.94 0 0 0-3.97 2.88 6 6 0 0 0 .74 7.05 5.94 5.94 0 0 0 .51 4.88 6 6 0 0 0 6.5 2.87 5.94 5.94 0 0 0 4.51 2.02 6 6 0 0 0 5.83-4.18 5.94 5.94 0 0 0 3.97-2.88 6 6 0 0 0-.74-7.05zm-9.06 12.7a4.46 4.46 0 0 1-2.87-1.04l.14-.08 4.78-2.77a.79.79 0 0 0 .39-.68v-6.75l2.02 1.17v5.62a4.5 4.5 0 0 1-4.46 4.53zm-9.6-4.1a4.47 4.47 0 0 1-.54-3.02l.14.08 4.78 2.77a.78.78 0 0 0 .78 0l5.84-3.37v2.33a.08.08 0 0 1-.03.06l-4.83 2.79a4.5 4.5 0 0 1-6.14-1.64zm-1.26-10.43a4.5 4.5 0 0 1 2.34-1.97v5.71a.78.78 0 0 0 .39.68l5.81 3.36-2.02 1.17-4.78-2.77a4.5 4.5 0 0 1-1.74-6.18zm16.62 3.85L13.18 8.5l2.02-1.17 4.78 2.77a4.5 4.5 0 0 1-.7 8.13v-5.71a.78.78 0 0 0-.4-.68zm2.01-3.02-.14-.08-4.78-2.77a.78.78 0 0 0-.78 0l-5.84 3.37V7.01a.08.08 0 0 1 .03-.06l4.83-2.79a4.5 4.5 0 0 1 6.68 4.66zM10.06 14.7L8.04 13.5V9.21a.08.08 0 0 1 .03-.07l4.83-2.79a4.5 4.5 0 0 1 6.68 6.36l-.14-.08-4.78-2.77a.78.78 0 0 0-.78 0L7.04 13.23zM11.16 12.4l2.6-1.5 2.6 1.5v3l-2.6 1.5-2.6-1.5z"
+								/>
+							</svg>
+						</div>
+						<div class="ic-name">OpenAI</div>
+						<div class="ic-sub">GPT, GPT-OSS</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph">
+							<svg viewBox="0 0 24 24">
+								<defs>
+									<linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+										<stop offset="0" stop-color="#4285f4" />
+										<stop offset="0.5" stop-color="#9b72cb" />
+										<stop offset="1" stop-color="#d96570" />
+									</linearGradient>
+								</defs>
+								<path
+									fill="url(#gem)"
+									d="M12 2 C12 8 16.5 11.5 22 12 C16.5 12.5 12 16 12 22 C12 16 7.5 12.5 2 12 C7.5 11.5 12 8 12 2 Z"
+								/>
+							</svg>
+						</div>
+						<div class="ic-name">Google</div>
+						<div class="ic-sub">Gemini</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #fff">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<path
+									d="M7 4 C5 4 4 5.5 4 8 L4 16 C4 19 6 21 12 21 C18 21 20 19 20 16 L20 8 C20 5.5 19 4 17 4 Z M9 10 A1.5 1.5 0 0 1 12 10 A1.5 1.5 0 0 1 15 10 L15 12 C15 13 14 14 12 14 C10 14 9 13 9 12 Z"
+								/>
+							</svg>
+						</div>
+						<div class="ic-name">Ollama</div>
+						<div class="ic-sub">Local + cloud</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #ff7000">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<rect x="3" y="4" width="3" height="16" />
+								<rect x="18" y="4" width="3" height="16" />
+								<rect x="3" y="4" width="18" height="3" />
+								<rect x="9" y="9" width="6" height="3" />
+							</svg>
+						</div>
+						<div class="ic-name">Mistral</div>
+						<div class="ic-sub">Le Chat / Agents</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #7c3aed">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<circle
+									cx="12"
+									cy="12"
+									r="9"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2.5"
+								/>
+								<path
+									d="M14 14 L20 20"
+									stroke="currentColor"
+									stroke-width="2.5"
+									stroke-linecap="round"
+								/>
+							</svg>
+						</div>
+						<div class="ic-name">Qwen</div>
+						<div class="ic-sub">Coder, Chat</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #fff">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="3"
+								stroke-linecap="round"
+							>
+								<path d="M5 5 L19 19" />
+								<path d="M19 5 L5 19" />
+							</svg>
+						</div>
+						<div class="ic-name">xAI</div>
+						<div class="ic-sub">Grok</div>
+					</div>
+					<div class="icon-cell">
+						<div class="ic-glyph" style="color: #20b8cd">
+							<svg viewBox="0 0 24 24" fill="currentColor">
+								<rect
+									x="2"
+									y="2"
+									width="20"
+									height="20"
+									rx="4"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								/>
+								<text
+									x="12"
+									y="17"
+									text-anchor="middle"
+									font-size="14"
+									font-weight="700"
+									fill="currentColor"
+									font-family="Inter"
+								>
+									P
+								</text>
+							</svg>
+						</div>
+						<div class="ic-name">Perplexity</div>
+						<div class="ic-sub">Search backend</div>
+					</div>
+				</div>
+
+				<h3
+					style="
+						font-size: 13px;
+						font-weight: 600;
+						margin: 24px 0 8px;
+						color: var(--z-300);
+						letter-spacing: -0.005em;
+					"
+				>
+					Library choice (SvelteKit-compatible)
+				</h3>
+				<div class="lib-compare">
+					<div class="lib-card rec">
+						<h4>@lobehub/icons-static <span class="rec-badge">RECOMMENDED</span></h4>
+						<p>
+							Your suggestion. The static-SVG variant of <code>@lobehub/icons</code> — ships every
+							AI brand mark as a plain SVG file, framework-agnostic, no React required. We import
+							the SVGs into <code>$lib/icons/brand/</code> and load via small Svelte wrappers.
+						</p>
+						<ul>
+							<li>
+								Covers every provider you have today + the ones coming (DeepSeek, Grok, GLM, Kimi,
+								etc.)
+							</li>
+							<li>
+								Official brand colors included if we want them tinted; mono fallback works on the
+								chrome
+							</li>
+							<li>
+								One source — no per-provider hand-traced fallbacks (which always look slightly off)
+							</li>
+							<li>MIT-licensed</li>
+						</ul>
+						<div class="pkg">npm i @lobehub/icons-static-svg</div>
+					</div>
+					<div class="lib-card">
+						<h4>simple-icons</h4>
+						<p>
+							The general-purpose "every brand mark on the internet" package. Has all the AI
+							providers too, but the marks are pure brand glyphs (no per-product variants).
+						</p>
+						<ul>
+							<li>
+								Broader catalog (we'd use it if we expand beyond AI — Notion, Linear, GitHub, etc.)
+							</li>
+							<li>Single-color mono SVGs only</li>
+							<li>Slightly more boilerplate to integrate</li>
+							<li>CC0 / public-domain</li>
+						</ul>
+						<div class="pkg">npm i simple-icons</div>
+					</div>
+				</div>
+				<p style="font-size: 11.5px; color: var(--z-500); margin-top: 14px; line-height: 1.55">
+					<strong>The pick:</strong> ship both — <code>@lobehub/icons-static</code> for the model
+					picker (per-provider brand marks, official colors), <code>simple-icons</code> as a
+					fallback when we add non-AI integrations later (Linear, Notion, etc.). Lucide stays the
+					default for all generic chrome icons (everything that isn't a brand).
+				</p>
+
+				<div class="feedback-bar" data-fb="icons">
+					<div class="fb-label">This strategy feels:</div>
+					<button class="feedback-btn approve" data-v="approve">👍 Good</button>
+					<button class="feedback-btn flag" data-v="flag">🚩 Needs change</button>
+				</div>
+			</section>
+
+			<!-- ═══════════════════════════════════════════════════ -->
+			<!-- SIGN-OFF -->
+			<!-- ═══════════════════════════════════════════════════ -->
+			<div class="signoff">
+				<h2>Looks good? Anything to change first?</h2>
+				<p>
+					Per-section reactions above were captured. If you want anything specific to change before
+					I write a single line — say so here. Otherwise, hit "Copy sign-off" at the bottom and I'll
+					start the build in the order from the audit doc.
+				</p>
+				<textarea
+					id="signoffNotes"
+					placeholder="e.g. 'the spaces grid icons feel generic, find better ones', 'the talkback state strip is too narrow', 'don't bother with simple-icons until later', etc. — anything you want addressed before build."
+				></textarea>
+			</div>
+		</div>
+		<!-- /page -->
+
+		<div class="cta-bar">
+			<div class="summary">
+				<strong id="approveCount">0</strong> approved · <strong id="flagCount">0</strong> flagged ·
+				<strong id="pendingCount">10</strong> pending
+			</div>
+			<button class="copy-btn" id="copyBtn">Copy sign-off</button>
+		</div>
+
+		<script>
+			const STORAGE_KEY = 'sully-mockup-signoff';
+			const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+			// Wire feedback bars
+			document.querySelectorAll('[data-fb]').forEach((bar) => {
+				const key = bar.dataset.fb;
+				bar.querySelectorAll('.feedback-btn').forEach((btn) => {
+					const v = btn.dataset.v;
+					if (state[key] === v) btn.classList.add('active');
+					btn.addEventListener('click', () => {
+						bar.querySelectorAll('.feedback-btn').forEach((b) => b.classList.remove('active'));
+						if (state[key] === v) {
+							state[key] = null;
+							btn.classList.remove('active');
+						} else {
+							state[key] = v;
+							btn.classList.add('active');
+						}
+						save();
+					});
+				});
+			});
+
+			// Notes
+			const notes = document.getElementById('signoffNotes');
+			if (state.notes) notes.value = state.notes;
+			notes.addEventListener('input', () => {
+				state.notes = notes.value;
+				save();
+			});
+
+			// Scroll progress
+			const sp = document.getElementById('scrollProgress');
+			window.addEventListener('scroll', () => {
+				const h = document.documentElement.scrollHeight - window.innerHeight;
+				const pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+				sp.style.width = Math.min(100, Math.max(0, pct)) + '%';
+			});
+
+			function save() {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+				updateCounts();
+			}
+
+			const sections = [
+				'empty',
+				'sidebar',
+				'spaces-page',
+				'picker',
+				'composer',
+				'messages',
+				'promotion',
+				'settings',
+				'desktop',
+				'icons'
+			];
+			function updateCounts() {
+				let approved = 0,
+					flagged = 0;
+				sections.forEach((s) => {
+					if (state[s] === 'approve') approved++;
+					else if (state[s] === 'flag') flagged++;
+				});
+				document.getElementById('approveCount').textContent = approved;
+				document.getElementById('flagCount').textContent = flagged;
+				document.getElementById('pendingCount').textContent = sections.length - approved - flagged;
+			}
+
+			// Copy
+			const labels = {
+				empty: 'Empty-state landing',
+				sidebar: 'Sidebar (hybrid spaces)',
+				'spaces-page': 'Spaces overview page',
+				picker: 'Model picker w/ brand icons',
+				composer: 'Composer states',
+				messages: 'Messages + actions',
+				promotion: 'AI space-promotion dialog',
+				settings: 'Settings page',
+				desktop: 'Desktop 3-region layout',
+				icons: 'Icon library strategy'
+			};
+			document.getElementById('copyBtn').addEventListener('click', async () => {
+				let out = 'SULLY MOCKUP SIGN-OFF\n=====================\n\n';
+				sections.forEach((s) => {
+					const v = state[s];
+					const tag =
+						v === 'approve' ? '👍 GOOD' : v === 'flag' ? '🚩 NEEDS CHANGE' : '— (no answer)';
+					out += `${labels[s]}\n  ${tag}\n\n`;
+				});
+				if (state.notes && state.notes.trim()) {
+					out += `Notes:\n${state.notes.trim()}\n`;
+				}
+				const btn = document.getElementById('copyBtn');
+				try {
+					await navigator.clipboard.writeText(out);
+					btn.textContent = '✓ Copied';
+					btn.classList.add('copied');
+					setTimeout(() => {
+						btn.textContent = 'Copy sign-off';
+						btn.classList.remove('copied');
+					}, 2000);
+				} catch (e) {
+					const ta = document.createElement('textarea');
+					ta.value = out;
+					document.body.appendChild(ta);
+					ta.select();
+					try {
+						document.execCommand('copy');
+						btn.textContent = '✓ Copied';
+						btn.classList.add('copied');
+						setTimeout(() => {
+							btn.textContent = 'Copy sign-off';
+							btn.classList.remove('copied');
+						}, 2000);
+					} catch (e2) {}
+					document.body.removeChild(ta);
+				}
+			});
+
+			updateCounts();
+		</script>
+	</body>
 </html>

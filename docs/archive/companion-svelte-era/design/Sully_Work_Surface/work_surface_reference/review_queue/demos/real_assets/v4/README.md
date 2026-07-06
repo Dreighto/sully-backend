@@ -31,6 +31,7 @@ It is designed to feel like a small, premium, futuristic OS-assistant console op
    - Preserves monochrome icon settings and full `prefers-reduced-motion` diagnostic checks.
 
 ## Directory Files
+
 - [index.html](index.html)
 - [css/styles.css](css/styles.css)
 - [js/main.js](js/main.js)

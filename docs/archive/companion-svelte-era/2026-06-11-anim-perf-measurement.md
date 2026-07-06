@@ -2,10 +2,10 @@
 
 _CC, 2026-06-11, live prod build, iPhone 15 Pro Max viewport, CDP Performance counters, 10s windows after 2.5s settle._
 
-| Surface | layouts/s | style recalcs/s | DOM node drift |
-|---|---|---|---|
-| Gallery — 8 live pills + 19 looping Lottie tiles (worst case) | **60** | **60** | −95 (stable) |
-| Chat, idle | **0** | **0** | 0 |
+| Surface                                                       | layouts/s | style recalcs/s | DOM node drift |
+| ------------------------------------------------------------- | --------- | --------------- | -------------- |
+| Gallery — 8 live pills + 19 looping Lottie tiles (worst case) | **60**    | **60**          | −95 (stable)   |
+| Chat, idle                                                    | **0**     | **0**           | 0              |
 
 ## What this means
 

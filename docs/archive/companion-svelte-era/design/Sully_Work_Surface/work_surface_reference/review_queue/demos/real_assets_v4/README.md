@@ -31,6 +31,7 @@ It is designed to feel like a small, premium, futuristic OS-assistant console op
    - Preserves monochrome icon settings and full `prefers-reduced-motion` diagnostic checks.
 
 ## Directory Files
+
 - [real_assets_v4.html](real_assets_v4.html)
 - [real_assets_v4.css](real_assets_v4.css)
 - [real_assets_v4.js](real_assets_v4.js)

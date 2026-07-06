@@ -18,9 +18,9 @@ export function getDraft(threadId: string): string {
 	if (!fs.existsSync(serverConfig.memoryDbPath)) return '';
 	const db = getDb();
 	try {
-		const row = db
-			.prepare('SELECT body FROM chat_drafts WHERE thread_id = ?')
-			.get(threadId) as { body?: string } | undefined;
+		const row = db.prepare('SELECT body FROM chat_drafts WHERE thread_id = ?').get(threadId) as
+			| { body?: string }
+			| undefined;
 		return row?.body ?? '';
 	} catch (e) {
 		console.error('getDraft error:', e);

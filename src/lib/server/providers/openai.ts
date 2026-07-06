@@ -42,7 +42,7 @@ function roleMessageToOpenAI(msg: ProviderMessage) {
 	}
 	return {
 		role: msg.role,
-		content: msg.content.map(part => {
+		content: msg.content.map((part) => {
 			if (part.type === 'text') {
 				return { type: 'text', text: part.text };
 			}
@@ -67,7 +67,10 @@ export async function chat(options: ProviderChatOptions): Promise<ProviderChatRe
 		body: JSON.stringify({
 			model: options.model,
 			messages: options.system
-				? [{ role: 'system', content: options.system }, ...options.messages.map(roleMessageToOpenAI)]
+				? [
+						{ role: 'system', content: options.system },
+						...options.messages.map(roleMessageToOpenAI)
+					]
 				: options.messages.map(roleMessageToOpenAI),
 			max_tokens: 4096
 		}),

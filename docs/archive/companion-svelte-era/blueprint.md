@@ -24,9 +24,9 @@ Won the judge panel on both faithfulness (91) and operator-fit (88).
 
 Build **one** standalone SvelteKit 5 (runes) + adapter-node app: **`LogueOS-Companion`**, port **18769**, base path **`/companion`**. It is a near-verbatim copy of the chat surface (which already renders chrome-free inside the Console). One server-side env flag, `LOGUEOS_APP_MODE`, selects the mode:
 
-| Mode | DB / services | Behavior |
-|---|---|---|
-| **`wired`** (clone) | shared kernel DB + gateway | Identical to today's `/chat`. The **parity-proof** step. Throwaway — run by hand, not a permanent service. |
+| Mode                   | DB / services                         | Behavior                                                                                                                                               |
+| ---------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`wired`** (clone)    | shared kernel DB + gateway            | Identical to today's `/chat`. The **parity-proof** step. Throwaway — run by hand, not a permanent service.                                             |
 | **`companion`** (fork) | private `companion.db` + local Ollama | Default model `companion-v1`. All kernel-only features switched off. **Boots and runs with the LogueOS kernel completely OFF.** Full feature set kept. |
 
 **Why this design:** copying code that already works cannot regress it (max faithfulness). The flag is parsed **once** in `config.ts` into named, greppable, unit-testable booleans (`kernelWired`, `dispatchEnabled`, `observationsEnabled`, `gatewayWorkspaces`, `completionPoller`, `killSwitchEnabled`). Decoupling is **additive guards, zero deletions** — the lowest-breakage, fully-reversible path. Default is `wired` (fail-closed: an unset/typo'd flag behaves as the safe clone, never silently points at an empty DB).
@@ -35,7 +35,7 @@ Build **one** standalone SvelteKit 5 (runes) + adapter-node app: **`LogueOS-Comp
 
 ## 3. The bug the plan designs around
 
-A fresh `companion.db` would **crash on the first message**: two tables (`chat_messages`, `chat_user_state`) are created by the *kernel*, not the chat code — `chat.ts` only reads/writes them. Fix: a new `bootstrap.ts` creates exactly those two tables (+ indexes) from the **authoritative live schema** pulled from the real DB (the research even caught and corrected a wrong schema guess — the real `chat_user_state` has `last_thread TEXT NOT NULL DEFAULT 'default'`). Called first + unconditionally in `hooks.server.ts`; idempotent, so safe in both modes.
+A fresh `companion.db` would **crash on the first message**: two tables (`chat_messages`, `chat_user_state`) are created by the _kernel_, not the chat code — `chat.ts` only reads/writes them. Fix: a new `bootstrap.ts` creates exactly those two tables (+ indexes) from the **authoritative live schema** pulled from the real DB (the research even caught and corrected a wrong schema guess — the real `chat_user_state` has `last_thread TEXT NOT NULL DEFAULT 'default'`). Called first + unconditionally in `hooks.server.ts`; idempotent, so safe in both modes.
 
 ---
 
@@ -80,7 +80,7 @@ The research confirmed (against vendor docs) that **ChatGPT, Gemini Live, and Cl
 - **Local pipeline (runs on the 16 GB GPU):** mic → WebSocket → local **RealtimeSTT** server (faster-whisper: `tiny.en` for instant interim partials + a larger model for the final) → **Ollama companion-v1** → local streaming **TTS (Piper/Kokoro)**. ElevenLabs streaming stays as an optional higher-quality cloud TTS.
 - **iOS reality check (important):** do **NOT** use the browser Web Speech API for STT on iOS — it's unreliable and historically blocked in standalone PWAs. Stream mic audio to the local STT server over WebSocket instead. iOS suspends audio when backgrounded, so **true hands-free continuous listening may be foreground-only on iPhone**; push-to-talk is the robust fallback. This means the real-time voice mode needs a **small local STT/TTS service** (more than today's turn-based talkback) — it's the price of the live-transcript experience you want.
 
-**Refuted (don't build on these):** Claude does *not* reliably write your live speech into the input field; the iOS Web Speech API does *not* reliably stream on-device interim results.
+**Refuted (don't build on these):** Claude does _not_ reliably write your live speech into the input field; the iOS Web Speech API does _not_ reliably stream on-device interim results.
 
 ---
 
@@ -102,14 +102,14 @@ The research pass spent its verification budget on the **voice mode** (your prio
 
 ## 10. Risk register (top items)
 
-| Risk | Sev | Mitigation |
-|---|---|---|
-| Fresh DB missing 2 kernel tables → crash on first message | HIGH | `bootstrap.ts` with authoritative live schema, called first; Phase 2 tests it |
-| companion-v1 may handle tool-calls / long output worse than cloud | MED | Phase 2 verifies; gate tools to a simpler set in companion mode if needed; cloud models stay selectable |
-| Forgotten guard re-introduces a kernel call that hangs kernel-off | MED | named booleans + boolean-matrix unit test + Phase 2 boots with kernel STOPPED, watches journal |
-| iOS PWA scope collision with Console | MED | distinct manifest `scope`/`start_url`/name; Phase 3 verifies separate install |
-| Base-path dual-strip / Vite `allowedHosts` footguns | MED | copy `svelte.config`/`vite.config` verbatim, change only the path string |
-| iOS voice: AudioContext suspends backgrounded; Web Speech API unreliable | MED | server-side STT over WebSocket; push-to-talk fallback; resume AudioContext on foreground |
+| Risk                                                                     | Sev  | Mitigation                                                                                              |
+| ------------------------------------------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------- |
+| Fresh DB missing 2 kernel tables → crash on first message                | HIGH | `bootstrap.ts` with authoritative live schema, called first; Phase 2 tests it                           |
+| companion-v1 may handle tool-calls / long output worse than cloud        | MED  | Phase 2 verifies; gate tools to a simpler set in companion mode if needed; cloud models stay selectable |
+| Forgotten guard re-introduces a kernel call that hangs kernel-off        | MED  | named booleans + boolean-matrix unit test + Phase 2 boots with kernel STOPPED, watches journal          |
+| iOS PWA scope collision with Console                                     | MED  | distinct manifest `scope`/`start_url`/name; Phase 3 verifies separate install                           |
+| Base-path dual-strip / Vite `allowedHosts` footguns                      | MED  | copy `svelte.config`/`vite.config` verbatim, change only the path string                                |
+| iOS voice: AudioContext suspends backgrounded; Web Speech API unreliable | MED  | server-side STT over WebSocket; push-to-talk fallback; resume AudioContext on foreground                |
 
 ---
 
@@ -130,11 +130,13 @@ The research pass spent its verification budget on the **voice mode** (your prio
 Post-v1 feature borrows, severity-ranked. All findings high-confidence (3-0 unanimous, primary vendor + self-hosted-reference-app sources). These inform the roadmap AFTER the clone→fork→voice build lands — not blockers for it.
 
 **HIGH — build next:**
+
 - **Persistent cross-conversation memory + user profile.** Every flagship ships explicit-saved + inferred + custom-instructions memory; self-hostable on Ollama (LibreChat/Open WebUI). Ship a user-editable memory store (Settings → Personalization) + account-wide custom instructions, layered above per-workspace context. Local caveat: autonomous "what to save" is unreliable on small models → default to manual + passive injection, optional auto-save.
 - **Collapsible reasoning / thinking panel.** Parse Ollama reasoning models' `<think>…</think>` (or `message.thinking`) into a collapsed CoT panel above the answer with an elapsed timer. Fully local.
 - **Web search + inline citations.** Self-hostable via SearXNG + `[n]` citations + `#`+URL fetch-to-context + RAG over uploads. Rerankers (Jina/Cohere) are cloud; SearXNG path is fully local.
 
 **MED — borrow opportunistically:**
+
 - Conversation **sharing** via read-only snapshot URL + outbound `navigator.share` (the iOS-PWA-safe share path).
 - **Account-wide custom instructions / user profile** → 3-tier stack: global profile › project instructions › per-conversation.
 - **Project-scoped instructions** (extends planned Projects-light).

@@ -17,7 +17,10 @@ export function compactGlanceTitle(title: string, maxWords = 4, maxChars = 32): 
 
 	const words = text.split(' ').filter(Boolean);
 	if (words.length > maxWords) {
-		return `${words.slice(0, maxWords).join(' ').replace(/[\s,.;:–-]+$/u, '')}…`;
+		return `${words
+			.slice(0, maxWords)
+			.join(' ')
+			.replace(/[\s,.;:–-]+$/u, '')}…`;
 	}
 
 	return truncateAtWord(text, maxChars);
@@ -45,8 +48,7 @@ export function truncateAtWord(text: string, maxChars: number): string {
 
 	const slice = text.slice(0, maxChars);
 	const lastSpace = slice.lastIndexOf(' ');
-	const cut =
-		lastSpace > Math.floor(maxChars * 0.45) ? slice.slice(0, lastSpace) : slice.trimEnd();
+	const cut = lastSpace > Math.floor(maxChars * 0.45) ? slice.slice(0, lastSpace) : slice.trimEnd();
 
 	return `${cut.replace(/[\s,.;:–-]+$/u, '')}…`;
 }

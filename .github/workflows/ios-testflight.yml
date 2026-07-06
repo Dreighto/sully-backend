@@ -22,7 +22,7 @@ jobs:
       CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
       BUNDLE_ID: com.dreighto.sully
       TEAM_ID: G3KJW4VXM9
-      APP_APPLE_ID: "6775013884"
+      APP_APPLE_ID: '6775013884'
       XCODE_WORKSPACE: App.xcworkspace
       XCODE_SCHEME: App
     steps:

@@ -1,126 +1,144 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<title>Mockup 04 — Action Sheet</title>
-	<link rel="stylesheet" href="./shared.css">
-	<style>
-		/* Small adjustments to emphasize sheet behavior */
-		.phone {
-			position: relative;
-		}
-		.hint {
-			text-align: center;
-			font-family: var(--font-mono);
-			font-size: 10px;
-			color: var(--t4);
-			padding: 8px;
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-		}
-	</style>
-</head>
-<body>
-	<div class="phone-stage">
-		<div class="phone-label">AGY — Message actions sheet (Phase C)</div>
-		<div class="phone">
-			<div class="app">
-				<div class="app-bg"></div>
-				<div class="app-root">
-					<header class="header quiet" style="opacity: 0.55;">
-						<div class="header-left">
-							<button class="icon-btn">☰</button>
-							<a class="brand" href="#"><div class="brand-mark"></div></a>
-						</div>
-						<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
-						<div class="header-right"><button class="icon-btn">✎</button></div>
-					</header>
-
-					<div class="feed" style="opacity: 0.55;">
-						<div class="msg-user">Explain the visual pass in one paragraph.</div>
-						<div class="msg-meta" style="align-self: flex-end; margin-top: -16px; margin-bottom: 4px;">12:43 PM</div>
-						
-						<div class="msg-block focused" style="cursor: pointer;">
-							<div class="name-tag"><span class="orb"></span> Sully</div>
-							<div class="msg-assistant">
-								We're quieting the chat surface so it feels like ChatGPT or Claude on iOS —
-								actions appear when you ask for them, not on every line.
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Mockup 04 — Action Sheet</title>
+		<link rel="stylesheet" href="./shared.css" />
+		<style>
+			/* Small adjustments to emphasize sheet behavior */
+			.phone {
+				position: relative;
+			}
+			.hint {
+				text-align: center;
+				font-family: var(--font-mono);
+				font-size: 10px;
+				color: var(--t4);
+				padding: 8px;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="phone-stage">
+			<div class="phone-label">AGY — Message actions sheet (Phase C)</div>
+			<div class="phone">
+				<div class="app">
+					<div class="app-bg"></div>
+					<div class="app-root">
+						<header class="header quiet" style="opacity: 0.55">
+							<div class="header-left">
+								<button class="icon-btn">☰</button>
+								<a class="brand" href="#"><div class="brand-mark"></div></a>
 							</div>
-							<div class="msg-meta">12:44 PM</div>
-						</div>
-					</div>
+							<button class="model-chip" type="button"><span class="dot"></span> Auto ▾</button>
+							<div class="header-right"><button class="icon-btn">✎</button></div>
+						</header>
 
-					<p class="hint">Tap message to open actions sheet</p>
+						<div class="feed" style="opacity: 0.55">
+							<div class="msg-user">Explain the visual pass in one paragraph.</div>
+							<div
+								class="msg-meta"
+								style="align-self: flex-end; margin-top: -16px; margin-bottom: 4px"
+							>
+								12:43 PM
+							</div>
 
-					<div class="composer-wrap" style="opacity: 0.55;">
-						<div class="composer">
-							<div class="composer-row">
-								<button class="icon-btn">📎</button>
-								<textarea class="composer-input" rows="1" placeholder="Talk to Sully…" readonly></textarea>
-								<button class="icon-btn">〰</button>
-								<button class="send-fab">🎤</button>
+							<div class="msg-block focused" style="cursor: pointer">
+								<div class="name-tag"><span class="orb"></span> Sully</div>
+								<div class="msg-assistant">
+									We're quieting the chat surface so it feels like ChatGPT or Claude on iOS —
+									actions appear when you ask for them, not on every line.
+								</div>
+								<div class="msg-meta">12:44 PM</div>
 							</div>
 						</div>
-					</div>
-				</div>
 
-				<!-- Scrim & Floating Sheet -->
-				<div class="sheet-scrim active" id="scrim"></div>
-				<div class="sheet active" id="sheet">
-					<div class="sheet-grabber"></div>
-					<div class="sheet-list">
-						<button class="sheet-item" type="button"><span class="icon">⎘</span> Copy</button>
-						<button class="sheet-item" type="button"><span class="icon">↻</span> Regenerate</button>
-						<button class="sheet-item" type="button"><span class="icon">▶</span> Read aloud</button>
-						<button class="sheet-item" type="button"><span class="icon">👍</span> Good reply</button>
-						<button class="sheet-item" type="button"><span class="icon">👎</span> Bad reply</button>
+						<p class="hint">Tap message to open actions sheet</p>
+
+						<div class="composer-wrap" style="opacity: 0.55">
+							<div class="composer">
+								<div class="composer-row">
+									<button class="icon-btn">📎</button>
+									<textarea
+										class="composer-input"
+										rows="1"
+										placeholder="Talk to Sully…"
+										readonly
+									></textarea>
+									<button class="icon-btn">〰</button>
+									<button class="send-fab">🎤</button>
+								</div>
+							</div>
+						</div>
 					</div>
-					<button class="sheet-cancel" id="cancel" type="button">Cancel</button>
+
+					<!-- Scrim & Floating Sheet -->
+					<div class="sheet-scrim active" id="scrim"></div>
+					<div class="sheet active" id="sheet">
+						<div class="sheet-grabber"></div>
+						<div class="sheet-list">
+							<button class="sheet-item" type="button"><span class="icon">⎘</span> Copy</button>
+							<button class="sheet-item" type="button">
+								<span class="icon">↻</span> Regenerate
+							</button>
+							<button class="sheet-item" type="button">
+								<span class="icon">▶</span> Read aloud
+							</button>
+							<button class="sheet-item" type="button">
+								<span class="icon">👍</span> Good reply
+							</button>
+							<button class="sheet-item" type="button">
+								<span class="icon">👎</span> Bad reply
+							</button>
+						</div>
+						<button class="sheet-cancel" id="cancel" type="button">Cancel</button>
+					</div>
 				</div>
 			</div>
+			<span class="badge-note">iOS native card style • interactive sheet toggling</span>
 		</div>
-		<span class="badge-note">iOS native card style • interactive sheet toggling</span>
-	</div>
 
-	<script>
-		const msgBlock = document.querySelector('.msg-block');
-		const scrim = document.getElementById('scrim');
-		const sheet = document.getElementById('sheet');
-		const cancelBtn = document.getElementById('cancel');
-		const items = document.querySelectorAll('.sheet-item');
-		const feed = document.querySelector('.feed');
-		const header = document.querySelector('.header');
-		const composerWrap = document.querySelector('.composer-wrap');
+		<script>
+			const msgBlock = document.querySelector('.msg-block');
+			const scrim = document.getElementById('scrim');
+			const sheet = document.getElementById('sheet');
+			const cancelBtn = document.getElementById('cancel');
+			const items = document.querySelectorAll('.sheet-item');
+			const feed = document.querySelector('.feed');
+			const header = document.querySelector('.header');
+			const composerWrap = document.querySelector('.composer-wrap');
 
-		function showSheet() {
-			scrim.classList.add('active');
-			sheet.classList.add('active');
-			feed.style.opacity = '0.55';
-			header.style.opacity = '0.55';
-			composerWrap.style.opacity = '0.55';
-		}
+			function showSheet() {
+				scrim.classList.add('active');
+				sheet.classList.add('active');
+				feed.style.opacity = '0.55';
+				header.style.opacity = '0.55';
+				composerWrap.style.opacity = '0.55';
+			}
 
-		function hideSheet() {
-			scrim.classList.remove('active');
-			sheet.classList.remove('active');
-			feed.style.opacity = '1';
-			header.style.opacity = '1';
-			composerWrap.style.opacity = '1';
-		}
+			function hideSheet() {
+				scrim.classList.remove('active');
+				sheet.classList.remove('active');
+				feed.style.opacity = '1';
+				header.style.opacity = '1';
+				composerWrap.style.opacity = '1';
+			}
 
-		msgBlock.addEventListener('click', (e) => {
-			showSheet();
-			e.stopPropagation();
-		});
-
-		scrim.addEventListener('click', hideSheet);
-		cancelBtn.addEventListener('click', hideSheet);
-		items.forEach(item => {
-			item.addEventListener('click', () => {
-				hideSheet();
+			msgBlock.addEventListener('click', (e) => {
+				showSheet();
+				e.stopPropagation();
 			});
-		});
-	</script>
-</body>
+
+			scrim.addEventListener('click', hideSheet);
+			cancelBtn.addEventListener('click', hideSheet);
+			items.forEach((item) => {
+				item.addEventListener('click', () => {
+					hideSheet();
+				});
+			});
+		</script>
+	</body>
 </html>
