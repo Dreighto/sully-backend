@@ -1,8 +1,9 @@
-// ElevenLabs text-to-speech proxy.
-// POST {text: string, voice_id?: string}
-//   → calls ElevenLabs /v1/text-to-speech/<voice_id> → streams MP3 back
-// Voice locked to Emma (56bWURjYFHyYyVf490Dp) when voice_id omitted.
-// Cap: ELEVENLABS_DAILY_CHAR_CAP env var (default 50000) via chat_tts_usage table.
+// Azure Speech text-to-speech proxy.
+// POST {text: string, voice?: string, model?: string}
+//   → calls Azure Speech SSML endpoint → streams MP3 back
+// Voice defaults to Emma (en-US-AriaNeural) when omitted.
+// Cap: AZURE_TTS_DAILY_CHAR_CAP env var (falling back to legacy cap env) via
+// chat_tts_usage table.
 
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -13,8 +14,17 @@ import { speakableText } from '$lib/server/tts_normalize';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
 
-const EMMA_VOICE_ID = '56bWURjYFHyYyVf490Dp';
-const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1';
+const DEFAULT_AZURE_VOICE = 'en-US-AriaNeural';
+const AZURE_OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3';
+
+function escapeSsml(text: string): string {
+	return text
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;')
+		.replaceAll("'", '&apos;');
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
@@ -49,26 +59,24 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const apiKey = env.ELEVENLABS_API_KEY;
-	if (!apiKey) {
+	const apiKey = env.AZURE_SPEECH_KEY;
+	const region = env.AZURE_SPEECH_REGION;
+	if (!apiKey || !region) {
 		throw error(503, { message: 'TTS not configured' });
 	}
 
-	const dailyCharCap = Number(env.ELEVENLABS_DAILY_CHAR_CAP ?? 50_000);
+	const dailyCharCap = Number(env.AZURE_TTS_DAILY_CHAR_CAP ?? env.ELEVENLABS_DAILY_CHAR_CAP ?? 50_000);
 	// Resolve the requested voice server-side by opaque id. No `voice` → legacy
-	// default (Emma + the body.model override or turbo), keeping read-aloud
-	// unchanged. Voice mode sends voice:'emma' → Emma + flash. A non-ElevenLabs
-	// voice id (e.g. a local-only voice) routes here only as a mistake — fall back
-	// to the Emma default rather than 502.
-	const reqModel =
-		typeof body.model === 'string' && body.model.startsWith('eleven_') ? body.model : null;
-	let voiceId: string = EMMA_VOICE_ID; // locked default per design §2D.2
-	let modelId: string = reqModel ?? 'eleven_turbo_v2_5';
+	// default (Emma + the body.model override), keeping read-aloud unchanged.
+	// Voice mode sends voice:'emma' → Emma + Azure Neural. A non-cloud voice id
+	// (e.g. a local-only voice) routes here only as a mistake — fall back to the
+	// Emma default rather than 502.
+	const reqModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : null;
+	let voiceName: string = reqModel ?? DEFAULT_AZURE_VOICE;
 	if (typeof body.voice === 'string') {
 		const v = getVoice(body.voice);
-		if (v.engine === 'elevenlabs') {
-			voiceId = v.voiceId ?? EMMA_VOICE_ID;
-			modelId = v.model ?? modelId;
+		if (v.engine === 'azure') {
+			voiceName = v.voiceId ?? v.model ?? voiceName;
 		}
 	}
 
@@ -81,23 +89,28 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
-	const ttsRes = await fetch(`${ELEVENLABS_BASE}/text-to-speech/${voiceId}`, {
+	const ssml = [
+		'<speak version="1.0" xml:lang="en-US">',
+		`<voice name="${escapeSsml(voiceName)}">`,
+		escapeSsml(text),
+		'</voice>',
+		'</speak>'
+	].join('');
+
+	const ttsRes = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
 		method: 'POST',
 		headers: {
-			'xi-api-key': apiKey,
-			'content-type': 'application/json',
-			accept: 'audio/mpeg'
+			'Ocp-Apim-Subscription-Key': apiKey,
+			'Content-Type': 'application/ssml+xml',
+			'X-Microsoft-OutputFormat': AZURE_OUTPUT_FORMAT,
+			Accept: 'audio/mpeg'
 		},
-		body: JSON.stringify({
-			text,
-			model_id: modelId,
-			voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-		})
+		body: ssml
 	});
 
 	if (!ttsRes.ok) {
 		const errBody = await ttsRes.text();
-		console.error('ElevenLabs TTS error:', ttsRes.status, errBody);
+		console.error('Azure Speech TTS error:', ttsRes.status, errBody);
 		throw error(502, { message: 'TTS request failed' });
 	}
 

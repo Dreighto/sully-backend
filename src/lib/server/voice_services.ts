@@ -155,7 +155,7 @@ export async function startVoiceServices(
 	}
 
 	// Wait for models to load + ports to bind (cold start ~10-20s on the GPU).
-	// When skipTts is true (ElevenLabs is primary) we skip the TTS health probe —
+	// When skipTts is true (cloud TTS is primary) we skip the TTS health probe —
 	// Chatterbox wasn't started and shouldn't block the voice session.
 	// Remote TTS is probed (skipTts=false path) so Jetson reachability is confirmed.
 	const deadline = Date.now() + maxWaitMs;

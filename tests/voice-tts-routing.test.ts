@@ -1,6 +1,6 @@
 // Lock the /api/chat/voice-config contract. It resolves TTS routing from the
 // ACTIVE voice (persisted in companion_settings; default = emma) plus whether
-// cloud (ElevenLabs) is available. The realtime controller consumes
+// cloud (Azure Speech) is available. The realtime controller consumes
 // voice/voices/ttsPath/ttsModel/ttsFallbackPath; if this drifts, voice mode
 // speaks in the wrong voice (or none). The DB path is pointed at a nonexistent
 // file so getSetting() returns null → default voice, with no DB side effects.
@@ -34,17 +34,19 @@ async function getConfig(): Promise<Record<string, unknown>> {
 }
 
 describe('voice-config', () => {
-	it('default active voice is Emma via ElevenLabs Flash + local fallback when a key is present', async () => {
-		ENV.ELEVENLABS_API_KEY = 'xi-test-key';
+	it('default active voice is Emma via Azure Speech + local fallback when creds are present', async () => {
+		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		const cfg = await getConfig();
 		expect(cfg.voice).toBe('emma');
 		expect(cfg.ttsPath).toBe('/api/chat/speak');
-		expect(cfg.ttsModel).toBe('eleven_flash_v2_5');
+		expect(cfg.ttsModel).toBe('en-US-AriaNeural');
 		expect(cfg.ttsFallbackPath).toBe('/api/chat/speak-local');
 	});
 
 	it('exposes the switchable voice list (Emma + Goodman-Sulley + Lewis), no leaked paths', async () => {
-		ENV.ELEVENLABS_API_KEY = 'xi-test-key';
+		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		const cfg = await getConfig();
 		const voices = cfg.voices as Array<{ id: string }>;
 		const ids = voices.map((v) => v.id).sort();
@@ -52,7 +54,7 @@ describe('voice-config', () => {
 		expect(JSON.stringify(voices)).not.toMatch(/\//);
 	});
 
-	it('degrades to local Chatterbox when the ElevenLabs key is missing', async () => {
+	it('degrades to local Chatterbox when Azure creds are missing', async () => {
 		const cfg = await getConfig(); // no key
 		expect(cfg.voice).toBe('emma');
 		expect(cfg.ttsPath).toBe('/api/chat/speak-local');
@@ -61,14 +63,16 @@ describe('voice-config', () => {
 	});
 
 	it('VOICE_TTS_PROVIDER=local forces everything local even with a key', async () => {
-		ENV.ELEVENLABS_API_KEY = 'xi-test-key';
+		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		ENV.VOICE_TTS_PROVIDER = 'local';
 		const cfg = await getConfig();
 		expect(cfg.ttsPath).toBe('/api/chat/speak-local');
 	});
 
 	it('always exposes the STT socket path + hands-free defaults', async () => {
-		ENV.ELEVENLABS_API_KEY = 'xi-test-key';
+		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		const cfg = await getConfig();
 		expect(cfg.voiceEnabled).toBe(true);
 		expect(cfg.wsPath).toBe('/companion-voice');
