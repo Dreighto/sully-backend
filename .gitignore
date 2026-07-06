@@ -84,3 +84,5 @@ companion.db-wal
 data/system_tool_corpus.jsonl
 data/router_shadow_corpus.jsonl
 data/honesty_corpus.jsonl
+
+.worktrees/
