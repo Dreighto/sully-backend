@@ -23,6 +23,7 @@
 
 import { VOICE_OLLAMA_URL, resolveTtsUrl } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
+import { DEFAULT_KOKORO_VOICE } from '../voices';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
 import { composeTimeout, readWithIdle } from './voice_seam_timeout';
@@ -230,7 +231,10 @@ export async function runVoiceStreamingSpeak(
 		const r = await fetch(`${TTS_URL}/tts`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ text: speakableText(text), voice: opts.voice ?? 'am_fenrir' }),
+			body: JSON.stringify({
+				text: speakableText(text),
+				voice: opts.voice ?? DEFAULT_KOKORO_VOICE
+			}),
 			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS)
 		});
 		if (!r.ok) throw new Error(`kokoro /tts HTTP ${r.status}`);

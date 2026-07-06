@@ -67,7 +67,7 @@ export const VOICES: VoiceDef[] = [
 		engine: 'elevenlabs',
 		voiceId: '56bWURjYFHyYyVf490Dp',
 		model: 'eleven_flash_v2_5',
-		kokoroFallbackVoice: 'bf_isabella',
+		kokoroFallbackVoice: 'bf_emma',
 		fallbackVoiceRef: `${VOICES_DIR}/emma.mp3`
 	},
 	{
@@ -87,6 +87,11 @@ export const VOICES: VoiceDef[] = [
 ];
 
 export const DEFAULT_VOICE_ID = 'emma';
+
+// The Kokoro voice used whenever no specific voice is resolved (TalkBack sends
+// no voice; Voice Mode's streaming fallback). Operator picked Emma = Kokoro
+// bf_emma (2026-07-05) — keep this in sync with the 'emma' voice's local fallback.
+export const DEFAULT_KOKORO_VOICE = 'bf_emma';
 
 export function getVoice(id: string | null | undefined): VoiceDef {
 	return VOICES.find((v) => v.id === id) ?? VOICES.find((v) => v.id === DEFAULT_VOICE_ID)!;

@@ -8,7 +8,7 @@
 // (client aborts) cancels the in-flight synthesis.
 
 import type { RequestHandler } from './$types';
-import { getVoice, localRefFor, kokoroVoiceFor } from '$lib/server/voices';
+import { getVoice, localRefFor, kokoroVoiceFor, DEFAULT_KOKORO_VOICE } from '$lib/server/voices';
 import { speakableText } from '$lib/server/tts_normalize';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
 
@@ -28,7 +28,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	// service falls back to its own TTS_VOICE_REF default.
 	const voice = body.voice ? getVoice(body.voice) : null;
 	const ref = (voice ? localRefFor(voice) : undefined) || body.voice_ref;
-	const kokoroVoice = voice ? kokoroVoiceFor(voice) : undefined;
+	// TalkBack sends no voice → default to Emma's Kokoro voice (bf_emma) rather
+	// than letting the Kokoro server pick its own built-in default.
+	const kokoroVoice = (voice ? kokoroVoiceFor(voice) : undefined) ?? DEFAULT_KOKORO_VOICE;
 
 	try {
 		const ttsRes = await synthesizeLocalTts({
