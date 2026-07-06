@@ -12,9 +12,16 @@
 import { searchOllama, fetchOllama, OLLAMA_API_KEY, UNTRUSTED_NOTE } from './web_search';
 import { logTaskEvent } from '../chatActivity';
 import { VOICE_OLLAMA_URL } from '../voice_runtime';
+import { composeTimeout } from './voice_seam_timeout';
 
 // Voice inference runs on the Jetson Ollama, never the ROOM 5060 (see voice_runtime).
 const OLLAMA = VOICE_OLLAMA_URL;
+
+// WI-8 (voice seam timeouts): the non-streaming tool-loop /api/chat call passed
+// only the client barge-in signal — a wedged Jetson hung the voice turn forever.
+// Bound each round with a deadline composed onto the client signal (shared
+// helper). Env-overridable for the field.
+const VOICE_TOOL_TIMEOUT_MS = Number(process.env.VOICE_TOOL_TIMEOUT_MS) || 30000;
 
 // Ollama tool schemas (OpenAI-function shape — what /api/chat expects).
 export const VOICE_TOOL_SCHEMAS = [
@@ -158,7 +165,7 @@ export async function runVoiceToolLoop(args: {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
-			signal: args.signal
+			signal: composeTimeout(args.signal, VOICE_TOOL_TIMEOUT_MS)
 		});
 		if (!resp.ok) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
 		const data = (await resp.json()) as { message?: OllamaMessage };

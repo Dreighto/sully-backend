@@ -161,7 +161,29 @@ export function subscribeToActiveStream(
 ): (() => void) | null {
 	const stream = activeStreams.get(threadId);
 	if (!stream) return null;
-	const from = Math.max(Math.floor(startIndex), stream.baseIndex);
+	const flooredStart = Math.floor(startIndex);
+	// WI-10b: on a >MAX_BUFFERED_CHUNKS turn the ring buffer drops its OLDEST
+	// chunks (baseIndex advances). A resumer whose startIndex predates baseIndex
+	// never saw those dropped chunks — replaying from baseIndex would silently
+	// stitch a HOLE into the reply. Signal the gap so the client discards its
+	// partial streamed row and force-reconciles the final text from history
+	// instead of trusting the holed stream. (The client MUST NOT retag the holed
+	// row to hist-<id>, or history dedup skips the good persisted row.)
+	if (flooredStart < stream.baseIndex) {
+		try {
+			listener.onChunk({
+				type: 'data-sully-gap',
+				data: {
+					resumedAtIndex: stream.baseIndex,
+					requestedFrom: flooredStart,
+					droppedChunks: stream.baseIndex - flooredStart
+				}
+			} as unknown as UIMessageChunk);
+		} catch {
+			return () => {};
+		}
+	}
+	const from = Math.max(flooredStart, stream.baseIndex);
 	for (let i = from - stream.baseIndex; i < stream.chunks.length; i++) {
 		const chunk = stream.chunks[i];
 		if (!chunk) continue;
