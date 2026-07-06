@@ -53,8 +53,22 @@ export function handleLocalReply(opts: {
 }): Response {
 	const { ctx, model, tools, routing } = opts;
 	const decision = ctx.shadowDecision;
-	const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6-20250930';
-	const preTurn = preTurnRoute(ctx.userText, ctx.messages.length);
+	// NOTE: keep this id valid for the Claude CLI bridge — the dated
+	// claude-sonnet-4-6-20250930 was retired upstream and 404s, which surfaced
+	// to the operator as "Sonnet not available" on turns he never routed to
+	// Sonnet. Align with the picker's Sonnet id (model-registry).
+	const escalationModel = process.env.COMPANION_ESCALATION_MODEL || 'claude-sonnet-4-6';
+	// Frontier models served through the local Ollama daemon (the -cloud tags:
+	// deepseek-v4-*, gpt-oss:120b, qwen3-coder:480b) are cloud-grade. The
+	// pre-turn router and the <<<ESCALATE gate exist to compensate for a WEAK
+	// on-device model — hijacking an explicit DeepSeek pick to the Sonnet
+	// specialist because the message says "today"/"right now" both disrespects
+	// the picker and (before this fix) errored the turn. Cloud-grade models
+	// answer directly.
+	const isCloudGradeLocal = /[-:]cloud$/i.test(ctx.resolvedModelId);
+	const preTurn: ReturnType<typeof preTurnRoute> = isCloudGradeLocal
+		? { path: 'local' }
+		: preTurnRoute(ctx.userText, ctx.messages.length);
 	const startBufferedTurn = (
 		pump: (writer: { write: (chunk: UIMessageChunk) => void }, signal: AbortSignal) => Promise<void>
 	): Response => {
@@ -179,7 +193,11 @@ export function handleLocalReply(opts: {
 	}
 
 	const SENTINEL_BUFFER_CHARS = 120;
-	const escalationSystemPrompt = ctx.systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
+	// Cloud-grade -cloud models never get the <<<ESCALATE gate — it exists for
+	// weak on-device models, and arming it invites spurious mid-turn escalation.
+	const escalationSystemPrompt = isCloudGradeLocal
+		? ctx.systemPrompt
+		: ctx.systemPrompt + '\n\n' + LOCAL_GATE_INSTRUCTION;
 	return startBufferedTurn(async (writer, signal) => {
 		const messageId = generateId();
 		const textId = '0';
