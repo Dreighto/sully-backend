@@ -13,18 +13,7 @@ import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/se
 import { speakableText } from '$lib/server/tts_normalize';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
-
-const DEFAULT_AZURE_VOICE = 'en-US-AriaNeural';
-const AZURE_OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3';
-
-function escapeSsml(text: string): string {
-	return text
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&apos;');
-}
+import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '$lib/server/azure_tts';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
@@ -65,7 +54,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(503, { message: 'TTS not configured' });
 	}
 
-	const dailyCharCap = Number(env.AZURE_TTS_DAILY_CHAR_CAP ?? env.ELEVENLABS_DAILY_CHAR_CAP ?? 50_000);
+	const dailyCharCap = Number(
+		env.AZURE_TTS_DAILY_CHAR_CAP ?? env.ELEVENLABS_DAILY_CHAR_CAP ?? 50_000
+	);
 	// Resolve the requested voice server-side by opaque id. No `voice` → legacy
 	// default (Emma + the body.model override), keeping read-aloud unchanged.
 	// Voice mode sends voice:'emma' → Emma + Azure Neural. A non-cloud voice id
@@ -89,28 +80,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
-	const ssml = [
-		'<speak version="1.0" xml:lang="en-US">',
-		`<voice name="${escapeSsml(voiceName)}">`,
-		escapeSsml(text),
-		'</voice>',
-		'</speak>'
-	].join('');
-
-	const ttsRes = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-		method: 'POST',
-		headers: {
-			'Ocp-Apim-Subscription-Key': apiKey,
-			'Content-Type': 'application/ssml+xml',
-			'X-Microsoft-OutputFormat': AZURE_OUTPUT_FORMAT,
-			Accept: 'audio/mpeg'
-		},
-		body: ssml
-	});
-
-	if (!ttsRes.ok) {
-		const errBody = await ttsRes.text();
-		console.error('Azure Speech TTS error:', ttsRes.status, errBody);
+	let ttsRes: Response;
+	try {
+		ttsRes = await synthesizeAzureTts({
+			text,
+			voice: voiceName,
+			format: 'mp3',
+			signal: request.signal
+		});
+	} catch (e) {
+		console.error('Azure Speech TTS error:', e instanceof Error ? e.message : e);
 		throw error(502, { message: 'TTS request failed' });
 	}
 
