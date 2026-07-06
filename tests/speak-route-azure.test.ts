@@ -51,7 +51,7 @@ beforeEach(() => {
 	state.getVoice.mockReturnValue({
 		id: 'emma',
 		engine: 'azure',
-		voiceName: 'en-US-AriaNeural'
+		voiceName: 'en-US-Ava:DragonHDLatestNeural'
 	});
 });
 
@@ -97,7 +97,7 @@ describe('/api/chat/speak Azure provider', () => {
 		const body = String(init.body);
 		expect(body).toContain('<speak');
 		expect(body).toContain('xml:lang="en-US"');
-		expect(body).toContain('name="en-US-AriaNeural"');
+		expect(body).toContain('name="en-US-Ava:DragonHDLatestNeural"');
 		expect(body).toContain('Hello from Sully.');
 	});
 

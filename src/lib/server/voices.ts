@@ -65,8 +65,8 @@ export const VOICES: VoiceDef[] = [
 		label: 'Emma',
 		blurb: 'Warm & natural — cloud, instant',
 		engine: 'azure',
-		voiceId: 'en-US-AriaNeural',
-		model: 'en-US-AriaNeural',
+		voiceId: 'en-US-Ava:DragonHDLatestNeural',
+		model: 'en-US-Ava:DragonHDLatestNeural',
 		kokoroFallbackVoice: 'bf_emma',
 		fallbackVoiceRef: `${VOICES_DIR}/emma.mp3`
 	},
