@@ -21,6 +21,15 @@ import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { factGate } from '$lib/server/routing/factGate';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
+import {
+	isDeepseekApiModel,
+	deepseekApiAvailable,
+	deepseekApiBaseUrl,
+	getDeepseekApiKey,
+	toDeepseekApiModelId,
+	markDeepseekApiFailure,
+	markDeepseekApiSuccess
+} from '$lib/server/chat/deepseek_api';
 import { systemReadTools } from '$lib/server/chat/system_read_tools';
 import {
 	beginActiveStream,
@@ -284,6 +293,22 @@ export function pickModel(provider: Provider, tier: Tier, requestedModel?: strin
 		return { model: createAnthropic(auth)(modelId), modelId };
 	}
 	if (provider === 'local') {
+		// DeepSeek-v4 models: PRIMARY = the operator's per-token DeepSeek API key
+		// (prepaid hard cap, pennies); FALLBACK = Ollama Cloud (flat-rate quota)
+		// when the key is absent or the failure latch is open. See deepseek_api.ts.
+		if (isDeepseekApiModel(modelId) && deepseekApiAvailable()) {
+			const dsProvider = createOpenAICompatible({
+				name: 'deepseek-api',
+				baseURL: `${deepseekApiBaseUrl()}/v1`,
+				apiKey: getDeepseekApiKey()
+			});
+			const raw = dsProvider(toDeepseekApiModelId(modelId));
+			const model = wrapLanguageModel({
+				model: raw,
+				middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
+			});
+			return { model, modelId, deepseekApi: true };
+		}
 		const localProvider = createOpenAICompatible({
 			name: 'ollama-local',
 			baseURL: OLLAMA_V1,
@@ -387,6 +412,12 @@ export async function runDirectStreamAttempt(opts: {
 			directErrored = true;
 			const { text, statusCode } = describeDirectError(error, modelHandle.modelId);
 			errorFrame = classifySullyError(text, statusCode);
+			// A failed DeepSeek-API turn opens the fallback latch: the client's
+			// same-turn retry (and every ds turn for the cooldown) reroutes to
+			// Ollama Cloud instead of hammering a dead/unfunded API.
+			if (modelHandle.deepseekApi) {
+				markDeepseekApiFailure(`${errorFrame.code}: ${text}`);
+			}
 			if (!suppressErrorFrames) {
 				emitSullyError(bufferWriter, errorFrame);
 			}
@@ -429,6 +460,10 @@ export async function runDirectStreamAttempt(opts: {
 				.join('');
 
 			if (finalText) {
+				// Clean DeepSeek-API turn: clear any fallback latch early.
+				if (modelHandle.deepseekApi && !directErrored) {
+					markDeepseekApiSuccess();
+				}
 				const senderLabel: 'cc' | 'agy' | 'local' =
 					ctx.provider === 'anthropic' ? 'cc' : ctx.provider === 'local' ? 'local' : 'agy';
 				let promptTokens: number | null = null;
