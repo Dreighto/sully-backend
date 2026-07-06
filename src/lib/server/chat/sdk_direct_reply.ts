@@ -1,35 +1,26 @@
+// Wave 4 split (2026-07-06): the typed-error-frame helpers moved to
+// ./sully_error.ts (dependency-free, so error-frame unit tests don't need to
+// stub the DB/dispatch modules this file drags in), and model resolution
+// (pickModel/pickFallbackModel/resolveDirectModel/isAnthropicCapExceeded)
+// moved to ./model_picker.ts. Both are re-exported here — every symbol this
+// file used to export is still importable from this path, unchanged, for the
+// ~10 external call sites (sdk_cli_reply, sdk_local_reply, sdk_auto_reply,
+// auto_router, auto_provider_cooldown, the sdk-stream route, and their tests).
 import {
 	convertToModelMessages,
-	extractReasoningMiddleware,
 	generateId,
 	stepCountIs,
 	streamText,
-	wrapLanguageModel,
 	type FinishReason,
 	type ToolSet,
 	type UIMessageChunk
 } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import type { Tier } from '$lib/server/phase_classifier';
-import type { PreparedStreamContext, Provider } from '$lib/server/chat/stream_prepare';
-import { resolveChatModel } from '$lib/server/model_catalog';
+import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
-import { addTokenUsage, getTokenUsage } from '$lib/server/thread_state';
-import { upsertThreadTier } from '$lib/server/thread_state';
+import { addTokenUsage, upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
-import { factGate } from '$lib/server/routing/factGate';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
-import {
-	isDeepseekApiModel,
-	deepseekApiAvailable,
-	deepseekApiBaseUrl,
-	getDeepseekApiKey,
-	toDeepseekApiModelId,
-	markDeepseekApiFailure,
-	markDeepseekApiSuccess
-} from '$lib/server/chat/deepseek_api';
+import { markDeepseekApiFailure, markDeepseekApiSuccess } from '$lib/server/chat/deepseek_api';
 import { systemReadTools } from '$lib/server/chat/system_read_tools';
 import {
 	beginActiveStream,
@@ -38,114 +29,24 @@ import {
 	streamResponseFromBuffer,
 	type SullyRoutingFrame
 } from '$lib/server/chat/sdk_stream_common';
-import {
-	listOllamaCloudAutoModels,
-	normalizeOllamaCloudModelId
-} from '$lib/server/chat/ollama_cloud_chain';
+import { classifySullyError, emitSullyError, type SullyErrorFrame } from './sully_error';
+import { pickModel } from './model_picker';
 
-const OLLAMA_BASE_URL =
-	process.env.OLLAMA_BASE_URL?.replace(/\/+$/, '') || 'http://127.0.0.1:11434';
-const OLLAMA_V1 = `${OLLAMA_BASE_URL}/v1`;
-
-// Fallback model chain when Claude is unavailable. These route through Ollama
-// Cloud (ollama.com) using the existing local daemon + sign-in, no separate
-// API key needed. Tried in order: strongest → fastest.
-const FALLBACK_MODELS = listOllamaCloudAutoModels('chat');
-
-// ---------------------------------------------------------------------------
-// Typed error frames. Every sdk-stream error path emits a `data-sully-error`
-// data part {code, message, recovery} IN ADDITION to the SDK-standard error
-// part, so the client can render an actionable recovery hint instead of a raw
-// provider string. Shared by sdk_cli_reply / sdk_local_reply / +server.ts
-// (this module is the one scope-shared home for the helpers).
-// ---------------------------------------------------------------------------
-
-export type SullyErrorCode =
-	| 'credential_unavailable'
-	| 'rate_limit'
-	| 'timeout'
-	| 'provider_error'
-	| 'context_overflow'
-	| 'unknown';
-
-export type SullyErrorFrame = {
-	code: SullyErrorCode;
-	message: string;
-	recovery: string;
-};
-
-const SULLY_ERROR_RECOVERY: Record<SullyErrorCode, string> = {
-	credential_unavailable: 'Switch model — this one is missing a working credential.',
-	rate_limit: 'Retry in ~30s or switch model.',
-	timeout: 'Retry — the provider did not answer in time.',
-	provider_error: 'Retry, or switch model if it keeps failing.',
-	context_overflow: 'Start a new thread — this one exceeds the model context window.',
-	unknown: 'Retry, or switch model if it persists.'
-};
-
-export function sullyErrorFrame(code: SullyErrorCode, message: string): SullyErrorFrame {
-	return { code, message, recovery: SULLY_ERROR_RECOVERY[code] };
-}
-
-/** Auto mode may silently try the next provider when these occur before any text. */
-export function isAutoFallbackableError(code: SullyErrorCode): boolean {
-	return (
-		code === 'rate_limit' ||
-		code === 'provider_error' ||
-		code === 'credential_unavailable' ||
-		code === 'timeout' ||
-		code === 'unknown'
-	);
-}
-
-export function classifySullyError(message: string, statusCode?: number): SullyErrorFrame {
-	const msg = message || 'unknown_stream_error';
-	const m = msg.toLowerCase();
-	let code: SullyErrorCode = 'unknown';
-	if (statusCode === 404 || /not.?found|model.*not found|does not exist|unknown model/.test(m)) {
-		code = 'provider_error';
-	} else if (
-		statusCode === 401 ||
-		statusCode === 403 ||
-		/credential unavailable|authentication|permission|api key|unauthorized|token expired|auth failed/.test(
-			m
-		)
-	) {
-		code = 'credential_unavailable';
-	} else if (statusCode === 429 || /rate.?limit|too many requests|quota exceeded/.test(m)) {
-		code = 'rate_limit';
-	} else if (/timed? ?out|etimedout|abort|deadline exceeded/.test(m)) {
-		code = 'timeout';
-	} else if (
-		/context.{0,24}(window|length|overflow)|prompt is too long|too many tokens|maximum context|token limit exceeded/.test(
-			m
-		)
-	) {
-		code = 'context_overflow';
-	} else if (
-		(statusCode !== undefined && statusCode >= 500) ||
-		/overloaded|internal server|bad gateway|service unavailable|econnrefused|econnreset|fetch failed|socket hang up/.test(
-			m
-		)
-	) {
-		code = 'provider_error';
-	}
-	return sullyErrorFrame(code, msg);
-}
-
-// Structural writer type (same pattern as ReplyIdWriter in sdk_stream_common)
-// so any UIMessageStream writer satisfies it without dragging generics around.
-export type SullyErrorWriter = {
-	write: (chunk: { type: 'data-sully-error'; data: SullyErrorFrame }) => void;
-};
-
-export function emitSullyError(writer: SullyErrorWriter, frame: SullyErrorFrame): void {
-	try {
-		writer.write({ type: 'data-sully-error', data: frame });
-	} catch {
-		/* stream already closed — the SDK-standard error part remains the fallback */
-	}
-}
+export {
+	type SullyErrorCode,
+	type SullyErrorFrame,
+	type SullyErrorWriter,
+	sullyErrorFrame,
+	isAutoFallbackableError,
+	classifySullyError,
+	emitSullyError
+} from './sully_error';
+export {
+	isAnthropicCapExceeded,
+	pickFallbackModel,
+	pickModel,
+	resolveDirectModel
+} from './model_picker';
 
 type ApiCallError = {
 	message?: string;
@@ -218,137 +119,6 @@ function describeDirectError(
 		text: apiErr.message || (err as { message?: string }).message || 'unknown_stream_error',
 		statusCode
 	};
-}
-
-function getAnthropicApiKey(): string {
-	return (
-		process.env.LOGUEOS_ROUTING_KEY ||
-		process.env.MIRU_ROUTING_KEY ||
-		process.env.ANTHROPIC_API_KEY ||
-		''
-	);
-}
-
-function getAnthropicOAuth(): string | undefined {
-	return process.env.CLAUDE_CODE_OAUTH_TOKEN || undefined;
-}
-
-function getAnthropicAuthForModel(modelId: string): { authToken?: string; apiKey?: string } {
-	const isHaiku = /haiku/i.test(modelId);
-	const oauth = getAnthropicOAuth();
-	const apiKey = getAnthropicApiKey();
-
-	if (isHaiku && oauth) return { authToken: oauth };
-	if (apiKey) return { apiKey };
-	if (oauth) return { authToken: oauth };
-	return {};
-}
-
-/** Pre-flight check: true when the anthropic daily token cap is exceeded. */
-export function isAnthropicCapExceeded(): boolean {
-	const cap = parseInt(process.env.ANTHROPIC_DAILY_TOKEN_CAP || '1000000', 10);
-	if (!Number.isFinite(cap) || cap <= 0) return false;
-	const used = getTokenUsage('anthropic');
-	return used >= cap;
-}
-
-export function pickFallbackModel(): ReturnType<typeof pickModel> | null {
-	// Route fallback models through the local Ollama daemon, which proxies
-	// `*-cloud` tags to ollama.com using the existing sign-in / OLLAMA_API_KEY.
-	// No separate API key needed — consolidated billing on the Ollama Cloud
-	// subscription. Tried strongest → fastest.
-	const localProvider = createOpenAICompatible({
-		name: 'ollama-local',
-		baseURL: OLLAMA_V1,
-		apiKey: 'ollama'
-	});
-	for (const modelId of FALLBACK_MODELS) {
-		try {
-			const raw = localProvider(modelId);
-			const model = wrapLanguageModel({
-				model: raw,
-				middleware: extractReasoningMiddleware({ tagName: 'think' })
-			});
-			return { model, modelId };
-		} catch {
-			continue;
-		}
-	}
-	return null;
-}
-
-function getGoogleKey(): string {
-	return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-}
-
-export function pickModel(provider: Provider, tier: Tier, requestedModel?: string) {
-	const modelId = resolveChatModel({ tier, provider, requestedModel });
-	if (provider === 'anthropic') {
-		const auth = getAnthropicAuthForModel(modelId);
-		if (!auth.authToken && !auth.apiKey) {
-			throw new Error(
-				`Anthropic credential unavailable for ${modelId}. Sonnet/Opus require ANTHROPIC_API_KEY; Haiku also accepts CLAUDE_CODE_OAUTH_TOKEN.`
-			);
-		}
-		return { model: createAnthropic(auth)(modelId), modelId };
-	}
-	if (provider === 'local') {
-		// DeepSeek-v4 models: PRIMARY = the operator's per-token DeepSeek API key
-		// (prepaid hard cap, pennies); FALLBACK = Ollama Cloud (flat-rate quota)
-		// when the key is absent or the failure latch is open. See deepseek_api.ts.
-		if (isDeepseekApiModel(modelId) && deepseekApiAvailable()) {
-			const dsProvider = createOpenAICompatible({
-				name: 'deepseek-api',
-				baseURL: `${deepseekApiBaseUrl()}/v1`,
-				apiKey: getDeepseekApiKey()
-			});
-			const raw = dsProvider(toDeepseekApiModelId(modelId));
-			const model = wrapLanguageModel({
-				model: raw,
-				middleware: extractReasoningMiddleware({ tagName: 'redacted_thinking' })
-			});
-			return { model, modelId, deepseekApi: true };
-		}
-		const localProvider = createOpenAICompatible({
-			name: 'ollama-local',
-			baseURL: OLLAMA_V1,
-			apiKey: 'ollama'
-		});
-		const raw = localProvider(modelId);
-		const model = wrapLanguageModel({
-			model: raw,
-			middleware: extractReasoningMiddleware({ tagName: 'think' })
-		});
-		return { model, modelId };
-	}
-	const apiKey = getGoogleKey();
-	if (!apiKey) throw new Error('Google credential unavailable');
-	return { model: createGoogleGenerativeAI({ apiKey })(modelId), modelId };
-}
-
-export function resolveDirectModel(opts: {
-	ctx: PreparedStreamContext;
-	requestedModel?: string;
-}): ReturnType<typeof pickModel> {
-	const { ctx, requestedModel } = opts;
-	const explicitPick = Boolean(requestedModel?.trim());
-	// Honor explicit picker choices — fact-gate override is for Auto/default routing only.
-	const factTurn =
-		!explicitPick && ctx.allowSensitive && factGate(ctx.userText).category === 'world_fact';
-	if (factTurn) {
-		const factModel = process.env.COMPANION_FACT_MODEL || 'gpt-oss:120b-cloud';
-		const cloud = createOpenAICompatible({
-			name: 'ollama-fact',
-			baseURL: OLLAMA_V1,
-			apiKey: 'ollama'
-		});
-		const factModelHandle = wrapLanguageModel({
-			model: cloud(factModel),
-			middleware: extractReasoningMiddleware({ tagName: 'think' })
-		});
-		return { model: factModelHandle, modelId: factModel };
-	}
-	return pickModel(ctx.provider, ctx.currentTier, requestedModel);
 }
 
 export type DirectStreamAttemptResult = {
