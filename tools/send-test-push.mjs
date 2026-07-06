@@ -22,21 +22,31 @@ const teamId = process.env.APNS_TEAM_ID;
 const bundleId = process.env.APNS_BUNDLE_ID;
 const production = String(process.env.APNS_PRODUCTION).toLowerCase() !== 'false';
 
-const b64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64url = (b) =>
+	Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const header = b64url(JSON.stringify({ alg: 'ES256', kid: keyId }));
 const claims = b64url(JSON.stringify({ iss: teamId, iat: Math.floor(Date.now() / 1000) }));
 const signingInput = `${header}.${claims}`;
-const der = crypto.createSign('SHA256').update(signingInput).sign({
-	key: fs.readFileSync(keyPath, 'utf8'),
-	dsaEncoding: 'ieee-p1363'
-});
+const der = crypto
+	.createSign('SHA256')
+	.update(signingInput)
+	.sign({
+		key: fs.readFileSync(keyPath, 'utf8'),
+		dsaEncoding: 'ieee-p1363'
+	});
 const jwt = `${signingInput}.${b64url(der)}`;
 
 const host = production ? 'https://api.push.apple.com' : 'https://api.sandbox.push.apple.com';
-const payload = JSON.stringify({ aps: { alert: { title, body }, sound: 'default' }, url: '/companion/chat' });
+const payload = JSON.stringify({
+	aps: { alert: { title, body }, sound: 'default' },
+	url: '/companion/chat'
+});
 
 const client = http2.connect(host);
-client.on('error', (e) => { console.error('connect_error', e.message); process.exit(1); });
+client.on('error', (e) => {
+	console.error('connect_error', e.message);
+	process.exit(1);
+});
 const req = client.request({
 	':method': 'POST',
 	':path': `/3/device/${token}`,
@@ -45,8 +55,11 @@ const req = client.request({
 	'apns-push-type': 'alert',
 	'content-type': 'application/json'
 });
-let status = 0, data = '';
-req.on('response', (h) => { status = Number(h[':status']) || 0; });
+let status = 0,
+	data = '';
+req.on('response', (h) => {
+	status = Number(h[':status']) || 0;
+});
 req.setEncoding('utf8');
 req.on('data', (c) => (data += c));
 req.on('end', () => {
@@ -55,5 +68,9 @@ req.on('end', () => {
 	console.log(status === 200 ? 'SENT_OK' : 'SEND_FAILED');
 	process.exit(status === 200 ? 0 : 2);
 });
-req.on('error', (e) => { client.close(); console.error('request_error', e.message); process.exit(1); });
+req.on('error', (e) => {
+	client.close();
+	console.error('request_error', e.message);
+	process.exit(1);
+});
 req.end(payload);

@@ -69,13 +69,15 @@ export function addWebSpendCents(cents: number): void {
 	const db = getDb();
 	try {
 		ensure(db);
-		db.prepare(`
+		db.prepare(
+			`
 			INSERT INTO chat_web_usage (date, cents_spent, requests) VALUES (?, ?, 1)
 			ON CONFLICT(date) DO UPDATE SET
 				cents_spent = cents_spent + excluded.cents_spent,
 				requests = requests + 1,
 				updated_at = CURRENT_TIMESTAMP
-		`).run(todayDate(), cents);
+		`
+		).run(todayDate(), cents);
 	} finally {
 		db.close();
 	}

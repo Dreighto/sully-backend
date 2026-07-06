@@ -12,7 +12,11 @@ import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { needsFullReply } from '$lib/server/routing/turn_decision';
 import { handleVoiceReplyStream } from '$lib/server/chat/voice_reply_stream';
 import { handleVoiceReplySimple } from '$lib/server/chat/voice_reply_simple';
-import type { VoiceReplyContext, VoiceReplyConstants, DispatchProposalMeta } from '$lib/server/chat/voice_reply_types';
+import type {
+	VoiceReplyContext,
+	VoiceReplyConstants,
+	DispatchProposalMeta
+} from '$lib/server/chat/voice_reply_types';
 import type { TurnDecision } from '$lib/server/routing/turn_decision';
 
 const VOICE_MODEL = resolveVoiceModel();
@@ -70,7 +74,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const dispatchableDecision = !needsFullReply(decision);
 	if (dispatchableDecision) {
 		await applyTurnDecision(decision, {
-			taskId, threadId, targetRepo,
+			taskId,
+			threadId,
+			targetRepo,
 			userText: userMessageText,
 			suppressSpokenChatRow: true
 		});
@@ -100,9 +106,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	const chatMessages = [{ role: 'system', content: augmentedSystem }, ...turns];
 
 	const ctx: VoiceReplyContext = {
-		text, threadId, taskId, currentTier, targetRepo,
-		decision, dispatchableDecision, dispatchProposal,
-		chatMessages, turnStartedAt, userMessageText
+		text,
+		threadId,
+		taskId,
+		currentTier,
+		targetRepo,
+		decision,
+		dispatchableDecision,
+		dispatchProposal,
+		chatMessages,
+		turnStartedAt,
+		userMessageText
 	};
 	const constants: VoiceReplyConstants = { model: VOICE_MODEL, keepAlive: VOICE_KEEP_ALIVE };
 

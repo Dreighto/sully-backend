@@ -16,16 +16,7 @@
 	import WorkerStateAnim from '$lib/work-surface/pill/WorkerStateAnim.svelte';
 	import type { StreamRow } from '$lib/chat/dispatchReconcile';
 
-	const FIXTURE_WORKERS = [
-		'claude-code',
-		'gmi',
-		'dpsk',
-		'agy',
-		'cdx',
-		'glm',
-		'ki',
-		'mystery-bot'
-	];
+	const FIXTURE_WORKERS = ['claude-code', 'gmi', 'dpsk', 'agy', 'cdx', 'glm', 'ki', 'mystery-bot'];
 
 	const FIXTURE_ROWS: StreamRow[] = [
 		{ seq: 1, action: 'reading', target: 'src/lib/work-surface/pill/pillModel.ts' },

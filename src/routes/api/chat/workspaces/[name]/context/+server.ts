@@ -44,10 +44,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 	}
 	const addendum = typeof body.addendum === 'string' ? body.addendum : '';
 	if (addendum.length > MAX_ADDENDUM_CHARS) {
-		return json(
-			{ error: 'addendum_too_long', limit: MAX_ADDENDUM_CHARS },
-			{ status: 413 }
-		);
+		return json({ error: 'addendum_too_long', limit: MAX_ADDENDUM_CHARS }, { status: 413 });
 	}
 
 	try {

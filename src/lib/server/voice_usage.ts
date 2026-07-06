@@ -59,12 +59,14 @@ export function addSttUsage(minutes: number): void {
 	const db = getDb();
 	try {
 		ensureTables(db);
-		db.prepare(`
+		db.prepare(
+			`
 			INSERT INTO chat_stt_usage (date, minutes_used) VALUES (?, ?)
 			ON CONFLICT(date) DO UPDATE SET
 				minutes_used = minutes_used + excluded.minutes_used,
 				updated_at = CURRENT_TIMESTAMP
-		`).run(todayDate(), minutes);
+		`
+		).run(todayDate(), minutes);
 	} finally {
 		db.close();
 	}
@@ -88,12 +90,14 @@ export function addTtsUsage(chars: number): void {
 	const db = getDb();
 	try {
 		ensureTables(db);
-		db.prepare(`
+		db.prepare(
+			`
 			INSERT INTO chat_tts_usage (date, chars_used) VALUES (?, ?)
 			ON CONFLICT(date) DO UPDATE SET
 				chars_used = chars_used + excluded.chars_used,
 				updated_at = CURRENT_TIMESTAMP
-		`).run(todayDate(), chars);
+		`
+		).run(todayDate(), chars);
 	} finally {
 		db.close();
 	}

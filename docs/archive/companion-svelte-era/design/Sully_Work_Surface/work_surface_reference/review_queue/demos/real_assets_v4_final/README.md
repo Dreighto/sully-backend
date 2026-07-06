@@ -22,7 +22,7 @@ The visual design is modeled as a premium assistant OS (inspired by Jarvis, FRID
 
 ## Semantic Motion Language
 
-The graph conveys three critical dimensions: **Who** is working, **what** type of work is happening, and **where** the payload is moving. 
+The graph conveys three critical dimensions: **Who** is working, **what** type of work is happening, and **where** the payload is moving.
 
 1. **Research (Context Gathering)**:
    - Slower, exploratory flow (`6s` cycle).
@@ -48,12 +48,14 @@ The graph conveys three critical dimensions: **Who** is working, **what** type o
 ## Guidelines for CC Review
 
 CC should review:
+
 - The unified visual weight of the worker icons (CC, GEM, DPSK, COD, AGY now all look like a single OS glyph family).
 - The fluid semantic animation transitions upon clicking preset buttons.
 - The accurate synchronization of collision ripples when packets arrive at `TASK`.
 - The clean settle state of the `Complete` preset (graph completely clear of active lines and workers).
 
 ## Future Work Roadmap
+
 - **Colors**: Refine precise HSL bounds once brand palette is locked.
 - **Typography**: Coordinate system fonts with production style definitions.
 - **Chat Facelift**: Evolve the mock chat container to match the target production web interface.

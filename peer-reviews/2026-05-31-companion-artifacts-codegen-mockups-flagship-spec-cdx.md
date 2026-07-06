@@ -150,26 +150,26 @@ App
 
 ```json
 {
-  "artifact": {
-    "id": "art_01...",
-    "thread_id": "thr_01...",
-    "run_id": "run_01...",
-    "project": "LogueOS-Console",
-    "type": "markdown|code|json|mockup|image",
-    "title": "string",
-    "status": "queued|running|succeeded|failed|applied|archived",
-    "source_prompt": "string",
-    "model": "string",
-    "cost_usd": 0.0,
-    "duration_ms": 0,
-    "file_paths": ["/abs/path/..."],
-    "preview_path": "/abs/path/preview.html",
-    "diff_path": "/abs/path/diff.patch",
-    "error": null,
-    "version": 3,
-    "created_at": "ISO8601",
-    "updated_at": "ISO8601"
-  }
+	"artifact": {
+		"id": "art_01...",
+		"thread_id": "thr_01...",
+		"run_id": "run_01...",
+		"project": "LogueOS-Console",
+		"type": "markdown|code|json|mockup|image",
+		"title": "string",
+		"status": "queued|running|succeeded|failed|applied|archived",
+		"source_prompt": "string",
+		"model": "string",
+		"cost_usd": 0.0,
+		"duration_ms": 0,
+		"file_paths": ["/abs/path/..."],
+		"preview_path": "/abs/path/preview.html",
+		"diff_path": "/abs/path/diff.patch",
+		"error": null,
+		"version": 3,
+		"created_at": "ISO8601",
+		"updated_at": "ISO8601"
+	}
 }
 ```
 
@@ -181,16 +181,16 @@ Request:
 
 ```json
 {
-  "thread_id": "thr_01",
-  "project": "LogueOS-Console",
-  "mode": "artifact|code|mockup",
-  "prompt": "Build a responsive settings panel",
-  "template": "react_component",
-  "target_paths": ["src/lib/components/SettingsPanel.svelte"],
-  "options": {
-    "model": "gemini-2.5-flash",
-    "temperature": 0.2
-  }
+	"thread_id": "thr_01",
+	"project": "LogueOS-Console",
+	"mode": "artifact|code|mockup",
+	"prompt": "Build a responsive settings panel",
+	"template": "react_component",
+	"target_paths": ["src/lib/components/SettingsPanel.svelte"],
+	"options": {
+		"model": "gemini-2.5-flash",
+		"temperature": 0.2
+	}
 }
 ```
 
@@ -198,9 +198,9 @@ Response:
 
 ```json
 {
-  "artifact_id": "art_01",
-  "run_id": "run_01",
-  "status": "queued"
+	"artifact_id": "art_01",
+	"run_id": "run_01",
+	"status": "queued"
 }
 ```
 
@@ -218,9 +218,9 @@ Apply request example:
 
 ```json
 {
-  "approve": true,
-  "strategy": "all|selected_hunks",
-  "selected_hunks": ["hunk_1", "hunk_4"]
+	"approve": true,
+	"strategy": "all|selected_hunks",
+	"selected_hunks": ["hunk_1", "hunk_4"]
 }
 ```
 

@@ -45,11 +45,9 @@ async function readBody(resp: Response): Promise<unknown> {
 export async function killWorker(traceId: string): Promise<ListenerKillResponse> {
 	const secret = serverConfig.dispatchListenerHmacSecret;
 	if (!secret) {
-		throw new DispatchListenerError(
-			'dispatch_listener_hmac_secret_not_configured',
-			500,
-			{ hint: 'Set LOGUEOS_LISTENER_HMAC_SECRET or W4_LISTENER_HMAC_SECRET in Console env to match the listener.' }
-		);
+		throw new DispatchListenerError('dispatch_listener_hmac_secret_not_configured', 500, {
+			hint: 'Set LOGUEOS_LISTENER_HMAC_SECRET or W4_LISTENER_HMAC_SECRET in Console env to match the listener.'
+		});
 	}
 
 	const url = `${serverConfig.dispatchListenerUrl.replace(/\/+$/, '')}/kill`;
@@ -69,11 +67,10 @@ export async function killWorker(traceId: string): Promise<ListenerKillResponse>
 	} catch (e) {
 		// Network failure — listener may be down. Surface as 502 to the
 		// caller; the API handler decides how to present this to the UI.
-		throw new DispatchListenerError(
-			'dispatch_listener_unreachable',
-			502,
-			{ url, cause: e instanceof Error ? e.message : String(e) }
-		);
+		throw new DispatchListenerError('dispatch_listener_unreachable', 502, {
+			url,
+			cause: e instanceof Error ? e.message : String(e)
+		});
 	}
 
 	const parsedBody = await readBody(resp);

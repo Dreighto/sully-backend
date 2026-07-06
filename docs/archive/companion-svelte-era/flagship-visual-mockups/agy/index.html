@@ -1,120 +1,152 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	<title>Sully — AGY Flagship Visual Mockups</title>
-	<link rel="stylesheet" href="./shared.css">
-	<style>
-		.brand-header {
-			display: flex;
-			align-items: center;
-			gap: 12px;
-			margin-bottom: 24px;
-		}
-		.brand-header .brand-mark {
-			width: 36px;
-			height: 36px;
-		}
-		.direction-pill {
-			display: inline-block;
-			padding: 8px 16px;
-			border-radius: var(--r-md);
-			background: var(--live-bg);
-			border: 1px solid var(--live-line);
-			color: var(--accent-soft);
-			font-size: 13.5px;
-			line-height: 1.5;
-			margin-bottom: 32px;
-			font-weight: var(--weight-medium);
-		}
-		.tech-specs {
-			margin-top: 40px;
-			padding: 20px;
-			background: var(--bg2);
-			border: 1px solid var(--line2);
-			border-radius: var(--r-lg);
-			font-family: var(--font-body);
-		}
-		.tech-specs h4 {
-			margin: 0 0 12px;
-			font-family: var(--font-display);
-			font-size: 18px;
-			color: var(--t1);
-		}
-		.tech-specs ul {
-			margin: 0;
-			padding-left: 20px;
-			color: var(--t2);
-			font-size: 13.5px;
-			display: flex;
-			flex-direction: column;
-			gap: 8px;
-		}
-		.tech-specs code {
-			font-family: var(--font-mono);
-			background: rgba(255, 255, 255, 0.05);
-			padding: 2px 6px;
-			border-radius: 4px;
-			color: var(--accent-soft);
-		}
-	</style>
-</head>
-<body>
-	<div class="hub">
-		<div class="brand-header">
-			<div class="brand-mark"></div>
-			<h1>Sully — AGY Flagship Pass</h1>
-		</div>
-		
-		<div class="direction-pill">
-			<strong>Visual Direction:</strong> A tactile, quiet, dark-glass iOS atmosphere with editorial typography, organic pulsing micro-animations, and hyper-focused controls that disappear into the chrome.
-		</div>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Sully — AGY Flagship Visual Mockups</title>
+		<link rel="stylesheet" href="./shared.css" />
+		<style>
+			.brand-header {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				margin-bottom: 24px;
+			}
+			.brand-header .brand-mark {
+				width: 36px;
+				height: 36px;
+			}
+			.direction-pill {
+				display: inline-block;
+				padding: 8px 16px;
+				border-radius: var(--r-md);
+				background: var(--live-bg);
+				border: 1px solid var(--live-line);
+				color: var(--accent-soft);
+				font-size: 13.5px;
+				line-height: 1.5;
+				margin-bottom: 32px;
+				font-weight: var(--weight-medium);
+			}
+			.tech-specs {
+				margin-top: 40px;
+				padding: 20px;
+				background: var(--bg2);
+				border: 1px solid var(--line2);
+				border-radius: var(--r-lg);
+				font-family: var(--font-body);
+			}
+			.tech-specs h4 {
+				margin: 0 0 12px;
+				font-family: var(--font-display);
+				font-size: 18px;
+				color: var(--t1);
+			}
+			.tech-specs ul {
+				margin: 0;
+				padding-left: 20px;
+				color: var(--t2);
+				font-size: 13.5px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.tech-specs code {
+				font-family: var(--font-mono);
+				background: rgba(255, 255, 255, 0.05);
+				padding: 2px 6px;
+				border-radius: 4px;
+				color: var(--accent-soft);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="hub">
+			<div class="brand-header">
+				<div class="brand-mark"></div>
+				<h1>Sully — AGY Flagship Pass</h1>
+			</div>
 
-		<a class="hub-card" href="./05-compare-before-after.html">
-			<h3>05 — Before → After (Side-by-Side)</h3>
-			<p>Direct comparison between the legacy crowded interface and our quiet, typography-focused design. Start here for the 10-second pitch.</p>
-		</a>
-		
-		<a class="hub-card" href="./01-chat-quiet.html">
-			<h3>01 — Quiet Conversation</h3>
-			<p>Chat surface showing right-aligned tucked glass user bubbles, borderless assistant answers, and message controls that disclose progressively on hover/click.</p>
-		</a>
-		
-		<a class="hub-card" href="./02-empty-state.html">
-			<h3>02 — Greeting & Suggested Starters</h3>
-			<p>Tactile greeting hero using Fraunces Display with a breathing gradient orb and vertical list layout of starter prompt chips that pre-populate the input on tap.</p>
-		</a>
-		
-		<a class="hub-card" href="./03-sidebar-clean.html">
-			<h3>03 — Clean Sidebar Layout</h3>
-			<p>Restructured panel featuring human-readable thread titles, active background task rows, settings trigger, and the complete elimination of noisy system console details.</p>
-		</a>
-		
-		<a class="hub-card" href="./04-message-sheet.html">
-			<h3>04 — iOS native Overflow Sheet</h3>
-			<p>An iOS-native floating card overlay replacing the always-on action bar. Simulates double-click/long-press behavior with a springy slide-up animation.</p>
-		</a>
-		
-		<a class="hub-card" href="./06-chat-with-worker.html">
-			<h3>06 — Active Work in Thread</h3>
-			<p>The core Sully differentiator preserved: a quiet, high-information worker pill showcasing background processing states without cluttering assistant speech bubble space.</p>
-		</a>
-		
-		<a class="hub-card" href="./07-voice-mode.html">
-			<h3>07 — Immersive Voice Interface</h3>
-			<p>A full-screen voice overlay with tabs to toggle between Idle, Listening, and Speaking states. Animates the central gradient orb based on audio phase.</p>
-		</a>
+			<div class="direction-pill">
+				<strong>Visual Direction:</strong> A tactile, quiet, dark-glass iOS atmosphere with
+				editorial typography, organic pulsing micro-animations, and hyper-focused controls that
+				disappear into the chrome.
+			</div>
 
-		<div class="tech-specs">
-			<h4>Operational Info</h4>
-			<ul>
-				<li><strong>Palette:</strong> Strictly locked Indigo tokens (no retired magenta).</li>
-				<li><strong>Typography:</strong> Blend Mk II (Fraunces Display for titles, Bricolage Grotesque for body/chrome, JetBrains Mono for metadata).</li>
-				<li><strong>Mockup Port:</strong> Serve on port <code>8766</code> to compare side-by-side with CUR on port <code>8765</code>.</li>
-				<li><strong>Start Command:</strong> <code>python3 -m http.server 8766 --bind 0.0.0.0</code> from this directory.</li>
-			</ul>
+			<a class="hub-card" href="./05-compare-before-after.html">
+				<h3>05 — Before → After (Side-by-Side)</h3>
+				<p>
+					Direct comparison between the legacy crowded interface and our quiet, typography-focused
+					design. Start here for the 10-second pitch.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./01-chat-quiet.html">
+				<h3>01 — Quiet Conversation</h3>
+				<p>
+					Chat surface showing right-aligned tucked glass user bubbles, borderless assistant
+					answers, and message controls that disclose progressively on hover/click.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./02-empty-state.html">
+				<h3>02 — Greeting & Suggested Starters</h3>
+				<p>
+					Tactile greeting hero using Fraunces Display with a breathing gradient orb and vertical
+					list layout of starter prompt chips that pre-populate the input on tap.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./03-sidebar-clean.html">
+				<h3>03 — Clean Sidebar Layout</h3>
+				<p>
+					Restructured panel featuring human-readable thread titles, active background task rows,
+					settings trigger, and the complete elimination of noisy system console details.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./04-message-sheet.html">
+				<h3>04 — iOS native Overflow Sheet</h3>
+				<p>
+					An iOS-native floating card overlay replacing the always-on action bar. Simulates
+					double-click/long-press behavior with a springy slide-up animation.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./06-chat-with-worker.html">
+				<h3>06 — Active Work in Thread</h3>
+				<p>
+					The core Sully differentiator preserved: a quiet, high-information worker pill showcasing
+					background processing states without cluttering assistant speech bubble space.
+				</p>
+			</a>
+
+			<a class="hub-card" href="./07-voice-mode.html">
+				<h3>07 — Immersive Voice Interface</h3>
+				<p>
+					A full-screen voice overlay with tabs to toggle between Idle, Listening, and Speaking
+					states. Animates the central gradient orb based on audio phase.
+				</p>
+			</a>
+
+			<div class="tech-specs">
+				<h4>Operational Info</h4>
+				<ul>
+					<li><strong>Palette:</strong> Strictly locked Indigo tokens (no retired magenta).</li>
+					<li>
+						<strong>Typography:</strong> Blend Mk II (Fraunces Display for titles, Bricolage
+						Grotesque for body/chrome, JetBrains Mono for metadata).
+					</li>
+					<li>
+						<strong>Mockup Port:</strong> Serve on port <code>8766</code> to compare side-by-side
+						with CUR on port <code>8765</code>.
+					</li>
+					<li>
+						<strong>Start Command:</strong>
+						<code>python3 -m http.server 8766 --bind 0.0.0.0</code> from this directory.
+					</li>
+				</ul>
+			</div>
 		</div>
-	</div>
-</body>
+	</body>
 </html>

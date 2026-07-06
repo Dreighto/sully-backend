@@ -124,7 +124,7 @@ function roleMessageToGemini(msg: ProviderMessage): GeminiContent {
 	}
 	return {
 		role: msg.role === 'user' ? 'user' : 'model',
-		parts: msg.content.map(part => {
+		parts: msg.content.map((part) => {
 			if (part.type === 'text') {
 				return { text: part.text };
 			}

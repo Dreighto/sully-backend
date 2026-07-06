@@ -4,84 +4,89 @@
 
 /* Unified action button settings for mobile viewports */
 .actions-container {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
+	display: flex;
+	gap: 10px;
+	margin-top: 12px;
 }
 
 .sully-btn {
-  flex: 1;
-  border: none;
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  outline: none;
-  min-height: 44px; /* iOS Tap target minimum limit */
+	flex: 1;
+	border: none;
+	border-radius: 10px;
+	padding: 12px;
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 6px;
+	outline: none;
+	min-height: 44px; /* iOS Tap target minimum limit */
 }
 
 /* Button Status Variants */
 .sully-btn.btn-approve {
-  background-color: var(--color-working, #3b82f6);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.2);
+	background-color: var(--color-working, #3b82f6);
+	color: #fff;
+	box-shadow: 0 4px 14px rgba(59, 130, 246, 0.2);
 }
 
 .sully-btn.btn-approve:hover {
-  background-color: #4f8ff7;
+	background-color: #4f8ff7;
 }
 
 .sully-btn.btn-secondary {
-  background-color: #181d28;
-  color: var(--sully-text-muted, #718096);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+	background-color: #181d28;
+	color: var(--sully-text-muted, #718096);
+	border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .sully-btn.btn-secondary:hover {
-  background-color: #212837;
-  color: #fff;
+	background-color: #212837;
+	color: #fff;
 }
 
 /* Double-Tap Danger Warnings */
 .sully-btn.btn-danger-confirm {
-  background-color: var(--color-blocked, #f43f5e);
-  color: #fff;
-  animation: safeConfirmPulse 1.2s infinite;
-  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25);
+	background-color: var(--color-blocked, #f43f5e);
+	color: #fff;
+	animation: safeConfirmPulse 1.2s infinite;
+	box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25);
 }
 
 .sully-btn.btn-stop-confirm {
-  background-color: var(--color-waiting, #d97706);
-  color: #fff;
-  animation: safeConfirmPulse 1.2s infinite;
+	background-color: var(--color-waiting, #d97706);
+	color: #fff;
+	animation: safeConfirmPulse 1.2s infinite;
 }
 
 .sully-btn.btn-complete-view {
-  background-color: var(--color-complete, #10b981);
-  color: #fff;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+	background-color: var(--color-complete, #10b981);
+	color: #fff;
+	box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
 }
 
 .sully-btn.btn-complete-view:hover {
-  background-color: #12cf91;
+	background-color: #12cf91;
 }
 
 @keyframes safeConfirmPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.015); }
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.015);
+	}
 }
 
 /* Reduced Motion Overrides */
 @media (prefers-reduced-motion: reduce) {
-  .sully-btn.btn-danger-confirm,
-  .sully-btn.btn-stop-confirm {
-    animation: none !important;
-    transform: none !important;
-  }
+	.sully-btn.btn-danger-confirm,
+	.sully-btn.btn-stop-confirm {
+		animation: none !important;
+		transform: none !important;
+	}
 }

@@ -81,7 +81,9 @@ beforeEach(() => {
 	});
 	state.applyTurnDecision.mockResolvedValue({});
 	state.needsFullReply.mockReturnValue(true);
-	state.runVoiceToolLoop.mockResolvedValue({ content: 'Hello, Captain. How can I help you today?' });
+	state.runVoiceToolLoop.mockResolvedValue({
+		content: 'Hello, Captain. How can I help you today?'
+	});
 	state.runVoiceStreamingSpeak.mockResolvedValue({
 		transcript: 'Hello, Captain. How can I help you today?',
 		aborted: false,
@@ -284,10 +286,7 @@ describe('voice-reply route — streaming path (VOICE_REPLY_STREAMING=true)', ()
 		});
 		state.heardPrefixFromLog.mockReturnValue('Hello, Captain.');
 
-		const res = await postVoiceReply(
-			{ text: 'hello' },
-			{ VOICE_REPLY_STREAMING: 'true' }
-		);
+		const res = await postVoiceReply({ text: 'hello' }, { VOICE_REPLY_STREAMING: 'true' });
 		expect(res.status).toBe(200);
 
 		// Persisted with status='truncated'
@@ -314,14 +313,17 @@ describe('voice-reply route — streaming path (VOICE_REPLY_STREAMING=true)', ()
 			taskId: 'sully-test-task-001',
 			currentTier: 'local',
 			targetRepo: undefined,
-			shadowDecision: { kind: 'DISPATCH', worker: 'cc', category: 'research', brief: 'test research', reason: 'test' },
+			shadowDecision: {
+				kind: 'DISPATCH',
+				worker: 'cc',
+				category: 'research',
+				brief: 'test research',
+				reason: 'test'
+			},
 			userMessageText: 'research this'
 		});
 
-		const res = await postVoiceReply(
-			{ text: 'research this' },
-			{ VOICE_REPLY_STREAMING: 'true' }
-		);
+		const res = await postVoiceReply({ text: 'research this' }, { VOICE_REPLY_STREAMING: 'true' });
 		const body = await collectStream(res);
 		expect(body).toContain('event: dispatch_proposed');
 		expect(body).toContain('"agent":"cc"');

@@ -1,248 +1,270 @@
-﻿<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sully Work Surface Motion Mockup v3.3 (Semantic Payloads)</title>
-  <link rel="stylesheet" href="css/styles.css">
-</head>
-<body class="intensity-normal">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+		/>
+		<title>Sully Work Surface Motion Mockup v3.3 (Semantic Payloads)</title>
+		<link rel="stylesheet" href="css/styles.css" />
+	</head>
+	<body class="intensity-normal">
+		<!-- Reduced Motion Warning -->
+		<div class="reduced-motion-warning" id="rmWarning">
+			âš ï¸ <strong>Reduced Motion Detected:</strong> Your OS is set to prefer reduced motion.
+			Motion is still active in this mockup for review purposes, but would be disabled in
+			production.
+		</div>
 
-  <!-- Reduced Motion Warning -->
-  <div class="reduced-motion-warning" id="rmWarning">
-    âš ï¸ <strong>Reduced Motion Detected:</strong> Your OS is set to prefer reduced motion. Motion is still active in this mockup for review purposes, but would be disabled in production.
-  </div>
+		<div class="mockup-dashboard">
+			<!-- Left Panel: Control Deck -->
+			<div class="control-panel">
+				<div class="panel-header">
+					<h2>Sully OS Control Room</h2>
+					<p>Semantic Payloads Pass v3.3</p>
+				</div>
 
-  <div class="mockup-dashboard">
-    
-    <!-- Left Panel: Control Deck -->
-    <div class="control-panel">
-      <div class="panel-header">
-        <h2>Sully OS Control Room</h2>
-        <p>Semantic Payloads Pass v3.3</p>
-      </div>
+				<!-- Card State Switches -->
+				<div class="control-group">
+					<h3>Layout State</h3>
+					<div class="btn-grid" id="layoutControls">
+						<button class="control-btn" data-state="collapsed">Collapsed</button>
+						<button class="control-btn active" data-state="compact">Compact Card</button>
+						<button class="control-btn" data-state="expanded">Expanded Detail</button>
+					</div>
+				</div>
 
-      <!-- Card State Switches -->
-      <div class="control-group">
-        <h3>Layout State</h3>
-        <div class="btn-grid" id="layoutControls">
-          <button class="control-btn" data-state="collapsed">Collapsed</button>
-          <button class="control-btn active" data-state="compact">Compact Card</button>
-          <button class="control-btn" data-state="expanded">Expanded Detail</button>
-        </div>
-      </div>
+				<!-- Simulation Presets -->
+				<div class="control-group">
+					<h3>Simulation Presets</h3>
+					<div class="preset-list" id="presetControls">
+						<button class="preset-btn active" data-preset="cc-only">
+							<span class="preset-title">CC Only</span>
+							<span class="preset-desc">Coordinator researching database schema</span>
+						</button>
+						<button class="preset-btn" data-preset="cc-verify">
+							<span class="preset-title">CC + Verify</span>
+							<span class="preset-desc">QA Verify checking TLS connection</span>
+						</button>
+						<button class="preset-btn" data-preset="agy-verify">
+							<span class="preset-title">AGY + Verify</span>
+							<span class="preset-desc">Antigravity actively building handler</span>
+						</button>
+						<button class="preset-btn" data-preset="dpsk-verify">
+							<span class="preset-title">âš¡ DeepSeek Verify</span>
+							<span class="preset-desc">DeepSeek verifying schema</span>
+						</button>
+						<button class="preset-btn" data-preset="multi-worker">
+							<span class="preset-title">Multi-Worker Flow</span>
+							<span class="preset-desc">Antigravity building, others waiting</span>
+						</button>
+						<button class="preset-btn" data-preset="blocked">
+							<span class="preset-title">âš ï¸ Blocked (Soft Warning)</span>
+							<span class="preset-desc">Halted - waiting for operator</span>
+						</button>
+						<button class="preset-btn" data-preset="complete">
+							<span class="preset-title">âœ“ Complete</span>
+							<span class="preset-desc">All tasks settled and done</span>
+						</button>
+					</div>
+				</div>
 
-      <!-- Simulation Presets -->
-      <div class="control-group">
-        <h3>Simulation Presets</h3>
-        <div class="preset-list" id="presetControls">
-          <button class="preset-btn active" data-preset="cc-only">
-            <span class="preset-title">CC Only</span>
-            <span class="preset-desc">Coordinator researching database schema</span>
-          </button>
-          <button class="preset-btn" data-preset="cc-verify">
-            <span class="preset-title">CC + Verify</span>
-            <span class="preset-desc">QA Verify checking TLS connection</span>
-          </button>
-          <button class="preset-btn" data-preset="agy-verify">
-            <span class="preset-title">AGY + Verify</span>
-            <span class="preset-desc">Antigravity actively building handler</span>
-          </button>
-          <button class="preset-btn" data-preset="dpsk-verify">
-            <span class="preset-title">âš¡ DeepSeek Verify</span>
-            <span class="preset-desc">DeepSeek verifying schema</span>
-          </button>
-          <button class="preset-btn" data-preset="multi-worker">
-            <span class="preset-title">Multi-Worker Flow</span>
-            <span class="preset-desc">Antigravity building, others waiting</span>
-          </button>
-          <button class="preset-btn" data-preset="blocked">
-            <span class="preset-title">âš ï¸ Blocked (Soft Warning)</span>
-            <span class="preset-desc">Halted - waiting for operator</span>
-          </button>
-          <button class="preset-btn" data-preset="complete">
-            <span class="preset-title">âœ“ Complete</span>
-            <span class="preset-desc">All tasks settled and done</span>
-          </button>
-        </div>
-      </div>
+				<!-- Diagnostics Panel -->
+				<div class="control-group telemetry-box">
+					<h3>Motion Intensity</h3>
+					<div class="intensity-controls">
+						<label class="radio-label">
+							<input type="radio" name="intensity" value="subtle" />
+							<span class="radio-btn">Subtle</span>
+						</label>
+						<label class="radio-label">
+							<input type="radio" name="intensity" value="normal" checked />
+							<span class="radio-btn">Normal</span>
+						</label>
+						<label class="radio-label">
+							<input type="radio" name="intensity" value="debug" />
+							<span class="radio-btn">Debug Outline</span>
+						</label>
+					</div>
 
-      <!-- Diagnostics Panel -->
-      <div class="control-group telemetry-box">
-        <h3>Motion Intensity</h3>
-        <div class="intensity-controls">
-          <label class="radio-label">
-            <input type="radio" name="intensity" value="subtle">
-            <span class="radio-btn">Subtle</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="intensity" value="normal" checked>
-            <span class="radio-btn">Normal</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="intensity" value="debug">
-            <span class="radio-btn">Debug Outline</span>
-          </label>
-        </div>
-        
-        <h3 style="margin-top: 12px;">System Diagnostics</h3>
-        <div class="telemetry-log" id="telemetryLog">
-          <span>[SYSTEM] Loaded v3.3 semantic payloads telemetry. Ready.</span>
-        </div>
-      </div>
-    </div>
+					<h3 style="margin-top: 12px">System Diagnostics</h3>
+					<div class="telemetry-log" id="telemetryLog">
+						<span>[SYSTEM] Loaded v3.3 semantic payloads telemetry. Ready.</span>
+					</div>
+				</div>
+			</div>
 
-    <!-- Right Panel: Viewport Device Shell -->
-    <div class="viewport-section">
-      <div class="device-frame">
-        <div class="device-notch"></div>
-        <div class="device-screen">
-          
-          <!-- Mock Phone Header -->
-          <div class="screen-header">
-            <span class="clock">9:41 AM</span>
-            <div class="header-icons">
-              <span class="signal">ô€›¨</span>
-              <span class="wifi">ô€‹¦</span>
-              <span class="battery">100%</span>
-            </div>
-          </div>
+			<!-- Right Panel: Viewport Device Shell -->
+			<div class="viewport-section">
+				<div class="device-frame">
+					<div class="device-notch"></div>
+					<div class="device-screen">
+						<!-- Mock Phone Header -->
+						<div class="screen-header">
+							<span class="clock">9:41 AM</span>
+							<div class="header-icons">
+								<span class="signal">ô€›¨</span>
+								<span class="wifi">ô€‹¦</span>
+								<span class="battery">100%</span>
+							</div>
+						</div>
 
-          <!-- Chat Feed Simulation -->
-          <div class="chat-feed" id="chatFeed">
-            
-            <div class="chat-timestamp">Today at 9:41 AM</div>
-            
-            <div class="user-bubble" id="userBubble">
-              Can you compile the gateway test suite?
-            </div>
+						<!-- Chat Feed Simulation -->
+						<div class="chat-feed" id="chatFeed">
+							<div class="chat-timestamp">Today at 9:41 AM</div>
 
-            <!-- SULLY WORK SURFACE COMPONENT -->
-            <div class="sully-card-container">
-              <div class="sully-card state-compact status-working" id="sullyCard">
-                
-                <!-- 1. COLLAPSED VIEW -->
-                <div class="sully-collapsed-view" id="collapsedView">
-                  <div class="collapsed-content">
-                    <span class="pulse-indicator status-working" id="collapsedPulse"></span>
-                    <span class="collapsed-title" id="collapsedTitle">Sully: Active</span>
-                    <span class="collapsed-meta" id="collapsedMeta">CC</span>
-                  </div>
-                </div>
+							<div class="user-bubble" id="userBubble">Can you compile the gateway test suite?</div>
 
-                <!-- 2. COMPACT CARD VIEW -->
-                <div class="sully-compact-card" id="compactView">
-                  <div class="card-header">
-                    <div class="header-left">
-                      <span class="system-badge-icon" id="systemHeaderIcon">
-                        <!-- inlined task.svg -->
-                      </span>
-                      <div class="header-text">
-                        <span class="card-label">Sully Work Surface</span>
-                        <h1 class="task-title" id="compactTaskTitle">Active Pipeline</h1>
-                      </div>
-                    </div>
-                    <span class="status-pill status-working" id="compactStatusBadge">Working</span>
-                  </div>
+							<!-- SULLY WORK SURFACE COMPONENT -->
+							<div class="sully-card-container">
+								<div class="sully-card state-compact status-working" id="sullyCard">
+									<!-- 1. COLLAPSED VIEW -->
+									<div class="sully-collapsed-view" id="collapsedView">
+										<div class="collapsed-content">
+											<span class="pulse-indicator status-working" id="collapsedPulse"></span>
+											<span class="collapsed-title" id="collapsedTitle">Sully: Active</span>
+											<span class="collapsed-meta" id="collapsedMeta">CC</span>
+										</div>
+									</div>
 
-                  <!-- Central SVG Graph (Dynamic Worker-Task Layout) -->
-                  <div class="graph-viewport">
-                    <svg class="graph-svg" id="graphSvg" viewBox="0 0 340 130" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <!-- Nodes injected here -->
-                    </svg>
-                  </div>
+									<!-- 2. COMPACT CARD VIEW -->
+									<div class="sully-compact-card" id="compactView">
+										<div class="card-header">
+											<div class="header-left">
+												<span class="system-badge-icon" id="systemHeaderIcon">
+													<!-- inlined task.svg -->
+												</span>
+												<div class="header-text">
+													<span class="card-label">Sully Work Surface</span>
+													<h1 class="task-title" id="compactTaskTitle">Active Pipeline</h1>
+												</div>
+											</div>
+											<span class="status-pill status-working" id="compactStatusBadge"
+												>Working</span
+											>
+										</div>
 
-                  <!-- Active Ownership Banner -->
-                  <div class="active-ownership-banner" id="compactOwnershipLabel">
-                    <span class="ownership-pulse"></span>
-                    <span class="ownership-text">Now: CC researching files</span>
-                  </div>
+										<!-- Central SVG Graph (Dynamic Worker-Task Layout) -->
+										<div class="graph-viewport">
+											<svg
+												class="graph-svg"
+												id="graphSvg"
+												viewBox="0 0 340 130"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<!-- Nodes injected here -->
+											</svg>
+										</div>
 
-                  <!-- Mini Operator Banner -->
-                  <div class="operator-banner" id="compactBanner">
-                    <span class="banner-icon">âš¡</span>
-                    <span class="banner-text">Coordinator dispatching sub-agents.</span>
-                  </div>
+										<!-- Active Ownership Banner -->
+										<div class="active-ownership-banner" id="compactOwnershipLabel">
+											<span class="ownership-pulse"></span>
+											<span class="ownership-text">Now: CC researching files</span>
+										</div>
 
-                  <!-- Inline Actions -->
-                  <div class="actions-container" id="compactActions" style="display: none;">
-                    <!-- Approve / Stop buttons -->
-                  </div>
-                </div>
+										<!-- Mini Operator Banner -->
+										<div class="operator-banner" id="compactBanner">
+											<span class="banner-icon">âš¡</span>
+											<span class="banner-text">Coordinator dispatching sub-agents.</span>
+										</div>
 
-                <!-- 3. EXPANDED DETAIL VIEW -->
-                <div class="sully-expanded-wrapper" id="expandedView">
-                  <div class="sully-expanded-card">
-                    
-                    <div class="expanded-header">
-                      <div class="header-left">
-                        <span class="system-badge-icon" id="expandedHeaderIcon">
-                          <!-- inlined icon -->
-                        </span>
-                        <div class="header-text">
-                          <span class="card-label">Detailed Telemetry</span>
-                          <h2 class="task-title" id="expandedTaskTitle">Active Pipeline</h2>
-                        </div>
-                      </div>
-                      <button class="close-expanded-btn" id="closeExpandedBtn" title="Collapse View" aria-label="Collapse View">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                      </button>
-                    </div>
+										<!-- Inline Actions -->
+										<div class="actions-container" id="compactActions" style="display: none">
+											<!-- Approve / Stop buttons -->
+										</div>
+									</div>
 
-                    <div class="expanded-details-layout">
-                      <div class="graph-viewport expanded-viewport">
-                        <svg class="graph-svg" id="expandedGraphSvg" viewBox="0 0 340 130" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <!-- Duplicate mirrored graph -->
-                        </svg>
-                      </div>
+									<!-- 3. EXPANDED DETAIL VIEW -->
+									<div class="sully-expanded-wrapper" id="expandedView">
+										<div class="sully-expanded-card">
+											<div class="expanded-header">
+												<div class="header-left">
+													<span class="system-badge-icon" id="expandedHeaderIcon">
+														<!-- inlined icon -->
+													</span>
+													<div class="header-text">
+														<span class="card-label">Detailed Telemetry</span>
+														<h2 class="task-title" id="expandedTaskTitle">Active Pipeline</h2>
+													</div>
+												</div>
+												<button
+													class="close-expanded-btn"
+													id="closeExpandedBtn"
+													title="Collapse View"
+													aria-label="Collapse View"
+												>
+													<svg
+														viewBox="0 0 24 24"
+														width="20"
+														height="20"
+														stroke="currentColor"
+														stroke-width="2.5"
+														fill="none"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+													>
+														<line x1="18" y1="6" x2="6" y2="18"></line>
+														<line x1="6" y1="6" x2="18" y2="18"></line>
+													</svg>
+												</button>
+											</div>
 
-                      <div class="active-ownership-banner" id="expandedOwnershipLabel">
-                        <span class="ownership-pulse"></span>
-                        <span class="ownership-text">Now: CC researching files</span>
-                      </div>
+											<div class="expanded-details-layout">
+												<div class="graph-viewport expanded-viewport">
+													<svg
+														class="graph-svg"
+														id="expandedGraphSvg"
+														viewBox="0 0 340 130"
+														fill="none"
+														xmlns="http://www.w3.org/2000/svg"
+													>
+														<!-- Duplicate mirrored graph -->
+													</svg>
+												</div>
 
-                      <div class="details-section">
-                        <h4>Routing Phases</h4>
-                        <div class="phases-checklist" id="phasesChecklist">
-                          <!-- Dynamic checklist -->
-                        </div>
-                      </div>
+												<div class="active-ownership-banner" id="expandedOwnershipLabel">
+													<span class="ownership-pulse"></span>
+													<span class="ownership-text">Now: CC researching files</span>
+												</div>
 
-                      <div class="details-section">
-                        <h4>Worker Registry</h4>
-                        <div class="workers-grid" id="workersGrid">
-                          <!-- Dynamic workers -->
-                        </div>
-                      </div>
+												<div class="details-section">
+													<h4>Routing Phases</h4>
+													<div class="phases-checklist" id="phasesChecklist">
+														<!-- Dynamic checklist -->
+													</div>
+												</div>
 
-                      <div class="proof-card" id="proofContainer">
-                        <!-- Dynamic proof score -->
-                      </div>
-                    </div>
+												<div class="details-section">
+													<h4>Worker Registry</h4>
+													<div class="workers-grid" id="workersGrid">
+														<!-- Dynamic workers -->
+													</div>
+												</div>
 
-                    <div class="actions-container" id="expandedActions">
-                      <!-- Dynamic footer buttons -->
-                    </div>
+												<div class="proof-card" id="proofContainer">
+													<!-- Dynamic proof score -->
+												</div>
+											</div>
 
-                  </div>
-                </div>
+											<div class="actions-container" id="expandedActions">
+												<!-- Dynamic footer buttons -->
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
 
-              </div>
-            </div>
+							<div class="system-bubble" id="systemBubble">
+								Sully is launching the coordinator node.
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-            <div class="system-bubble" id="systemBubble">
-              Sully is launching the coordinator node.
-            </div>
-
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <script src="js/main.js"></script>
-</body>
+		<script src="js/main.js"></script>
+	</body>
 </html>
-

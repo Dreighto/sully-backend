@@ -23,10 +23,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	// Cap check before doing any work
 	const usedToday = getTodaySttUsage();
 	if (usedToday >= dailyCapMinutes) {
-		return json(
-			{ error: 'cap_exhausted', usage_today_minutes: usedToday },
-			{ status: 429 }
-		);
+		return json({ error: 'cap_exhausted', usage_today_minutes: usedToday }, { status: 429 });
 	}
 
 	const form = await request.formData();
