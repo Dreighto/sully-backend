@@ -82,9 +82,13 @@ describe('worker registry — kernel parity', () => {
 // the registry and must not re-declare the old two-name worker union.
 const CONSUMERS = [
 	'src/lib/server/companionDispatch.ts',
-	'src/lib/server/dispatchJobs.ts',
+	// Wave 3 split: dispatchJobs.ts is now a re-export barrel; the WorkerName
+	// import lives in dispatch_jobs/job_proposals.ts (ProposalPayload.worker).
+	'src/lib/server/dispatch_jobs/job_proposals.ts',
 	'src/lib/server/decisionGate.ts',
-	'src/lib/server/chat/autonomous_dispatch.ts',
+	// Wave 3 split: autonomous_dispatch.ts is now a slim entrypoint; the
+	// worker-registry imports live in turn_decision_apply.ts + dispatch_role_routing.ts.
+	'src/lib/server/chat/turn_decision_apply.ts',
 	'src/lib/server/routing/decide.ts',
 	'src/lib/server/routing/turn_decision.ts',
 	'src/routes/api/chat/dispatch/confirm/+server.ts',
