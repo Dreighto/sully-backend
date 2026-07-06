@@ -31,7 +31,7 @@ describe('voice catalog', () => {
 		expect(list.length).toBeGreaterThanOrEqual(2);
 		const json = JSON.stringify(list);
 		expect(json).not.toMatch(/\//); // no filesystem paths
-		expect(json).not.toMatch(/56bWUR/); // no ElevenLabs voice id
+		expect(json).not.toMatch(/56bWUR/); // no legacy provider voice id
 		for (const v of list) {
 			expect(v).toHaveProperty('label');
 			expect(v).toHaveProperty('blurb');
@@ -39,23 +39,25 @@ describe('voice catalog', () => {
 		}
 	});
 
-	it('cloudAvailable requires a key and honors the VOICE_TTS_PROVIDER=local override', async () => {
+	it('cloudAvailable requires Azure creds and honors the VOICE_TTS_PROVIDER=local override', async () => {
 		const m = await load();
 		expect(m.cloudAvailable()).toBe(false); // no key
-		ENV.ELEVENLABS_API_KEY = 'xi-test';
+		ENV.AZURE_SPEECH_KEY = 'azure-test';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		expect(m.cloudAvailable()).toBe(true);
 		ENV.VOICE_TTS_PROVIDER = 'local'; // master force-local override
 		expect(m.cloudAvailable()).toBe(false);
-		ENV.VOICE_TTS_PROVIDER = 'elevenlabs';
+		ENV.VOICE_TTS_PROVIDER = 'azure';
 		expect(m.cloudAvailable()).toBe(true);
 	});
 
-	it('routingFor: cloud voice → speak (+ local fallback) with a key; local voice always → speak-local', async () => {
-		ENV.ELEVENLABS_API_KEY = 'xi-test';
+	it('routingFor: cloud voice → speak (+ local fallback) with Azure configured; local voice always → speak-local', async () => {
+		ENV.AZURE_SPEECH_KEY = 'azure-test';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
 		const m = await load();
 		expect(m.routingFor(m.getVoice('emma'))).toEqual({
 			ttsPath: '/api/chat/speak',
-			ttsModel: 'eleven_flash_v2_5',
+			ttsModel: 'en-US-AriaNeural',
 			ttsFallbackPath: '/api/chat/speak-local'
 		});
 		expect(m.routingFor(m.getVoice('goodman-sully'))).toEqual({
@@ -64,7 +66,7 @@ describe('voice catalog', () => {
 			ttsFallbackPath: undefined
 		});
 		// A cloud voice degrades to local synthesis when cloud is unavailable.
-		delete ENV.ELEVENLABS_API_KEY;
+		delete ENV.AZURE_SPEECH_KEY;
 		expect(m.routingFor(m.getVoice('emma')).ttsPath).toBe('/api/chat/speak-local');
 	});
 
