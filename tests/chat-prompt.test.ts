@@ -64,8 +64,12 @@ describe('buildSystemPrompt — companion mode', () => {
 		STUB_ENV.LOGUEOS_APP_MODE = 'companion';
 		const { buildVoiceSystemPrompt } = await import('../src/lib/server/chat_prompt');
 		const out = await buildVoiceSystemPrompt('t1');
-		expect(out).toMatch(/do NOT do work yourself/);
-		expect(out).toMatch(/never invent progress or findings/);
+		// Anti-confabulation guardrail: reworded 2026-07-06 when web tools were
+		// wired into voice. Substance unchanged — she still can't lie about doing
+		// heavy work she didn't do, and she still can't say "on it" without a
+		// real dispatch. Only the surface wording moved.
+		expect(out).toMatch(/do NOT do heavy work yourself/);
+		expect(out).toMatch(/NEVER say you're "on it"/);
 		expect(out).toMatch(/You are Sully/);
 	});
 
