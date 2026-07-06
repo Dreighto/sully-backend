@@ -78,7 +78,7 @@ describe('voice catalog', () => {
 	it('kokoroVoiceFor: Kokoro voice uses its own id; cloud voice uses its Kokoro fallback id', async () => {
 		const m = await load();
 		expect(m.kokoroVoiceFor(m.getVoice('goodman-sully'))).toBe('am_fenrir');
-		expect(m.kokoroVoiceFor(m.getVoice('emma'))).toBe('bf_isabella');
+		expect(m.kokoroVoiceFor(m.getVoice('emma'))).toBe('bf_emma');
 		expect(m.kokoroVoiceFor(m.getVoice('lewis'))).toBe('bm_lewis');
 	});
 });
