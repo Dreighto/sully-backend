@@ -14,11 +14,22 @@
 // Cost model: research is EXACT (cents_spent / 100, real dollars billed);
 // chatLlm is an ESTIMATE (blended per-provider token rates); voice uses the
 // configured TTS/STT rates (STT default $0, Jetson-local). See pricing.ts.
+//
+// Wave 2 split (2026-07-06): budget -> spend_budget.ts, caps -> spend_caps.ts,
+// alerts -> spend_alerts.ts, date/rounding helpers -> spend_util.ts. This file
+// is kept as the core aggregator (getSpend) + a re-export barrel for the 3
+// external route callers.
 
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { serverConfig } from './config';
 import { tokenCostUsd, ttsCostUsd, sttCostUsd } from './pricing';
+import { todayDate, shiftDate, round2, normalizeDays, safeAll } from './spend_util';
+import { readCaps, type SpendCap } from './spend_caps';
+
+export { getBudget, setBudget } from './spend_budget';
+export { getAlerts, type SpendAlert } from './spend_alerts';
+export { type SpendCap } from './spend_caps';
 
 export interface SpendProviderRow {
 	provider: string;
@@ -31,18 +42,6 @@ export interface SpendModelRow {
 	provider: string;
 	tokens: number;
 	costUsd: number;
-}
-
-export interface SpendCap {
-	provider: string;
-	/** Daily token limit. 0 = unlimited. */
-	dailyTokenCap: number;
-	/** Tokens used today. */
-	todayTokens: number;
-	/** Monthly spend limit in USD. 0 = unlimited. */
-	monthlySpendCap: number;
-	/** Spend month-to-date. */
-	monthToDate: number;
 }
 
 export interface SpendReport {
@@ -62,206 +61,6 @@ const NOTE =
 	'LOGUEOS_PRICE_<PROVIDER>_PER_M). research is EXACT (real cents billed by ' +
 	'Perplexity). voice uses configured TTS/STT rates (STT default $0, Jetson-local).';
 
-// Mirror the usage writers' key convention: they store `date` as
-// `new Date().toISOString().slice(0,10)` (UTC-derived). We use the SAME
-// convention here so our aggregation keys line up exactly with stored rows and
-// never drift by a day at a timezone boundary.
-function todayDate(): string {
-	return new Date().toISOString().slice(0, 10);
-}
-
-// Add `deltaDays` (may be negative) to a YYYY-MM-DD string, staying in UTC.
-function shiftDate(iso: string, deltaDays: number): string {
-	const d = new Date(iso + 'T00:00:00Z');
-	d.setUTCDate(d.getUTCDate() + deltaDays);
-	return d.toISOString().slice(0, 10);
-}
-
-function round2(x: number): number {
-	return Math.round((x + Number.EPSILON) * 100) / 100;
-}
-
-// Query helper that tolerates a not-yet-created table (usage tables self-create
-// on first write, so a fresh install may not have them yet).
-function safeAll<T>(db: Database.Database, sql: string, param: string): T[] {
-	try {
-		return db.prepare(sql).all(param) as T[];
-	} catch {
-		return [];
-	}
-}
-
-function readCaps(providers: SpendProviderRow[]): SpendCap[] {
-	const envNum = (key: string, fallback: number): number => {
-		const raw = typeof process !== 'undefined' ? process.env[key] : undefined;
-		if (raw === undefined || raw === '') return fallback;
-		const n = Number(raw);
-		return Number.isFinite(n) && n >= 0 ? n : fallback;
-	};
-	// Per-provider daily token caps (from llm_router.ts env vars).
-	const dailyCaps: Record<string, { tokenCap: number; monthlyCap: number }> = {
-		anthropic: {
-			tokenCap: envNum('ANTHROPIC_DAILY_TOKEN_CAP', 1_000_000),
-			monthlyCap: envNum('ANTHROPIC_MONTHLY_SPEND_CAP', 0)
-		},
-		google: { tokenCap: envNum('GEMINI_DAILY_TOKEN_CAP', 2_000_000), monthlyCap: 0 },
-		openai: { tokenCap: envNum('OPENAI_DAILY_TOKEN_CAP', 200_000), monthlyCap: 0 },
-		local: { tokenCap: 0, monthlyCap: 0 }
-	};
-	// Today's tokens per provider from the provider rows (scoped to trend window).
-	const todayTokens: Record<string, number> = {};
-	const todayProviderCost: Record<string, number> = {};
-	const todayStr = todayDate();
-	for (const p of providers) {
-		// providers is scoped to the trend window. If today is in the window,
-		// p.tokens is today's tokens. Approximate: if today is not in the window,
-		// the cap check is still meaningful from DB (readCaps can also read from
-		// thread_state directly).
-		todayTokens[p.provider] = p.tokens;
-		todayProviderCost[p.provider] = p.costUsd;
-	}
-	return Object.entries(dailyCaps)
-		.filter(([provider]) => dailyCaps[provider].tokenCap > 0 || dailyCaps[provider].monthlyCap > 0)
-		.map(([provider, caps]) => ({
-			provider,
-			dailyTokenCap: caps.tokenCap,
-			todayTokens: todayTokens[provider] ?? getTokensForProvider(provider),
-			monthlySpendCap: caps.monthlyCap,
-			monthToDate: todayProviderCost[provider] ?? 0
-		}));
-}
-
-function getTokensForProvider(provider: string): number {
-	// Try to read today's token usage directly from the DB.
-	try {
-		const db = new Database(serverConfig.memoryDbPath, { readonly: true });
-		try {
-			const row = db
-				.prepare('SELECT tokens_used FROM chat_token_usage WHERE date = ? AND provider = ?')
-				.get(todayDate(), provider) as { tokens_used: number } | undefined;
-			return row?.tokens_used ?? 0;
-		} finally {
-			db.close();
-		}
-	} catch {
-		return 0;
-	}
-}
-
-// ── Alerts ───────────────────────────────────────────────────────────────────
-
-export interface SpendAlert {
-	severity: 'info' | 'warning' | 'critical';
-	provider: string;
-	message: string;
-	pct: number;
-}
-
-export function getAlerts(): SpendAlert[] {
-	const report = getSpend(30);
-	const alerts: SpendAlert[] = [];
-
-	for (const cap of report.caps) {
-		if (cap.dailyTokenCap > 0) {
-			const pct = cap.todayTokens / cap.dailyTokenCap;
-			if (pct >= 1) {
-				alerts.push({
-					severity: 'critical',
-					provider: cap.provider,
-					message: `${cap.provider} daily token cap reached (${formatTokens(cap.todayTokens)} / ${formatTokens(cap.dailyTokenCap)})`,
-					pct: 1
-				});
-			} else if (pct >= 0.85) {
-				alerts.push({
-					severity: 'warning',
-					provider: cap.provider,
-					message: `${cap.provider} at ${Math.round(pct * 100)}% of daily token cap (${formatTokens(cap.todayTokens)} / ${formatTokens(cap.dailyTokenCap)})`,
-					pct
-				});
-			} else if (pct >= 0.7) {
-				alerts.push({
-					severity: 'info',
-					provider: cap.provider,
-					message: `${cap.provider} at ${Math.round(pct * 100)}% of daily token cap`,
-					pct
-				});
-			}
-		}
-		if (cap.monthlySpendCap > 0) {
-			const pct = cap.monthToDate / cap.monthlySpendCap;
-			if (pct >= 1) {
-				alerts.push({
-					severity: 'critical',
-					provider: cap.provider,
-					message: `${cap.provider} monthly spend cap reached ($${cap.monthToDate.toFixed(2)} / $${cap.monthlySpendCap.toFixed(2)})`,
-					pct: 1
-				});
-			} else if (pct >= 0.85) {
-				alerts.push({
-					severity: 'warning',
-					provider: cap.provider,
-					message: `${cap.provider} at ${Math.round(pct * 100)}% of monthly spend cap`,
-					pct
-				});
-			}
-		}
-	}
-
-	return alerts;
-}
-
-function formatTokens(t: number): string {
-	if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M`;
-	if (t >= 1_000) return `${(t / 1_000).toFixed(0)}K`;
-	return `${t}`;
-}
-
-// ── Server-side budget ───────────────────────────────────────────────────────
-
-const BUDGET_TABLE = `
-	CREATE TABLE IF NOT EXISTS chat_spend_budget (
-		id INTEGER PRIMARY KEY CHECK (id = 1),
-		amount REAL NOT NULL DEFAULT 0,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-`;
-
-export function getBudget(): number {
-	try {
-		const db = new Database(serverConfig.memoryDbPath, { readonly: true });
-		try {
-			const row = db.prepare('SELECT amount FROM chat_spend_budget WHERE id = 1').get() as
-				| { amount: number }
-				| undefined;
-			return row?.amount ?? 0;
-		} catch {
-			// Table may not exist yet — return 0.
-			return 0;
-		} finally {
-			db.close();
-		}
-	} catch {
-		return 0;
-	}
-}
-
-export function setBudget(amount: number): void {
-	try {
-		const db = new Database(serverConfig.memoryDbPath);
-		try {
-			db.exec(BUDGET_TABLE);
-			db.prepare(
-				`INSERT INTO chat_spend_budget (id, amount) VALUES (1, ?)
-				 ON CONFLICT(id) DO UPDATE SET amount = excluded.amount, updated_at = CURRENT_TIMESTAMP`
-			).run(amount);
-		} finally {
-			db.close();
-		}
-	} catch (e) {
-		console.error('setBudget error:', e);
-	}
-}
-
 function emptyReport(days: number): SpendReport {
 	const n = normalizeDays(days);
 	const today = todayDate();
@@ -279,10 +78,6 @@ function emptyReport(days: number): SpendReport {
 		caps: [],
 		note: NOTE
 	};
-}
-
-function normalizeDays(days: number): number {
-	return Number.isFinite(days) && days > 0 ? Math.floor(days) : 30;
 }
 
 /**
