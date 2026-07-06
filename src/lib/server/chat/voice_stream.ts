@@ -21,9 +21,9 @@
 // turn start; the proof that first-audio precedes generation-complete lives in
 // the `done` event + per-event `ms`.
 
-import { VOICE_OLLAMA_URL, resolveTtsUrl } from '../voice_runtime';
+import { VOICE_OLLAMA_URL } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
-import { DEFAULT_KOKORO_VOICE } from '../voices';
+import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '../azure_tts';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
 import { composeTimeout, readWithIdle } from './voice_seam_timeout';
@@ -33,7 +33,6 @@ import { extractSentences } from './voice_sentence_boundaries';
 export { extractSentences } from './voice_sentence_boundaries';
 
 const OLLAMA = VOICE_OLLAMA_URL;
-const TTS_URL = resolveTtsUrl();
 
 // WI-8 (voice seam timeouts): bound each Jetson seam so a wedged bridge can't
 // hang the mic forever. A fired timeout surfaces as a TimeoutError, which the
@@ -97,18 +96,21 @@ export async function runVoiceStreamingSpeak(
 	// caller can pass it straight to `heardPrefixFromLog` on abort.
 	const sentenceLog: SentenceLogEntry[] = [];
 
-	// Synthesize one sentence on Kokoro (Jetson). Returns the WAV bytes.
+	// Synthesize one sentence via Azure Speech. Returns the WAV bytes.
+	// Wave 5 rewire (2026-07-06, operator directive): was Kokoro on the Jetson
+	// bridge; Azure gives cleaner iteration on the surfaces while the app is
+	// still being stabilized. Requests WAV (riff-24khz-16bit-mono-pcm) so the
+	// client's audio decoding contract (base64 WAV per sentence) is unchanged.
+	// No trailing-silence padding here — that's a Talkback-only concern for a
+	// single fully-buffered clip; padding every per-sentence chunk here would
+	// stack into exactly the choppy, over-paused cadence this rewire is fixing.
 	async function synth(text: string): Promise<Buffer> {
-		const r = await fetch(`${TTS_URL}/tts`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				text: speakableText(text),
-				voice: opts.voice ?? DEFAULT_KOKORO_VOICE
-			}),
+		const r = await synthesizeAzureTts({
+			text: speakableText(text),
+			voice: opts.voice ?? DEFAULT_AZURE_VOICE,
+			format: 'wav',
 			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS)
 		});
-		if (!r.ok) throw new Error(`kokoro /tts HTTP ${r.status}`);
 		return Buffer.from(await r.arrayBuffer());
 	}
 
