@@ -88,7 +88,9 @@ const CONSUMERS = [
 	'src/lib/server/routing/decide.ts',
 	'src/lib/server/routing/turn_decision.ts',
 	'src/routes/api/chat/dispatch/confirm/+server.ts',
-	'src/lib/server/artifactStore.ts'
+	// Wave 2 split: workerLabel's real consumer moved from artifactStore.ts
+	// (now a re-export barrel) to artifactPromote.ts.
+	'src/lib/server/artifactPromote.ts'
 ];
 // Built by concatenation so this test file itself never contains the literal.
 const UNION_LITERAL = "'claude-code'" + ' | ' + "'gemini'";
