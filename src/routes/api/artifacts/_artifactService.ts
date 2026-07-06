@@ -5,327 +5,36 @@
 // should write to data/sully_artifacts/<thread_id>/<msg_id>/ and emit chat_activity
 // rows pointing at those paths. Wire a sully-* trace prefix + thread-scoped bundle
 // once Phase 5c lands — see project_artifact_output_system_required.md.
+//
+// Wave 3 split (2026-07-06): DB probe moved to ./_artifactDb.ts, listing/index
+// concerns to ./_artifactListing.ts, file-serving (thumbnails, MIME, path
+// safety, header building) to $lib/server/artifactFileServing.ts, and the
+// generic ZIP writer to $lib/server/zipBuilder.ts. This file keeps only the
+// bundle-building glue plus a re-export barrel so the 4 sibling route files
+// need no import-path changes.
 
-import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
-import { serverConfig } from '$lib/server/config';
-import { findStoreDir, readManifest, artifactRepoRoot, storeRoot } from '$lib/server/artifactStore';
-import type { ArtifactMetadata } from '$lib/server/artifactStore';
+import { assertInsideWorkspace } from '$lib/server/artifactFileServing';
+import { buildZip } from '$lib/server/zipBuilder';
+import { getTraceWorkspacePath, listArtifactsForTrace } from './_artifactListing';
 
-export interface ArtifactListResponse {
-	trace_id: string;
-	task_id: string;
-	artifacts: ArtifactMetadata[];
-	count: number;
-	bundle_url: string;
-}
-
-type JobRow = Record<string, unknown> & {
-	trace_id: string;
-	worker: string;
-	ticket_id?: string | null;
-	started_at?: string | null;
-};
-
-const MIME: Record<string, string> = {
-	md: 'text/markdown; charset=utf-8',
-	html: 'text/html; charset=utf-8',
-	png: 'image/png',
-	jpg: 'image/jpeg',
-	jpeg: 'image/jpeg',
-	svg: 'image/svg+xml',
-	webp: 'image/webp',
-	json: 'application/json',
-	txt: 'text/plain; charset=utf-8',
-	log: 'text/plain; charset=utf-8',
-	diff: 'text/plain; charset=utf-8',
-	patch: 'text/plain; charset=utf-8'
-};
-
-const THUMBABLE_EXT = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
-
-/** Lazily generate (and cache) a 240px webp thumbnail next to an image/svg
- *  artifact, returning its path. Generated on the first ?thumb=1 request; later
- *  requests serve the cached sibling. Returns null for non-thumbable types or on
- *  failure (the caller then falls back to serving the full file). sharp is
- *  dynamically imported so vite keeps it external (native libvips module). */
-export async function ensureThumb(absolutePath: string, ext: string): Promise<string | null> {
-	if (!THUMBABLE_EXT.has(ext.toLowerCase())) return null;
-	const thumbPath = `${absolutePath}.thumb.webp`;
-	if (fs.existsSync(thumbPath)) return thumbPath;
-	try {
-		const sharp = (await import('sharp')).default;
-		await sharp(absolutePath)
-			.resize(240, 240, { fit: 'inside', withoutEnlargement: true })
-			.webp({ quality: 72 })
-			.toFile(thumbPath);
-		return fs.existsSync(thumbPath) ? thumbPath : null;
-	} catch {
-		return null;
-	}
-}
-
-const APP_BASE = '/companion';
-
-export function mimeFromExtension(ext: string): string {
-	return MIME[ext.toLowerCase()] ?? 'application/octet-stream';
-}
-
-function openDb(): Database.Database {
-	return new Database(serverConfig.memoryDbPath, { readonly: true });
-}
-
-function getJob(traceId: string): JobRow | null {
-	if (!fs.existsSync(serverConfig.memoryDbPath)) return null;
-	const db = openDb();
-	try {
-		return (
-			(db.prepare('SELECT * FROM pending_jobs WHERE trace_id = ?').get(traceId) as JobRow) ?? null
-		);
-	} finally {
-		db.close();
-	}
-}
-
-export function getTraceWorkspacePath(traceId: string): string | null {
-	const repoRoot = artifactRepoRoot();
-	return findStoreDir(repoRoot, traceId);
-}
-
-export function listArtifactsForTrace(traceId: string): ArtifactListResponse | null {
-	const job = getJob(traceId);
-
-	// A promoted artifact lives in the DURABLE store and must stay reachable even
-	// after the (ephemeral) job row is reaped — that is the entire point of the
-	// durable store ("survives worktree deletion / job cleanup"). So gate on the
-	// store dir, NOT the job row. Only 404 when there is NEITHER a job NOR a
-	// promoted store dir. (Previously `if (!job) return null` made promoted
-	// artifacts 404 the moment reapStaleJobs deleted the job — see the live
-	// repro where a completed task's files vanished from the UI.)
-	const repoRoot = artifactRepoRoot();
-	const storeDir = findStoreDir(repoRoot, traceId);
-	if (!job && !storeDir) return null;
-
-	const taskId = (job?.ticket_id as string | null) ?? traceId;
-	const bundle_url = `${APP_BASE}/api/artifacts/${encodeURIComponent(traceId)}/bundle.zip`;
-
-	// Read from the durable manifest (sole source of truth), not activity rows.
-	if (!storeDir) {
-		return { trace_id: traceId, task_id: taskId, artifacts: [], count: 0, bundle_url };
-	}
-
-	const manifest = readManifest(storeDir);
-	return {
-		trace_id: traceId,
-		task_id: taskId,
-		artifacts: manifest,
-		count: manifest.length,
-		bundle_url
-	};
-}
-
-export interface AllArtifactsResponse {
-	artifacts: ArtifactMetadata[];
-	count: number;
-}
-
-/**
- * Index of ALL promoted artifacts across every trace, newest first. Backs the
- * Artifacts LIBRARY surface (GET /api/artifacts) — the tap-through view of every
- * output a dispatched worker produced, with provenance (source_worker, trace_id,
- * task_id, artifact_type, timestamp) already carried on each ArtifactMetadata.
- * Scans the same durable store as listArtifactsForTrace
- * (data/sully/artifacts/<date>/<trace>/manifest.json), just unfiltered.
- */
-export function listAllArtifacts(limit = 500): AllArtifactsResponse {
-	const root = storeRoot(artifactRepoRoot());
-	const all: ArtifactMetadata[] = [];
-	let dates: string[];
-	try {
-		dates = fs.readdirSync(root);
-	} catch {
-		return { artifacts: [], count: 0 };
-	}
-	for (const date of dates) {
-		const dateDir = path.join(root, date);
-		let traces: string[];
-		try {
-			traces = fs.readdirSync(dateDir);
-		} catch {
-			continue;
-		}
-		for (const trace of traces) {
-			const dir = path.join(dateDir, trace);
-			if (!fs.existsSync(path.join(dir, 'manifest.json'))) continue;
-			for (const a of readManifest(dir)) all.push(a);
-		}
-	}
-	// Newest first by ISO timestamp.
-	all.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-	const sliced = all.slice(0, limit);
-	return { artifacts: sliced, count: sliced.length };
-}
-
-/** Reject traversal segments and confine resolved path under workspace root. */
-export function resolveArtifactFile(workspacePath: string, filepathParts: string[]): string {
-	const joined = filepathParts.join('/');
-	if (!joined || joined.includes('\0')) {
-		throw Object.assign(new Error('invalid path'), { status: 404 });
-	}
-	const normalized = joined.replace(/\\/g, '/');
-	if (normalized.includes('..') || path.isAbsolute(normalized)) {
-		throw Object.assign(new Error('path traversal'), { status: 403 });
-	}
-
-	const root = path.resolve(workspacePath);
-	const resolved = path.resolve(root, normalized);
-	if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-		throw Object.assign(new Error('path escapes workspace'), { status: 403 });
-	}
-	return resolved;
-}
-
-/** Belt-and-suspenders: realpath must stay inside workspace (symlink escape defense). */
-export function assertInsideWorkspace(workspacePath: string, targetPath: string): string {
-	const root = fs.realpathSync(path.resolve(workspacePath));
-	const real = fs.realpathSync(targetPath);
-	if (real !== root && !real.startsWith(root + path.sep)) {
-		throw Object.assign(new Error('symlink escape'), { status: 403 });
-	}
-	return real;
-}
-
-export function metadataHeaders(meta: ArtifactMetadata): Record<string, string> {
-	return {
-		'X-Artifact-Created-By': meta.created_by,
-		'X-Artifact-Task-Id': meta.task_id,
-		'X-Artifact-Trace-Id': meta.trace_id,
-		'X-Artifact-Timestamp': meta.timestamp,
-		'X-Artifact-Source-Worker': meta.source_worker,
-		'X-Artifact-Workspace-Path': meta.workspace_path,
-		'X-Artifact-Type': meta.artifact_type,
-		'X-Artifact-Original-Path': meta.original_path,
-		'X-Artifact-Url': meta.artifact_url
-	};
-}
-
-export function findArtifactMetadata(
-	traceId: string,
-	filepathParts: string[]
-): { meta: ArtifactMetadata; absolutePath: string } | null {
-	const listing = listArtifactsForTrace(traceId);
-	if (!listing) return null;
-
-	const requested = filepathParts.join('/').replace(/\\/g, '/');
-	const meta = listing.artifacts.find((a) => a.original_path === requested);
-	if (!meta) return null;
-
-	// Resolve against the ACTUAL current store dir (findStoreDir), NOT the
-	// manifest's workspace_path — that field is STALE for artifacts migrated from
-	// a retired repo (e.g. LogueOS-Companion), so assertInsideWorkspace would
-	// throw on the nonexistent old path and 404 a file that's present in the new
-	// store. The bytes always live next to the manifest we just read.
-	const storeDir = getTraceWorkspacePath(traceId) ?? meta.workspace_path;
-	try {
-		const absolutePath = path.resolve(storeDir, meta.original_path);
-		assertInsideWorkspace(storeDir, absolutePath);
-		return { meta, absolutePath };
-	} catch {
-		return null;
-	}
-}
-
-// ── Minimal ZIP (store-only, no compression) ────────────────────────────────
-
-const CRC_TABLE = (() => {
-	const table = new Uint32Array(256);
-	for (let i = 0; i < 256; i++) {
-		let c = i;
-		for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-		table[i] = c >>> 0;
-	}
-	return table;
-})();
-
-function crc32(data: Buffer): number {
-	let crc = 0xffffffff;
-	for (let i = 0; i < data.length; i++) {
-		crc = CRC_TABLE[(crc ^ data[i]!) & 0xff]! ^ (crc >>> 8);
-	}
-	return (crc ^ 0xffffffff) >>> 0;
-}
-
-function dosDateTime(d = new Date()): { time: number; date: number } {
-	return {
-		time: ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2)) & 0xffff,
-		date: (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xffff
-	};
-}
-
-export function buildZip(entries: { path: string; data: Buffer }[]): Buffer {
-	const localParts: Buffer[] = [];
-	const centralParts: Buffer[] = [];
-	let offset = 0;
-	const { time, date } = dosDateTime();
-
-	for (const entry of entries) {
-		const nameBuf = Buffer.from(entry.path.replace(/\\/g, '/'), 'utf8');
-		const data = entry.data;
-		const checksum = crc32(data);
-
-		const local = Buffer.alloc(30 + nameBuf.length);
-		local.writeUInt32LE(0x04034b50, 0);
-		local.writeUInt16LE(20, 4);
-		local.writeUInt16LE(0, 6);
-		local.writeUInt16LE(0, 8);
-		local.writeUInt16LE(time, 10);
-		local.writeUInt16LE(date, 12);
-		local.writeUInt32LE(checksum, 14);
-		local.writeUInt32LE(data.length, 18);
-		local.writeUInt32LE(data.length, 22);
-		local.writeUInt16LE(nameBuf.length, 26);
-		local.writeUInt16LE(0, 28);
-		nameBuf.copy(local, 30);
-		localParts.push(local, data);
-
-		const central = Buffer.alloc(46 + nameBuf.length);
-		central.writeUInt32LE(0x02014b50, 0);
-		central.writeUInt16LE(20, 4);
-		central.writeUInt16LE(20, 6);
-		central.writeUInt16LE(0, 8);
-		central.writeUInt16LE(0, 10);
-		central.writeUInt16LE(time, 12);
-		central.writeUInt16LE(date, 14);
-		central.writeUInt32LE(checksum, 16);
-		central.writeUInt32LE(data.length, 20);
-		central.writeUInt32LE(data.length, 24);
-		central.writeUInt16LE(nameBuf.length, 28);
-		central.writeUInt16LE(0, 30);
-		central.writeUInt16LE(0, 32);
-		central.writeUInt16LE(0, 34);
-		central.writeUInt16LE(0, 36);
-		central.writeUInt32LE(0, 38);
-		central.writeUInt32LE(offset, 42);
-		nameBuf.copy(central, 46);
-		centralParts.push(central);
-
-		offset += local.length + data.length;
-	}
-
-	const centralDir = Buffer.concat(centralParts);
-	const end = Buffer.alloc(22);
-	end.writeUInt32LE(0x06054b50, 0);
-	end.writeUInt16LE(0, 4);
-	end.writeUInt16LE(0, 6);
-	end.writeUInt16LE(entries.length, 8);
-	end.writeUInt16LE(entries.length, 10);
-	end.writeUInt32LE(centralDir.length, 12);
-	end.writeUInt32LE(offset, 16);
-	end.writeUInt16LE(0, 20);
-
-	return Buffer.concat([...localParts, centralDir, end]);
-}
+export {
+	type ArtifactListResponse,
+	type AllArtifactsResponse,
+	getTraceWorkspacePath,
+	listArtifactsForTrace,
+	listAllArtifacts,
+	findArtifactMetadata
+} from './_artifactListing';
+export {
+	ensureThumb,
+	mimeFromExtension,
+	resolveArtifactFile,
+	assertInsideWorkspace,
+	metadataHeaders
+} from '$lib/server/artifactFileServing';
+export { buildZip } from '$lib/server/zipBuilder';
 
 export function buildBundleZip(traceId: string): Buffer | null {
 	const listing = listArtifactsForTrace(traceId);
