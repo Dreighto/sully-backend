@@ -181,7 +181,14 @@ export async function runVoiceStreamingSpeak(
 				keep_alive: opts.keepAlive,
 				options: { num_ctx: opts.numCtx }
 			};
-	if (!isCloudModel && OLLAMA_API_KEY) body.tools = VOICE_TOOL_SCHEMAS;
+	// Attach the voice tool schemas so the model can call web_search / web_fetch
+	// mid-conversation instead of falsely telling the operator "I can't do that."
+	// Was previously local-only (the `!isCloudModel` guard) because early Ollama
+	// Cloud models mishandled the tools parameter; that limitation lifted, and
+	// gpt-oss:120b-cloud / DeepSeek Cloud both accept tools on the standard
+	// Ollama chat API now. Cloud requests also need the Bearer auth header, so
+	// we thread the API key through both branches (2026-07-06).
+	if (OLLAMA_API_KEY) body.tools = VOICE_TOOL_SCHEMAS;
 
 	// Hoisted so the catch block can see them on early-abort (truncate fires
 	// before any token landed → reader/transcript never bound below the fetch).

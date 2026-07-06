@@ -149,21 +149,35 @@ export async function runVoiceToolLoop(args: {
 	const toolsEnabled = !!OLLAMA_API_KEY;
 	let firedToolStart = false;
 
+	// Cloud models (-cloud suffix on the tag) run on Ollama Cloud with Bearer
+	// auth; local models talk to the Jetson Ollama on VOICE_OLLAMA_URL. Mirrors
+	// the same routing voice_stream.ts uses for its streaming call (kept in
+	// sync 2026-07-06 when tools were wired for cloud models — the two calls
+	// have to hit the same backend or the follow-up inference after the tool
+	// runs can't see the prior context).
+	const isCloudModel = args.model.endsWith('-cloud');
+	const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
+
 	for (let step = 0; step <= maxSteps; step++) {
-		const body: Record<string, unknown> = {
-			model: args.model,
-			messages,
-			stream: false,
-			keep_alive: args.keepAlive,
-			options: { num_ctx: args.numCtx }
-		};
+		const body: Record<string, unknown> = isCloudModel
+			? { model: args.model, messages, stream: false }
+			: {
+					model: args.model,
+					messages,
+					stream: false,
+					keep_alive: args.keepAlive,
+					options: { num_ctx: args.numCtx }
+				};
 		// Offer tools only while we still have step budget; on the final allowed
 		// step, omit them so the model is forced to answer rather than call again.
 		if (toolsEnabled && step < maxSteps) body.tools = VOICE_TOOL_SCHEMAS;
 
-		const resp = await fetch(`${OLLAMA}/api/chat`, {
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (isCloudModel && OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+
+		const resp = await fetch(endpoint, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers,
 			body: JSON.stringify(body),
 			signal: composeTimeout(args.signal, VOICE_TOOL_TIMEOUT_MS)
 		});
