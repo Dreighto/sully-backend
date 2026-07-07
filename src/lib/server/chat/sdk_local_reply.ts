@@ -267,6 +267,16 @@ export function handleLocalReply(opts: {
 					case 'reasoning-end':
 						writer.write({ type: 'reasoning-end', id: part.id });
 						break;
+					case 'text-start':
+						// A new text segment after a tool step: the model's
+						// pre-tool sentence and post-tool answer are separate
+						// segments — gluing them produced "their tour.Iron
+						// Maiden" (operator screenshot, 2026-07-07). Insert a
+						// paragraph break at the seam.
+						if (fullText.length > 0 && !/\s$/.test(fullText)) {
+							emitTextDelta('\n\n');
+						}
+						break;
 					case 'text-delta':
 						emitTextDelta(part.text);
 						break;

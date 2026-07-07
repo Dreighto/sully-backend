@@ -203,10 +203,14 @@ export async function runDirectStreamAttempt(opts: {
 			}
 
 			const parts = responseMessage.parts || [];
+			// Join text segments with a paragraph break: pre-tool and post-tool
+			// text are separate parts, and ''-joining fused sentences
+			// ("their tour.Iron Maiden" — operator screenshot 2026-07-07).
 			const replyText = parts
 				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text)
-				.join('');
+				.map((p) => (p as { type: 'text'; text: string }).text.trim())
+				.filter(Boolean)
+				.join('\n\n');
 			const toolErrors = parts
 				.filter((p) => {
 					const t = p as { type?: string; state?: string };
