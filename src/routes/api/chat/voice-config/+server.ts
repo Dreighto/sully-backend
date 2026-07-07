@@ -13,8 +13,13 @@ import type { RequestHandler } from './$types';
 import { getSetting } from '$lib/server/settings';
 import { getVoice, clientVoices, routingFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
 import { buildVadConfig } from '$lib/server/voice_vad_config';
+import { prewarmAzureTts } from '$lib/server/azure_tts';
 
 export const GET: RequestHandler = () => {
+	// Fires when the operator opens Voice Mode, seconds before the first turn:
+	// pre-warms the TLS connection to Azure so the first synth call of the
+	// session skips the handshake (TTFA, build 193 finding).
+	prewarmAzureTts();
 	const activeId = getSetting('active_voice') || DEFAULT_VOICE_ID;
 	const voice = getVoice(activeId);
 	const routing = routingFor(voice);

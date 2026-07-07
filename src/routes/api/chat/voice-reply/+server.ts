@@ -63,17 +63,22 @@ function extractDispatchProposal(decision: TurnDecision): DispatchProposalMeta |
 export const POST: RequestHandler = async ({ request }) => {
 	let text = '';
 	let threadId = 'default';
+	let clientTurnId: string | null = null;
 	try {
 		const body = await request.json();
 		text = stripLeadingSttNoise((body.text || '').trim());
 		threadId = body.thread || 'default';
+		// Shared key with the client's optimistic voice bubble: without it the
+		// history sync cannot reconcile the local insert with this persisted
+		// row and the operator sees their spoken turn twice (build 193).
+		clientTurnId = typeof body.client_turn_id === 'string' ? body.client_turn_id : null;
 	} catch {
 		return new Response('invalid json', { status: 400 });
 	}
 	if (!text) return new Response('empty text', { status: 400 });
 
 	const { taskId, currentTier, targetRepo, shadowDecision, userMessageText } =
-		await prepareTurnLifecycle({ text, threadId, source: 'voice' });
+		await prepareTurnLifecycle({ text, threadId, source: 'voice', clientTurnId });
 
 	const decision = shadowDecision;
 	const dispatchableDecision = !needsFullReply(decision);

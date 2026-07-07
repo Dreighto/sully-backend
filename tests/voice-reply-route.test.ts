@@ -158,7 +158,8 @@ describe('voice-reply route — validation', () => {
 		expect(state.prepareTurnLifecycle).toHaveBeenCalledWith({
 			text: 'Whatever happened to Tiny Tiger?',
 			threadId: 'default',
-			source: 'voice'
+			source: 'voice',
+			clientTurnId: null
 		});
 	});
 });
@@ -174,7 +175,8 @@ describe('voice-reply route — non-streaming path (default)', () => {
 		expect(state.prepareTurnLifecycle).toHaveBeenCalledWith({
 			text: 'hello',
 			threadId: 'thread-abc',
-			source: 'voice'
+			source: 'voice',
+			clientTurnId: null
 		});
 
 		// runVoiceToolLoop called with the model + messages
