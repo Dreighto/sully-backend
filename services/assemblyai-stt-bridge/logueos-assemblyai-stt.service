@@ -1,0 +1,17 @@
+[Unit]
+Description=AssemblyAI Universal-Streaming STT bridge for Sully Voice Mode (/companion-voice on :18771)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dreighto
+WorkingDirectory=/home/dreighto/dev/sully-backend
+ExecStart=/usr/bin/node --env-file=/home/dreighto/dev/sully-backend/.env /home/dreighto/dev/sully-backend/services/assemblyai-stt-bridge/server.js
+Restart=on-failure
+RestartSec=3
+# Self-heal: if the bridge wedges, systemd restarts it; the tailscale-serve
+# proxy for /companion-voice can be flipped back to :18770 (Jetson) at any time.
+
+[Install]
+WantedBy=multi-user.target
