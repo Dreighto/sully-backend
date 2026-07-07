@@ -23,7 +23,7 @@ const VOICE_MODEL = resolveVoiceModel();
 const HISTORY = 12;
 
 /** Strip leading STT punctuation noise (! . , ? and whitespace) before routing. */
-export function stripLeadingSttNoise(text: string): string {
+function stripLeadingSttNoise(text: string): string {
 	return text.replace(/^[!.,?\s]+/, '').trim();
 }
 
