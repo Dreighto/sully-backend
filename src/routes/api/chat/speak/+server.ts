@@ -114,7 +114,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	return new Response(ttsRes.body, {
+	// Buffer rather than stream: iOS kills talkback requests freely, and an
+	// orphaned upstream body reserves its pool slot forever (the 2026-07-07
+	// TTS-silence incident). MP3 replies are tens of KB — buffering is free.
+	const mp3 = Buffer.from(await ttsRes.arrayBuffer());
+	return new Response(new Uint8Array(mp3), {
 		status: 200,
 		headers: {
 			'content-type': 'audio/mpeg',
