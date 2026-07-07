@@ -114,3 +114,22 @@ describe('runVoiceToolLoop — exhausted budget', () => {
 		expect(result.toolsUsed).toEqual(['web_search']);
 	});
 });
+
+describe('looksLikeJsonOrToolOutput — prose-then-JSON (DPSK verify finding)', () => {
+	it('flags JSON embedded after prose', async () => {
+		const { looksLikeJsonOrToolOutput } = await import('../src/lib/server/chat/voice_tools');
+		expect(
+			looksLikeJsonOrToolOutput('Here is the data: {"web_search": {"query": "tiny tiger"}}')
+		).toBe(true);
+		expect(looksLikeJsonOrToolOutput('Results follow. [{"title": "RTX 5060"}]')).toBe(true);
+		expect(looksLikeJsonOrToolOutput('I checked and "web_fetch" ran twice.')).toBe(true);
+	});
+
+	it('does not flag normal spoken replies', async () => {
+		const { looksLikeJsonOrToolOutput } = await import('../src/lib/server/chat/voice_tools');
+		expect(looksLikeJsonOrToolOutput('Tiny Tiger is doing fine, no vet visits this month.')).toBe(
+			false
+		);
+		expect(looksLikeJsonOrToolOutput('The RTX 5060 Ti costs about $459 right now.')).toBe(false);
+	});
+});

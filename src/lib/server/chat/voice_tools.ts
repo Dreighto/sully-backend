@@ -119,6 +119,12 @@ export function looksLikeJsonOrToolOutput(text: string): boolean {
 	if (t.startsWith('{') || t.startsWith('[')) return true;
 	if (t.includes('UNTRUSTED external/file data')) return true;
 	if (t.includes('"results"')) return true;
+	// DPSK verify finding (b192 loop): prose-then-JSON slipped the leading
+	// brace check ("Here is the data: {\"web_search\": ...}"). A quoted key
+	// directly inside a brace/bracket never appears in legitimate spoken
+	// replies, nor do explicit tool markers.
+	if (/[{[]\s*"/.test(t)) return true;
+	if (/"(web_search|web_fetch|tool_call|tool_calls)"/.test(t)) return true;
 	return false;
 }
 
