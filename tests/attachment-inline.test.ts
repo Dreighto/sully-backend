@@ -101,3 +101,15 @@ describe('describeAttachmentsForClassifier', () => {
 		expect(attachmentOnly).toBe(false);
 	});
 });
+
+describe('byte-accurate turn budget (review round)', () => {
+	it('multibyte content is clipped to the BYTE budget, not the code-unit count', async () => {
+		// 4-byte emoji: 60k code units ≈ 120k units ≈ 240KB bytes — must clip.
+		fs.writeFileSync(path.join(UPLOADS, 'emoji-1.txt'), '😀'.repeat(80 * 1024));
+		const out = await inlineDocumentAttachments('see [e](./api/chat/uploads/emoji-1.txt)');
+		expect(Buffer.byteLength(out, 'utf-8')).toBeLessThan(130 * 1024);
+		expect(out).toContain('(truncated)');
+		// No lone surrogate at any boundary — the whole string must round-trip.
+		expect(out).toBe(Buffer.from(out, 'utf-8').toString('utf-8'));
+	});
+});
