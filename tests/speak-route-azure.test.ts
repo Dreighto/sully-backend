@@ -32,6 +32,13 @@ vi.mock('$lib/server/wav_pad', () => ({
 vi.mock('$lib/server/voice_tts', () => ({
 	synthesizeLocalTts: state.synthesizeLocalTts
 }));
+// azure_tts routes through undici's own fetch (keep-alive dispatcher, see
+// azure_tts.ts). Forward it to global fetch so the vi.stubGlobal('fetch', ...)
+// spies below keep intercepting the Azure calls.
+vi.mock('undici', () => ({
+	Agent: class {},
+	fetch: (...args: unknown[]) => (globalThis.fetch as (...a: unknown[]) => unknown)(...args)
+}));
 
 beforeEach(() => {
 	vi.resetModules();
@@ -104,9 +111,7 @@ describe('/api/chat/speak Azure provider', () => {
 	it('passes speakableText SSML fragments through without escaping them', async () => {
 		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
 		ENV.AZURE_SPEECH_REGION = 'westus2';
-		state.speakableText.mockReturnValue(
-			'<say-as interpret-as="date" format="y">2026</say-as>'
-		);
+		state.speakableText.mockReturnValue('<say-as interpret-as="date" format="y">2026</say-as>');
 		const fetchSpy = vi.fn().mockResolvedValue(
 			new Response(Uint8Array.from([1, 2, 3]), {
 				status: 200,
