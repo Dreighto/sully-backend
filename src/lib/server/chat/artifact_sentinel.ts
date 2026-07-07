@@ -123,3 +123,20 @@ export function extractAndPromoteArtifacts(
 	const strippedText = stripped.replace(/\n{3,}/g, '\n\n').trim();
 	return { strippedText, artifacts };
 }
+
+/**
+ * One-call wrapper for reply-persist sites: extract + promote any inline
+ * artifact blocks and return the stripped text plus the artifact trace id to
+ * stamp on the persisted row. Falls back to the raw text when no sentinel is
+ * present (or extraction yields nothing). Wired into the LOCAL and direct-SDK
+ * paths 2026-07-07 — previously only the CLI-bridge teacher ran extraction,
+ * so a local-model artifact (DeepSeek "architecture map", thread of 07-07)
+ * was generated, never promoted, and the operator saw nothing.
+ */
+export function extractForPersist(
+	text: string,
+	ctx: { threadId?: string; taskId?: string } = {}
+): { text: string; artifactTraceId: string | null } {
+	const { strippedText, artifacts } = extractAndPromoteArtifacts(text, ctx);
+	return { text: strippedText || text, artifactTraceId: artifacts[0]?.trace_id ?? null };
+}

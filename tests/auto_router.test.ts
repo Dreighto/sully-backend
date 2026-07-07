@@ -126,3 +126,65 @@ describe('resolveAutoModel', () => {
 		expect(list.at(-1)?.route.provider).toBe('local');
 	});
 });
+
+describe('deterministic thread stickiness (2026-07-07)', () => {
+	beforeEach(() => {
+		vi.spyOn(direct, 'isAnthropicCapExceeded').mockReturnValue(false);
+		vi.spyOn(cooldown, 'syncAnthropicCapCooldown').mockImplementation(() => {});
+		vi.spyOn(cooldown, 'isAutoProviderCooling').mockReturnValue(false);
+		vi.spyOn(direct, 'pickModel').mockImplementation((provider, _tier, requested) => {
+			if (provider === 'anthropic') {
+				return { model: {} as never, modelId: 'claude-haiku-4-5-20251001' } as never;
+			}
+			if (provider === 'google') {
+				return { model: {} as never, modelId: 'gemini-2.5-flash-lite' } as never;
+			}
+			return { model: {} as never, modelId: requested ?? 'deepseek-v4-flash:cloud' } as never;
+		});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	function stickyCtx(tier: 'chat' | 'planning', prevTier: 'chat' | 'planning', last: string | null) {
+		return baseCtx({
+			currentTier: tier,
+			threadState: {
+				current_tier: prevTier,
+				last_model_used: last
+			} as PreparedStreamContext['threadState']
+		});
+	}
+
+	it('same-tier turn sticks with the model that last answered, even when anthropic is available', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'chat', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'direct') {
+			expect(result.modelHandle.modelId).toBe('deepseek-v4-flash:cloud');
+		} else {
+			throw new Error('expected direct candidate');
+		}
+	});
+
+	it('tier escalation re-ranks by provider order (anthropic first) instead of sticking', () => {
+		const result = resolveAutoModel(stickyCtx('planning', 'chat', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'cli') {
+			expect(result.route.provider).toBe('anthropic');
+		} else {
+			expect(result.route.provider).toBe('anthropic');
+		}
+	});
+
+	it('a fresh thread (no last model) takes the ranked head', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'chat', null));
+		expect(result.route.provider).toBe('anthropic');
+	});
+
+	it('tier de-escalation does NOT unstick — the thread stays on its model', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'planning', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'direct') {
+			expect(result.modelHandle.modelId).toBe('deepseek-v4-flash:cloud');
+		} else {
+			throw new Error('expected direct candidate');
+		}
+	});
+});

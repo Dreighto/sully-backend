@@ -25,6 +25,10 @@ import {
 } from '$lib/server/chat/auto_provider_cooldown';
 import { listOllamaCloudAutoModels } from '$lib/server/chat/ollama_cloud_chain';
 
+// Escalation ordering for the sticky-thread rule. 'local' ranks with 'chat' —
+// it is a cost tier, not a capability request.
+const TIER_RANK: Record<Tier, number> = { local: 0, chat: 0, planning: 1, deep: 2 };
+
 function anthropicCredentialAvailable(modelId: string): boolean {
 	try {
 		pickModel('anthropic', 'chat', modelId);
@@ -175,8 +179,19 @@ export function listAutoModelCandidates(ctx: PreparedStreamContext): AutoResolve
 		}
 	}
 
-	const anthropicInList = candidates.some((c) => familyFromCandidate(c) === 'anthropic');
-	if (!anthropicInList && ctx.threadState.last_model_used) {
+	// Deterministic Auto (operator directive 2026-07-07): within a thread, Auto
+	// sticks with the model that last answered it. Provider ranking decides only
+	// (a) the first turn of a thread, (b) a genuine tier ESCALATION — the
+	// operator asked for more than the thread has needed so far — or (c) when
+	// the sticky model's provider is cooling (it won't be in candidates, so the
+	// ranked head takes over). Tier DE-escalation does not unstick: a thread
+	// stays on its model rather than ping-ponging provider-to-provider between
+	// turns, which is what made Auto feel random (haiku → deepseek mid-thread,
+	// 2026-07-07). ctx.threadState is the PRE-turn snapshot, so current_tier
+	// here is the previous turn's tier.
+	const escalated =
+		TIER_RANK[tier] > TIER_RANK[ctx.threadState.current_tier ?? 'chat'];
+	if (!escalated && ctx.threadState.last_model_used) {
 		return preferLastWorkingCandidate(candidates, ctx.threadState.last_model_used);
 	}
 	return candidates;

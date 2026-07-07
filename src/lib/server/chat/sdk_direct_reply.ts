@@ -17,6 +17,7 @@ import {
 } from 'ai';
 import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
+import { extractForPersist } from '$lib/server/chat/artifact_sentinel';
 import { addTokenUsage, upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
@@ -245,14 +246,21 @@ export async function runDirectStreamAttempt(opts: {
 				} catch {
 					/* usage unavailable */
 				}
+				// Direct-SDK models emit inline SULLY_ARTIFACT blocks too — extract
+				// + promote before persisting (parity with the CLI-bridge path).
+				const extracted = extractForPersist(finalText, {
+					threadId: ctx.threadId,
+					taskId: ctx.taskId
+				});
 				const replyId = persistAssistantTurn({
-					text: finalText,
+					text: extracted.text,
 					sender: senderLabel,
 					threadId: ctx.threadId,
 					model: modelHandle.modelId,
 					tier: ctx.currentTier,
 					taskId: ctx.taskId,
 					provider: ctx.provider,
+					traceId: extracted.artifactTraceId,
 					promptTokens,
 					completionTokens,
 					latencyMs: Date.now() - turnStartedAt,
