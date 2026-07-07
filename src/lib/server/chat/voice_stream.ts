@@ -24,6 +24,7 @@
 import { VOICE_OLLAMA_URL } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
 import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '../azure_tts';
+import { normalizeWavPeak } from '../wav_gain';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
 import { composeTimeout, readWithIdle } from './voice_seam_timeout';
@@ -127,7 +128,9 @@ export async function runVoiceStreamingSpeak(
 			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS),
 			ssml: true
 		});
-		return Buffer.from(await r.arrayBuffer());
+		// Peak-normalize to -3 dBFS: raw Azure output reads as "very low" on
+		// iPhone speakers (operator finding, build 193).
+		return normalizeWavPeak(Buffer.from(await r.arrayBuffer()));
 	}
 
 	const synths: Array<Promise<Buffer>> = [];

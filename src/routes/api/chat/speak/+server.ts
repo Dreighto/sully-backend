@@ -15,6 +15,7 @@ import { applyContextualPronunciation } from '$lib/server/contextual_pronunciati
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
 import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '$lib/server/azure_tts';
+import { normalizeWavPeak } from '$lib/server/wav_gain';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
@@ -83,12 +84,17 @@ export const POST: RequestHandler = async ({ request }) => {
 		);
 	}
 
+	// Talkback (iOS) requests wav so it gets the same peak-normalized PCM the
+	// voice-mode path emits (build 193 finding: raw Azure output is too quiet
+	// on iPhone speakers). Default stays mp3 for the legacy read-aloud web path.
+	const wantWav = body.format === 'wav';
+
 	let ttsRes: Response;
 	try {
 		ttsRes = await synthesizeAzureTts({
 			text,
 			voice: voiceName,
-			format: 'mp3',
+			format: wantWav ? 'wav' : 'mp3',
 			signal: request.signal,
 			ssml: true
 		});
@@ -99,6 +105,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Record usage before streaming so the cap is updated even if client drops
 	addTtsUsage(rawText.length);
+
+	if (wantWav) {
+		const normalized = normalizeWavPeak(Buffer.from(await ttsRes.arrayBuffer()));
+		return new Response(new Uint8Array(normalized), {
+			status: 200,
+			headers: { 'content-type': 'audio/wav', 'cache-control': 'no-store' }
+		});
+	}
 
 	return new Response(ttsRes.body, {
 		status: 200,

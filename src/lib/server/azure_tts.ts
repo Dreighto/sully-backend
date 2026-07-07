@@ -3,6 +3,41 @@
 // streaming (chat/voice_stream.ts, WAV/PCM — matches the Kokoro contract it
 // replaced, so the iOS client's audio decoding needs no changes).
 import { env } from '$env/dynamic/private';
+import { Agent } from 'undici';
+
+// Keep-alive dispatcher for the Azure TTS endpoint. Without it every
+// per-sentence synth call pays a fresh TCP + TLS handshake to the Azure
+// region, which sits directly on the time-to-first-audio critical path
+// (operator finding, build 193: 3-4s perceived latency).
+const azureDispatcher = new Agent({
+	keepAliveTimeout: 60_000,
+	keepAliveMaxTimeout: 120_000,
+	connections: 4
+});
+
+let lastPrewarmAt = 0;
+
+/**
+ * Fire-and-forget TLS pre-warm against the Azure voices endpoint so the first
+ * real synth call of a voice session reuses a hot connection. Called from
+ * voice-config (fires when the operator opens Voice Mode, seconds before the
+ * first turn). Throttled to once per 60s.
+ */
+export function prewarmAzureTts(): void {
+	const apiKey = env.AZURE_SPEECH_KEY;
+	const region = env.AZURE_SPEECH_REGION;
+	if (!apiKey || !region) return;
+	const now = Date.now();
+	if (now - lastPrewarmAt < 60_000) return;
+	lastPrewarmAt = now;
+	fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
+		headers: { 'Ocp-Apim-Subscription-Key': apiKey },
+		// @ts-expect-error undici dispatcher is a Node extension to fetch
+		dispatcher: azureDispatcher
+	}).catch(() => {
+		lastPrewarmAt = 0;
+	});
+}
 
 // Ava DragonHD: Azure's newest generative voice tier. More natural cadence
 // and expressiveness than the standard Neural voices (AriaNeural was the
@@ -69,7 +104,9 @@ export async function synthesizeAzureTts(opts: {
 			Accept: accept
 		},
 		body: ssml,
-		signal: opts.signal
+		signal: opts.signal,
+		// @ts-expect-error undici dispatcher is a Node extension to fetch
+		dispatcher: azureDispatcher
 	});
 	if (!res.ok) {
 		const errBody = await res.text().catch(() => '');
