@@ -123,3 +123,28 @@ export function extractAndPromoteArtifacts(
 	const strippedText = stripped.replace(/\n{3,}/g, '\n\n').trim();
 	return { strippedText, artifacts };
 }
+
+/**
+ * One-call wrapper for reply-persist sites: extract + promote any inline
+ * artifact blocks and return the stripped text plus the artifact trace id to
+ * stamp on the persisted row. Falls back to the raw text when no sentinel is
+ * present (or extraction yields nothing). Wired into the LOCAL and direct-SDK
+ * paths 2026-07-07 — previously only the CLI-bridge teacher ran extraction,
+ * so a local-model artifact (DeepSeek "architecture map", thread of 07-07)
+ * was generated, never promoted, and the operator saw nothing.
+ */
+export function extractForPersist(
+	text: string,
+	ctx: { threadId?: string; taskId?: string } = {}
+): { text: string; artifactTraceId: string | null } {
+	// Deterministic per-task trace: a regenerate/retry of the same Task
+	// re-promotes into the SAME store dir instead of minting an orphan
+	// duplicate on every attempt (in-house review finding, 2026-07-07).
+	const forced = ctx.taskId ? `sully-teacher-${ctx.taskId}` : undefined;
+	const { strippedText, artifacts } = extractAndPromoteArtifacts(text, ctx, forced);
+	// Fall back to the raw text ONLY when nothing was extracted. If the whole
+	// reply WAS the artifact block, stripping leaves '' — re-emitting the raw
+	// sentinel there would resurface the original bug (CodeRabbit, PR #114).
+	const fallback = artifacts.length > 0 ? 'Artifact ready — open the card to view it.' : text;
+	return { text: strippedText || fallback, artifactTraceId: artifacts[0]?.trace_id ?? null };
+}

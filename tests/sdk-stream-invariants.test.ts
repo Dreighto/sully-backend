@@ -73,7 +73,8 @@ vi.mock('$lib/server/claude_cli_stream', () => ({
 }));
 vi.mock('$lib/server/chat/artifact_sentinel', () => ({
 	extractAndPromoteArtifacts: vi.fn(),
-	hasLiveArtifactSignal: vi.fn()
+	hasLiveArtifactSignal: vi.fn(),
+	extractForPersist: vi.fn((text: string) => ({ text, artifactTraceId: null }))
 }));
 vi.mock('$lib/server/auto_title', () => ({
 	maybeAutoTitle: vi.fn()

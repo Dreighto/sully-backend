@@ -8,6 +8,7 @@ import { getSensitiveTools } from '$lib/server/companion_tools';
 import { baseTools } from '$lib/server/chat/base_tools';
 import { streamViaClaudeCLI } from '$lib/server/claude_cli_stream';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
+import { extractForPersist } from '$lib/server/chat/artifact_sentinel';
 import { applyTurnDecision } from '$lib/server/chat/autonomous_dispatch';
 import { transcriptFrom } from '$lib/server/chat/local_transcript';
 import {
@@ -80,13 +81,24 @@ async function runCliStreamAttempt(opts: {
 	record({ type: 'finish-step' });
 
 	if (collected && !errored) {
+		const extracted = extractForPersist(collected, {
+			threadId: ctx.threadId,
+			taskId: ctx.taskId
+		});
+		if (extracted.artifactTraceId) {
+			record({
+				type: 'data-sully-artifact',
+				data: { traceId: extracted.artifactTraceId }
+			} as never);
+		}
 		const replyId = persistAssistantTurn({
-			text: collected,
+			text: extracted.text,
 			sender: 'cc',
 			threadId: ctx.threadId,
 			model: modelId,
 			tier: ctx.currentTier,
 			taskId: ctx.taskId,
+			traceId: extracted.artifactTraceId,
 			provider: 'anthropic',
 			reused: ctx.reused
 		});

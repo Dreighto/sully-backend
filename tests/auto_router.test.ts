@@ -126,3 +126,125 @@ describe('resolveAutoModel', () => {
 		expect(list.at(-1)?.route.provider).toBe('local');
 	});
 });
+
+describe('deterministic thread stickiness (2026-07-07)', () => {
+	beforeEach(() => {
+		vi.spyOn(direct, 'isAnthropicCapExceeded').mockReturnValue(false);
+		vi.spyOn(cooldown, 'syncAnthropicCapCooldown').mockImplementation(() => {});
+		vi.spyOn(cooldown, 'isAutoProviderCooling').mockReturnValue(false);
+		vi.spyOn(direct, 'pickModel').mockImplementation((provider, _tier, requested) => {
+			if (provider === 'anthropic') {
+				return { model: {} as never, modelId: 'claude-haiku-4-5-20251001' } as never;
+			}
+			if (provider === 'google') {
+				return { model: {} as never, modelId: 'gemini-2.5-flash-lite' } as never;
+			}
+			return { model: {} as never, modelId: requested ?? 'deepseek-v4-flash:cloud' } as never;
+		});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	function stickyCtx(
+		tier: 'chat' | 'planning',
+		prevTier: 'chat' | 'planning',
+		last: string | null
+	) {
+		return baseCtx({
+			currentTier: tier,
+			threadState: {
+				current_tier: prevTier,
+				last_model_used: last
+			} as PreparedStreamContext['threadState']
+		});
+	}
+
+	it('same-tier turn sticks with the model that last answered, even when anthropic is available', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'chat', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'direct') {
+			expect(result.modelHandle.modelId).toBe('deepseek-v4-flash:cloud');
+		} else {
+			throw new Error('expected direct candidate');
+		}
+	});
+
+	it('tier escalation re-ranks by provider order (anthropic first) instead of sticking', () => {
+		const result = resolveAutoModel(stickyCtx('planning', 'chat', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'cli') {
+			expect(result.route.provider).toBe('anthropic');
+		} else {
+			expect(result.route.provider).toBe('anthropic');
+		}
+	});
+
+	it('a fresh thread (no last model) takes the ranked head', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'chat', null));
+		expect(result.route.provider).toBe('anthropic');
+	});
+
+	it('tier de-escalation does NOT unstick — the thread stays on its model', () => {
+		const result = resolveAutoModel(stickyCtx('chat', 'planning', 'deepseek-v4-flash:cloud'));
+		if (result.kind === 'direct') {
+			expect(result.modelHandle.modelId).toBe('deepseek-v4-flash:cloud');
+		} else {
+			throw new Error('expected direct candidate');
+		}
+	});
+});
+
+describe('post-escalation stickiness (review round)', () => {
+	beforeEach(() => {
+		vi.spyOn(direct, 'isAnthropicCapExceeded').mockReturnValue(false);
+		vi.spyOn(cooldown, 'syncAnthropicCapCooldown').mockImplementation(() => {});
+		vi.spyOn(cooldown, 'isAutoProviderCooling').mockReturnValue(false);
+		vi.spyOn(direct, 'pickModel').mockImplementation((provider, _tier, requested) => {
+			if (provider === 'anthropic') {
+				return { model: {} as never, modelId: requested ?? 'claude-haiku-4-5-20251001' } as never;
+			}
+			if (provider === 'google') {
+				return { model: {} as never, modelId: 'gemini-2.5-flash-lite' } as never;
+			}
+			return { model: {} as never, modelId: requested ?? 'deepseek-v4-flash:cloud' } as never;
+		});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('a thread that escalated to sonnet STAYS on sonnet for the next plain chat turn', () => {
+		const result = resolveAutoModel(
+			baseCtx({
+				currentTier: 'chat',
+				threadState: {
+					current_tier: 'planning',
+					last_model_used: 'claude-sonnet-4-6'
+				} as PreparedStreamContext['threadState']
+			})
+		);
+		expect(result.kind).toBe('cli');
+		if (result.kind === 'cli') {
+			expect(result.modelId).toBe('claude-sonnet-4-6');
+			expect(result.route.reason).toBe('auto_thread_sticky');
+		}
+	});
+
+	it('size variants of the same family do NOT cross-match', () => {
+		// last used the 120b; the candidate list carries the 20b — exact-root+tag
+		// matching must not treat them as the same model.
+		const result = resolveAutoModel(
+			baseCtx({
+				currentTier: 'chat',
+				threadState: {
+					current_tier: 'chat',
+					last_model_used: 'gpt-oss:120b-cloud'
+				} as PreparedStreamContext['threadState']
+			})
+		);
+		// gpt-oss:120b-cloud IS an ollama-cloud auto model, so the sticky
+		// construction should pin exactly it, not a sibling tag.
+		if (result.kind === 'direct') {
+			expect(result.modelHandle.modelId).toBe('gpt-oss:120b-cloud');
+		}
+	});
+});

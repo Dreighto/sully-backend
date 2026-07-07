@@ -9,6 +9,7 @@ import type { PreparedStreamContext } from '$lib/server/chat/stream_prepare';
 import type { LanguageModel } from 'ai';
 import { streamViaClaudeCLI } from '$lib/server/claude_cli_stream';
 import { persistAssistantTurn } from '$lib/server/chat_turn';
+import { extractForPersist } from '$lib/server/chat/artifact_sentinel';
 import { upsertThreadTier } from '$lib/server/thread_state';
 import { touchLastActivity } from '$lib/server/thread_meta';
 import { logEscalation, updateEscalationCloudOutput } from '$lib/server/escalation_log';
@@ -134,8 +135,19 @@ export function handleLocalReply(opts: {
 			let replyId: number | undefined;
 			if (cloudCollected && !errored) {
 				updateEscalationCloudOutput(ctx.taskId, cloudCollected);
+				const extracted = extractForPersist(cloudCollected, {
+					threadId: ctx.threadId,
+					taskId: ctx.taskId
+				});
+				if (extracted.artifactTraceId) {
+					writer.write({
+						type: 'data-sully-artifact',
+						data: { traceId: extracted.artifactTraceId }
+					} as never);
+				}
 				replyId = persistAssistantTurn({
-					text: cloudCollected,
+					text: extracted.text,
+					traceId: extracted.artifactTraceId,
 					sender: 'cc',
 					threadId: ctx.threadId,
 					model: escalationModel,
@@ -349,8 +361,19 @@ export function handleLocalReply(opts: {
 			let replyId: number | undefined;
 			if (cloudCollected && !errored) {
 				updateEscalationCloudOutput(ctx.taskId, cloudCollected);
+				const extracted = extractForPersist(cloudCollected, {
+					threadId: ctx.threadId,
+					taskId: ctx.taskId
+				});
+				if (extracted.artifactTraceId) {
+					writer.write({
+						type: 'data-sully-artifact',
+						data: { traceId: extracted.artifactTraceId }
+					} as never);
+				}
 				replyId = persistAssistantTurn({
-					text: cloudCollected,
+					text: extracted.text,
+					traceId: extracted.artifactTraceId,
 					sender: 'cc',
 					threadId: ctx.threadId,
 					model: escalationModel,
@@ -404,13 +427,26 @@ export function handleLocalReply(opts: {
 
 		let replyId: number | undefined;
 		if (localText) {
+			// Local models emit inline SULLY_ARTIFACT blocks too — extract +
+			// promote before persisting, same as the CLI-bridge teacher path.
+			const extracted = extractForPersist(localText, {
+				threadId: ctx.threadId,
+				taskId: ctx.taskId
+			});
+			if (extracted.artifactTraceId) {
+				writer.write({
+					type: 'data-sully-artifact',
+					data: { traceId: extracted.artifactTraceId }
+				} as never);
+			}
 			replyId = persistAssistantTurn({
-				text: localText,
+				text: extracted.text,
 				sender: 'local',
 				threadId: ctx.threadId,
 				model: ctx.resolvedModelId,
 				tier: ctx.currentTier,
 				taskId: ctx.taskId,
+				traceId: extracted.artifactTraceId,
 				provider: ctx.provider,
 				reused: ctx.reused,
 				reasoning: reasoningText
