@@ -40,6 +40,7 @@ export interface TurnReplayTask {
 	source: string | null;
 	worker: string | null;
 	status: string;
+	current_activity: string | null;
 	category: string | null;
 	classification_tier: string | null;
 	classification_payload: string | null;
@@ -79,6 +80,7 @@ function rowToTask(r: Record<string, unknown> | undefined): TurnReplayTask | nul
 		source: (r.source as string) ?? null,
 		worker: (r.worker as string) ?? null,
 		status: String(r.status),
+		current_activity: (r.current_activity as string) ?? null,
 		category: (r.category as string) ?? null,
 		classification_tier: (r.classification_tier as string) ?? null,
 		classification_payload: (r.classification_payload as string) ?? null,
@@ -149,7 +151,15 @@ export function replayTurn(taskId: string): TurnReplay | null {
 
 		if (!task && messages.length === 0 && events.length === 0) return null;
 
-		const dispatched = task ? !PRE_DISPATCH.has(task.status) && task.worker !== 'sully' : false;
+		// Aged-out pre-flight rows land at 'aborted' without ever dispatching —
+		// exclude them or the terminal status would falsely read as post-dispatch.
+		const agedOut =
+			task?.status === 'aborted' &&
+			typeof task.current_activity === 'string' &&
+			task.current_activity.startsWith('aged out');
+		const dispatched = task
+			? !PRE_DISPATCH.has(task.status) && task.worker !== 'sully' && !agedOut
+			: false;
 
 		return {
 			task_id: taskId,

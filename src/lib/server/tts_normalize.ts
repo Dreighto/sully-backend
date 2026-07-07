@@ -95,7 +95,9 @@ export function speakableText(text: string): string {
 	while (index < normalized.length) {
 		const rest = normalized.slice(index);
 
-		const currencyRange = rest.match(/^\$\s*(\d[\d,]*(?:\.\d{1,2})?)\s*-\s*\$\s*(\d[\d,]*(?:\.\d{1,2})?)\b/);
+		const currencyRange = rest.match(
+			/^\$\s*(\d[\d,]*(?:\.\d{1,2})?)\s*-\s*\$\s*(\d[\d,]*(?:\.\d{1,2})?)\b/
+		);
 		if (currencyRange) {
 			out += `${currencySsml(currencyRange[1])} to ${currencySsml(currencyRange[2])}`;
 			index += currencyRange[0].length;

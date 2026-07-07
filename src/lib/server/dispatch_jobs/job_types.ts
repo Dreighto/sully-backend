@@ -2,8 +2,9 @@
 // dispatch states (decided→…→done) are now the MIDDLE of a larger arc that
 // begins at 'proposed' (a Task minted for every turn, before any routing
 // decision) and ends at 'synthesized' (Sully posted her final answer). A
-// pure-chat turn that never dispatches stays at 'proposed' in Phase 1 —
-// advancing it through synthesis is Phase 3 work.
+// pure-chat turn that never dispatches is closed out to 'synthesized' by
+// markSelfHandled at turn end; rows resting at proposed/classified are
+// leaked close-outs and get aged to 'aborted' by reapAbandonedProposals.
 export type JobStatus =
 	| 'proposed' // task created for this turn; no routing decision yet
 	| 'classified' // tier/intent classified

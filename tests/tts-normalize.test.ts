@@ -82,7 +82,7 @@ describe('speakableText', () => {
 		const parser = new DOMParser({
 			onError(level, message) {
 				if (level === 'warning') return;
-					throw new Error(message);
+				throw new Error(message);
 			}
 		});
 

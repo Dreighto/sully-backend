@@ -106,3 +106,58 @@ export function reapStaleJobs(timeoutMs = 15 * 60 * 1000): PendingJob[] {
 		db.close();
 	}
 }
+
+/**
+ * Age out pre-flight rows that never reached dispatch: 'proposed'/'gated'/
+ * 'held' older than AGEOUT_PROPOSAL_DAYS, 'classified' older than
+ * AGEOUT_CLASSIFIED_HOURS → 'aborted'. These states can be a LIVE operator
+ * session (a proposal awaiting confirm), which is why the thresholds are
+ * generous — an age-blind cleanup would have destroyed real session rows in
+ * the 2026-06-11 case. Threshold policy operator-approved 2026-07-07.
+ *
+ * Each bucket is ONE atomic UPDATE with the age+status predicate in the
+ * WHERE clause — the status is re-checked at write time, so a proposal the
+ * operator confirms between sweep ticks can never be clobbered back to
+ * aborted (no SELECT-then-UPDATE window). Rows with NULL/malformed
+ * started_at never match datetime() and are left alone by design.
+ * Idempotent ('aborted' is terminal, never re-selected); the first sweep
+ * after deploy performs the historical backfill.
+ *
+ * Returns per-bucket counts. A persistently non-zero `classified` count is
+ * an upstream-leak signal: classified rows should normally be closed out by
+ * markSelfHandled/expireTaskById within the turn, so ones old enough to age
+ * out mean a turn-pipeline error path is skipping close-out.
+ */
+export const AGEOUT_PROPOSAL_DAYS = 7;
+export const AGEOUT_CLASSIFIED_HOURS = 48;
+
+export function reapAbandonedProposals(): { preflight: number; classified: number } {
+	if (!fs.existsSync(serverConfig.memoryDbPath)) return { preflight: 0, classified: 0 };
+	const db = getDb();
+	try {
+		const now = new Date().toISOString();
+		const preflight = db
+			.prepare(
+				`UPDATE pending_jobs
+				 SET status = 'aborted',
+				     current_activity = 'aged out: never confirmed or dispatched',
+				     ended_at = ?
+				 WHERE status IN ('proposed', 'gated', 'held')
+				   AND datetime(started_at) < datetime('now', ?)`
+			)
+			.run(now, `-${AGEOUT_PROPOSAL_DAYS} days`).changes;
+		const classified = db
+			.prepare(
+				`UPDATE pending_jobs
+				 SET status = 'aborted',
+				     current_activity = 'aged out: never confirmed or dispatched',
+				     ended_at = ?
+				 WHERE status = 'classified'
+				   AND datetime(started_at) < datetime('now', ?)`
+			)
+			.run(now, `-${AGEOUT_CLASSIFIED_HOURS} hours`).changes;
+		return { preflight, classified };
+	} finally {
+		db.close();
+	}
+}

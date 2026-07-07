@@ -8,6 +8,8 @@ node_modules/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/*.db.bak*
+data/*.bak*
 data/chat_uploads/
 # Live artifact store (worker-generated files, written at runtime by
 # artifactStore.ts as <repoRoot>/data/sully/artifacts). Operator-only runtime
