@@ -10,6 +10,7 @@
 // version; the route handlers stay thin.
 
 import { randomBytes } from 'node:crypto';
+import { deSlop } from '$lib/server/chat/deslop';
 import {
 	addChatMessage,
 	getChatMessages,
@@ -256,6 +257,12 @@ export function persistAssistantTurn(args: {
 	 */
 	reasoning?: string | null;
 }): number {
+	// Deterministic no-ai-slop cleanup on EVERY persisted reply (text + voice),
+	// before insert / honesty / title all read it. Strips prose em-dashes the
+	// model emits despite the prompt rule; code spans are preserved. (Operator
+	// caught em-dashes in a voice transcript, 2026-07-07.)
+	args.text = deSlop(args.text);
+
 	// Stage 3a: on a keyed REUSE, this new reply REPLACES the prior one — delete the
 	// stale chat reply(ies) for this reused Task BEFORE writing the new row (so we
 	// never delete the row we are about to insert). Tightly scoped in the helper by

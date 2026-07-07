@@ -177,6 +177,7 @@ explanations, or normal conversation.`;
 // ~/.claude/skills/no-ai-slop skill and the AGENTS.md canon rule that binds
 // all workers; this binds all of Sully's own models the same way.
 const NO_SLOP_CORE = `Write like a person who knows the specifics, not a chatbot. Stay warm, but:
+- No em-dashes. Use a period, comma, or semicolon.
 - Cut filler openers: "In today's world", "It's important to note", "Let's dive in", "Here's the thing", "When it comes to".
 - No empty intensifiers ("significantly", "extremely", "truly", "really"). Give the actual fact or number instead.
 - Never the "It's not X, it's Y" / "not just X, but Y" construction. Say plainly what the thing is.
@@ -185,16 +186,18 @@ const NO_SLOP_CORE = `Write like a person who knows the specifics, not a chatbot
 - Don't pad with hedges ("may potentially", "can help to"). Say whether the thing happens.
 - Vary sentence length; if a phrase sounds like marketing copy, rewrite it.`;
 
-// Text surfaces add the written-form rule (em-dashes) on top of the core.
+// The em-dash rule lives in the CORE, not just the text style: voice replies
+// are ALSO rendered as text in the transcript, so em-dashes there read as slop
+// (operator caught this in a voice session, 2026-07-07). Belt-and-suspenders:
+// a deterministic stripper runs at persist too (deslop.ts), since models emit
+// em-dashes even when told not to.
 const WRITING_STYLE = `
 
 ## How you write
 ${NO_SLOP_CORE}
-- No em-dashes. Use a period, comma, or semicolon.
 - Read it back before you send it.`;
 
-// Voice surfaces reuse the SAME core, framed for the ear (no punctuation rule
-// — em-dashes don't exist in speech, but every other slop rule still applies).
+// Voice surfaces reuse the SAME core, framed for the ear.
 const WRITING_STYLE_VOICE = `
 
 ## How you speak
