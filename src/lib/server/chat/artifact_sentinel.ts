@@ -142,5 +142,9 @@ export function extractForPersist(
 	// duplicate on every attempt (in-house review finding, 2026-07-07).
 	const forced = ctx.taskId ? `sully-teacher-${ctx.taskId}` : undefined;
 	const { strippedText, artifacts } = extractAndPromoteArtifacts(text, ctx, forced);
-	return { text: strippedText || text, artifactTraceId: artifacts[0]?.trace_id ?? null };
+	// Fall back to the raw text ONLY when nothing was extracted. If the whole
+	// reply WAS the artifact block, stripping leaves '' — re-emitting the raw
+	// sentinel there would resurface the original bug (CodeRabbit, PR #114).
+	const fallback = artifacts.length > 0 ? 'Artifact ready — open the card to view it.' : text;
+	return { text: strippedText || fallback, artifactTraceId: artifacts[0]?.trace_id ?? null };
 }

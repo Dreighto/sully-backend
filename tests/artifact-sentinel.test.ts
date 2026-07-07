@@ -40,10 +40,12 @@ describe('extractForPersist', () => {
 		expect(out.artifactTraceId).toBe('teacher-1');
 	});
 
-	it('never returns empty text — falls back to the raw reply', () => {
+	it('artifact-only reply gets a placeholder, never the raw sentinel back', () => {
 		const onlyBlock =
 			'<<<SULLY_ARTIFACT {"type":"doc","title":"Solo"}>>>\nbody\n<<<END_SULLY_ARTIFACT>>>';
 		const out = extractForPersist(onlyBlock, {});
 		expect(out.text.length).toBeGreaterThan(0);
+		expect(out.text).not.toContain('SULLY_ARTIFACT');
+		expect(out.artifactTraceId).toBeTruthy();
 	});
 });
