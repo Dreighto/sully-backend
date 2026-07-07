@@ -138,3 +138,74 @@ describe('hooks + activity-route wiring (source-level)', () => {
 		expect(route).toContain('sweepStaleJobs()');
 	});
 });
+
+describe('reapAbandonedProposals (via sweepStaleJobs)', () => {
+	async function seedPreflight(traceId: string, status: string, backdate: string) {
+		const j = await import('$lib/server/dispatchJobs');
+		const { bootstrapCompanionDb } = await import('$lib/server/bootstrap');
+		bootstrapCompanionDb();
+		j.proposeTask({
+			taskId: traceId,
+			threadId: 'thread-ageout',
+			source: 'test',
+			category: 'general',
+			brief: 'abandoned pre-flight row'
+		});
+		const db = new Database(DB);
+		db.prepare(
+			"UPDATE pending_jobs SET status = ?, started_at = datetime('now', ?) WHERE trace_id = ?"
+		).run(status, backdate, traceId);
+		db.close();
+		return j;
+	}
+
+	it('ages out proposed/gated/held >7d and classified >48h to aborted', async () => {
+		const j = await seedPreflight('sully-age-1', 'proposed', '-8 days');
+		await seedPreflight('sully-age-2', 'gated', '-8 days');
+		await seedPreflight('sully-age-3', 'classified', '-3 days');
+		await seedPreflight('sully-age-8', 'held', '-8 days');
+		const { sweepStaleJobs } = await import('$lib/server/staleJobSweep');
+		sweepStaleJobs();
+		for (const t of ['sully-age-1', 'sully-age-2', 'sully-age-3', 'sully-age-8']) {
+			expect(j.getJob(t)?.status).toBe('aborted');
+			expect(j.getJob(t)?.current_activity).toBe('aged out: never confirmed or dispatched');
+			expect(j.getJob(t)?.ended_at).toBeTruthy();
+		}
+	});
+
+	it('leaves recent pre-flight rows alone — a live proposal must survive', async () => {
+		const j = await seedPreflight('sully-age-4', 'proposed', '-1 days');
+		await seedPreflight('sully-age-5', 'gated', '-6 days');
+		await seedPreflight('sully-age-6', 'classified', '-1 days');
+		const { sweepStaleJobs } = await import('$lib/server/staleJobSweep');
+		sweepStaleJobs();
+		expect(j.getJob('sully-age-4')?.status).toBe('proposed');
+		expect(j.getJob('sully-age-5')?.status).toBe('gated');
+		expect(j.getJob('sully-age-6')?.status).toBe('classified');
+	});
+
+	it('does not post chat messages for aged pre-flight rows (silent by design)', async () => {
+		await seedPreflight('sully-age-7', 'proposed', '-30 days');
+		const { sweepStaleJobs } = await import('$lib/server/staleJobSweep');
+		sweepStaleJobs();
+		const { getChatMessages } = await import('$lib/server/chat');
+		const msgs = getChatMessages(50, 'thread-ageout');
+		expect(msgs.some((m) => m.message.includes('stalled'))).toBe(false);
+	});
+
+	it('a row that advances past pre-flight between sweeps is never clobbered (atomic predicate)', async () => {
+		// Simulates the confirm race: the row is old enough to age out, but its
+		// status moved to 'dispatched' before the sweep's UPDATE ran. The age
+		// predicate re-checks status at write time, so it must survive.
+		const j = await seedPreflight('sully-age-9', 'dispatched', '-30 days');
+		const { sweepStaleJobs } = await import('$lib/server/staleJobSweep');
+		sweepStaleJobs();
+		const status = j.getJob('sully-age-9')?.status;
+		// reapStaleJobs (the in-flight reaper) may mark it failed-stalled, but
+		// the proposal age-out must NOT have stamped it 'aged out'.
+		expect(j.getJob('sully-age-9')?.current_activity).not.toBe(
+			'aged out: never confirmed or dispatched'
+		);
+		expect(status).not.toBe('aborted');
+	});
+});

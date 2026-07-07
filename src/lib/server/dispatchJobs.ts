@@ -37,5 +37,6 @@ export {
 	getRunningTaskForThread,
 	getJobsForThread,
 	listInFlight,
+	reapAbandonedProposals,
 	reapStaleJobs
 } from './dispatch_jobs/job_queries';

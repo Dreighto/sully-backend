@@ -7,7 +7,7 @@
 // interval started from hooks.server.ts; the GET piggyback stays as
 // belt-and-braces. Both callers share one throttle so concurrent sweeps can't
 // double-post the stalled notice.
-import { reapStaleJobs } from './dispatchJobs';
+import { reapAbandonedProposals, reapStaleJobs } from './dispatchJobs';
 import { resolveCompletionThread } from './completionClose';
 import { addChatMessage } from './chat';
 
@@ -38,6 +38,21 @@ export function sweepStaleJobs(): void {
 		}
 	} catch (e) {
 		console.warn('[stale-sweep] reap sweep skipped:', e);
+	}
+	try {
+		// Age out abandoned pre-flight rows (proposed/gated/held >7d,
+		// classified >48h). Silent by design: these are days old, so posting a
+		// "stalled" notice into each thread would spam ancient conversations.
+		// The classified count is logged separately — a persistently non-zero
+		// value means an upstream turn-close-out path is leaking rows.
+		const aged = reapAbandonedProposals();
+		if (aged.preflight > 0 || aged.classified > 0) {
+			console.info(
+				`[stale-sweep] aged out ${aged.preflight} pre-flight + ${aged.classified} classified job(s)`
+			);
+		}
+	} catch (e) {
+		console.warn('[stale-sweep] proposal age-out skipped:', e);
 	}
 }
 

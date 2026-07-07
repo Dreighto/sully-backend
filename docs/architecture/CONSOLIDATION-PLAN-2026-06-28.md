@@ -154,7 +154,7 @@ One-line rationale per top dir: **src/** = the only thing the running service co
 5. The ~15 `~/dev/logueos-sully/docs/*` design/handoff files carrying the old name.
 6. Lower-priority code COMMENTS (cosmetic): `dispatch_listener/src/worktree.js:113`, `pool_utilization.js:6`, `config.ts:45`, plus archived `codemagic.yaml`/systemd copies/`.env.example` text — these mostly clear automatically once §2/§3 archive the files.
 
-**LEAVE (append-only / historical — NEVER edit, per hard rule):** all `data/*.jsonl` (cc*completion_log + the 11 other ledgers), `data/workspaces/**`, `data/n8n_inbox/*`, `data/peer_reviews/2026-06-*` (PRO-978 gate evidence), `logueos-sully-backend/RETIRED.md` *narrative* (fix only its rollback line), git branch names `_parking_LogueOS-Companion-w*`, historical commit messages, `data/config/workspaces.json` + `worktree*\*.json` (self-healing runtime state).
+**LEAVE (append-only / historical — NEVER edit, per hard rule):** all `data/*.jsonl` (cc*completion_log + the 11 other ledgers), `data/workspaces/**`, `data/n8n_inbox/*`, `data/peer_reviews/2026-06-*`(PRO-978 gate evidence),`logueos-sully-backend/RETIRED.md` *narrative* (fix only its rollback line), git branch names `\_parking_LogueOS-Companion-w*`, historical commit messages, `data/config/workspaces.json`+`worktree\*\*.json` (self-healing runtime state).
 
 ---
 
