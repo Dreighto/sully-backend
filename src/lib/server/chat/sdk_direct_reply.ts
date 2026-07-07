@@ -206,11 +206,19 @@ export async function runDirectStreamAttempt(opts: {
 			// Join text segments with a paragraph break: pre-tool and post-tool
 			// text are separate parts, and ''-joining fused sentences
 			// ("their tour.Iron Maiden" — operator screenshot 2026-07-07).
-			const replyText = parts
+			const textParts = parts
 				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text.trim())
-				.filter(Boolean)
-				.join('\n\n');
+				.map((p) => (p as { type: 'text'; text: string }).text);
+			// Multi-part (tool-split) replies join with a paragraph break; a
+			// single-part reply stays byte-identical to the streamed text —
+			// trimming it broke settle/dedupe equality (DPSK verification #4).
+			const replyText =
+				textParts.length > 1
+					? textParts
+							.map((t) => t.trim())
+							.filter(Boolean)
+							.join('\n\n')
+					: (textParts[0] ?? '');
 			const toolErrors = parts
 				.filter((p) => {
 					const t = p as { type?: string; state?: string };

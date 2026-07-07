@@ -85,8 +85,13 @@ export async function inlineDocumentAttachments(userText: string): Promise<strin
 				sections.push(`[Attached file ${filename} could not be read as text.]`);
 				continue;
 			}
-			const clipped = extracted.text.slice(0, budget);
-			budget -= clipped.length;
+			// Budget in BYTES, not UTF-16 units — multibyte documents could
+			// otherwise overshoot the turn budget ~2x (DPSK verification #1).
+			let clipped = extracted.text;
+			while (Buffer.byteLength(clipped, 'utf-8') > budget) {
+				clipped = clipped.slice(0, Math.floor(clipped.length * 0.9));
+			}
+			budget -= Buffer.byteLength(clipped, 'utf-8');
 			sections.push(
 				`Attached file \`${filename}\`${extracted.truncated || clipped.length < extracted.text.length ? ' (truncated)' : ''}:\n\`\`\`\n${clipped}\n\`\`\``
 			);
