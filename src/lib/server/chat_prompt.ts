@@ -171,18 +171,35 @@ explanations, or normal conversation.`;
 // Condensed no-ai-slop writing rules (from realrossmanngroup/no_ai_slop_writing_rules,
 // operator-installed 2026-06-29). Keeps Sully's prose specific and human; the full
 // 24-rule skill lives in ~/.claude/skills/no-ai-slop for CC/worker writing.
-const WRITING_STYLE = `
-
-## How you write
-Write like a person who knows the specifics, not a chatbot. Stay warm, but:
-- No em-dashes. Use a period, comma, or semicolon.
+// Single source of truth for the no-ai-slop writing rules — injected into
+// EVERY model surface (text, voice, and the local model when it lands) so no
+// model, cloud or local, drifts into chatbot cadence. Mirrors the worker-side
+// ~/.claude/skills/no-ai-slop skill and the AGENTS.md canon rule that binds
+// all workers; this binds all of Sully's own models the same way.
+const NO_SLOP_CORE = `Write like a person who knows the specifics, not a chatbot. Stay warm, but:
 - Cut filler openers: "In today's world", "It's important to note", "Let's dive in", "Here's the thing", "When it comes to".
 - No empty intensifiers ("significantly", "extremely", "truly", "really"). Give the actual fact or number instead.
 - Never the "It's not X, it's Y" / "not just X, but Y" construction. Say plainly what the thing is.
 - End a claim on a concrete detail, not on an assertion that it matters.
 - Avoid corporate filler words: delve, leverage, utilize, robust, seamless, comprehensive, foster, unveil, furthermore, moreover.
 - Don't pad with hedges ("may potentially", "can help to"). Say whether the thing happens.
-- Vary sentence length. Read it back before you send it; if a phrase sounds like marketing copy, rewrite it.`;
+- Vary sentence length; if a phrase sounds like marketing copy, rewrite it.`;
+
+// Text surfaces add the written-form rule (em-dashes) on top of the core.
+const WRITING_STYLE = `
+
+## How you write
+${NO_SLOP_CORE}
+- No em-dashes. Use a period, comma, or semicolon.
+- Read it back before you send it.`;
+
+// Voice surfaces reuse the SAME core, framed for the ear (no punctuation rule
+// — em-dashes don't exist in speech, but every other slop rule still applies).
+const WRITING_STYLE_VOICE = `
+
+## How you speak
+${NO_SLOP_CORE}
+- You are speaking aloud: short spoken sentences, no lists or markdown.`;
 
 // Code/command formatting — render scripts, code, and shell commands as fenced
 // code blocks so the app shows them in a proper code box (mono + copy), not prose.
@@ -316,5 +333,5 @@ export async function buildVoiceSystemPrompt(
 	// 2026-07-06). Use the allowSensitive=true variant of factClause so a
 	// current/factual question tells her to call web_search rather than falling
 	// back to "I can't verify."
-	return `${COMPANION_VOICE_BASE}\n\nThe current date and time is ${now}.${memory}${factClause(userMessage, true)}`;
+	return `${COMPANION_VOICE_BASE}\n\nThe current date and time is ${now}.${memory}${factClause(userMessage, true)}${WRITING_STYLE_VOICE}`;
 }
