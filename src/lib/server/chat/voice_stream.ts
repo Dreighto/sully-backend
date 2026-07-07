@@ -46,6 +46,21 @@ const VOICE_OLLAMA_MAX_MS = Number(process.env.VOICE_OLLAMA_MAX_MS) || 120000;
 // Fast-fail: no chunk from the model stream for this long → the bridge is wedged.
 const VOICE_IDLE_READ_MS = Number(process.env.VOICE_IDLE_READ_MS) || 20000;
 
+// Short, varied filler phrases spoken the moment a tool call fires, so the
+// operator hears a beat of Sully's voice while the search/fetch round-trip
+// runs (1-3 seconds of otherwise-silent dead air). Rotated per turn so the
+// same filler doesn't repeat when the operator asks several lookup-shaped
+// questions in a row. Sentence-final punctuation lets the reorder-drainer
+// treat these like any other sentence.
+const LOOK_UP_FILLERS = [
+	'One sec.',
+	'Checking.',
+	'Hang on a sec.',
+	'Give me a moment.',
+	'Looking now.'
+];
+const PULL_UP_FILLERS = ['Pulling that up.', 'One sec.', 'Grabbing that now.'];
+
 type SseController = ReadableStreamDefaultController<Uint8Array>;
 
 export type VoiceStreamResult = {
@@ -264,9 +279,17 @@ export async function runVoiceStreamingSpeak(
 							numCtx: opts.numCtx,
 							signal: opts.signal,
 							taskId: opts.taskId,
+							// Rotate the tool-start filler so it doesn't sound canned when
+							// the operator hits it several times in the same conversation
+							// (2026-07-06 gripe: hearing "Let me look that up" every single
+							// turn got annoying fast). Kept short and varied; picked
+							// per-turn via a cheap random index rather than a session
+							// counter (no shared state to keep clean).
 							onToolStart: (toolName: string) =>
 								fireSentence(
-									toolName === 'web_fetch' ? 'Let me pull that up.' : 'Let me look that up.'
+									toolName === 'web_fetch'
+										? PULL_UP_FILLERS[Math.floor(Math.random() * PULL_UP_FILLERS.length)]
+										: LOOK_UP_FILLERS[Math.floor(Math.random() * LOOK_UP_FILLERS.length)]
 								)
 						});
 						transcript = content;
