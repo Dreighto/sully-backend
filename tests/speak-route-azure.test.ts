@@ -101,6 +101,35 @@ describe('/api/chat/speak Azure provider', () => {
 		expect(body).toContain('Hello from Sully.');
 	});
 
+	it('passes speakableText SSML fragments through without escaping them', async () => {
+		ENV.AZURE_SPEECH_KEY = 'azure-test-key';
+		ENV.AZURE_SPEECH_REGION = 'westus2';
+		state.speakableText.mockReturnValue(
+			'<say-as interpret-as="date" format="y">2026</say-as>'
+		);
+		const fetchSpy = vi.fn().mockResolvedValue(
+			new Response(Uint8Array.from([1, 2, 3]), {
+				status: 200,
+				headers: { 'content-type': 'audio/mpeg' }
+			})
+		);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		const { POST } = await loadRoute();
+		await POST({
+			request: new Request('http://test.local/api/chat/speak', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text: 'year' })
+			})
+		} as Parameters<typeof POST>[0]);
+
+		const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+		const body = String(init.body);
+		expect(body).toContain('<say-as interpret-as="date" format="y">2026</say-as>');
+		expect(body).not.toContain('&lt;say-as');
+	});
+
 	it('returns 503 when Azure creds are missing', async () => {
 		const fetchSpy = vi.fn();
 		vi.stubGlobal('fetch', fetchSpy);

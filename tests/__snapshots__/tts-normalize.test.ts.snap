@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`speakableText > matches the real-session SSML snapshot 1`] = `
+[
+  {
+    "sample": "The RTX 5060 Ti is hovering in the $400‑$460 range right now.",
+    "ssml": "The RTX 5060 Ti is hovering in the <say-as interpret-as="currency" language="en-US">400 USD</say-as> to <say-as interpret-as="currency" language="en-US">460 USD</say-as> range right now.",
+  },
+  {
+    "sample": "Newegg lists the MSI 8GB version at $459.99.",
+    "ssml": "Newegg lists the MSI <sub alias="eight gigabytes">8GB</sub> version at <say-as interpret-as="currency" language="en-US">459.99 USD</say-as>.",
+  },
+  {
+    "sample": "It's 5:02 PM on Sunday, May 31, 2026.",
+    "ssml": "It's <say-as interpret-as="time" format="hms12">5:02</say-as> PM on Sunday, <say-as interpret-as="date" format="md">May 31</say-as>, <say-as interpret-as="date" format="y">2026</say-as>.",
+  },
+  {
+    "sample": "The Pixel 9 Pro has 16GB of RAM and a 3.2 GHz clock.",
+    "ssml": "The Pixel 9 Pro has <sub alias="sixteen gigabytes">16GB</sub> of RAM and a <sub alias="three point two gigahertz">3.2 GHz</sub> clock.",
+  },
+  {
+    "sample": "The 31st order came to $1,145 total.",
+    "ssml": "The <say-as interpret-as="ordinal">31</say-as> order came to <say-as interpret-as="currency" language="en-US">1145 USD</say-as> total.",
+  },
+]
+`;
