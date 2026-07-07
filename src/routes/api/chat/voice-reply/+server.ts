@@ -22,6 +22,11 @@ import type { TurnDecision } from '$lib/server/routing/turn_decision';
 const VOICE_MODEL = resolveVoiceModel();
 const HISTORY = 12;
 
+/** Strip leading STT punctuation noise (! . , ? and whitespace) before routing. */
+export function stripLeadingSttNoise(text: string): string {
+	return text.replace(/^[!.,?\s]+/, '').trim();
+}
+
 function extractDispatchProposal(decision: TurnDecision): DispatchProposalMeta | null {
 	const verbForCategory = (category: string): string => {
 		const c = category.toLowerCase();
@@ -60,7 +65,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	let threadId = 'default';
 	try {
 		const body = await request.json();
-		text = (body.text || '').trim();
+		text = stripLeadingSttNoise((body.text || '').trim());
 		threadId = body.thread || 'default';
 	} catch {
 		return new Response('invalid json', { status: 400 });

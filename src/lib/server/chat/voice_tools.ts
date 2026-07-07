@@ -23,6 +23,27 @@ const OLLAMA = VOICE_OLLAMA_URL;
 // helper). Env-overridable for the field.
 const VOICE_TOOL_TIMEOUT_MS = Number(process.env.VOICE_TOOL_TIMEOUT_MS) || 30000;
 
+export const FINAL_TOOL_ANSWER_INSTRUCTION =
+	'Answer now in one spoken paragraph using the tool results already provided. Do not emit JSON.';
+
+export const SAFE_SPOKEN_TOOL_FALLBACK =
+	'I found results, but I could not turn them into a clean answer. Ask me again with the exact target.';
+
+const LOOKUP_CUES = [
+	'search',
+	'look up',
+	'latest',
+	'current',
+	'price',
+	'news',
+	'weather',
+	'today',
+	'what is the'
+] as const;
+
+const AMBIGUITY_NUDGE =
+	'Answer from the conversation context. If a name is ambiguous, ask a one-sentence clarifying question instead of searching.';
+
 // Ollama tool schemas (OpenAI-function shape — what /api/chat expects).
 export const VOICE_TOOL_SCHEMAS = [
 	{
@@ -61,6 +82,62 @@ type ToolCall = { function: { name: string; arguments: Record<string, unknown> }
 
 const TOOL_NAMES = new Set(['web_search', 'web_fetch']);
 
+const MALFORMED_TOOL_RESIDUE_RE =
+	/\{[^{}]*(?:"web_search"|"web_fetch"|"tool_call"|UNTRUSTED external\/file data)[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g;
+
+/**
+ * Preflight: suppress web tools on short, ambiguous follow-ups in an ongoing
+ * thread unless the operator clearly asked for external/current facts.
+ */
+export function shouldOfferTools(latestUserTurn: string, priorTurnCount: number): boolean {
+	if (priorTurnCount < 2) return true;
+	const words = latestUserTurn.trim().split(/\s+/).filter(Boolean);
+	if (words.length >= 8) return true;
+	const lower = latestUserTurn.toLowerCase();
+	if (LOOKUP_CUES.some((cue) => lower.includes(cue))) return true;
+	return false;
+}
+
+function countPriorTurns(messages: OllamaMessage[]): number {
+	const convo = messages.filter((m) => m.role !== 'system');
+	if (!convo.length) return 0;
+	const last = convo[convo.length - 1];
+	if (last?.role === 'user') return convo.length - 1;
+	return convo.length;
+}
+
+function latestUserTurn(messages: OllamaMessage[]): string {
+	for (let i = messages.length - 1; i >= 0; i--) {
+		if (messages[i].role === 'user') return messages[i].content ?? '';
+	}
+	return '';
+}
+
+export function looksLikeJsonOrToolOutput(text: string): boolean {
+	const t = text.trim();
+	if (!t) return false;
+	if (t.startsWith('{') || t.startsWith('[')) return true;
+	if (t.includes('UNTRUSTED external/file data')) return true;
+	if (t.includes('"results"')) return true;
+	// DPSK verify finding (b192 loop): prose-then-JSON slipped the leading
+	// brace check ("Here is the data: {\"web_search\": ...}"). A quoted key
+	// directly inside a brace/bracket never appears in legitimate spoken
+	// replies, nor do explicit tool markers.
+	if (/[{[]\s*"/.test(t)) return true;
+	if (/"(web_search|web_fetch|tool_call|tool_calls)"/.test(t)) return true;
+	return false;
+}
+
+function stripMalformedToolResidue(text: string): string {
+	if (!MALFORMED_TOOL_RESIDUE_RE.test(text)) return text;
+	MALFORMED_TOOL_RESIDUE_RE.lastIndex = 0;
+	const stripped = text.replace(MALFORMED_TOOL_RESIDUE_RE, '').replace(/\s+/g, ' ').trim();
+	console.warn(
+		'[tool_loop_malformed_output] stripped malformed inline tool residue from assistant text'
+	);
+	return stripped;
+}
+
 /**
  * Fallback parser for models (like companion-v1-voice) that emit tool calls as
  * inline TEXT instead of Ollama's structured `message.tool_calls`. Scans the
@@ -68,7 +145,7 @@ const TOOL_NAMES = new Set(['web_search', 'web_fetch']);
  * and lifts it into a ToolCall. Returns the calls found + the content with the
  * JSON stripped (so we never speak raw tool JSON if a call is detected).
  */
-function parseInlineToolCalls(content: string): { calls: ToolCall[]; stripped: string } {
+export function parseInlineToolCalls(content: string): { calls: ToolCall[]; stripped: string } {
 	const calls: ToolCall[] = [];
 	let stripped = content;
 	// Match balanced-ish JSON objects that contain a "name" key. Greedy enough
@@ -85,7 +162,7 @@ function parseInlineToolCalls(content: string): { calls: ToolCall[]; stripped: s
 			/* not valid JSON — skip */
 		}
 	}
-	return { calls, stripped };
+	return { calls, stripped: stripMalformedToolResidue(stripped) };
 }
 
 async function execTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -120,6 +197,69 @@ export interface ToolLoopResult {
 	toolsUsed: string[];
 }
 
+async function callOllamaChat(args: {
+	model: string;
+	messages: OllamaMessage[];
+	keepAlive: string | number;
+	numCtx: number;
+	signal?: AbortSignal;
+	tools?: typeof VOICE_TOOL_SCHEMAS;
+}): Promise<OllamaMessage | null> {
+	const isCloudModel = args.model.endsWith('-cloud');
+	const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
+	const body: Record<string, unknown> = isCloudModel
+		? { model: args.model, messages: args.messages, stream: false }
+		: {
+				model: args.model,
+				messages: args.messages,
+				stream: false,
+				keep_alive: args.keepAlive,
+				options: { num_ctx: args.numCtx }
+			};
+	if (args.tools) body.tools = args.tools;
+	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	if (isCloudModel && OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
+	const resp = await fetch(endpoint, {
+		method: 'POST',
+		headers,
+		body: JSON.stringify(body),
+		signal: composeTimeout(args.signal, VOICE_TOOL_TIMEOUT_MS)
+	});
+	if (!resp.ok) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
+	const data = (await resp.json()) as { message?: OllamaMessage };
+	return data.message ?? null;
+}
+
+async function finalizeExhaustedToolLoop(args: {
+	model: string;
+	messages: OllamaMessage[];
+	keepAlive: string | number;
+	numCtx: number;
+	signal?: AbortSignal;
+	lastAssistantText: string;
+}): Promise<string> {
+	const finalMessages: OllamaMessage[] = [
+		...args.messages,
+		{ role: 'system', content: FINAL_TOOL_ANSWER_INSTRUCTION }
+	];
+	try {
+		const msg = await callOllamaChat({
+			model: args.model,
+			messages: finalMessages,
+			keepAlive: args.keepAlive,
+			numCtx: args.numCtx,
+			signal: args.signal
+		});
+		const spoken = (msg?.content || '').trim();
+		if (spoken && !looksLikeJsonOrToolOutput(spoken)) return spoken;
+	} catch {
+		/* fall through to safe fallback */
+	}
+	const fallback = args.lastAssistantText.trim();
+	if (fallback && !looksLikeJsonOrToolOutput(fallback)) return fallback;
+	return SAFE_SPOKEN_TOOL_FALLBACK;
+}
+
 /**
  * Run the Ollama tool-calling loop to a final answer. NON-streaming per step
  * (we must inspect tool_calls cleanly); the caller streams `content` out to
@@ -148,57 +288,82 @@ export async function runVoiceToolLoop(args: {
 	const maxSteps = args.maxSteps ?? 3;
 	const toolsEnabled = !!OLLAMA_API_KEY;
 	let firedToolStart = false;
-
-	// Cloud models (-cloud suffix on the tag) run on Ollama Cloud with Bearer
-	// auth; local models talk to the Jetson Ollama on VOICE_OLLAMA_URL. Mirrors
-	// the same routing voice_stream.ts uses for its streaming call (kept in
-	// sync 2026-07-06 when tools were wired for cloud models — the two calls
-	// have to hit the same backend or the follow-up inference after the tool
-	// runs can't see the prior context).
-	const isCloudModel = args.model.endsWith('-cloud');
-	const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
+	let lastAssistantText = '';
+	const userTurn = latestUserTurn(messages);
+	const priorTurns = countPriorTurns(messages);
+	const offerTools = toolsEnabled && shouldOfferTools(userTurn, priorTurns);
+	if (toolsEnabled && !offerTools) {
+		messages.push({ role: 'system', content: AMBIGUITY_NUDGE });
+	}
 
 	for (let step = 0; step <= maxSteps; step++) {
-		const body: Record<string, unknown> = isCloudModel
-			? { model: args.model, messages, stream: false }
-			: {
-					model: args.model,
-					messages,
-					stream: false,
-					keep_alive: args.keepAlive,
-					options: { num_ctx: args.numCtx }
+		const attachTools = offerTools && step < maxSteps;
+		let msg: OllamaMessage | null;
+		try {
+			msg = await callOllamaChat({
+				model: args.model,
+				messages,
+				keepAlive: args.keepAlive,
+				numCtx: args.numCtx,
+				signal: args.signal,
+				tools: attachTools ? VOICE_TOOL_SCHEMAS : undefined
+			});
+		} catch (e) {
+			if (toolsUsed.length) {
+				return {
+					content: await finalizeExhaustedToolLoop({
+						...args,
+						messages,
+						lastAssistantText
+					}),
+					toolsUsed
 				};
-		// Offer tools only while we still have step budget; on the final allowed
-		// step, omit them so the model is forced to answer rather than call again.
-		if (toolsEnabled && step < maxSteps) body.tools = VOICE_TOOL_SCHEMAS;
-
-		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-		if (isCloudModel && OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
-
-		const resp = await fetch(endpoint, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify(body),
-			signal: composeTimeout(args.signal, VOICE_TOOL_TIMEOUT_MS)
-		});
-		if (!resp.ok) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
-		const data = (await resp.json()) as { message?: OllamaMessage };
-		const msg = data.message;
-		if (!msg) return { content: '', toolsUsed };
+			}
+			throw e;
+		}
+		if (!msg) {
+			if (toolsUsed.length) {
+				return {
+					content: await finalizeExhaustedToolLoop({
+						...args,
+						messages,
+						lastAssistantText
+					}),
+					toolsUsed
+				};
+			}
+			return { content: '', toolsUsed };
+		}
 
 		// Prefer Ollama's structured tool_calls; fall back to parsing inline JSON
 		// for models (companion-v1-voice) that emit calls as text content.
 		let calls = msg.tool_calls ?? [];
 		let assistantContent = msg.content || '';
-		if (calls.length === 0 && toolsEnabled && step < maxSteps) {
+		if (assistantContent.trim()) lastAssistantText = assistantContent.trim();
+		if (calls.length === 0 && attachTools) {
 			const inline = parseInlineToolCalls(assistantContent);
 			if (inline.calls.length > 0) {
 				calls = inline.calls;
 				assistantContent = inline.stripped;
+				if (assistantContent.trim()) lastAssistantText = assistantContent.trim();
+			} else if (inline.stripped !== assistantContent) {
+				assistantContent = inline.stripped;
+				if (assistantContent.trim()) lastAssistantText = assistantContent.trim();
 			}
 		}
 		if (calls.length === 0) {
 			return { content: assistantContent.trim(), toolsUsed };
+		}
+
+		if (!attachTools) {
+			return {
+				content: await finalizeExhaustedToolLoop({
+					...args,
+					messages,
+					lastAssistantText
+				}),
+				toolsUsed
+			};
 		}
 
 		// Speak the "let me look that up" filler before the first tool runs —
@@ -226,8 +391,12 @@ export async function runVoiceToolLoop(args: {
 		}
 	}
 
-	// Exhausted the step budget without a clean answer — return whatever the
-	// last turn had (best-effort; rare).
-	const last = messages[messages.length - 1];
-	return { content: (last?.content || '').trim(), toolsUsed };
+	return {
+		content: await finalizeExhaustedToolLoop({
+			...args,
+			messages,
+			lastAssistantText
+		}),
+		toolsUsed
+	};
 }

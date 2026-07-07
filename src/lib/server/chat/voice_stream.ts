@@ -138,12 +138,17 @@ export async function runVoiceStreamingSpeak(
 	let notify: () => void = () => {};
 	let waiter = new Promise<void>((r) => (notify = r));
 
-	function fireSentence(text: string) {
+	const nonFillerTranscriptParts: string[] = [];
+
+	function fireSentence(text: string, opts?: { filler?: boolean }) {
 		const i = idx++;
 		const firedMs = rel();
 		if (firstDispatchMs === null) firstDispatchMs = firedMs;
 		sentenceLog.push({ i, text, fired_ms: firedMs, audio_ms: null });
-		sse(controller, enc, 'sentence', { i, text, fired_ms: firedMs });
+		const payload: Record<string, unknown> = { i, text, fired_ms: firedMs };
+		if (opts?.filler) payload.filler = true;
+		else nonFillerTranscriptParts.push(text);
+		sse(controller, enc, 'sentence', payload);
 		synths[i] = synth(text);
 		notify();
 		waiter = new Promise<void>((r) => (notify = r));
@@ -290,7 +295,8 @@ export async function runVoiceStreamingSpeak(
 								fireSentence(
 									toolName === 'web_fetch'
 										? PULL_UP_FILLERS[Math.floor(Math.random() * PULL_UP_FILLERS.length)]
-										: LOOK_UP_FILLERS[Math.floor(Math.random() * LOOK_UP_FILLERS.length)]
+										: LOOK_UP_FILLERS[Math.floor(Math.random() * LOOK_UP_FILLERS.length)],
+									{ filler: true }
 								)
 						});
 						transcript = content;
@@ -316,8 +322,9 @@ export async function runVoiceStreamingSpeak(
 		genDone = true;
 		notify();
 		await drain;
+		const doneTranscript = nonFillerTranscriptParts.join(' ').trim() || transcript.trim();
 		sse(controller, enc, 'done', {
-			transcript: transcript.trim(),
+			transcript: doneTranscript,
 			generation_complete_ms: generationCompleteMs,
 			first_tts_dispatch_ms: firstDispatchMs,
 			first_audio_ms: firstAudioMs,
@@ -326,7 +333,12 @@ export async function runVoiceStreamingSpeak(
 			prompt_eval_ms: promptEvalMs,
 			sentences: idx
 		});
-		return { toolTurn: toolMode, transcript: transcript.trim(), aborted: false, sentenceLog };
+		return {
+			toolTurn: toolMode,
+			transcript: doneTranscript,
+			aborted: false,
+			sentenceLog
+		};
 	} catch (e) {
 		// Signal abort is the truncate / barge-in path — drain whatever sentences
 		// have already been synthesized (so the client gets the trailing `audio`
