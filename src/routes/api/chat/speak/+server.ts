@@ -11,6 +11,7 @@ import { env } from '$env/dynamic/private';
 import { getTodayTtsUsage, addTtsUsage } from '$lib/server/voice_usage';
 import { getVoice, cloudAvailable, localRefFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
 import { speakableText } from '$lib/server/tts_normalize';
+import { applyContextualPronunciation } from '$lib/server/contextual_pronunciation';
 import { padWavTrailingSilence } from '$lib/server/wav_pad';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
 import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '$lib/server/azure_tts';
@@ -21,7 +22,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(400, { message: 'Missing text' });
 	}
 	const rawText = body.text.trim();
-	const text: string = speakableText(rawText);
+	const rewritten = await applyContextualPronunciation(rawText, { signal: request.signal });
+	const text: string = speakableText(rewritten);
 
 	// Force-local master switch (VOICE_TTS_PROVIDER=local): route this "cloud"
 	// endpoint to the local Chatterbox service instead of ElevenLabs. Talkback
