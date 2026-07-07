@@ -97,3 +97,27 @@ export async function inlineDocumentAttachments(userText: string): Promise<strin
 	}
 	return sections.length > 0 ? `\n\n${sections.join('\n\n')}` : '';
 }
+
+/**
+ * Replace upload-link markdown with a plain-English mention and report
+ * whether anything else remains. The dispatch classifier must never read a
+ * raw "[file.md](./api/chat/uploads/…)" as a work brief — on 2026-07-07 an
+ * attachment-only turn produced a dispatch proposal quoting the link.
+ */
+export function describeAttachmentsForClassifier(userText: string): {
+	cleaned: string;
+	attachmentOnly: boolean;
+} {
+	let sawRef = false;
+	const cleaned = userText
+		.replace(
+			/!?\[([^\]]*)\]\((?:\.\/)?(?:companion\/)?api\/chat\/uploads\/[A-Za-z0-9-]+\.[A-Za-z0-9]+\)/g,
+			(_m, name) => {
+				sawRef = true;
+				return `(attached file: ${name || 'file'})`;
+			}
+		)
+		.trim();
+	const withoutMentions = cleaned.replace(/\(attached file: [^)]*\)/g, '').trim();
+	return { cleaned, attachmentOnly: sawRef && withoutMentions.length === 0 };
+}
