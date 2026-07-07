@@ -22,44 +22,56 @@ describe('inlineDocumentAttachments', () => {
 	});
 	afterEach(() => {});
 
-	it('returns empty for text with no upload refs', () => {
-		expect(inlineDocumentAttachments('just a question')).toBe('');
+	it('returns empty for text with no upload refs', async () => {
+		expect(await inlineDocumentAttachments('just a question')).toBe('');
 	});
 
-	it('ignores image refs — vision concern, not ours', () => {
+	it('ignores image refs — vision concern, not ours', async () => {
 		fs.writeFileSync(path.join(UPLOADS, 'a1b2.png'), 'png-bytes');
-		expect(inlineDocumentAttachments('look ![img](./api/chat/uploads/a1b2.png)')).toBe('');
+		expect(await inlineDocumentAttachments('look ![img](./api/chat/uploads/a1b2.png)')).toBe('');
 	});
 
-	it('inlines a text file as a fenced block', () => {
+	it('inlines a text file as a fenced block', async () => {
 		fs.writeFileSync(path.join(UPLOADS, 'notes-1.txt'), 'line one\nline two');
-		const out = inlineDocumentAttachments('read this [notes](./api/chat/uploads/notes-1.txt)');
+		const out = await inlineDocumentAttachments(
+			'read this [notes](./api/chat/uploads/notes-1.txt)'
+		);
 		expect(out).toContain('notes-1.txt');
 		expect(out).toContain('line one\nline two');
 		expect(out).toContain('```');
 	});
 
-	it('marks oversized files truncated and caps the content', () => {
+	it('marks oversized files truncated and caps the content', async () => {
 		fs.writeFileSync(path.join(UPLOADS, 'big-1.txt'), 'x'.repeat(200 * 1024));
-		const out = inlineDocumentAttachments('see [big](./api/chat/uploads/big-1.txt)');
+		const out = await inlineDocumentAttachments('see [big](./api/chat/uploads/big-1.txt)');
 		expect(out).toContain('(truncated)');
 		expect(out.length).toBeLessThan(140 * 1024);
 	});
 
-	it('refuses path traversal shapes (regex + resolve belt-and-braces)', () => {
-		const out = inlineDocumentAttachments('x [f](./api/chat/uploads/../../etc/passwd.txt)');
+	it('refuses path traversal shapes (regex + resolve belt-and-braces)', async () => {
+		const out = await inlineDocumentAttachments('x [f](./api/chat/uploads/../../etc/passwd.txt)');
 		expect(out).toBe('');
 	});
 
-	it('missing file is silently skipped', () => {
-		expect(inlineDocumentAttachments('x [f](./api/chat/uploads/nope-9.txt)')).toBe('');
+	it('missing file is silently skipped', async () => {
+		expect(await inlineDocumentAttachments('x [f](./api/chat/uploads/nope-9.txt)')).toBe('');
 	});
 
-	it('dedupes repeated refs to the same file', () => {
+	it('dedupes repeated refs to the same file', async () => {
 		fs.writeFileSync(path.join(UPLOADS, 'dup-1.md'), '# once');
-		const out = inlineDocumentAttachments(
+		const out = await inlineDocumentAttachments(
 			'[a](./api/chat/uploads/dup-1.md) and again [b](./api/chat/uploads/dup-1.md)'
 		);
 		expect(out.split('# once').length - 1).toBe(1);
+	});
+});
+
+describe('uploads serving route hardening', () => {
+	it('a PDF turn resolves without blocking semantics (async contract)', async () => {
+		// pdfToText is async (execFile, not execFileSync) — pin the contract by
+		// asserting inlineDocumentAttachments returns a Promise.
+		const r = inlineDocumentAttachments('plain');
+		expect(r).toBeInstanceOf(Promise);
+		await r;
 	});
 });

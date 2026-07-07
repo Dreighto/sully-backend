@@ -11,7 +11,8 @@
 // PDFs go through `pdftotext -layout` (poppler-utils). Extraction failures
 // degrade to an honest note — never a silent drop.
 
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import fs from 'node:fs';
 import path from 'node:path';
 import { serverConfig } from '$lib/server/config';
@@ -42,12 +43,18 @@ function readTextCapped(p: string): { text: string; truncated: boolean } {
 	};
 }
 
-function pdfToText(p: string): { text: string; truncated: boolean } | null {
+const execFileAsync = promisify(execFile);
+
+async function pdfToText(p: string): Promise<{ text: string; truncated: boolean } | null> {
 	try {
-		const out = execFileSync('pdftotext', ['-layout', '-q', p, '-'], {
+		// ASYNC on purpose: a slow/hostile PDF must only stall its own turn,
+		// never the event loop (execFileSync here would freeze the whole
+		// process for up to the timeout — in-house review finding, 2026-07-07).
+		const { stdout } = await execFileAsync('pdftotext', ['-layout', '-q', p, '-'], {
 			timeout: 15_000,
 			maxBuffer: MAX_INLINE_BYTES_PER_FILE * 2
-		}).toString('utf-8');
+		});
+		const out = stdout.toString();
 		const truncated = out.length > MAX_INLINE_BYTES_PER_FILE;
 		return { text: out.slice(0, MAX_INLINE_BYTES_PER_FILE), truncated };
 	} catch {
@@ -60,7 +67,7 @@ function pdfToText(p: string): { text: string; truncated: boolean } | null {
  * content block to append to the model-facing message (empty string when the
  * turn has no readable documents). Never throws.
  */
-export function inlineDocumentAttachments(userText: string): string {
+export async function inlineDocumentAttachments(userText: string): Promise<string> {
 	let budget = MAX_INLINE_BYTES_PER_TURN;
 	const sections: string[] = [];
 	const seen = new Set<string>();
@@ -73,7 +80,7 @@ export function inlineDocumentAttachments(userText: string): string {
 		const p = safeUploadPath(filename);
 		if (!p || !fs.existsSync(p)) continue;
 		try {
-			const extracted = ext === PDF_EXT ? pdfToText(p) : readTextCapped(p);
+			const extracted = ext === PDF_EXT ? await pdfToText(p) : readTextCapped(p);
 			if (!extracted || !extracted.text.trim()) {
 				sections.push(`[Attached file ${filename} could not be read as text.]`);
 				continue;
