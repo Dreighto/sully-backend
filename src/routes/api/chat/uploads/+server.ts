@@ -39,7 +39,15 @@ const ALLOWED_MIME = new Set([
 	'image/heic',
 	'image/heif',
 	'image/heic-sequence',
-	'image/heif-sequence'
+	'image/heif-sequence',
+	// Document attachments (W3, 2026-07-07): text-like files are inlined into
+	// the model turn server-side (attachment_inline.ts); PDFs are extracted
+	// via pdftotext. Anything not on this list still 415s.
+	'text/plain',
+	'text/markdown',
+	'application/json',
+	'text/csv',
+	'application/pdf'
 ]);
 
 // 8 MB. iPhone screenshots are typically 1-3 MB; this leaves headroom for
@@ -65,6 +73,16 @@ function extFromMime(mime: string): string {
 		case 'image/heif':
 		case 'image/heif-sequence':
 			return 'heif';
+		case 'text/plain':
+			return 'txt';
+		case 'text/markdown':
+			return 'md';
+		case 'application/json':
+			return 'json';
+		case 'text/csv':
+			return 'csv';
+		case 'application/pdf':
+			return 'pdf';
 		default:
 			return 'bin';
 	}

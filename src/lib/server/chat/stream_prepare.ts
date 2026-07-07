@@ -35,6 +35,7 @@ import {
 } from '$lib/server/input_normalizer';
 import { prepareTurnLifecycle } from './turn_lifecycle';
 import { buildHotWindow } from './hot_window';
+import { inlineDocumentAttachments } from './attachment_inline';
 import { resolveProviderAndModel, type Provider } from './provider_resolve';
 
 export { detectTargetRepo } from './target_repo';
@@ -181,6 +182,30 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 	});
 
 	const modelMessages = buildHotWindow(threadId, operatorRowId, messages);
+
+	// Document attachments: append the file content (fenced) to the MODEL's
+	// copy of this turn only. buildHotWindow ALIASES the body's own message
+	// objects into modelMessages, so mutating the part in place would leak the
+	// doc dump into ctx.messages → originalMessages → the client-facing feed,
+	// AND into userMessageText/routing below (in-house review finding,
+	// 2026-07-07). Replace the last message with a deep-cloned copy instead —
+	// modelMessages alone carries the augmentation.
+	const docBlock = await inlineDocumentAttachments(userText);
+	if (docBlock) {
+		const last = modelMessages[modelMessages.length - 1];
+		if (last && last.role === 'user') {
+			const cloned = structuredClone(last);
+			let appended = false;
+			for (const part of cloned.parts ?? []) {
+				if (part.type === 'text') {
+					(part as { text: string }).text += docBlock;
+					appended = true;
+					break;
+				}
+			}
+			if (appended) modelMessages[modelMessages.length - 1] = cloned;
+		}
+	}
 
 	const targetRepo = lifecycleTargetRepo;
 

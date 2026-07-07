@@ -7,7 +7,7 @@ import { serverConfig } from '$lib/server/config';
 // Only this character set is valid for filenames written by POST /api/chat/uploads
 // (UUID + . + 3-4 char extension). Anything else is either a traversal attempt
 // or a stale link from a previous storage scheme — refuse early.
-const FILENAME_RE = /^[a-f0-9-]{36}\.(png|jpe?g|gif|webp|svg|heic|heif)$/i;
+const FILENAME_RE = /^[a-f0-9-]{36}\.(png|jpe?g|gif|webp|svg|heic|heif|txt|md|json|csv|pdf)$/i;
 
 const MIME_BY_EXT: Record<string, string> = {
 	png: 'image/png',
@@ -17,7 +17,12 @@ const MIME_BY_EXT: Record<string, string> = {
 	webp: 'image/webp',
 	svg: 'image/svg+xml',
 	heic: 'image/heic',
-	heif: 'image/heif'
+	heif: 'image/heif',
+	txt: 'text/plain',
+	md: 'text/markdown',
+	json: 'application/json',
+	csv: 'text/csv',
+	pdf: 'application/pdf'
 };
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -44,6 +49,11 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	const ext = filename.split('.').pop()?.toLowerCase() || '';
 	const mime = MIME_BY_EXT[ext] || 'application/octet-stream';
+	// SVG can carry <script> and executes same-origin when rendered inline —
+	// stored-XSS vector (in-house review, 2026-07-07). Force download for SVG
+	// and all document types; raster images stay inline for the chat feed.
+	const INLINE_SAFE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif']);
+	const disposition = INLINE_SAFE.has(ext) ? undefined : 'attachment';
 
 	const body = fs.readFileSync(resolved);
 	const arrayBuffer = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
@@ -53,7 +63,8 @@ export const GET: RequestHandler = async ({ params }) => {
 			'content-type': mime,
 			'content-length': String(stat.size),
 			'cache-control': 'public, max-age=31536000, immutable',
-			'x-content-type-options': 'nosniff'
+			'x-content-type-options': 'nosniff',
+			...(disposition ? { 'content-disposition': disposition } : {})
 		}
 	});
 };
