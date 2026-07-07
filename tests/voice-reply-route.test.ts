@@ -143,6 +143,24 @@ describe('voice-reply route — validation', () => {
 		expect(res.status).toBe(400);
 		expect(await res.text()).toBe('empty text');
 	});
+
+	it('strips leading STT punctuation noise before routing', async () => {
+		state.prepareTurnLifecycle.mockImplementation(async ({ text, threadId, source }) => ({
+			taskId: 'sully-test-task-001',
+			currentTier: 'local',
+			targetRepo: undefined,
+			shadowDecision: { kind: 'ANSWER_NOW', reason: 'test' },
+			userMessageText: text
+		}));
+
+		await postVoiceReply({ text: '! Whatever happened to Tiny Tiger?' });
+
+		expect(state.prepareTurnLifecycle).toHaveBeenCalledWith({
+			text: 'Whatever happened to Tiny Tiger?',
+			threadId: 'default',
+			source: 'voice'
+		});
+	});
 });
 
 describe('voice-reply route — non-streaming path (default)', () => {
