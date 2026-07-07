@@ -3,12 +3,16 @@
 // streaming (chat/voice_stream.ts, WAV/PCM — matches the Kokoro contract it
 // replaced, so the iOS client's audio decoding needs no changes).
 import { env } from '$env/dynamic/private';
-import { Agent } from 'undici';
+import { Agent, fetch as undiciFetch } from 'undici';
 
 // Keep-alive dispatcher for the Azure TTS endpoint. Without it every
 // per-sentence synth call pays a fresh TCP + TLS handshake to the Azure
 // region, which sits directly on the time-to-first-audio critical path
 // (operator finding, build 193: 3-4s perceived latency).
+//
+// Must pair with undici's OWN fetch: Node's built-in global fetch uses the
+// runtime's bundled undici and rejects a foreign Agent instance from the npm
+// package with a bare "fetch failed" (live-verified 2026-07-06).
 const azureDispatcher = new Agent({
 	keepAliveTimeout: 60_000,
 	keepAliveMaxTimeout: 120_000,
@@ -30,9 +34,8 @@ export function prewarmAzureTts(): void {
 	const now = Date.now();
 	if (now - lastPrewarmAt < 60_000) return;
 	lastPrewarmAt = now;
-	fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
+	undiciFetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
 		headers: { 'Ocp-Apim-Subscription-Key': apiKey },
-		// @ts-expect-error undici dispatcher is a Node extension to fetch
 		dispatcher: azureDispatcher
 	}).catch(() => {
 		lastPrewarmAt = 0;
@@ -95,7 +98,7 @@ export async function synthesizeAzureTts(opts: {
 		'</speak>'
 	].join('');
 
-	const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+	const res = await undiciFetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
 		method: 'POST',
 		headers: {
 			'Ocp-Apim-Subscription-Key': apiKey,
@@ -105,12 +108,12 @@ export async function synthesizeAzureTts(opts: {
 		},
 		body: ssml,
 		signal: opts.signal,
-		// @ts-expect-error undici dispatcher is a Node extension to fetch
 		dispatcher: azureDispatcher
 	});
 	if (!res.ok) {
 		const errBody = await res.text().catch(() => '');
 		throw new Error(`Azure Speech TTS HTTP ${res.status}: ${errBody}`);
 	}
-	return res;
+	// undici's Response is spec-compliant; cast for the DOM-typed callers.
+	return res as unknown as Response;
 }
