@@ -16,6 +16,7 @@ const OUTPUT_FORMAT_HEADERS: Record<AzureOutputFormat, { format: string; accept:
 	mp3: { format: 'audio-24khz-48kbitrate-mono-mp3', accept: 'audio/mpeg' },
 	wav: { format: 'riff-24khz-16bit-mono-pcm', accept: 'audio/wav' }
 };
+const PRONUNCIATION_EXPERIMENT_EFFECT = 'eq_car';
 
 function escapeSsml(text: string): string {
 	return text
@@ -28,6 +29,11 @@ function escapeSsml(text: string): string {
 
 export function azureConfigured(): boolean {
 	return !!env.AZURE_SPEECH_KEY && !!env.AZURE_SPEECH_REGION;
+}
+
+function pronunciationExperimentEnabled(): boolean {
+	const flag = env.AZURE_TTS_ENABLE_PRONUNCIATION_EXPERIMENT?.trim().toLowerCase();
+	return flag === '1' || flag === 'true' || flag === 'yes' || flag === 'on';
 }
 
 /**
@@ -50,15 +56,21 @@ export async function synthesizeAzureTts(opts: {
 	}
 	const voiceName = opts.voice ?? DEFAULT_AZURE_VOICE;
 	const { format, accept } = OUTPUT_FORMAT_HEADERS[opts.format ?? 'mp3'];
+	const pronunciationExperiment = pronunciationExperimentEnabled();
+	const voiceAttrs = pronunciationExperiment
+		? `name="${escapeSsml(voiceName)}" effect="${PRONUNCIATION_EXPERIMENT_EFFECT}"`
+		: `name="${escapeSsml(voiceName)}"`;
 	const ssml = [
 		'<speak version="1.0" xml:lang="en-US">',
-		`<voice name="${escapeSsml(voiceName)}">`,
+		`<voice ${voiceAttrs}>`,
 		escapeSsml(opts.text),
 		'</voice>',
 		'</speak>'
 	].join('');
+	const endpoint = new URL(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`);
+	if (pronunciationExperiment) endpoint.searchParams.set('effect', PRONUNCIATION_EXPERIMENT_EFFECT);
 
-	const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+	const res = await fetch(endpoint.toString(), {
 		method: 'POST',
 		headers: {
 			'Ocp-Apim-Subscription-Key': apiKey,
