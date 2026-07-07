@@ -16,7 +16,12 @@ import { Agent, fetch as undiciFetch } from 'undici';
 const azureDispatcher = new Agent({
 	keepAliveTimeout: 60_000,
 	keepAliveMaxTimeout: 120_000,
-	connections: 4
+	// 8 slots + hard per-request deadlines: a leaked/hung slot self-heals
+	// instead of silently starving every TTS surface (live incident
+	// 2026-07-07: 4 wedged slots = app-wide TTS silence for 45+ min).
+	connections: 8,
+	headersTimeout: 15_000,
+	bodyTimeout: 60_000
 });
 
 let lastPrewarmAt = 0;
@@ -37,9 +42,15 @@ export function prewarmAzureTts(): void {
 	undiciFetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`, {
 		headers: { 'Ocp-Apim-Subscription-Key': apiKey },
 		dispatcher: azureDispatcher
-	}).catch(() => {
-		lastPrewarmAt = 0;
-	});
+	})
+		// MUST drain the body: an unconsumed keep-alive response permanently
+		// reserves its pool slot. Four un-drained prewarms (one per Voice
+		// Mode open) wedged the whole pool → app-wide TTS silence
+		// (root cause, 2026-07-07).
+		.then((r) => r.body?.cancel())
+		.catch(() => {
+			lastPrewarmAt = 0;
+		});
 }
 
 // Ava DragonHD: Azure's newest generative voice tier. More natural cadence
