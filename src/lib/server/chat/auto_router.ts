@@ -85,17 +85,102 @@ function familyFromCandidate(candidate: AutoResolveResult): AutoProviderFamily {
 	return providerFamilyFromApi(candidate.route.provider) ?? 'local';
 }
 
+function candidateModelId(c: AutoResolveResult): string {
+	return c.kind === 'cli' ? c.modelId : c.modelHandle.modelId;
+}
+
+/** Exact-or-exact-root match — substring matching cross-matched size variants
+ *  (gpt-oss:20b vs :120b would both split to 'gpt-oss'; in-house review). */
+function modelMatches(modelId: string, lastModelUsed: string): boolean {
+	if (modelId === lastModelUsed) return true;
+	const a = modelId.split(':')[0];
+	const b = lastModelUsed.split(':')[0];
+	return a === b && modelId.split(':')[1] === lastModelUsed.split(':')[1];
+}
+
 function preferLastWorkingCandidate(
 	candidates: AutoResolveResult[],
 	lastModelUsed: string | null | undefined
 ): AutoResolveResult[] {
 	if (!lastModelUsed || candidates.length < 2) return candidates;
-	const idx = candidates.findIndex((c) => {
-		const modelId = c.kind === 'cli' ? c.modelId : c.modelHandle.modelId;
-		return modelId === lastModelUsed || lastModelUsed.includes(modelId.split(':')[0] ?? '');
-	});
+	const idx = candidates.findIndex((c) => modelMatches(candidateModelId(c), lastModelUsed));
 	if (idx <= 0) return candidates;
 	return [candidates[idx], ...candidates.slice(0, idx), ...candidates.slice(idx + 1)];
+}
+
+/**
+ * Construct a candidate for the thread's sticky model when the tier-ranked
+ * list doesn't contain it (post-escalation gap: a thread that escalated to
+ * Sonnet would otherwise silently revert to the chat-tier head on its next
+ * plain turn — the exact ping-pong determinism forbids). Fails closed to
+ * null; the caller falls back to normal ranking.
+ */
+function stickyCandidateFor(lastModelUsed: string, tier: Tier): AutoResolveResult | null {
+	try {
+		if (/sonnet|opus/i.test(lastModelUsed)) {
+			if (isAnthropicCapExceeded() || isAutoProviderCooling('anthropic')) return null;
+			return {
+				kind: 'cli',
+				modelId: lastModelUsed,
+				route: buildRoute({
+					provider: 'anthropic',
+					modelId: lastModelUsed,
+					tier,
+					reason: 'auto_thread_sticky',
+					fell_forward: false,
+					handled_by: 'cli'
+				})
+			};
+		}
+		if (/^claude-/i.test(lastModelUsed)) {
+			if (isAnthropicCapExceeded() || isAutoProviderCooling('anthropic')) return null;
+			const modelHandle = pickModel('anthropic', tier, lastModelUsed);
+			return {
+				kind: 'direct',
+				modelHandle,
+				route: buildRoute({
+					provider: 'anthropic',
+					modelId: modelHandle.modelId,
+					tier,
+					reason: 'auto_thread_sticky',
+					fell_forward: false
+				})
+			};
+		}
+		if (/^gemini-/i.test(lastModelUsed)) {
+			if (isAutoProviderCooling('google')) return null;
+			const modelHandle = pickModel('google', tier, lastModelUsed);
+			return {
+				kind: 'direct',
+				modelHandle,
+				route: buildRoute({
+					provider: 'google',
+					modelId: modelHandle.modelId,
+					tier,
+					reason: 'auto_thread_sticky',
+					fell_forward: false
+				})
+			};
+		}
+		if (/-cloud$/.test(lastModelUsed)) {
+			if (isAutoProviderCooling('local')) return null;
+			const modelHandle = pickModel('local', tier, lastModelUsed);
+			return {
+				kind: 'direct',
+				modelHandle,
+				route: buildRoute({
+					provider: 'local',
+					modelId: modelHandle.modelId,
+					tier,
+					reason: 'auto_thread_sticky',
+					fell_forward: false
+				})
+			};
+		}
+		return null;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -189,10 +274,18 @@ export function listAutoModelCandidates(ctx: PreparedStreamContext): AutoResolve
 	// turns, which is what made Auto feel random (haiku → deepseek mid-thread,
 	// 2026-07-07). ctx.threadState is the PRE-turn snapshot, so current_tier
 	// here is the previous turn's tier.
-	const escalated =
-		TIER_RANK[tier] > TIER_RANK[ctx.threadState.current_tier ?? 'chat'];
+	const escalated = TIER_RANK[tier] > TIER_RANK[ctx.threadState.current_tier ?? 'chat'];
 	if (!escalated && ctx.threadState.last_model_used) {
-		return preferLastWorkingCandidate(candidates, ctx.threadState.last_model_used);
+		const last = ctx.threadState.last_model_used;
+		const inList = candidates.some((c) => modelMatches(candidateModelId(c), last));
+		if (!inList) {
+			// Post-escalation: the sticky model may not be a candidate at this
+			// tier (Sonnet on a chat turn). Construct it explicitly so the
+			// thread genuinely stays on its model.
+			const sticky = stickyCandidateFor(last, tier);
+			if (sticky) return [sticky, ...candidates];
+		}
+		return preferLastWorkingCandidate(candidates, last);
 	}
 	return candidates;
 }

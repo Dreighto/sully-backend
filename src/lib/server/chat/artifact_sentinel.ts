@@ -137,6 +137,10 @@ export function extractForPersist(
 	text: string,
 	ctx: { threadId?: string; taskId?: string } = {}
 ): { text: string; artifactTraceId: string | null } {
-	const { strippedText, artifacts } = extractAndPromoteArtifacts(text, ctx);
+	// Deterministic per-task trace: a regenerate/retry of the same Task
+	// re-promotes into the SAME store dir instead of minting an orphan
+	// duplicate on every attempt (in-house review finding, 2026-07-07).
+	const forced = ctx.taskId ? `sully-teacher-${ctx.taskId}` : undefined;
+	const { strippedText, artifacts } = extractAndPromoteArtifacts(text, ctx, forced);
 	return { text: strippedText || text, artifactTraceId: artifacts[0]?.trace_id ?? null };
 }

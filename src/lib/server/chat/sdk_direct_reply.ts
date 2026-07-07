@@ -252,6 +252,12 @@ export async function runDirectStreamAttempt(opts: {
 					threadId: ctx.threadId,
 					taskId: ctx.taskId
 				});
+				if (extracted.artifactTraceId) {
+					record({
+						type: 'data-sully-artifact',
+						data: { traceId: extracted.artifactTraceId }
+					} as never);
+				}
 				const replyId = persistAssistantTurn({
 					text: extracted.text,
 					sender: senderLabel,

@@ -139,8 +139,15 @@ export function handleLocalReply(opts: {
 					threadId: ctx.threadId,
 					taskId: ctx.taskId
 				});
+				if (extracted.artifactTraceId) {
+					writer.write({
+						type: 'data-sully-artifact',
+						data: { traceId: extracted.artifactTraceId }
+					} as never);
+				}
 				replyId = persistAssistantTurn({
 					text: extracted.text,
+					traceId: extracted.artifactTraceId,
 					sender: 'cc',
 					threadId: ctx.threadId,
 					model: escalationModel,
@@ -358,8 +365,15 @@ export function handleLocalReply(opts: {
 					threadId: ctx.threadId,
 					taskId: ctx.taskId
 				});
+				if (extracted.artifactTraceId) {
+					writer.write({
+						type: 'data-sully-artifact',
+						data: { traceId: extracted.artifactTraceId }
+					} as never);
+				}
 				replyId = persistAssistantTurn({
 					text: extracted.text,
+					traceId: extracted.artifactTraceId,
 					sender: 'cc',
 					threadId: ctx.threadId,
 					model: escalationModel,
@@ -419,6 +433,12 @@ export function handleLocalReply(opts: {
 				threadId: ctx.threadId,
 				taskId: ctx.taskId
 			});
+			if (extracted.artifactTraceId) {
+				writer.write({
+					type: 'data-sully-artifact',
+					data: { traceId: extracted.artifactTraceId }
+				} as never);
+			}
 			replyId = persistAssistantTurn({
 				text: extracted.text,
 				sender: 'local',
