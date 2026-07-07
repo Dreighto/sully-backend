@@ -14,7 +14,10 @@ vi.mock('$lib/server/config', () => ({
 	serverConfig: { chatUploadsDir: UPLOADS }
 }));
 
-import { inlineDocumentAttachments } from '$lib/server/chat/attachment_inline';
+import {
+	describeAttachmentsForClassifier,
+	inlineDocumentAttachments
+} from '$lib/server/chat/attachment_inline';
 
 describe('inlineDocumentAttachments', () => {
 	beforeEach(() => {
@@ -73,5 +76,28 @@ describe('uploads serving route hardening', () => {
 		const r = inlineDocumentAttachments('plain');
 		expect(r).toBeInstanceOf(Promise);
 		await r;
+	});
+});
+
+describe('describeAttachmentsForClassifier', () => {
+	it('replaces upload links with plain mentions', () => {
+		const { cleaned, attachmentOnly } = describeAttachmentsForClassifier(
+			'please review [design.md](./api/chat/uploads/abc-1.md) today'
+		);
+		expect(cleaned).toBe('please review (attached file: design.md) today');
+		expect(attachmentOnly).toBe(false);
+	});
+
+	it('flags attachment-only turns — these must never propose a dispatch', () => {
+		const { attachmentOnly } = describeAttachmentsForClassifier(
+			'[2026-06-27-sully-hybrid-brain-design.md](./api/chat/uploads/eae757a2-a4d5-4944-9b88-e5524913660f.md)'
+		);
+		expect(attachmentOnly).toBe(true);
+	});
+
+	it('leaves plain text untouched', () => {
+		const { cleaned, attachmentOnly } = describeAttachmentsForClassifier('run the speed test');
+		expect(cleaned).toBe('run the speed test');
+		expect(attachmentOnly).toBe(false);
 	});
 });

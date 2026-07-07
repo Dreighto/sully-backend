@@ -28,6 +28,7 @@
 // ./turn_decision_apply.ts. applyTurnDecision is re-exported here (unchanged
 // import path) since it's imported directly by all 4 sdk-reply handlers.
 
+import { describeAttachmentsForClassifier } from '$lib/server/chat/attachment_inline';
 import { runMode } from '$lib/server/config';
 import { mintTaskId } from '$lib/server/chat_turn';
 import { markAborted, getPendingProposal } from '$lib/server/dispatchJobs';
@@ -86,7 +87,12 @@ export async function maybeAutonomousDispatch(
 ): Promise<{ spokenSuffix?: string }> {
 	if (!runMode.companionDispatchEnabled) return {};
 
-	const { userText, targetRepo, threadId } = args;
+	const { userText: rawUserText, targetRepo, threadId } = args;
+	// Attachment hygiene: the classifier reads plain-English mentions, never
+	// raw upload-link markdown; an attachment-only turn ("here's a file") is
+	// context, not a dispatchable brief — never propose work for it.
+	const { cleaned: userText, attachmentOnly } = describeAttachmentsForClassifier(rawUserText);
+	if (attachmentOnly) return {};
 	// Reuse the turn's Task id so the dispatch promotes the existing 'proposed'
 	// row rather than creating an orphan. Fall back to a minted id for legacy
 	// callers that don't pass one.
