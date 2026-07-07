@@ -85,8 +85,22 @@ export async function inlineDocumentAttachments(userText: string): Promise<strin
 				sections.push(`[Attached file ${filename} could not be read as text.]`);
 				continue;
 			}
-			const clipped = extracted.text.slice(0, budget);
-			budget -= clipped.length;
+			// Budget in BYTES, not UTF-16 units — multibyte documents could
+			// otherwise overshoot the turn budget ~2x (DPSK verification #1).
+			let clipped = extracted.text;
+			while (Buffer.byteLength(clipped, 'utf-8') > budget) {
+				clipped = clipped.slice(0, Math.floor(clipped.length * 0.9));
+			}
+			// Never end on a split surrogate pair (the 0.9 cut is code-unit
+			// based) — a lone high surrogate serializes as U+FFFD mojibake.
+			const lastUnit = clipped.charCodeAt(clipped.length - 1);
+			if (lastUnit >= 0xd800 && lastUnit <= 0xdbff) {
+				clipped = clipped.slice(0, -1);
+			}
+			// Budget exhausted to nothing: an empty fenced block is pure
+			// prompt noise — skip this file entirely.
+			if (clipped.trim().length === 0) break;
+			budget -= Buffer.byteLength(clipped, 'utf-8');
 			sections.push(
 				`Attached file \`${filename}\`${extracted.truncated || clipped.length < extracted.text.length ? ' (truncated)' : ''}:\n\`\`\`\n${clipped}\n\`\`\``
 			);

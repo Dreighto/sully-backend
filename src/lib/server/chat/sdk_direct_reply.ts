@@ -206,11 +206,26 @@ export async function runDirectStreamAttempt(opts: {
 			// Join text segments with a paragraph break: pre-tool and post-tool
 			// text are separate parts, and ''-joining fused sentences
 			// ("their tour.Iron Maiden" — operator screenshot 2026-07-07).
-			const replyText = parts
+			const textParts = parts
 				.filter((p) => p.type === 'text')
-				.map((p) => (p as { type: 'text'; text: string }).text.trim())
-				.filter(Boolean)
-				.join('\n\n');
+				.map((p) => (p as { type: 'text'; text: string }).text);
+			// Multi-part (tool-split) replies join with a paragraph break; a
+			// single-part reply stays byte-identical to the streamed text —
+			// trimming it broke settle/dedupe equality (DPSK verification #4).
+			const singlePart = textParts[0] ?? '';
+			const replyText =
+				textParts.length > 1
+					? textParts
+							.map((t) => t.trim())
+							.filter(Boolean)
+							.join('\n\n')
+					: // Byte-identical single part — but whitespace-only must stay
+						// falsy so it routes to the honest "No reply was generated"
+						// path instead of persisting a blank bubble as success
+						// (in-house review on this PR).
+						singlePart.trim().length > 0
+						? singlePart
+						: '';
 			const toolErrors = parts
 				.filter((p) => {
 					const t = p as { type?: string; state?: string };
