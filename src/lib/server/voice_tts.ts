@@ -6,7 +6,6 @@
 // Exports a single helper so all three agree on restart behaviour and the
 // local-vs-cloud dispatch stays in the route layer.
 
-import { speakableText } from '$lib/server/tts_normalize';
 import { resolveTtsUrl } from '$lib/server/voice_runtime';
 import { restartTtsService } from '$lib/server/voice_services';
 
@@ -23,7 +22,7 @@ export interface SynthesizeOptions {
 }
 
 export async function synthesizeLocalTts(opts: SynthesizeOptions): Promise<Response> {
-	const text = speakableText(opts.text.trim());
+	const text = opts.text.trim();
 	if (!text) return new Response('empty text', { status: 400 });
 
 	const body = JSON.stringify({

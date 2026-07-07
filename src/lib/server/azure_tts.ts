@@ -42,6 +42,7 @@ export async function synthesizeAzureTts(opts: {
 	voice?: string;
 	format?: AzureOutputFormat;
 	signal?: AbortSignal;
+	ssml?: boolean;
 }): Promise<Response> {
 	const apiKey = env.AZURE_SPEECH_KEY;
 	const region = env.AZURE_SPEECH_REGION;
@@ -50,10 +51,11 @@ export async function synthesizeAzureTts(opts: {
 	}
 	const voiceName = opts.voice ?? DEFAULT_AZURE_VOICE;
 	const { format, accept } = OUTPUT_FORMAT_HEADERS[opts.format ?? 'mp3'];
+	const voiceBody = opts.ssml ? opts.text : escapeSsml(opts.text);
 	const ssml = [
 		'<speak version="1.0" xml:lang="en-US">',
 		`<voice name="${escapeSsml(voiceName)}">`,
-		escapeSsml(opts.text),
+		voiceBody,
 		'</voice>',
 		'</speak>'
 	].join('');

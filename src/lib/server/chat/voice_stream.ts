@@ -124,7 +124,8 @@ export async function runVoiceStreamingSpeak(
 			text: speakableText(text),
 			voice: opts.voice ?? DEFAULT_AZURE_VOICE,
 			format: 'wav',
-			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS)
+			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS),
+			ssml: true
 		});
 		return Buffer.from(await r.arrayBuffer());
 	}
