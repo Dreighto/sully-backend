@@ -17,7 +17,12 @@ const MIME_BY_EXT: Record<string, string> = {
 	webp: 'image/webp',
 	svg: 'image/svg+xml',
 	heic: 'image/heic',
-	heif: 'image/heif'
+	heif: 'image/heif',
+	txt: 'text/plain',
+	md: 'text/markdown',
+	json: 'application/json',
+	csv: 'text/csv',
+	pdf: 'application/pdf'
 };
 
 export const GET: RequestHandler = async ({ params }) => {

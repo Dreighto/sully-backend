@@ -35,6 +35,7 @@ import {
 } from '$lib/server/input_normalizer';
 import { prepareTurnLifecycle } from './turn_lifecycle';
 import { buildHotWindow } from './hot_window';
+import { inlineDocumentAttachments } from './attachment_inline';
 import { resolveProviderAndModel, type Provider } from './provider_resolve';
 
 export { detectTargetRepo } from './target_repo';
@@ -181,6 +182,21 @@ export async function prepareStream(args: PrepareArgs): Promise<PreparedStreamCo
 	});
 
 	const modelMessages = buildHotWindow(threadId, operatorRowId, messages);
+
+	// Document attachments: append the file content (fenced) to the MODEL's
+	// copy of this turn only — the persisted message keeps just the link.
+	const docBlock = inlineDocumentAttachments(userText);
+	if (docBlock) {
+		const lastMsg = modelMessages[modelMessages.length - 1];
+		if (lastMsg && lastMsg.role === 'user') {
+			for (const part of lastMsg.parts ?? []) {
+				if (part.type === 'text') {
+					(part as { text: string }).text += docBlock;
+					break;
+				}
+			}
+		}
+	}
 
 	const targetRepo = lifecycleTargetRepo;
 
