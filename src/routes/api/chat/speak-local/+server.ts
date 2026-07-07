@@ -9,7 +9,6 @@
 
 import type { RequestHandler } from './$types';
 import { getVoice, localRefFor, kokoroVoiceFor, DEFAULT_KOKORO_VOICE } from '$lib/server/voices';
-import { speakableText } from '$lib/server/tts_normalize';
 import { synthesizeLocalTts } from '$lib/server/voice_tts';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -19,7 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch {
 		return new Response('invalid json', { status: 400 });
 	}
-	const text = speakableText((body.text || '').trim());
+	const text = (body.text || '').trim();
 	if (!text) return new Response('empty text', { status: 400 });
 
 	// Resolve the voice's reference clip server-side by opaque id (local voice →

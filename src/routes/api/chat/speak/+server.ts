@@ -20,7 +20,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!body || typeof body.text !== 'string' || !body.text.trim()) {
 		throw error(400, { message: 'Missing text' });
 	}
-	const text: string = speakableText(body.text.trim());
+	const rawText = body.text.trim();
+	const text: string = speakableText(rawText);
 
 	// Force-local master switch (VOICE_TTS_PROVIDER=local): route this "cloud"
 	// endpoint to the local Chatterbox service instead of ElevenLabs. Talkback
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!cloudAvailable()) {
 		const v = getVoice(typeof body.voice === 'string' ? body.voice : DEFAULT_VOICE_ID);
 		const ttsRes = await synthesizeLocalTts({
-			text,
+			text: rawText,
 			voice_ref: localRefFor(v),
 			cfg_weight: v.cfgWeight,
 			exaggeration: v.exaggeration,
@@ -73,7 +74,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Cap check
 	const usedToday = getTodayTtsUsage();
-	if (usedToday + text.length > dailyCharCap) {
+	if (usedToday + rawText.length > dailyCharCap) {
 		return new Response(
 			JSON.stringify({ error: 'cap_exhausted', chars_used_today: usedToday, cap: dailyCharCap }),
 			{ status: 429, headers: { 'content-type': 'application/json' } }
@@ -86,7 +87,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			text,
 			voice: voiceName,
 			format: 'mp3',
-			signal: request.signal
+			signal: request.signal,
+			ssml: true
 		});
 	} catch (e) {
 		console.error('Azure Speech TTS error:', e instanceof Error ? e.message : e);
@@ -94,7 +96,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	// Record usage before streaming so the cap is updated even if client drops
-	addTtsUsage(text.length);
+	addTtsUsage(rawText.length);
 
 	return new Response(ttsRes.body, {
 		status: 200,
