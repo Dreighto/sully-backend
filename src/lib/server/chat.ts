@@ -36,3 +36,9 @@ export {
 	setMessageQualitySignal,
 	updateActionStatus
 } from './chat_db/messages_mutate';
+export {
+	buildInteractiveAction,
+	classifyActionRisk,
+	type ActionRisk
+} from './chat/action_risk';
+export { postCommandApprovalMessage } from './chat/command_approval_message';
