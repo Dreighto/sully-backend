@@ -45,6 +45,17 @@ export function handleVoiceReplyStream(
 			let transcript = '';
 			let aborted = false;
 			let sentenceLog: SentenceLogEntry[] = [];
+			// SSE comment heartbeat: keep the connection warm and let the client
+			// distinguish "still generating" from "dead" during the LLM gap before
+			// first audio (deep audit 2026-07-07). `:`-prefixed lines are SSE
+			// comments the client ignores; they only reset its inter-packet timer.
+			const heartbeat = setInterval(() => {
+				try {
+					controller.enqueue(sseEnc.encode(`: ping\n\n`));
+				} catch {
+					/* stream already closed */
+				}
+			}, 1000);
 			try {
 				if (ctx.dispatchProposal) {
 					controller.enqueue(
@@ -88,6 +99,7 @@ export function handleVoiceReplyStream(
 					/* already closed */
 				}
 			} finally {
+				clearInterval(heartbeat);
 				unregisterTurn(responseId);
 				request.signal.removeEventListener('abort', onClientAbort);
 

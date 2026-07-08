@@ -46,6 +46,13 @@ const VOICE_TTS_TIMEOUT_MS = Number(process.env.VOICE_TTS_TIMEOUT_MS) || 15000;
 const VOICE_OLLAMA_MAX_MS = Number(process.env.VOICE_OLLAMA_MAX_MS) || 120000;
 // Fast-fail: no chunk from the model stream for this long → the bridge is wedged.
 const VOICE_IDLE_READ_MS = Number(process.env.VOICE_IDLE_READ_MS) || 20000;
+// Fast-fail on the HEADER wait specifically: the fetch resolves when response
+// headers arrive, but a stalled Ollama-Pro queue can hold headers for up to the
+// full VOICE_OLLAMA_MAX_MS ceiling — hanging the mic ~2 min before failing
+// (deep audit 2026-07-07). Bound the first-byte/header wait separately so a
+// cloud stall fails fast; the 120s total still governs a genuinely long reply
+// once streaming has begun.
+const VOICE_HEADER_MS = Number(process.env.VOICE_HEADER_MS) || 25000;
 
 // Short, varied filler phrases spoken the moment a tool call fires, so the
 // operator hears a beat of Sully's voice while the search/fetch round-trip
@@ -233,12 +240,33 @@ export async function runVoiceStreamingSpeak(
 		const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
 		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 		if (isCloudModel && OLLAMA_API_KEY) headers.Authorization = `Bearer ${OLLAMA_API_KEY}`;
-		const resp = await fetch(endpoint, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify(body),
-			signal: composeTimeout(opts.signal, VOICE_OLLAMA_MAX_MS)
-		});
+		// Header guard: abort if response headers do not arrive within
+		// VOICE_HEADER_MS (a cloud queue stall), separate from the 120s total.
+		// Cleared the instant headers land, so a long-but-streaming reply keeps
+		// the full ceiling. Aborting with a TimeoutError routes to hard failure
+		// (same as the seam timeouts), converting the 2-min hang into a fast fail.
+		const headerAbort = new AbortController();
+		const headerTimer = setTimeout(
+			() =>
+				headerAbort.abort(
+					new DOMException(`voice header wait exceeded ${VOICE_HEADER_MS}ms`, 'TimeoutError')
+				),
+			VOICE_HEADER_MS
+		);
+		const genBase = opts.signal
+			? AbortSignal.any([opts.signal, headerAbort.signal])
+			: headerAbort.signal;
+		let resp: Response;
+		try {
+			resp = await fetch(endpoint, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(body),
+				signal: composeTimeout(genBase, VOICE_OLLAMA_MAX_MS)
+			});
+		} finally {
+			clearTimeout(headerTimer);
+		}
 		if (!resp.ok || !resp.body) throw new Error(`ollama /api/chat HTTP ${resp.status}`);
 
 		const reader = resp.body.getReader();
