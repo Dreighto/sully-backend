@@ -2,6 +2,8 @@ export interface InteractiveAction {
 	command: string;
 	reason: string;
 	status: 'pending' | 'approved' | 'denied';
+	/** Advisory tier for client hold-to-approve vs tap. Omitted on legacy rows → treat as destructive. */
+	risk?: 'routine' | 'destructive';
 	stdout?: string;
 	stderr?: string;
 }
