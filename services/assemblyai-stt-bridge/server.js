@@ -38,7 +38,16 @@ function aaiUrl() {
 		sample_rate: '16000',
 		encoding: 'pcm_s16le',
 		format_turns: 'true',
-		speech_model: MODEL
+		speech_model: MODEL,
+		// Turn detection tuned for a thoughtful speaker who PAUSES mid-turn (voice
+		// turn-taking plan 2026-07-08). Demand strong semantic completeness before
+		// ending (0.6), hold ~700ms of silence before firing even when confident,
+		// and let a genuine mid-thought pause ride up to ~2.8s before the hard
+		// fallback. Env-overridable for field tuning; the end_of_turn &&
+		// turn_is_formatted double-final gate below is unchanged.
+		end_of_turn_confidence_threshold: process.env.AAI_EOT_CONFIDENCE || '0.6',
+		min_end_of_turn_silence_when_confident: process.env.AAI_MIN_EOT_SILENCE_MS || '700',
+		max_turn_silence: process.env.AAI_MAX_TURN_SILENCE_MS || '2800'
 	});
 	return `wss://streaming.assemblyai.com/v3/ws?${p.toString()}`;
 }
