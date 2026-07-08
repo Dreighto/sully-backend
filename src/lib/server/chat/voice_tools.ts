@@ -205,7 +205,7 @@ async function callOllamaChat(args: {
 	signal?: AbortSignal;
 	tools?: typeof VOICE_TOOL_SCHEMAS;
 }): Promise<OllamaMessage | null> {
-	const isCloudModel = args.model.endsWith('-cloud');
+	const isCloudModel = /[:-]cloud$/.test(args.model); // `-cloud` or `:cloud`
 	const endpoint = isCloudModel ? 'https://ollama.com/api/chat' : `${OLLAMA}/api/chat`;
 	const body: Record<string, unknown> = isCloudModel
 		? { model: args.model, messages: args.messages, stream: false }

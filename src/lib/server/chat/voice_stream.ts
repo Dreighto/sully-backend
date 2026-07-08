@@ -195,7 +195,10 @@ export async function runVoiceStreamingSpeak(
 	// a bigger model (gpt-oss:120b-cloud, gemini-3-flash-preview-cloud etc.)
 	// for the voice surface without local VRAM constraints. The cloud route
 	// drops keep_alive and num_ctx — those are Jetson-only knobs.
-	const isCloudModel = opts.model.endsWith('-cloud');
+	// Cloud model ids come in both `-cloud` (gpt-oss:120b-cloud) and `:cloud`
+	// (deepseek-v4-flash:cloud) forms. Matching only `-cloud` mis-routed the
+	// colon form to the LOCAL Ollama → ECONNREFUSED (operator voice, 2026-07-07).
+	const isCloudModel = /[:-]cloud$/.test(opts.model);
 	const body: Record<string, unknown> = isCloudModel
 		? { model: opts.model, messages: opts.messages, stream: true }
 		: {
