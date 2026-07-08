@@ -45,6 +45,8 @@ export function handleVoiceReplyStream(
 			let transcript = '';
 			let aborted = false;
 			let sentenceLog: SentenceLogEntry[] = [];
+			let hardFailed = false;
+			let hardError = '';
 			// SSE comment heartbeat: keep the connection warm and let the client
 			// distinguish "still generating" from "dead" during the LLM gap before
 			// first audio (deep audit 2026-07-07). `:`-prefixed lines are SSE
@@ -87,6 +89,8 @@ export function handleVoiceReplyStream(
 				transcript = res.transcript;
 				aborted = res.aborted;
 				sentenceLog = res.sentenceLog;
+				hardFailed = res.hardFailed ?? false;
+				hardError = res.error ?? '';
 			} catch (e) {
 				console.error('[voice-reply] streaming path failed', e);
 				try {
@@ -125,6 +129,35 @@ export function handleVoiceReplyStream(
 									heard_transcript: heard,
 									generated_transcript: transcript.trim(),
 									sentence_count: sentenceLog.length
+								})}\n\n`
+							)
+						);
+					} catch {
+						/* already closed */
+					}
+				} else if (hardFailed) {
+					// HARD failure (timeout / network). Persist whatever the operator
+					// already heard so the turn is NOT an orphan (no following
+					// assistant row) and does NOT leave a stuck job — and surface an
+					// honest error. No applyTurnDecision: a failed turn must not
+					// dispatch. (SUL-183)
+					const heard = transcript.trim();
+					persistAssistantTurn({
+						text: heard || '(voice reply failed)',
+						sender: 'local',
+						threadId: ctx.threadId,
+						model: constants.model,
+						tier: ctx.currentTier,
+						taskId: ctx.taskId,
+						provider: 'local',
+						latencyMs: Date.now() - ctx.turnStartedAt,
+						status: 'failed'
+					});
+					try {
+						controller.enqueue(
+							sseEnc.encode(
+								`event: error\ndata: ${JSON.stringify({
+									message: hardError || 'voice reply failed'
 								})}\n\n`
 							)
 						);

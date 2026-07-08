@@ -83,6 +83,13 @@ export type VoiceStreamResult = {
 	 *  bytes were emitted. The caller uses this with the truncate-time
 	 *  audio_end_ms to compute exactly what the operator heard. */
 	sentenceLog: SentenceLogEntry[];
+	/** True on a HARD failure (timeout / network / non-abort error) after some
+	 *  audio may already have played. Returned instead of throwing so the caller
+	 *  can persist the heard prefix (no orphan turn / stuck job) and surface an
+	 *  honest error, rather than dropping the turn entirely (SUL-183). */
+	hardFailed?: boolean;
+	/** The failure message when hardFailed is true. */
+	error?: string;
 };
 
 function sse(c: SseController, enc: TextEncoder, event: string, data: unknown) {
@@ -392,7 +399,18 @@ export async function runVoiceStreamingSpeak(
 				sentenceLog
 			};
 		}
+		// HARD failure (timeout / network / Ollama 5xx). Do NOT throw — return the
+		// partial state so the caller persists the heard prefix (the audio that
+		// already played) and marks the turn failed, instead of dropping it into
+		// an orphan operator turn + stuck job (SUL-183).
 		await drain.catch(() => {});
-		throw e;
+		return {
+			toolTurn: toolMode,
+			transcript: transcript.trim(),
+			aborted: false,
+			sentenceLog,
+			hardFailed: true,
+			error: e instanceof Error ? e.message : String(e)
+		};
 	}
 }
