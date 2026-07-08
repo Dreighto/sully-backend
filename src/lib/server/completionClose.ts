@@ -125,6 +125,7 @@ export async function closeOutTask(
 		? await synthesizeWorkerResult({
 				brief: job?.brief ?? '',
 				result: text,
+				worker: job?.worker,
 				posture: pollPosture,
 				concerns
 			})

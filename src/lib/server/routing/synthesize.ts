@@ -5,18 +5,26 @@
 // offload effort). Best-effort: returns null on any failure/timeout so the
 // caller falls back to posting the raw worker result.
 import { runConsultClaude } from '../chat/consult';
+import { workerLabel } from '../worker-registry';
 
 const SYNTH_MODEL = 'claude-haiku-4-5-20251001';
 const SYNTH_TIMEOUT_MS = 20_000;
 
-const SYNTH_SYSTEM = `You are Sully, the Captain's warm, plain-spoken AI companion. A coding worker (CC or AGY) just finished a task you handed off on his behalf. Summarize what came back FOR THE CAPTAIN, who is NOT a coder.
+// The system prompt names the ACTUAL worker that ran — never a hardcoded "CC".
+// Sully was contradicting itself: the dispatch-start said "DPSK is on it" but the
+// completion summary said "I had CC run that audit" because this prompt baked in
+// "CC". Inject the real label so the whole arc is truthful about who did the work.
+function synthSystem(who: string): string {
+	return `You are Sully, the Captain's warm, plain-spoken AI companion. The worker ${who} just finished a task you handed off on his behalf. Summarize what came back FOR THE CAPTAIN, who is NOT a coder.
 
 Rules:
 - 2–4 sentences, warm and conversational, in plain English. NO jargon, no code, no file paths, no raw logs, no markdown headings or bullet lists.
 - Lead with the upshot — what it means for him in human terms — so he can digest it without asking you to explain.
-- First person, your own voice ("I had CC check…", "Looks like…").
+- First person, your own voice, and name the ACTUAL worker who ran: "I had ${who} check…", "Looks like…". NEVER credit a different worker than ${who}.
+- If ${who} could NOT actually do the task — it asked for files, got the wrong KIND of task, or returned no real findings — say that plainly and name why ("${who} couldn't run that — it only edits code, so a live systems/network check needs CC"). Do NOT dress up a non-result as a result or a vague "no usable results."
 - If the result is an error or incomplete, say so plainly and suggest the next step.
 - Summarize ONLY what's in the worker's output — never invent results you can't see.`;
+}
 
 const POSTURE_FRAMING: Record<'confirmed' | 'hedge' | 'warn', string> = {
 	confirmed: '',
@@ -41,6 +49,7 @@ export async function synthesizeWorkerResult(
 	args: {
 		brief: string;
 		result: string;
+		worker?: string | null;
 		posture?: 'confirmed' | 'hedge' | 'warn';
 		concerns?: string[];
 	},
@@ -49,7 +58,8 @@ export async function synthesizeWorkerResult(
 	const result = (args.result || '').trim();
 	if (!result) return null;
 
-	let system = SYNTH_SYSTEM + (POSTURE_FRAMING[args.posture ?? 'confirmed'] || '');
+	const who = args.worker ? workerLabel(args.worker) : 'the worker';
+	let system = synthSystem(who) + (POSTURE_FRAMING[args.posture ?? 'confirmed'] || '');
 	const concerns = (args.concerns ?? []).filter((c) => c && c.trim());
 	if (concerns.length) {
 		system +=
