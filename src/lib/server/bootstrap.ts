@@ -92,6 +92,24 @@ export function bootstrapCompanionDb(): void {
 				timestamp TEXT DEFAULT CURRENT_TIMESTAMP
 			);
 			CREATE INDEX IF NOT EXISTS idx_chat_activity_trace ON chat_activity(trace_id, timestamp);
+
+			-- Work-context store (SUL-178): embedded summaries of ship log, lane, project memory.
+			CREATE TABLE IF NOT EXISTS work_knowledge (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				source TEXT NOT NULL,
+				source_key TEXT UNIQUE NOT NULL,
+				chunk TEXT NOT NULL,
+				content_hash TEXT NOT NULL,
+				importance INTEGER DEFAULT 1,
+				updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE INDEX IF NOT EXISTS idx_work_knowledge_source ON work_knowledge(source);
+
+			CREATE TABLE IF NOT EXISTS work_knowledge_embeddings (
+				chunk_id INTEGER PRIMARY KEY REFERENCES work_knowledge(id) ON DELETE CASCADE,
+				embedding TEXT NOT NULL,
+				embed_model TEXT NOT NULL
+			);
 		`);
 
 		// Lightweight in-place migrations for chat_messages — additive columns

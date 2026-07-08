@@ -20,6 +20,7 @@ import { GATE_INSTRUCTION } from './decisionGate';
 import { getWorkspaceContext } from './workspace_context';
 import { getThreadMeta } from './thread_meta';
 import { getRelevantFacts } from './semantic';
+import { buildWorkContextBlock } from './work_context';
 import { factGate } from './routing/factGate';
 
 export interface SystemPromptCtx {
@@ -260,6 +261,16 @@ export async function buildSystemPrompt(
 		}
 	}
 
+	// Work-context (SUL-178): retrieval-gated ship/lane/project memory — companion only.
+	let workContext = '';
+	if (runMode.companion && userMessage && userMessage.trim()) {
+		try {
+			workContext = await buildWorkContextBlock(userMessage);
+		} catch {
+			/* non-fatal — skip if embeddings unavailable */
+		}
+	}
+
 	const voice = ctx.spoken ? VOICE_MODE_ADDENDUM : '';
 	// Artifact protocol is text-chat only — never in spoken/voice replies.
 	const artifact = ctx.spoken ? '' : ARTIFACT_INSTRUCTION;
@@ -270,7 +281,7 @@ export async function buildSystemPrompt(
 	// Code-block formatting is text-chat only (spoken replies have no code box).
 	const code = ctx.spoken ? '' : CODE_FORMAT;
 	const data = ctx.spoken ? '' : DATA_FORMAT;
-	const head = `${base}${working}${semantic}${tools}${factClause(userMessage, ctx.allowSensitive)}${voice}${artifact}${WRITING_STYLE}${code}${data}${gate}`;
+	const head = `${base}${working}${semantic}${workContext}${tools}${factClause(userMessage, ctx.allowSensitive)}${voice}${artifact}${WRITING_STYLE}${code}${data}${gate}`;
 	if (!addendum) return head;
 	return `${head}
 
