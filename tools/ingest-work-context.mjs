@@ -12,10 +12,14 @@ import Database from 'better-sqlite3';
 
 const OLLAMA_BASE = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'mxbai-embed-large';
+// Target the DB the BACKEND actually reads. Note: the shell/.env
+// LOGUEOS_MEMORY_DB_PATH is DIVERGENT (points at logueos_memory.db) while the
+// sully-backend service overrides it to companion.db via systemd — so we do
+// NOT trust that env here; explicit COMPANION_MEMORY_DB_PATH override only.
+// (2026-07-07: work-context data was silently landing in the wrong DB.)
 const DB_PATH =
-	process.env.LOGUEOS_MEMORY_DB_PATH ||
 	process.env.COMPANION_MEMORY_DB_PATH ||
-	'/home/dreighto/dev/sully-backend/data/companion.db'; // backend's DB (systemd LOGUEOS_MEMORY_DB_PATH)
+	'/home/dreighto/dev/sully-backend/data/companion.db';
 
 const DEV = process.env.HOME ? join(process.env.HOME, 'dev') : join(homedir(), 'dev');
 
