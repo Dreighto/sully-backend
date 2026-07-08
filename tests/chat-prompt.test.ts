@@ -44,6 +44,9 @@ describe('buildSystemPrompt — companion mode', () => {
 		// She's the hub — hands work to CC/AGY (she does NOT do it herself)
 		expect(out).toMatch(/hand it off/);
 		expect(out).toMatch(/@cc/);
+		// Roster-aware: knows the full team + routes to the right worker (SUL: CLI-driver).
+		expect(out).toMatch(/DPSK/);
+		expect(out).toMatch(/Cursor/);
 		expect(out).toMatch(/Active workspace: companion/);
 	});
 
