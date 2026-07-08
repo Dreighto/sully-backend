@@ -29,6 +29,24 @@ export interface MessageForensics {
 	reasoning?: string | null;
 }
 
+/**
+ * Defense-in-depth: a model reply can leak its machine-readable control block
+ * (`<<<SULLY_GATE {...}>>>` dispatch directive, or an `<<<ESCALATE` variant) into
+ * the operator-visible text. The reply-path strip only matches a well-formed,
+ * CLOSED block, so a malformed one — e.g. the model copied the template and never
+ * emitted the closing `>>>` — reached the operator as a garbage/blank reply and
+ * never dispatched (operator 2026-07-08). Strip it here, robustly (closed AND
+ * unclosed), at the single storage chokepoint so it can NEVER be shown regardless
+ * of which reply path produced it.
+ */
+function stripLeakedControlBlocks(text: string): string {
+	if (!text || (!text.includes('<<<SULLY_GATE') && !text.includes('<<<ESCALATE'))) return text;
+	return text
+		.replace(/<<<(SULLY_GATE|ESCALATE)\b[\s\S]*?>>>/g, '') // well-formed, closed
+		.replace(/<<<(SULLY_GATE|ESCALATE)\b[\s\S]*$/g, '') // unclosed → strip to end
+		.trim();
+}
+
 export function addChatMessage(
 	sender: string,
 	message: string,
@@ -39,6 +57,15 @@ export function addChatMessage(
 	threadId = 'default',
 	forensics: MessageForensics = {}
 ): ChatMessage {
+	// Never persist a leaked control block. If stripping empties an assistant
+	// reply (the model emitted ONLY a botched gate), fall back to an honest
+	// recovery line rather than a blank — but do NOT imply a dispatch happened.
+	if (message.includes('<<<SULLY_GATE') || message.includes('<<<ESCALATE')) {
+		const cleaned = stripLeakedControlBlocks(message);
+		message =
+			cleaned ||
+			(sender === 'operator' ? message : 'Sorry — I garbled that one. Could you say it again?');
+	}
 	const db = getDb();
 	try {
 		const actionStr = interactiveAction ? JSON.stringify(interactiveAction) : null;
