@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	buildInteractiveAction,
-	classifyActionRisk
-} from '../src/lib/server/chat/action_risk';
+import { buildInteractiveAction, classifyActionRisk } from '../src/lib/server/chat/action_risk';
 
 describe('classifyActionRisk', () => {
 	it('flags safety-canon destructive commands', () => {
@@ -39,5 +36,39 @@ describe('buildInteractiveAction', () => {
 		const action = buildInteractiveAction('rm -rf node_modules', 'Clean install');
 		expect(action.risk).toBe('destructive');
 		expect(action.status).toBe('pending');
+	});
+});
+
+import { ensureActionRisk } from '../src/lib/server/chat/action_risk';
+
+describe('action risk — bypass + false-positive hardening (review round)', () => {
+	it('catches rm flag-order and whitespace variants (no fail-open)', () => {
+		for (const c of ['rm -rf /', 'rm -fr ~', 'rm  -rf /data', 'sudo rm -r x', 'RM -RF /']) {
+			expect(classifyActionRisk(c)).toBe('destructive');
+		}
+	});
+	it('does NOT flag git add as destructive (dd bypass)', () => {
+		expect(classifyActionRisk('git add .')).toBe('routine');
+		expect(classifyActionRisk('git add -A')).toBe('routine');
+	});
+	it('does NOT flag reproduce/product as destructive (prod bypass)', () => {
+		expect(classifyActionRisk('cat reproduce-steps.md')).toBe('routine');
+		expect(classifyActionRisk('ls products/')).toBe('routine');
+	});
+	it('still flags genuine prod/deploy/emptyTrash', () => {
+		expect(classifyActionRisk('deploy to prod')).toBe('destructive');
+		expect(classifyActionRisk('plex :emptyTrash')).toBe('destructive');
+	});
+	it('ensureActionRisk populates absent risk from command, preserves present', () => {
+		expect(ensureActionRisk({ command: 'rm -rf /', reason: 'x', status: 'pending' }).risk).toBe(
+			'destructive'
+		);
+		expect(ensureActionRisk({ command: 'ls', reason: 'x', status: 'pending' }).risk).toBe(
+			'routine'
+		);
+		expect(
+			ensureActionRisk({ command: 'rm -rf /', reason: 'x', status: 'pending', risk: 'routine' })
+				.risk
+		).toBe('routine');
 	});
 });

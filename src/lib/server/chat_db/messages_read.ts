@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { serverConfig } from '../config';
 import type { ChatMessage, InteractiveAction } from '$lib/types/chat';
+import { ensureActionRisk } from '$lib/server/chat/action_risk';
 
 export function getDb(): Database.Database {
 	return new Database(serverConfig.memoryDbPath);
@@ -11,7 +12,7 @@ export function parseRow(row: any): ChatMessage {
 	let interactive_action: InteractiveAction | null = null;
 	if (row.interactive_action) {
 		try {
-			interactive_action = JSON.parse(row.interactive_action);
+			interactive_action = ensureActionRisk(JSON.parse(row.interactive_action));
 		} catch {
 			interactive_action = null;
 		}
