@@ -15,7 +15,7 @@ const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'mxbai-embed-large';
 const DB_PATH =
 	process.env.LOGUEOS_MEMORY_DB_PATH ||
 	process.env.COMPANION_MEMORY_DB_PATH ||
-	'/home/dreighto/dev/LogueOS-Orchestrator/data/logueos_memory.db';
+	'/home/dreighto/dev/sully-backend/data/companion.db'; // backend's DB (systemd LOGUEOS_MEMORY_DB_PATH)
 
 const DEV = process.env.HOME ? join(process.env.HOME, 'dev') : join(homedir(), 'dev');
 
@@ -89,28 +89,23 @@ function upsertChunk(db, source, sourceKey, chunk, importance = 1) {
 
 async function commitUpsert(db, pending) {
 	const vector = await embed(pending.chunk);
-	if (pending.existingId) {
-		db.prepare(
-			`UPDATE work_knowledge
-			 SET source = ?, chunk = ?, content_hash = ?, importance = ?, updated_at = CURRENT_TIMESTAMP
-			 WHERE id = ?`
-		).run(pending.source, pending.chunk, pending.hash, pending.importance, pending.existingId);
-		db.prepare(
-			`INSERT OR REPLACE INTO work_knowledge_embeddings (chunk_id, embedding, embed_model)
-			 VALUES (?, ?, ?)`
-		).run(pending.existingId, JSON.stringify(vector), EMBED_MODEL);
-	} else {
-		const r = db
-			.prepare(
-				`INSERT INTO work_knowledge (source, source_key, chunk, content_hash, importance)
-				 VALUES (?, ?, ?, ?, ?)`
-			)
-			.run(pending.source, pending.sourceKey, pending.chunk, pending.hash, pending.importance);
-		db.prepare(
-			`INSERT INTO work_knowledge_embeddings (chunk_id, embedding, embed_model)
-			 VALUES (?, ?, ?)`
-		).run(r.lastInsertRowid, JSON.stringify(vector), EMBED_MODEL);
-	}
+	// Atomic upsert: duplicate source_keys within one run (e.g. repeated
+	// trace_ids in the ship log) planned separately during the SELECT phase
+	// would otherwise collide on INSERT and abort the whole ingest. ON CONFLICT
+	// makes the second write an UPDATE. (2026-07-07 ingest-crash fix.)
+	db.prepare(
+		`INSERT INTO work_knowledge (source, source_key, chunk, content_hash, importance)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(source_key) DO UPDATE SET
+		   source = excluded.source, chunk = excluded.chunk,
+		   content_hash = excluded.content_hash, importance = excluded.importance,
+		   updated_at = CURRENT_TIMESTAMP`
+	).run(pending.source, pending.sourceKey, pending.chunk, pending.hash, pending.importance);
+	const row = db.prepare('SELECT id FROM work_knowledge WHERE source_key = ?').get(pending.sourceKey);
+	db.prepare(
+		`INSERT OR REPLACE INTO work_knowledge_embeddings (chunk_id, embedding, embed_model)
+		 VALUES (?, ?, ?)`
+	).run(row.id, JSON.stringify(vector), EMBED_MODEL);
 	return 'upserted';
 }
 
