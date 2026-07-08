@@ -23,6 +23,11 @@ import { getRelevantFacts } from './semantic';
 import { buildWorkContextBlock } from './work_context';
 import { factGate } from './routing/factGate';
 
+// Cap the memory-embedding wait on the voice prompt path (SUL-185). Voice
+// builds the system prompt before the LLM call, so a slow embedding inflates
+// time-to-first-audio; drop facts past this bound. Env-overridable for the field.
+const VOICE_FACTS_TIMEOUT_MS = Number(process.env.VOICE_FACTS_TIMEOUT_MS) || 150;
+
 export interface SystemPromptCtx {
 	targetRepo: string;
 	currentTier: string;
@@ -333,13 +338,28 @@ export async function buildVoiceSystemPrompt(
 		/* non-fatal */
 	}
 	if (userMessage && userMessage.trim()) {
+		// Bound the memory embedding on the VOICE critical path: it runs before
+		// the LLM fetch, so a slow embedding directly inflates time-to-first-audio.
+		// If it can't answer within VOICE_FACTS_TIMEOUT_MS, drop the facts (the
+		// prompt is fine without them) rather than stall first audio (SUL-185).
+		let factsTimer: ReturnType<typeof setTimeout> | undefined;
 		try {
-			const facts = await getRelevantFacts(userMessage, 3);
+			const facts = await Promise.race([
+				getRelevantFacts(userMessage, 3),
+				new Promise<string[]>((_, reject) => {
+					factsTimer = setTimeout(
+						() => reject(new Error('voice facts timeout')),
+						VOICE_FACTS_TIMEOUT_MS
+					);
+				})
+			]);
 			if (facts.length) {
 				memory += `\n\nWhat you remember about Captain (from past sessions): ${facts.join('; ')}`;
 			}
 		} catch {
-			/* embeddings unavailable — skip */
+			/* embeddings unavailable or too slow for the voice path — skip */
+		} finally {
+			if (factsTimer) clearTimeout(factsTimer);
 		}
 	}
 

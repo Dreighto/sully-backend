@@ -374,6 +374,20 @@ export async function runVoiceStreamingSpeak(
 			prompt_eval_ms: promptEvalMs,
 			sentences: idx
 		});
+		// Server-side latency metric so voice TTFT is measurable from the logs
+		// (grep '[voice-metrics]') — the client got the same numbers via `done`,
+		// but SUL-184 tuning needs them aggregated server-side (SUL-185).
+		console.log(
+			'[voice-metrics]',
+			JSON.stringify({
+				model: opts.model,
+				first_token_ms: firstTokenMs,
+				prompt_eval_ms: promptEvalMs,
+				prompt_eval_count: promptEvalCount,
+				first_audio_ms: firstAudioMs,
+				generation_complete_ms: generationCompleteMs
+			})
+		);
 		return {
 			toolTurn: toolMode,
 			transcript: doneTranscript,
