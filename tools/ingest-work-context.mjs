@@ -122,6 +122,62 @@ function slugify(text) {
 		.slice(0, 80);
 }
 
+const SECRET_LINE_PATTERNS = [
+	/sk-[a-zA-Z0-9]{16,}/g,
+	/gh[pousr]_[A-Za-z0-9]{20,}/g,
+	/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+	/AKIA[0-9A-Z]{12,}/g,
+	/(?:HMAC|secret)\s*=\s*\S+/gi,
+	/\b[a-f0-9]{32,}\b/gi
+];
+
+const REMAINING_SECRET_RE =
+	/sk-[a-zA-Z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|\bBearer\s+[A-Za-z0-9._~+/=-]{8,}|AKIA[0-9A-Z]{12,}|(?:HMAC|secret)\s*=\s*\S+|\b[a-f0-9]{32,}\b/i;
+
+/** Mask likely secret substrings line-by-line before embed/upsert. */
+function redact(text) {
+	return text
+		.split('\n')
+		.map((line) => {
+			let out = line;
+			for (const re of SECRET_LINE_PATTERNS) {
+				out = out.replace(re, '[redacted]');
+			}
+			return out;
+		})
+		.join('\n');
+}
+
+function isSecretDense(text) {
+	if (REMAINING_SECRET_RE.test(text)) return true;
+	const lines = text.split('\n').filter((l) => l.trim());
+	if (!lines.length) return false;
+	let hits = 0;
+	for (const line of lines) {
+		if (REMAINING_SECRET_RE.test(line)) hits++;
+	}
+	return hits / lines.length > 0.15;
+}
+
+function prepareChunk(raw) {
+	const chunk = redact(raw).trim();
+	if (!chunk) return null;
+	if (isSecretDense(chunk)) {
+		console.warn('skip chunk: still secret-dense after redaction');
+		return null;
+	}
+	return chunk;
+}
+
+function readTextFile(path, label) {
+	try {
+		return readFileSync(path, 'utf8');
+	} catch (err) {
+		console.warn(`skip ${label}: cannot read ${path}: ${err?.message || err}`);
+		return null;
+	}
+}
+
 function ingestShipLog(db, stats) {
 	if (!existsSync(SOURCES.shipLog)) {
 		console.warn(`skip ship_log: missing ${SOURCES.shipLog}`);
@@ -142,7 +198,8 @@ function ingestShipLog(db, stats) {
 		const status = row.status || row.verdict || 'unknown';
 		const summary = row.summary || row.message || row.subject || '';
 		if (!summary) continue;
-		const chunk = `${date} · ${status} · ${summary}`;
+		const chunk = prepareChunk(`${date} · ${status} · ${summary}`);
+		if (!chunk) continue;
 		const result = upsertChunk(db, 'ship_log', traceId, chunk);
 		if (result === 'skipped_unchanged') stats.skipped++;
 		else stats.pending.push(result);
@@ -154,13 +211,16 @@ function ingestCurrentLane(db, stats) {
 		console.warn(`skip current_lane: missing ${SOURCES.currentLane}`);
 		return;
 	}
-	const text = readFileSync(SOURCES.currentLane, 'utf8');
+	const text = readTextFile(SOURCES.currentLane, 'current_lane');
+	if (!text) return;
 	const sections = text.split(/^## /m).filter(Boolean);
 	for (const section of sections) {
 		const lines = section.trim().split('\n');
 		const title = lines[0]?.trim() || 'section';
 		const body = lines.slice(1).join('\n').trim();
-		const chunk = body ? `## ${title}\n${body}` : `## ${title}`;
+		const raw = body ? `## ${title}\n${body}` : `## ${title}`;
+		const chunk = prepareChunk(raw);
+		if (!chunk) continue;
 		const key = `lane#${slugify(title)}`;
 		const result = upsertChunk(db, 'current_lane', key, chunk, 2);
 		if (result === 'skipped_unchanged') stats.skipped++;
@@ -175,11 +235,14 @@ function ingestProjectMemory(db, stats) {
 	}
 	const files = readdirSync(SOURCES.projectMemoryDir).filter((f) => f.startsWith('project_') && f.endsWith('.md'));
 	for (const file of files) {
-		const text = readFileSync(join(SOURCES.projectMemoryDir, file), 'utf8');
+		const text = readTextFile(join(SOURCES.projectMemoryDir, file), `project_memory:${file}`);
+		if (!text) continue;
 		const lines = text.trim().split('\n');
 		const heading = lines.find((l) => l.startsWith('#'))?.replace(/^#+\s*/, '') || file;
 		const description = lines.find((l) => l.trim() && !l.startsWith('#'))?.trim() || '';
-		const chunk = description ? `${heading}: ${description}` : heading;
+		const raw = description ? `${heading}: ${description}` : heading;
+		const chunk = prepareChunk(raw);
+		if (!chunk) continue;
 		const result = upsertChunk(db, 'project_memory', file, chunk);
 		if (result === 'skipped_unchanged') stats.skipped++;
 		else stats.pending.push(result);

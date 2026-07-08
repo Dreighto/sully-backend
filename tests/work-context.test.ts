@@ -42,6 +42,23 @@ describe('isWorkContextQuery', () => {
 		expect(isWorkContextQuery('what is the weather')).toBe(false);
 		expect(isWorkContextQuery('how are you doing')).toBe(false);
 	});
+
+	it('returns false for trap phrases (bare build/status/project must not pass)', async () => {
+		const { isWorkContextQuery } = await import('../src/lib/server/work_context');
+		expect(isWorkContextQuery('help me build a birdhouse')).toBe(false);
+		expect(isWorkContextQuery("what's the status of my flight")).toBe(false);
+		expect(isWorkContextQuery('my school project')).toBe(false);
+		expect(isWorkContextQuery('the app store')).toBe(false);
+	});
+});
+
+describe('redact', () => {
+	it('strips a sample fake API key', async () => {
+		const { redact } = await import('../src/lib/server/work_context');
+		const out = redact('token=sk-abcdefghijklmnopqrstuvwxyz123456');
+		expect(out).not.toContain('sk-abcdefghijklmnopqrstuvwxyz123456');
+		expect(out).toContain('[redacted]');
+	});
 });
 
 describe('buildWorkContextBlock', () => {
@@ -52,6 +69,38 @@ describe('buildWorkContextBlock', () => {
 		const out = await buildWorkContextBlock('tell me a joke');
 		expect(out).toBe('');
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('returns empty string for work-gated query against empty store', async () => {
+		const { mkdirSync, rmSync } = await import('node:fs');
+		const { join } = await import('node:path');
+		const { tmpdir } = await import('node:os');
+		const dbPath = join(tmpdir(), `work-context-empty-${Date.now()}.db`);
+		STUB_ENV.LOGUEOS_MEMORY_DB_PATH = dbPath;
+
+		const Database = (await import('better-sqlite3')).default;
+		mkdirSync(join(dbPath, '..'), { recursive: true });
+		const db = new Database(dbPath);
+		db.exec(`
+			CREATE TABLE work_knowledge (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				source TEXT, source_key TEXT UNIQUE, chunk TEXT, content_hash TEXT,
+				importance INTEGER DEFAULT 1, updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE TABLE work_knowledge_embeddings (
+				chunk_id INTEGER PRIMARY KEY, embedding TEXT, embed_model TEXT
+			);
+		`);
+		db.close();
+
+		const fetchMock = vi.fn(async () => mockEmbedResponse([1, 0, 0, 0]));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const { buildWorkContextBlock } = await import('../src/lib/server/work_context');
+		const out = await buildWorkContextBlock('what did we ship today');
+		expect(out).toBe('');
+
+		rmSync(dbPath, { force: true });
 	});
 });
 
@@ -64,6 +113,17 @@ describe('buildWorkContextBlockFromChunks — char cap', () => {
 		const block = buildWorkContextBlockFromChunks([long, long, long, long]);
 		expect(block.length).toBeLessThanOrEqual(WORK_CONTEXT_CHAR_CAP);
 		expect(block).toMatch(/What we've been working on/);
+	});
+
+	it('truncates a single oversized chunk (>1500 chars)', async () => {
+		const { buildWorkContextBlockFromChunks, WORK_CONTEXT_CHAR_CAP } = await import(
+			'../src/lib/server/work_context'
+		);
+		const huge = 'y'.repeat(3000);
+		const block = buildWorkContextBlockFromChunks([huge]);
+		expect(block.length).toBeLessThanOrEqual(WORK_CONTEXT_CHAR_CAP);
+		expect(block).toMatch(/What we've been working on/);
+		expect(block).not.toBe(huge);
 	});
 });
 

@@ -12,8 +12,19 @@ const EMBED_MODEL = process.env.COMPANION_EMBED_MODEL || 'mxbai-embed-large';
 export const DEFAULT_THRESHOLD = Number(process.env.COMPANION_SEMANTIC_THRESHOLD || '0.42');
 export const WORK_CONTEXT_CHAR_CAP = 1500;
 
-const WORK_KEYWORD_RE =
-	/\b(ship|build|shipped|status|working on|progress|dispatch|project|kernel|wave|ticket|backend|the app|what did we|what have we)\b|LOS-\d+|SUL-\d+/i;
+/** High-precision work-turn patterns only — bare single words excluded (anti-bloat). */
+const WORK_CONTEXT_PATTERNS: RegExp[] = [
+	/\bwhat did we (?:ship|build|do|work on)\b/i,
+	/\bwhat(?:'s| is| are we)? (?:working on|shipped|building)\b/i,
+	/\b(?:ship|build|deploy)(?:ed|ing)? (?:the )?(?:sully|app|backend|build \d+)\b/i,
+	/\b(?:SUL|LOS)-\d+\b/i,
+	/\bour (?:work|progress|project|ships?)\b/i,
+	/\bstatus of (?:the )?(?:sully|app|build|project|dispatch|wave)\b/i,
+	/\b(?:kernel|dispatch|orchestrator) (?:status|work|issue)s?\b/i,
+	/\bwhich build\b/i,
+	/\bwhat have we(?: been)? (?:working on|shipping|building)\b/i,
+	/\b(?:any )?progress on (?:the )?(?:sully|app|backend|build|project|dispatch|wave)\b/i
+];
 
 function withPrefix(text: string, kind: 'document' | 'query'): string {
 	if (EMBED_MODEL.startsWith('nomic')) {
@@ -60,8 +71,12 @@ function contentHash(chunk: string): string {
 
 /** Cheap relevance gate — unrelated turns skip retrieval entirely (anti-bloat). */
 export function isWorkContextQuery(text: string): boolean {
-	return WORK_KEYWORD_RE.test(text.trim());
+	const q = text.trim();
+	if (!q) return false;
+	return WORK_CONTEXT_PATTERNS.some((re) => re.test(q));
 }
+
+export { redact, isSecretDense } from './work_context_redact';
 
 export type UpsertResult = 'upserted' | 'skipped_unchanged';
 
