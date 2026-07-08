@@ -102,5 +102,46 @@ export const baseTools = {
 			);
 			return { checked_at: new Date().toISOString(), services: results };
 		}
+	}),
+	run_speed_test: tool({
+		description:
+			"Runs a quick internet speed test — download, upload, and latency — and returns the numbers. Use when the operator asks to test the connection / internet speed / 'how fast is my internet' / 'is my connection slow'. This is a LIGHT task Sully runs ITSELF via this tool — do NOT dispatch a worker for it. Measured against Cloudflare's edge (no external speed-test service, no shell).",
+		inputSchema: z.object({}),
+		execute: async () => {
+			const CF = 'https://speed.cloudflare.com';
+			const mbps = (bytes: number, sec: number) =>
+				sec > 0 ? Math.round(((bytes * 8) / 1e6 / sec) * 10) / 10 : 0;
+			try {
+				// Latency: round-trip on a tiny download.
+				const l0 = Date.now();
+				await fetch(`${CF}/__down?bytes=1000`, { signal: AbortSignal.timeout(15_000) });
+				const latencyMs = Date.now() - l0;
+				// Download: the edge caps __down at 25 MB.
+				const d0 = Date.now();
+				const dl = await fetch(`${CF}/__down?bytes=25000000`, {
+					signal: AbortSignal.timeout(60_000)
+				});
+				const dlBytes = (await dl.arrayBuffer()).byteLength;
+				const downMbps = mbps(dlBytes, (Date.now() - d0) / 1000);
+				// Upload: 10 MB of zeros.
+				const payload = new Uint8Array(10_000_000);
+				const u0 = Date.now();
+				await fetch(`${CF}/__up`, {
+					method: 'POST',
+					body: payload,
+					signal: AbortSignal.timeout(60_000)
+				});
+				const upMbps = mbps(payload.byteLength, (Date.now() - u0) / 1000);
+				return {
+					ok: true,
+					latency_ms: Math.round(latencyMs),
+					download_mbps: downMbps,
+					upload_mbps: upMbps,
+					source: 'cloudflare'
+				};
+			} catch (err) {
+				return { ok: false, error: (err as Error).message };
+			}
+		}
 	})
 };

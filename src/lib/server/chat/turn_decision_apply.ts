@@ -9,7 +9,13 @@ import {
 	resolveDispatchableWorker,
 	workerLabel
 } from '$lib/server/worker-registry';
-import { deriveRole, shouldPinWorker, ROLE_ROUTED_MSG } from './dispatch_role_routing';
+import {
+	deriveRole,
+	shouldPinWorker,
+	ROLE_ROUTED_MSG,
+	codeOnlyWorkerCantRun,
+	isSelfServeSpeedTask
+} from './dispatch_role_routing';
 
 export interface ApplyTurnDecisionCtx {
 	taskId: string;
@@ -237,6 +243,30 @@ export async function applyTurnDecision(
 			// pins. Compute defensively anyway: if a future gate ever routes DISPATCH
 			// to the bare default with no named worker, role-route it.
 			const pin = shouldPinWorker(userText, worker);
+			// Lock + inform (operator 2026-07-08): a code-only worker explicitly
+			// named for a shell / live-system task can't run it — it only edits
+			// code, so it ghosts. Don't dispatch it to fail; tell him plainly and
+			// point at the capable path (Sully self-serves a speed test; CC for the
+			// heavier shell work).
+			if (pin && codeOnlyWorkerCantRun(worker, userText)) {
+				const label = workerLabel(worker);
+				const alt = isSelfServeSpeedTask(userText)
+					? "That's a light one I can just run myself — want me to?"
+					: 'CC can handle it — want me to send CC instead?';
+				const msg = `${label} can't run that — it only edits code, no shell, so it'd come back empty. ${alt}`;
+				if (writeSpokenRow)
+					addChatMessage('system', msg, null, null, null, 'sent', threadId, { taskId });
+				logTaskEvent(taskId, 'gate_evaluated', {
+					action: 'DispatchLocked',
+					reason: 'worker_task_mismatch',
+					worker,
+					category,
+					dispatched: false,
+					held_reason: 'worker_cannot_run_task'
+				});
+				markSelfHandled(taskId);
+				return { spokenSuffix: sup(msg) };
+			}
 			const res = await dispatchToWorker({
 				traceId: taskId,
 				worker,

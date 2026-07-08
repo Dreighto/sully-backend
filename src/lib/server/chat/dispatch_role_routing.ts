@@ -23,3 +23,24 @@ export function shouldPinWorker(userText: string, worker: string): boolean {
 }
 
 export const ROLE_ROUTED_MSG = `On it — routing that to the best-fit worker now. I'll drop the answer right here when it's ready.`;
+
+// ── Worker-task capability guard ────────────────────────────────────────────
+// The aider workers (DPSK/KI/GLM/AGY/CDX) can ONLY edit code in a repo — no
+// shell, no live-system access. Named for a shell/live task (a speed test, a
+// systems check, running a script) they ghost: they ask for files and stop. So
+// when the operator explicitly PINS such a worker to such a task, we LOCK the
+// dispatch and inform him instead of sending it to fail (operator 2026-07-08).
+const CODE_ONLY_WORKER_RE = /^(dpsk|deepseek|ki|qwen|glm|agy|antigravity|cdx|codex)$/i;
+const NON_CODE_TASK_RE =
+	/speed\s*test|internet.*(slow|speed|fast)|bandwidth|\bping\b|latency|how fast|why is .*(slow|down)|systems? (check|diagnostic)|check (the |a )?(service|status|disk|network)|run (a |the )?(command|script|diagnostic)/i;
+
+/** True when a code-only worker was named for a task that needs a shell / the
+ *  live system — it cannot run it and would ghost. */
+export function codeOnlyWorkerCantRun(worker: string, task: string): boolean {
+	return CODE_ONLY_WORKER_RE.test((worker || '').trim()) && NON_CODE_TASK_RE.test(task || '');
+}
+
+/** True when the task is a light connection/speed check Sully can run itself. */
+export function isSelfServeSpeedTask(task: string): boolean {
+	return /speed\s*test|internet.*(slow|speed|fast)|bandwidth|how fast/i.test(task || '');
+}

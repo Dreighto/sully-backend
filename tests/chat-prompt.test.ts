@@ -71,9 +71,11 @@ describe('buildSystemPrompt — companion mode', () => {
 		// wired into voice. Substance unchanged — she still can't lie about doing
 		// heavy work she didn't do, and she still can't say "on it" without a
 		// real dispatch. Only the surface wording moved.
-		expect(out).toMatch(/do NOT do heavy work yourself/);
+		expect(out).toMatch(/do NOT do HEAVY work yourself/);
 		expect(out).toMatch(/NEVER say you're "on it"/);
 		expect(out).toMatch(/You are Sully/);
+		// Sully now self-serves light tasks (speed test) rather than dispatching.
+		expect(out).toMatch(/run_speed_test/);
 	});
 
 	it('appends the sensitive-tools clause only when allowSensitive=true', async () => {
