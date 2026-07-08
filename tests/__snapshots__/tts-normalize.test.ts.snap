@@ -12,7 +12,7 @@ exports[`speakableText > matches the real-session SSML snapshot 1`] = `
   },
   {
     "sample": "It's 5:02 PM on Sunday, May 31, 2026.",
-    "ssml": "It's <say-as interpret-as="time" format="hms12">5:02</say-as> PM on Sunday, <say-as interpret-as="date" format="md">May 31</say-as>, <say-as interpret-as="date" format="y">2026</say-as>.",
+    "ssml": "It's <say-as interpret-as="time" format="hms12">5:02</say-as> PM on Sunday, <say-as interpret-as="date" format="md">May 31</say-as>, <sub alias="twenty twenty-six">2026</sub>.",
   },
   {
     "sample": "The Pixel 9 Pro has 16GB of RAM and a 3.2 GHz clock.",

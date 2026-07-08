@@ -24,11 +24,11 @@ describe('speakableText', () => {
 
 	it('wraps dates, ordinals, and years in Azure date tags', () => {
 		expect(speakableText('Sunday, May 31, 2026')).toBe(
-			`Sunday, <say-as interpret-as="date" format="md">May 31</say-as>, <say-as interpret-as="date" format="y">2026</say-as>`
+			`Sunday, <say-as interpret-as="date" format="md">May 31</say-as>, <sub alias="twenty twenty-six">2026</sub>`
 		);
 		expect(speakableText('the 31st')).toBe(`the <say-as interpret-as="ordinal">31</say-as>`);
-		expect(speakableText('2000')).toBe(`<say-as interpret-as="date" format="y">2000</say-as>`);
-		expect(speakableText('1999')).toBe(`<say-as interpret-as="date" format="y">1999</say-as>`);
+		expect(speakableText('2000')).toBe(`<sub alias="two thousand">2000</sub>`);
+		expect(speakableText('1999')).toBe(`<sub alias="nineteen ninety-nine">1999</sub>`);
 	});
 
 	it('leaves plain integers and decimals as digits', () => {

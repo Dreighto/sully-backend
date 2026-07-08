@@ -1,3 +1,9 @@
+import {
+	applyVoicePronunciationPrelude,
+	matchAcronym,
+	matchSpeakableYear
+} from './tts_pronunciation';
+
 const MONTHS =
 	'January|February|March|April|May|June|July|August|September|October|November|December';
 
@@ -88,12 +94,19 @@ function sayAs(attrs: string, content: string): string {
 }
 
 export function speakableText(text: string): string {
-	const normalized = text.replace(/[‐‑‒–—]/g, '-');
+	const normalized = applyVoicePronunciationPrelude(text.replace(/[‐‑‒–—]/g, '-'));
 	let out = '';
 	let index = 0;
 
 	while (index < normalized.length) {
 		const rest = normalized.slice(index);
+
+		const acronym = matchAcronym(rest);
+		if (acronym) {
+			out += subTag(acronym.raw, acronym.alias);
+			index += acronym.raw.length;
+			continue;
+		}
 
 		const currencyRange = rest.match(
 			/^\$\s*(\d[\d,]*(?:\.\d{1,2})?)\s*-\s*\$\s*(\d[\d,]*(?:\.\d{1,2})?)\b/
@@ -141,10 +154,18 @@ export function speakableText(text: string): string {
 			continue;
 		}
 
-		const year = rest.match(/^(?:19|20)\d{2}\b/);
+		const percent = rest.match(/^(\d+(?:\.\d+)?)%/);
+		if (percent) {
+			const alias = `${numberAlias(percent[1])} percent`;
+			out += subTag(percent[0], alias);
+			index += percent[0].length;
+			continue;
+		}
+
+		const year = matchSpeakableYear(rest);
 		if (year) {
-			out += sayAs('interpret-as="date" format="y"', year[0]);
-			index += year[0].length;
+			out += subTag(year.raw, year.alias);
+			index += year.raw.length;
 			continue;
 		}
 
