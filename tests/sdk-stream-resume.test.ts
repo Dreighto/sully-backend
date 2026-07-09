@@ -351,9 +351,14 @@ describe('GET /api/chat/sdk-stream/resume', () => {
 		const handle = common.beginActiveStream('thread-gap');
 		// Overflow the ring buffer so its base advances past index 0: the OLDEST
 		// chunks get dropped, so a resume from 0 can never see them.
-		const TOTAL = 4096 + 50; // MAX_BUFFERED_CHUNKS + overflow
+		// Deltas COALESCE per block id now (2026-07-09): same-id deltas merge into
+		// one buffered frame, so overflowing the ring requires distinct block ids —
+		// each new id commits the previous pending frame. TOTAL ids produce
+		// TOTAL-1 committed frames (the last stays pending), so +51 yields the
+		// same 50-frame overflow this test always asserted.
+		const TOTAL = 4096 + 51; // committed frames = TOTAL - 1 = MAX + 50
 		for (let i = 0; i < TOTAL; i++) {
-			handle.record({ type: 'text-delta', id: '0', delta: `c${i}` } as UIMessageChunk);
+			handle.record({ type: 'text-delta', id: String(i), delta: `c${i}` } as UIMessageChunk);
 		}
 
 		const seen: UIMessageChunk[] = [];
