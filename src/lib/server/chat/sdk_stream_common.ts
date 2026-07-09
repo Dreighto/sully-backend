@@ -119,25 +119,83 @@ export function beginActiveStream(
 		onSupersede: options.onSupersede
 	};
 	activeStreams.set(threadId, stream);
+
+	// --- Delta coalescing (2026-07-09 perf audit) ---------------------------
+	// Providers emit near-per-token deltas; forwarding each as its own SSE
+	// frame made a long reply hundreds-to-thousands of tiny frames, each a
+	// parse + state mutation on the iOS main thread (measured as general UI
+	// "spottiness"). Consecutive text-/reasoning-deltas for the same block are
+	// merged and flushed on a short window instead — the AI SDK 7 pattern. The
+	// FIRST text-delta still flushes immediately so time-to-first-token is
+	// unchanged, and any non-delta chunk flushes pending deltas before
+	// committing so ordering is exact. Coalescing happens BEFORE the ring
+	// buffer, so resume replays get the merged frames too.
+	const COALESCE_MS = 60;
+	let pending: { type: 'text-delta' | 'reasoning-delta'; id: string; delta: string } | null = null;
+	let flushTimer: ReturnType<typeof setTimeout> | null = null;
+	let sentFirstTextDelta = false;
+
+	function commit(chunk: UIMessageChunk): void {
+		stream.chunks.push(chunk);
+		const overflow = stream.chunks.length - MAX_BUFFERED_CHUNKS;
+		if (overflow > 0) {
+			stream.chunks.splice(0, overflow);
+			stream.baseIndex += overflow;
+		}
+		for (const listener of Array.from(stream.listeners)) {
+			try {
+				listener.onChunk(chunk);
+			} catch {
+				stream.listeners.delete(listener);
+			}
+		}
+	}
+
+	function flushPending(): void {
+		if (flushTimer) {
+			clearTimeout(flushTimer);
+			flushTimer = null;
+		}
+		if (!pending) return;
+		const merged = pending;
+		pending = null;
+		commit({ type: merged.type, id: merged.id, delta: merged.delta } as UIMessageChunk);
+	}
+
 	return {
 		record(chunk) {
 			if (activeStreams.get(threadId) !== stream) return;
-			stream.chunks.push(chunk);
-			const overflow = stream.chunks.length - MAX_BUFFERED_CHUNKS;
-			if (overflow > 0) {
-				stream.chunks.splice(0, overflow);
-				stream.baseIndex += overflow;
+			const c = chunk as { type?: string; id?: string; delta?: string };
+			const isDelta =
+				(c.type === 'text-delta' || c.type === 'reasoning-delta') &&
+				typeof c.id === 'string' &&
+				typeof c.delta === 'string';
+			if (!isDelta) {
+				flushPending();
+				commit(chunk);
+				return;
 			}
-			for (const listener of Array.from(stream.listeners)) {
-				try {
-					listener.onChunk(chunk);
-				} catch {
-					stream.listeners.delete(listener);
-				}
+			if (c.type === 'text-delta' && !sentFirstTextDelta) {
+				sentFirstTextDelta = true;
+				flushPending();
+				commit(chunk);
+				return;
 			}
+			if (pending && pending.type === c.type && pending.id === c.id) {
+				pending.delta += c.delta as string;
+			} else {
+				flushPending();
+				pending = {
+					type: c.type as 'text-delta' | 'reasoning-delta',
+					id: c.id as string,
+					delta: c.delta as string
+				};
+			}
+			if (!flushTimer) flushTimer = setTimeout(flushPending, COALESCE_MS);
 		},
 		end() {
 			if (activeStreams.get(threadId) !== stream) return;
+			flushPending();
 			activeStreams.delete(threadId);
 			closeListeners(stream);
 		},
