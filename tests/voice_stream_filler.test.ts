@@ -3,7 +3,12 @@ import { runVoiceStreamingSpeak } from '$lib/server/chat/voice_stream';
 
 vi.mock('$lib/server/azure_tts', () => ({
 	synthesizeAzureTts: vi.fn().mockResolvedValue(new Response(Buffer.from('RIFF'))),
-	DEFAULT_AZURE_VOICE: 'en-US-Ava:DragonHDLatestNeural'
+	DEFAULT_AZURE_VOICE: 'en-US-Ava:DragonHDLatestNeural',
+	// W4-B fallback exports voice_stream now imports; breaker closed so these
+	// filler-path turns stay on Azure and never fall forward.
+	azureBreakerOpen: () => false,
+	recordAzureFailure: vi.fn(),
+	recordAzureSuccess: vi.fn()
 }));
 
 vi.mock('$lib/server/chat/web_search', () => ({
@@ -11,7 +16,10 @@ vi.mock('$lib/server/chat/web_search', () => ({
 }));
 
 vi.mock('$lib/server/voice_runtime', () => ({
-	VOICE_OLLAMA_URL: 'http://jetson.test'
+	VOICE_OLLAMA_URL: 'http://jetson.test',
+	// voice_stream now imports voice_tts → voice_services, which resolves the TTS
+	// URL at module load. Unused here (no fall-forward), but needed to load.
+	resolveTtsUrl: () => 'http://jetson.test'
 }));
 
 vi.mock('$lib/server/chat/voice_tools', async (importOriginal) => {
