@@ -3,6 +3,7 @@ import {
 	matchAcronym,
 	matchSpeakableYear
 } from './tts_pronunciation';
+import { rewriteForSpeech } from './voice_rewrite';
 
 const MONTHS =
 	'January|February|March|April|May|June|July|August|September|October|November|December';
@@ -174,4 +175,17 @@ export function speakableText(text: string): string {
 	}
 
 	return out;
+}
+
+// SPOKEN-output entry point (SUL-194 / W4-A). Runs the optional contextual
+// pronunciation rewriter (dark by default via VOICE_REWRITER_MODEL) and then
+// the deterministic SSML normalizer, which is the trusted base. Display text
+// must keep calling speakableText directly; the rewriter is voice-only. Any
+// rewrite failure or timeout is swallowed inside rewriteForSpeech, so with the
+// flag off this is byte-identical to speakableText(text).
+export async function speakableTextForSpeech(
+	text: string,
+	opts?: { signal?: AbortSignal }
+): Promise<string> {
+	return speakableText(await rewriteForSpeech(text, opts));
 }
