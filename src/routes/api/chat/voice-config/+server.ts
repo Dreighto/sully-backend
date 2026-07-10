@@ -13,7 +13,7 @@ import type { RequestHandler } from './$types';
 import { getSetting } from '$lib/server/settings';
 import { getVoice, clientVoices, routingFor, DEFAULT_VOICE_ID } from '$lib/server/voices';
 import { buildVadConfig } from '$lib/server/voice_vad_config';
-import { prewarmAzureTts } from '$lib/server/azure_tts';
+import { prewarmAzureTts, azureBreakerState } from '$lib/server/azure_tts';
 
 export const GET: RequestHandler = () => {
 	// Fires when the operator opens Voice Mode, seconds before the first turn:
@@ -23,9 +23,18 @@ export const GET: RequestHandler = () => {
 	const activeId = getSetting('active_voice') || DEFAULT_VOICE_ID;
 	const voice = getVoice(activeId);
 	const routing = routingFor(voice);
+	// Honest surfacing (SUL-195 / W4-B): while the Azure breaker is open the
+	// voice turns speak with the local backup, so tell the client the truth.
+	// Fields are stable ahead of the iOS card (SUL-193); a null reason means
+	// the cloud voice is healthy.
+	const breaker = azureBreakerState();
 
 	return json({
 		voiceEnabled: true,
+		// True while voice turns are degraded to the local backup (Azure breaker
+		// open); the reason is a short client-renderable string, null when healthy.
+		fallbackActive: breaker.open,
+		fallbackReason: breaker.reason,
 		// Same-origin path proxied to the STT WS service via Tailscale Funnel.
 		// Client builds: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${wsPath}`.
 		wsPath: '/companion-voice',

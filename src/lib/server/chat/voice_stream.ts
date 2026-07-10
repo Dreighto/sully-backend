@@ -23,7 +23,15 @@
 
 import { VOICE_OLLAMA_URL } from '../voice_runtime';
 import { speakableText } from '../tts_normalize';
-import { synthesizeAzureTts, DEFAULT_AZURE_VOICE } from '../azure_tts';
+import {
+	synthesizeAzureTts,
+	DEFAULT_AZURE_VOICE,
+	azureBreakerOpen,
+	recordAzureFailure,
+	recordAzureSuccess
+} from '../azure_tts';
+import { synthesizeLocalTts } from '../voice_tts';
+import { DEFAULT_KOKORO_VOICE } from '../voices';
 import { normalizeWavPeak } from '../wav_gain';
 import { VOICE_TOOL_SCHEMAS, runVoiceToolLoop } from './voice_tools';
 import { OLLAMA_API_KEY } from './web_search';
@@ -103,6 +111,11 @@ export async function runVoiceStreamingSpeak(
 		keepAlive: string;
 		numCtx: number;
 		voice?: string;
+		/** Kokoro voice id used when a turn falls forward to the local backup
+		 *  (breaker open, or Azure failed mid-turn). Defaults to DEFAULT_KOKORO_VOICE
+		 *  (Emma's local clone). The caller resolves the Azure voice separately
+		 *  (SUL-193 owns the catalog); this fallback works with whatever it passes. */
+		kokoroVoice?: string;
 		signal?: AbortSignal;
 		taskId?: string;
 		/** Server-minted response id for this turn — surfaced to the client via the
@@ -126,6 +139,52 @@ export async function runVoiceStreamingSpeak(
 	// caller can pass it straight to `heardPrefixFromLog` on abort.
 	const sentenceLog: SentenceLogEntry[] = [];
 
+	// Fallback state (SUL-195 / W4-B), per turn:
+	//  - turnUsesKokoro: once a turn falls forward (Azure double-failed, or the
+	//    breaker was already open), the REMAINDER of the turn stays on Kokoro so
+	//    the voice identity does not flip back and forth mid-reply.
+	//  - firstFallbackNoticeEmitted: caption notice fires exactly once per turn.
+	//  - bothEnginesDown: Azure AND the Kokoro backup both failed for a sentence;
+	//    the turn is marked hard-failed so the caller persists the heard prefix
+	//    text-only rather than silently dropping audio (#127 last resort).
+	let turnUsesKokoro = false;
+	let firstFallbackNoticeEmitted = false;
+	let bothEnginesDown = false;
+
+	const isAbortErr = (e: unknown) =>
+		(e instanceof Error && e.name === 'AbortError') || opts.signal?.aborted === true;
+
+	// One caption-level notice the first time a turn speaks with the backup
+	// voice, so the voice identity change is acknowledged honestly (W3 truth
+	// principle). The client renders `notice` as a caption; unknown events are
+	// ignored, so this is safe ahead of the iOS card.
+	function emitFallbackNotice(reason: 'azure_failure' | 'breaker_open') {
+		if (firstFallbackNoticeEmitted) return;
+		firstFallbackNoticeEmitted = true;
+		sse(controller, enc, 'notice', {
+			kind: 'voice_fallback',
+			text: 'Speaking with the backup voice for now',
+			reason,
+			ms: rel()
+		});
+	}
+
+	// Synthesize one sentence via the Kokoro/Jetson backup (the same local
+	// resolution Talkback's speak-local uses). Sets bothEnginesDown on failure so
+	// the turn degrades to text-only rather than dropping the sentence silently.
+	async function synthKokoro(spoken: string): Promise<Buffer> {
+		const res = await synthesizeLocalTts({
+			text: spoken,
+			kokoroVoice: opts.kokoroVoice ?? DEFAULT_KOKORO_VOICE,
+			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS)
+		});
+		if (!res.ok || !res.body) {
+			bothEnginesDown = true;
+			throw new Error(`local backup TTS unavailable (HTTP ${res.status})`);
+		}
+		return Buffer.from(await res.arrayBuffer());
+	}
+
 	// Synthesize one sentence via Azure Speech. Returns the WAV bytes.
 	// Wave 5 rewire (2026-07-06, operator directive): was Kokoro on the Jetson
 	// bridge; Azure gives cleaner iteration on the surfaces while the app is
@@ -134,9 +193,9 @@ export async function runVoiceStreamingSpeak(
 	// No trailing-silence padding here — that's a Talkback-only concern for a
 	// single fully-buffered clip; padding every per-sentence chunk here would
 	// stack into exactly the choppy, over-paused cadence this rewire is fixing.
-	async function synth(text: string): Promise<Buffer> {
+	async function synthAzure(spoken: string): Promise<Buffer> {
 		const r = await synthesizeAzureTts({
-			text: speakableText(text),
+			text: spoken,
 			voice: opts.voice ?? DEFAULT_AZURE_VOICE,
 			format: 'wav',
 			signal: composeTimeout(opts.signal, VOICE_TTS_TIMEOUT_MS),
@@ -145,6 +204,41 @@ export async function runVoiceStreamingSpeak(
 		// Peak-normalize to -3 dBFS: raw Azure output reads as "very low" on
 		// iPhone speakers (operator finding, build 193).
 		return normalizeWavPeak(Buffer.from(await r.arrayBuffer()));
+	}
+
+	// Synthesize one sentence with the W4-B fallback ladder:
+	//  breaker open OR already fell forward → straight to Kokoro (no Azure);
+	//  otherwise Azure with ONE immediate retry, then fall forward to Kokoro for
+	//  the rest of the turn. A barge-in / truncate abort is never a "failure":
+	//  it is re-thrown untouched and never trips the breaker or the fallback.
+	async function synth(text: string): Promise<Buffer> {
+		const spoken = speakableText(text);
+
+		if (turnUsesKokoro || azureBreakerOpen()) {
+			if (!turnUsesKokoro) turnUsesKokoro = true;
+			emitFallbackNotice('breaker_open');
+			return synthKokoro(spoken);
+		}
+
+		try {
+			const buf = await synthAzure(spoken);
+			recordAzureSuccess();
+			return buf;
+		} catch (first) {
+			if (isAbortErr(first)) throw first;
+			// One immediate Azure retry before giving up on the cloud voice.
+			try {
+				const buf = await synthAzure(spoken);
+				recordAzureSuccess();
+				return buf;
+			} catch (second) {
+				if (isAbortErr(second)) throw second;
+				recordAzureFailure();
+				turnUsesKokoro = true;
+				emitFallbackNotice('azure_failure');
+				return synthKokoro(spoken);
+			}
+		}
 	}
 
 	const synths: Array<Promise<Buffer>> = [];
@@ -364,6 +458,21 @@ export async function runVoiceStreamingSpeak(
 		notify();
 		await drain;
 		const doneTranscript = nonFillerTranscriptParts.join(' ').trim() || transcript.trim();
+		// Both engines down (Azure double-failed AND the Kokoro backup failed):
+		// no more audio is possible, but the text was generated. Route to the
+		// SAME hard-fail path the caller already handles (SUL-183) so the heard
+		// prefix lands text-only, the turn is not orphaned, and an honest error
+		// surfaces, never a silent hang (the #126 heartbeat bounds it).
+		if (bothEnginesDown) {
+			return {
+				toolTurn: toolMode,
+				transcript: doneTranscript,
+				aborted: false,
+				sentenceLog,
+				hardFailed: true,
+				error: 'Voice synthesis unavailable (Azure and the local backup both failed)'
+			};
+		}
 		sse(controller, enc, 'done', {
 			transcript: doneTranscript,
 			generation_complete_ms: generationCompleteMs,

@@ -79,6 +79,79 @@ export function azureConfigured(): boolean {
 	return !!env.AZURE_SPEECH_KEY && !!env.AZURE_SPEECH_REGION;
 }
 
+// ---------------------------------------------------------------------------
+// Azure TTS circuit breaker (SUL-195 / W4-B).
+//
+// A run of consecutive Azure synth failures opens the breaker: subsequent
+// voice turns skip Azure entirely and route straight to the Kokoro/Jetson
+// backup for a cool-down window, instead of paying the retry latency on every
+// sentence while Azure is down (the #119 pool wedge silenced all voice once).
+// The very next successful Azure synth closes the breaker. Thresholds are
+// env-overridable for the field.
+//
+// State is module-level so both the streaming voice path (voice_stream.ts,
+// which records outcomes) and the voice-config route (which reports
+// fallbackActive/fallbackReason to the client) read the same breaker.
+const AZURE_BREAKER_THRESHOLD = Number(process.env.VOICE_AZURE_BREAKER_THRESHOLD) || 3;
+const AZURE_BREAKER_COOLDOWN_MS =
+	Number(process.env.VOICE_AZURE_BREAKER_COOLDOWN_MS) || 5 * 60 * 1000;
+
+let azureConsecutiveFailures = 0;
+// Timestamp (ms) until which the breaker stays open; 0 means closed. Once the
+// clock passes this the breaker is "half-open": the next turn probes Azure
+// again, and its outcome either closes the breaker (success) or re-opens it
+// for a fresh cool-down (failure), since the failure count is never cleared by
+// the cool-down alone.
+let azureBreakerOpenUntil = 0;
+
+export interface AzureBreakerState {
+	open: boolean;
+	reason: string | null;
+	consecutiveFailures: number;
+	/** Epoch ms the cool-down elapses (0 when closed). */
+	openUntil: number;
+}
+
+/** Record one Azure synth failure. Opens the breaker at the threshold. */
+export function recordAzureFailure(): void {
+	azureConsecutiveFailures += 1;
+	if (azureConsecutiveFailures >= AZURE_BREAKER_THRESHOLD) {
+		azureBreakerOpenUntil = Date.now() + AZURE_BREAKER_COOLDOWN_MS;
+	}
+}
+
+/** Record one Azure synth success. Closes the breaker. */
+export function recordAzureSuccess(): void {
+	azureConsecutiveFailures = 0;
+	azureBreakerOpenUntil = 0;
+}
+
+/**
+ * True while the breaker is open (inside the cool-down window). Turns should
+ * route straight to Kokoro without touching Azure. Returns false once the
+ * cool-down has elapsed so the next turn probes Azure again.
+ */
+export function azureBreakerOpen(): boolean {
+	return azureBreakerOpenUntil > 0 && Date.now() < azureBreakerOpenUntil;
+}
+
+/** Full breaker snapshot for honest surfacing on voice-config. */
+export function azureBreakerState(): AzureBreakerState {
+	const open = azureBreakerOpen();
+	return {
+		open,
+		reason: open ? 'Azure voice unavailable, using the backup voice for now' : null,
+		consecutiveFailures: azureConsecutiveFailures,
+		openUntil: azureBreakerOpenUntil
+	};
+}
+
+/** Test-only: reset breaker state between cases. */
+export function __resetAzureBreaker(): void {
+	azureConsecutiveFailures = 0;
+	azureBreakerOpenUntil = 0;
+}
+
 /**
  * Synthesize `text` via Azure Speech's SSML endpoint. Returns the raw fetch
  * Response (caller decides whether to stream `.body` or buffer `.arrayBuffer()`).
