@@ -7,7 +7,7 @@
 //
 // The circuit breaker is the REAL module-level state (we spread importActual and
 // only override synthesizeAzureTts), so voice_stream and voice-config observe the
-// same breaker — reset before each case.
+// same breaker, reset before each case.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -152,7 +152,7 @@ beforeEach(() => {
 });
 
 describe('W4-B voice fallback ladder', () => {
-	it('Azure fails once then succeeds on retry — no fallback, no notice', async () => {
+	it('Azure fails once then succeeds on retry, no fallback, no notice', async () => {
 		stubOllama('Only one sentence.');
 		azureSynth.mockRejectedValueOnce(new Error('azure blip')).mockResolvedValue(azureOk());
 
@@ -168,7 +168,7 @@ describe('W4-B voice fallback ladder', () => {
 		expect(azureBreakerState().open).toBe(false);
 	});
 
-	it('Azure fails twice — falls forward to Kokoro and emits the notice exactly once', async () => {
+	it('Azure fails twice, falls forward to Kokoro and emits the notice exactly once', async () => {
 		stubOllama('First sentence here. ', 'Second sentence here.');
 		azureSynth.mockRejectedValue(new Error('azure down'));
 		localSynth.mockResolvedValue(kokoroOk());
@@ -223,7 +223,7 @@ describe('W4-B voice fallback ladder', () => {
 		expect(azureBreakerState().open).toBe(true);
 
 		// Advance the clock past the 5-minute default cool-down and run the probe
-		// turn WHILE fake timers hold — reverting first would restore the old clock
+		// turn WHILE fake timers hold, reverting first would restore the old clock
 		// and re-close the cool-down window. The stream/synth mocks resolve on
 		// microtasks, so the turn still completes under fake timers.
 		vi.useFakeTimers();
@@ -265,7 +265,7 @@ describe('W4-B voice fallback ladder', () => {
 		expect(degraded.fallbackReason).toMatch(/backup voice/i);
 	});
 
-	it('both engines down — turn hard-fails text-only (heard prefix available), never hangs', async () => {
+	it('both engines down, turn hard-fails text-only (heard prefix available), never hangs', async () => {
 		stubOllama('This will not be heard.');
 		azureSynth.mockRejectedValue(new Error('azure down'));
 		localSynth.mockResolvedValue(kokoroDown());
